@@ -1,0 +1,6 @@
+{"type":"settings","kernel":"python2-ubuntu","backend_state":"running","trust":true,"kernel_state":"idle"}
+{"type":"file","last_load":1494889843378}
+{"type":"cell","id":"4e39ca","pos":0,"input":"****I will use this file to log the future progress. :-)****","cell_type":"markdown"}
+{"type":"cell","id":"ba13ef","pos":1,"input":"5/15/2017\n<font color='red'>Today I test the new state with coupling terms. The issue is the chemical potential is not real. My understanding is not enough to diagnoize the problem, maybe I should read some papers. OK, I can just go upstair to ask Khalid, he may have idea what's going on.</font>","cell_type":"markdown"}
+{"type":"cell","id":"65e5fb","pos":2,"input":"5/15/2017 4:00PM\n<font color='green'>I did not go upstair, instead I printed out the wavefunctions and checked value of the off-diagnal terms(the coupling terms), I found they were always real number, which was unexpected. Then after doing some test I found the **data type of the coupling terms was not complex**. Now the problem solved. But I have to verify the result! Cheers~</front>","cell_type":"markdown"}
+{"type":"cell","id":"be48f3","pos":3,"input":"5/15/2017 4:18PM\n<font color='blue'>I assume the coupling term will change the population of these two states, but I did not see the population change. Something Wrong!!\n</font>\n","cell_type":"markdown"}
