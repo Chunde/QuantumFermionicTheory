@@ -1,29 +1,7 @@
 # README #
 
-This README would normally document whatever steps are necessary to get your application up and running.
+This Repo can be find at https://bitbucket.org/Chunde/quantum-fermion-theories/src/default/
 
 ### What is this repository for? ###
 
-* Quick summary
-* Version
-* [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
-
-### How do I get set up? ###
-
-* Summary of set up
-* Configuration
-* Dependencies
-* Database configuration
-* How to run tests
-* Deployment instructions
-
-### Contribution guidelines ###
-
-* Writing tests
-* Code review
-* Other guidelines
-
-### Who do I talk to? ###
-
-* Repo owner or admin
-* Other community or team contact
+I probably will put other things such as some testing code, some write-up for the future thesis here.
