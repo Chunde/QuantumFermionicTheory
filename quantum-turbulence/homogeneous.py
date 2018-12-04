@@ -51,9 +51,6 @@ def get_BCS_v_n_e(delta, mu_eff):
        Energy density.
     """
     m = hbar = 1.0
-    """
-    Why kF is of this form?
-    """
     kF = np.sqrt(2*m*max(0, mu_eff))/hbar
 
     def gap_integrand(k):
@@ -82,6 +79,15 @@ def get_BCS_v_n_e(delta, mu_eff):
 
     return namedtuple('BCS_Results', ['v_0', 'n', 'mu', 'e'])(v_0, n, mu, e)
 
+def get_scattering_lenght(delta, mu_eff, k_c):
+    def gap_integrand(k):
+        e_p = (hbar*k)**2/2.0/m - mu_eff
+        return 1./np.sqrt(e_p**2 + abs(delta)**2)
+    res, err = sp.integrate.quad(gap_integrand, 0, k_c)
+    if abs(err) > 1e-6 and abs(err/res) > 1e-6:
+        warnings.warn(
+            "Gap integral did not converge: res, err = %g, %g" % (res, err))
+    a = 2.0 /(-4.0*np.pi * 2.0 * res + 4 * k_c/np.pi)
 
 def BCS(mu_eff, delta=1.0):
     m = hbar = 1.0

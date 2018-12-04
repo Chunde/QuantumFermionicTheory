@@ -37,7 +37,18 @@ def test_Homogeneous1D_T0():
         assert np.allclose(res0.mu, res1.mus)    
 
 
+def test_Homogeneous1D_Regulization():
+    """Compare the Homogeneous1D class with get_BCS_v_n_e for T=0."""
+    np.random.seed(2)    
+    mu_eff, delta = np.random.random(2)
+    res0 = homogeneous.get_BCS_v_n_e(mu_eff=mu_eff, delta=delta)
+    for T in [0, 0.001]:
+        res1 = homogeneous.Homogeneous1D(T=T).get_BCS_v_n_e(
+            mus_eff=(mu_eff,)*2, delta=delta)
+        assert np.allclose(res0.v_0, res1.v_0)
+        assert np.allclose(res0.n, res1.ns.sum())
+        assert np.allclose(res0.mu, res1.mus)   
 
  # to debug in Visual Studio
 if __name__ == '__main__':
-    test_BCS_1D()
+    test_Homogeneous1D_T0()
