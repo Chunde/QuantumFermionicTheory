@@ -19,13 +19,30 @@ def quad(f, kF=None, k_0=0, k_inf=np.inf, limit=1000):
         res1, err1 = sp.integrate.quad(f, kF, k_inf, limit=limit)
         res = res0 + res1
         err = max(err0, err1)
-    
+
     if abs(err) > 1e-6 and abs(err/res) > 1e-6:
         warnings.warn(
             "Gap integral did not converge: res, err = %g, %g" % (res, err))
     return 2*res   # Accounts for integral from -inf to inf
 
+def dquad(f,kz,kp):
+    """Wrapper for quad that deals with singularities
+    at the Fermi surface.
+    """
+    if kz is None:
+        res, err = sp.integrate.dblquad(f, 0, kz, lambda x: 0, lambda x: kp)
+    else:
+        # One might think that `points=[kF]` could be used here, but
+        # this does not work with infinite limits.
+        res0, err0 = sp.integrate.dblquad(f, 0, kz, lambda x: 0, lambda x: kp)
+        res1, err1 = sp.integrate.dblquad(f, kz, np.inf, lambda x: 0, lambda x: kp)
+        res = res0 + res1
+        err = max(err0, err1)
 
+    if abs(err) > 1e-6 and abs(err/res) > 1e-6:
+        warnings.warn(
+            "Gap integral did not converge: res, err = %g, %g" % (res, err))
+    return 2*res   # Accounts for integral from -inf to inf for 3D case, shoud be a facotr of 4 instead of 2?
 
 def get_BCS_v_n_e(delta, mu_eff):
     """Return `(v_0, n, mu, e)` for the 1D BCS solution at T=0.
@@ -56,7 +73,7 @@ def get_BCS_v_n_e(delta, mu_eff):
     def gap_integrand(k):
         e_p = (hbar*k)**2/2.0/m - mu_eff
         return 1./np.sqrt(e_p**2 + abs(delta)**2)
-    
+
     v_0 = 4*np.pi / quad(gap_integrand, kF)
 
     def n_integrand(k):
@@ -74,26 +91,15 @@ def get_BCS_v_n_e(delta, mu_eff):
         return (hbar*k)**2/2.0/m * (denom - e_p)/denom
         """Where this fomula comes from?"""
     e = quad(e_integrand, kF) / 2/np.pi - v_0*n**2/4.0 - abs(delta)**2/v_0
-        
     mu = mu_eff - n*v_0/2
 
     return namedtuple('BCS_Results', ['v_0', 'n', 'mu', 'e'])(v_0, n, mu, e)
-
-def get_scattering_lenght(delta, mu_eff, k_c):
-    def gap_integrand(k):
-        e_p = (hbar*k)**2/2.0/m - mu_eff
-        return 1./np.sqrt(e_p**2 + abs(delta)**2)
-    res, err = sp.integrate.quad(gap_integrand, 0, k_c)
-    if abs(err) > 1e-6 and abs(err/res) > 1e-6:
-        warnings.warn(
-            "Gap integral did not converge: res, err = %g, %g" % (res, err))
-    a = 2.0 /(-4.0*np.pi * 2.0 * res + 4 * k_c/np.pi)
 
 def BCS(mu_eff, delta=1.0):
     m = hbar = 1.0
     """Return `(E_N_E_2, lam)` for comparing with the exact Gaudin
     solution.
-    
+
     Arguments
     ---------
     delta : float
@@ -129,7 +135,7 @@ class Homogeneous1D(object):
     Allows for modified dispersion as well as asymmetric populations.
     """
     T = 0.0
-    
+
     def __init__(self, **kw):
         self.__dict__.update(kw)
 
@@ -146,7 +152,7 @@ class Homogeneous1D(object):
                 k**2/2.0/m - mus_eff[1])
 
     Results = namedtuple('Results', ['e_p', 'E', 'w_p', 'w_m'])
-    
+
     def get_res(self, k, mus_eff, delta):
         e_a, e_b = self.get_es(k, mus_eff=mus_eff)
         e_p, e_m = (e_a + e_b)/2, (e_a - e_b)/2
@@ -154,7 +160,7 @@ class Homogeneous1D(object):
         w_p, w_m = e_m + E, e_m - E
         args = dict(locals())
         return self.Results(*[args[_n] for _n in self.Results._fields])
-    
+
     def get_BCS_v_n_e(self, delta, mus_eff):
         """Return `(v_0, n, mu, e)` for the 1D BCS solution at T=0."""
         kF = np.sqrt(2*max(0, max(mus_eff)))
@@ -199,47 +205,48 @@ class Homogeneous3D(object):
         else:
             return 1./(1+np.exp(E/self.T))
 
-    def get_es(self, k, mus_eff):
-        return (k**2/2.0/m - mus_eff[0],
-                k**2/2.0/m - mus_eff[1])
+    def get_es(self, kz,kp, mus_eff):
+        kp=0.0
+        return ((kz**2+kp**2)/2.0/m - mus_eff[0],
+               (kz**2+kp**2)/2.0/m - mus_eff[1])
 
     Results = namedtuple('Results', ['e_p', 'E', 'w_p', 'w_m'])
-    
-    def get_res(self, k, mus_eff, delta):
-        e_a, e_b = self.get_es(k, mus_eff=mus_eff)
+
+    def get_res(self, kz,kp, mus_eff, delta):
+        e_a, e_b = self.get_es(kz,kp, mus_eff=mus_eff)
         e_p, e_m = (e_a + e_b)/2, (e_a - e_b)/2
         E = np.sqrt(e_p**2 + abs(delta)**2)
         w_p, w_m = e_m + E, e_m - E
         return self.Results(*[locals()[_n] for _n in self.Results._fields])
-    
+
     def get_BCS_v_n_e(self, delta, mus_eff):
         """Return `(v_0, n, mu, e)` for the 1D BCS solution at T=0."""
         kF = np.sqrt(2*max(0, max(mus_eff)))
 
-        def gap_integrand(k):
-            res = self.get_res(k=k, mus_eff=mus_eff, delta=delta)
+        def gap_integrand(kz_,kp_): #this integration will divergnce?
+            res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta)
             return (1 - self.f(res.w_p) - self.f(-res.w_m))/res.E
 
-        v_0 = 4*np.pi / quad(gap_integrand, kF)
+        v_0 = 4*np.pi / dquad(gap_integrand, kF,np.inf) #without regularization, v_0 should be zero?
 
-        def np_integrand(k):
+        def np_integrand(kz_,kp_):
             """Density"""
-            res = self.get_res(k=k, mus_eff=mus_eff, delta=delta)
+            res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta)
             n_p = 1 + res.e_p/res.E*(self.f(res.w_p) + self.f(-res.w_m) - 1)
             return n_p
 
-        def nm_integrand(k):
+        def nm_integrand(kz_,kp_):
             """Density"""
-            res = self.get_res(k=k, mus_eff=mus_eff, delta=delta)
+            res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta)
             n_m = self.f(res.w_p) - self.f(-res.w_m)
             return n_m
 
-        n_m = quad(nm_integrand, kF) / 2/np.pi
-        n_p = quad(np_integrand, kF) / 2/np.pi
+        n_m = dquad(nm_integrand, kF,np.inf) / 2/np.pi#check the factor, should change
+        n_p = dquad(np_integrand, kF,np.inf) / 2/np.pi#check the factor, should change
         n_a = (n_p + n_m)/2.0
         n_b = (n_p - n_m)/2.0
         ns = np.array([n_a, n_b])
         mus = mus_eff - np.array([n_b, n_a])*v_0
 
         return v_0, ns, mus
-    
+
