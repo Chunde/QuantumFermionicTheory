@@ -42,10 +42,17 @@ def test_Homogeneous3D():
     """Compare the Homogeneous1D class with get_BCS_v_n_e for T=0."""
     res0 = homogeneous.get_BCS_v_n_e(mu_eff=1.2, delta=3.4)
 
-    h3 = Homogeneous3D(T=10.0)
+    h3 = Homogeneous3D(T=0)
     res1 = h3.get_BCS_v_n_e(mus_eff=(1.2,)*2, delta=3.4)
     (res0, res1)
-
+def test_Homogeneous3D_scattering_length():
+    """Compare the Homogeneous1D class with get_BCS_v_n_e for T=0."""
+    kc = 10000.0
+    h3 = Homogeneous3D(T=0)
+    res0 = h3.get_scattering_length(mus_eff=(1.2,)*2, delta=3.4,k_c=kc)
+    res1 = h3.get_scattering_length(mus_eff=(1.2,)*2, delta=3.4,k_c=2.0 * kc)
+    print(res0, res1)
+    assert np.allclose(res0, res1,atol=0.0005)    
  # to debug in Visual Studio
 if __name__ == '__main__':
-    test_Homogeneous3D()
+    test_Homogeneous3D_scattering_length()

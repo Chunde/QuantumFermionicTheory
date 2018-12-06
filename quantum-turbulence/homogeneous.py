@@ -25,23 +25,23 @@ def quad(f, kF=None, k_0=0, k_inf=np.inf, limit=1000):
             "Gap integral did not converge: res, err = %g, %g" % (res, err))
     return 2*res   # Accounts for integral from -inf to inf
 
-def dquad(f,kz,kp):
+def dquad(f,kF=None, k_0=0, k_inf=np.inf, limit=1000,int_name = "Gap"):
     """Wrapper for quad that deals with singularities
     at the Fermi surface.
     """
-    if kz is None:
-        res, err = sp.integrate.dblquad(f, 0, kz, lambda x: 0, lambda x: kp)
+    if kF is None:
+        res, err = sp.integrate.dblquad(f, k_0, k_inf, lambda x: k_0, lambda x: k_inf)
     else:
         # One might think that `points=[kF]` could be used here, but
         # this does not work with infinite limits.
-        res0, err0 = sp.integrate.dblquad(f, 0, kz, lambda x: 0, lambda x: kp)
-        res1, err1 = sp.integrate.dblquad(f, kz, np.inf, lambda x: 0, lambda x: kp)
+        res0, err0 = sp.integrate.dblquad(f, k_0, kF, lambda x: k_0, lambda x: k_inf)
+        res1, err1 = sp.integrate.dblquad(f, kF, np.inf, lambda x: kF, lambda x: k_inf)
         res = res0 + res1
         err = max(err0, err1)
 
     if abs(err) > 1e-6 and abs(err/res) > 1e-6:
         warnings.warn(
-            "Gap integral did not converge: res, err = %g, %g" % (res, err))
+            int_name + " integral did not converge: res, err = %g, %g" % (res, err))
     return 2*res   # Accounts for integral from -inf to inf for 3D case, shoud be a facotr of 4 instead of 2?
 
 def get_BCS_v_n_e(delta, mu_eff):
@@ -170,7 +170,7 @@ class Homogeneous1D(object):
             res = self.get_res(k=k, mus_eff=mus_eff, delta=delta)
             return (self.f(res.w_m) - self.f(res.w_p))/res.E
 
-        v_0 = 4*np.pi / quad(gap_integrand, kF)
+        v_0 = 4*np.pi / quad(gap_integrand, kF,)
 
         def np_integrand(k):
             """Density"""
@@ -197,6 +197,7 @@ class Homogeneous1D(object):
 class Homogeneous3D(object):
     """Solutions to the homogeneous BCS equations in 1D at finite T."""
     T = 0.0
+    k_cutoff = np.inf
     def __init__(self, **kw):
         self.__dict__.update(kw)
 
@@ -221,30 +222,49 @@ class Homogeneous3D(object):
         rets = self.Results(*[args[_n] for _n in self.Results._fields])
         return rets
 
-    def get_BCS_v_n_e(self, delta, mus_eff):
-        """Return `(v_0, n, mu, e)` for the 1D BCS solution at T=0."""
+    
+
+    def get_scattering_length(self,delta, mus_eff, k_c):
+        kF = np.sqrt(2*max(0, max(mus_eff)))
+        def gap_integrand( kz_,kp_): #this integration will divergnce?
+            res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta)
+            return kp_* (1 - self.f(res.w_p) - self.f(-res.w_m))/res.E
+        if k_c < kF:
+            res, err = sp.integrate.dblquad(gap_integrand, 0, k_c, lambda x: 0, lambda x: np.sqrt(k_c**2-x**2))
+        else:
+            res0, err0 = sp.integrate.dblquad(gap_integrand, 0, kF, lambda x: 0, lambda x: np.sqrt(k_c**2-x**2))
+            res1, err1 = sp.integrate.dblquad(gap_integrand, kF, k_c, lambda x: 0, lambda x: np.sqrt(k_c**2-x**2))
+            res, err = res0 + res1, err0 + err1
+        if abs(err) > 1e-6 and abs(err/res) > 1e-6:
+                warnings.warn("scalttering integral did not converge: res, err = %g, %g" % (res, err))
+        return 1.0 / (-np.pi * 2.0 * res + 2 * k_c / np.pi) / 4 / np.pi **2
+
+    def get_BCS_v_n_e(self, delta, mus_eff, kc=10000.0):
+        """Return `(v_0, n, mu, e)` for the 3D BCS solution at T=0 or T > 0."""
         kF = np.sqrt(2*max(0, max(mus_eff)))
 
-        def gap_integrand(kz_,kp_): #this integration will divergnce?
-            res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta)
-            return (1 - self.f(res.w_p) - self.f(-res.w_m))/res.E
-        gap_int = dquad(gap_integrand, kF,np.inf)# bad, the result is finite, something goes wrong
-        v_0 = 4*np.pi / gap_int #without regularization, v_0 should be zero?
+        #def gap_integrand(kz_,kp_): #this integration will divergnce?
+        #    res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta)
+        #    return kp_* (1 - self.f(res.w_p) - self.f(-res.w_m))/res.E
+        #gap_int = dquad(f=gap_integrand, kF = kF, int_name="Gap")# bad, the result is finite, something goes wrong
+        #v_0 = 4*np.pi / gap_int #without regularization, v_0 should be zero?
+        
+        v_0 = np.pi * 4.0 / (1/self.get_scattering_length(delta,mus_eff,kc) - 2.0 * kc/np.pi)
 
         def np_integrand(kz_,kp_):
             """Density"""
             res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta)
             n_p = 1 + res.e_p/res.E*(self.f(res.w_p) + self.f(-res.w_m) - 1)
-            return n_p
+            return n_p * kp_
 
         def nm_integrand(kz_,kp_):
             """Density"""
             res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta)
             n_m = self.f(res.w_p) - self.f(-res.w_m)
-            return n_m
+            return n_m * kp_
 
-        n_m = dquad(nm_integrand, kF,np.inf) / 2/np.pi#check the factor, should change
-        n_p = dquad(np_integrand, kF,np.inf) / 2/np.pi#check the factor, should change
+        n_m = dquad(f=nm_integrand, kF=kF, int_name="Density Difference") /4/np.pi**2#check the factor, should change
+        n_p = dquad(f=np_integrand, kF=kF,int_name="Total Density")/4/np.pi**2#check the factor, should change
         n_a = (n_p + n_m)/2.0
         n_b = (n_p - n_m)/2.0
         ns = np.array([n_a, n_b])
