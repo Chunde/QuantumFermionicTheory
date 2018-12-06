@@ -159,7 +159,8 @@ class Homogeneous1D(object):
         E = np.sqrt(e_p**2 + abs(delta)**2)
         w_p, w_m = e_m + E, e_m - E
         args = dict(locals())
-        return self.Results(*[args[_n] for _n in self.Results._fields])
+        rets = self.Results(*[args[_n] for _n in self.Results._fields])
+        return rets
 
     def get_BCS_v_n_e(self, delta, mus_eff):
         """Return `(v_0, n, mu, e)` for the 1D BCS solution at T=0."""
@@ -206,7 +207,6 @@ class Homogeneous3D(object):
             return 1./(1+np.exp(E/self.T))
 
     def get_es(self, kz,kp, mus_eff):
-        kp=0.0
         return ((kz**2+kp**2)/2.0/m - mus_eff[0],
                (kz**2+kp**2)/2.0/m - mus_eff[1])
 
@@ -217,7 +217,9 @@ class Homogeneous3D(object):
         e_p, e_m = (e_a + e_b)/2, (e_a - e_b)/2
         E = np.sqrt(e_p**2 + abs(delta)**2)
         w_p, w_m = e_m + E, e_m - E
-        return self.Results(*[locals()[_n] for _n in self.Results._fields])
+        args = dict(locals())
+        rets = self.Results(*[args[_n] for _n in self.Results._fields])
+        return rets
 
     def get_BCS_v_n_e(self, delta, mus_eff):
         """Return `(v_0, n, mu, e)` for the 1D BCS solution at T=0."""
@@ -226,8 +228,8 @@ class Homogeneous3D(object):
         def gap_integrand(kz_,kp_): #this integration will divergnce?
             res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta)
             return (1 - self.f(res.w_p) - self.f(-res.w_m))/res.E
-
-        v_0 = 4*np.pi / dquad(gap_integrand, kF,np.inf) #without regularization, v_0 should be zero?
+        gap_int = dquad(gap_integrand, kF,np.inf)# bad, the result is finite, something goes wrong
+        v_0 = 4*np.pi / gap_int #without regularization, v_0 should be zero?
 
         def np_integrand(kz_,kp_):
             """Density"""

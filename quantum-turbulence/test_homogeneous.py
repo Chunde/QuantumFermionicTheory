@@ -4,6 +4,7 @@ import numpy as np
 from scipy.optimize import brentq
 
 import homogeneous
+from homogeneous import Homogeneous3D
 
 def test_BCS_1D(lam_inv=0.5):
     """Test a few values from Table I of Quick:1993."""
@@ -37,18 +38,14 @@ def test_Homogeneous1D_T0():
         assert np.allclose(res0.mu, res1.mus)    
 
 
-def test_Homogeneous1D_Regulization():
+def test_Homogeneous3D():
     """Compare the Homogeneous1D class with get_BCS_v_n_e for T=0."""
-    np.random.seed(2)    
-    mu_eff, delta = np.random.random(2)
-    res0 = homogeneous.get_BCS_v_n_e(mu_eff=mu_eff, delta=delta)
-    for T in [0, 0.001]:
-        res1 = homogeneous.Homogeneous1D(T=T).get_BCS_v_n_e(
-            mus_eff=(mu_eff,)*2, delta=delta)
-        assert np.allclose(res0.v_0, res1.v_0)
-        assert np.allclose(res0.n, res1.ns.sum())
-        assert np.allclose(res0.mu, res1.mus)   
+    res0 = homogeneous.get_BCS_v_n_e(mu_eff=1.2, delta=3.4)
+
+    h3 = Homogeneous3D(T=10.0)
+    res1 = h3.get_BCS_v_n_e(mus_eff=(1.2,)*2, delta=3.4)
+    (res0, res1)
 
  # to debug in Visual Studio
 if __name__ == '__main__':
-    test_Homogeneous1D_T0()
+    test_Homogeneous3D()
