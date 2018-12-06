@@ -193,7 +193,7 @@ class Homogeneous1D(object):
 
         return namedtuple('BCS_Results', ['v_0', 'ns', 'mus'])(v_0, ns, mus)
 
-"""To-Do"""
+"""3D homogenous system with regularization"""
 class Homogeneous3D(object):
     """Solutions to the homogeneous BCS equations in 1D at finite T."""
     T = 0.0
@@ -222,7 +222,7 @@ class Homogeneous3D(object):
         rets = self.Results(*[args[_n] for _n in self.Results._fields])
         return rets
 
-    
+
 
     def get_scattering_length(self,delta, mus_eff, k_c):
         kF = np.sqrt(2*max(0, max(mus_eff)))
@@ -248,7 +248,7 @@ class Homogeneous3D(object):
         #    return kp_* (1 - self.f(res.w_p) - self.f(-res.w_m))/res.E
         #gap_int = dquad(f=gap_integrand, kF = kF, int_name="Gap")# bad, the result is finite, something goes wrong
         #v_0 = 4*np.pi / gap_int #without regularization, v_0 should be zero?
-        
+
         v_0 = np.pi * 4.0 / (1/self.get_scattering_length(delta,mus_eff,kc) - 2.0 * kc/np.pi)
 
         def np_integrand(kz_,kp_):
