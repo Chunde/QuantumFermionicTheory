@@ -222,6 +222,7 @@ class Homogeneous3D(object):
         rets = self.Results(*[args[_n] for _n in self.Results._fields])
         return rets
 
+    #def get_gap_unitary(self, delta,mus_eff, k_c):
 
 
     def get_scattering_length(self,delta, mus_eff, k_c):
@@ -229,6 +230,7 @@ class Homogeneous3D(object):
         def gap_integrand( kz_,kp_): #this integration will divergnce?
             res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta)
             return kp_* (1 - self.f(res.w_p) - self.f(-res.w_m))/res.E
+
         if k_c < kF:
             res, err = sp.integrate.dblquad(gap_integrand, 0, k_c, lambda x: 0, lambda x: np.sqrt(k_c**2-x**2))
         else:
@@ -237,7 +239,9 @@ class Homogeneous3D(object):
             res, err = res0 + res1, err0 + err1
         if abs(err) > 1e-6 and abs(err/res) > 1e-6:
                 warnings.warn("scalttering integral did not converge: res, err = %g, %g" % (res, err))
-        return 1.0 / (-np.pi * 2.0 * res + 2 * k_c / np.pi) / 4 / np.pi **2
+
+        res = res  / 4 / np.pi **2 # the result should be the 1/g, where g=-v_0
+        return 1.0 / (-np.pi * 2.0 * res + 2 * k_c / np.pi)
 
     def get_BCS_v_n_e(self, delta, mus_eff, kc=10000.0):
         """Return `(v_0, n, mu, e)` for the 3D BCS solution at T=0 or T > 0."""
