@@ -25,7 +25,7 @@ def quad(f, kF=None, k_0=0, k_inf=np.inf, limit=1000):
             "Gap integral did not converge: res, err = %g, %g" % (res, err))
     return 2*res   # Accounts for integral from -inf to inf
 
-def dquad(f,kF=None, k_0=0, k_inf=np.inf, limit=1000,int_name = "Gap"):
+def dquad(f, kF=None, k_0=0, k_inf=np.inf, limit=1000, int_name="Gap"):
     """Wrapper for quad that deals with singularities
     at the Fermi surface.
     """
@@ -195,7 +195,6 @@ class Homogeneous1D(object):
 
 """3D homogenous system with regularization"""
 class Homogeneous3D(object):
-    """Solutions to the homogeneous BCS equations in 1D at finite T."""
     T = 0.0
     k_cutoff = np.inf
     def __init__(self, **kw):
@@ -225,11 +224,14 @@ class Homogeneous3D(object):
     #def get_gap_unitary(self, delta,mus_eff, k_c):
 
 
-    def get_scattering_length(self,delta, mus_eff, k_c):
+    def get_inv_scattering_length(self, delta, mus_eff, k_c):
         kF = np.sqrt(2*max(0, max(mus_eff)))
-        def gap_integrand( kz_,kp_): #this integration will divergnce?
+        def gap_integrand(kz_, kp_): 
+            # this integration will diverge?
             res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta)
             return kp_* (1 - self.f(res.w_p) - self.f(-res.w_m))/res.E
+
+        self._gap_integrand = gap_integrand
 
         if k_c < kF:
             res, err = sp.integrate.dblquad(gap_integrand, 0, k_c, lambda x: 0, lambda x: np.sqrt(k_c**2-x**2))
@@ -237,13 +239,16 @@ class Homogeneous3D(object):
             res0, err0 = sp.integrate.dblquad(gap_integrand, 0, kF, lambda x: 0, lambda x: np.sqrt(k_c**2-x**2))
             res1, err1 = sp.integrate.dblquad(gap_integrand, kF, k_c, lambda x: 0, lambda x: np.sqrt(k_c**2-x**2))
             res, err = res0 + res1, err0 + err1
+        
         if abs(err) > 1e-6 and abs(err/res) > 1e-6:
                 warnings.warn("scalttering integral did not converge: res, err = %g, %g" % (res, err))
 
-        res = res  / 4 / np.pi **2 # the result should be the 1/g, where g=-v_0
-        return 1.0 / (-np.pi * 2.0 * res + 2 * k_c / np.pi)
+        # Factor of 1/4/pi**2 but we include the factor of 2 from -k_z to k_z
+        res /= 2*np.pi**2 # the result should be the 1/g, where g=-v_0
+        # print(-np.pi * 2.0 * res, 2 * k_c / np.pi)
+        return (-np.pi * 2.0 * res + 2 * k_c / np.pi)
 
-    def get_BCS_v_n_e(self, delta, mus_eff, kc=10000.0):
+    def get_BCS_v_n_e(self, delta, mus_eff, k_c=10000.0, unitary = False):
         """Return `(v_0, n, mu, e)` for the 3D BCS solution at T=0 or T > 0."""
         kF = np.sqrt(2*max(0, max(mus_eff)))
 
@@ -252,23 +257,26 @@ class Homogeneous3D(object):
         #    return kp_* (1 - self.f(res.w_p) - self.f(-res.w_m))/res.E
         #gap_int = dquad(f=gap_integrand, kF = kF, int_name="Gap")# bad, the result is finite, something goes wrong
         #v_0 = 4*np.pi / gap_int #without regularization, v_0 should be zero?
+        if not unitary:
+            ainv_s = self.get_inv_scattering_length(delta=delta, mus_eff=mus_eff, k_c=k_c)
+            v_0 = np.pi * 4.0 / (ainv_s  - 2.0 * k_c/np.pi)
+        else:
+            v_0 = 2 * np.pi **2 / k_c
 
-        v_0 = np.pi * 4.0 / (1/self.get_scattering_length(delta,mus_eff,kc) - 2.0 * kc/np.pi)
-
-        def np_integrand(kz_,kp_):
+        def np_integrand(kz_, kp_):
             """Density"""
             res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta)
             n_p = 1 + res.e_p/res.E*(self.f(res.w_p) + self.f(-res.w_m) - 1)
             return n_p * kp_
 
-        def nm_integrand(kz_,kp_):
+        def nm_integrand(kz_, kp_):
             """Density"""
             res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta)
             n_m = self.f(res.w_p) - self.f(-res.w_m)
             return n_m * kp_
 
-        n_m = dquad(f=nm_integrand, kF=kF, int_name="Density Difference") /4/np.pi**2#check the factor, should change
-        n_p = dquad(f=np_integrand, kF=kF,int_name="Total Density")/4/np.pi**2#check the factor, should change
+        n_m = dquad(f=nm_integrand, kF=kF, k_inf=k_c, int_name="Density Difference")/4/np.pi**2#check the factor, should change
+        n_p = dquad(f=np_integrand, kF=kF, k_inf=k_c, int_name="Total Density")/4/np.pi**2#check the factor, should change
         n_a = (n_p + n_m)/2.0
         n_b = (n_p - n_m)/2.0
         ns = np.array([n_a, n_b])

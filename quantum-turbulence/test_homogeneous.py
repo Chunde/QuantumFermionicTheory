@@ -38,13 +38,16 @@ def test_Homogeneous1D_T0():
         assert np.allclose(res0.mu, res1.mus)    
 
 
-def test_Homogeneous3D():
+def test_Homogeneous3D_T0_Unitary():
     """Compare the Homogeneous1D class with get_BCS_v_n_e for T=0."""
-    res0 = homogeneous.get_BCS_v_n_e(mu_eff=1.2, delta=3.4)
-
     h3 = Homogeneous3D(T=0)
-    res1 = h3.get_BCS_v_n_e(mus_eff=(1.2,)*2, delta=3.4)
-    (res0, res1)
+    delta = 3.4
+    res = h3.get_BCS_v_n_e(mus_eff=(1.2,)*2, delta=delta,unitary = True)
+    #1.1622005617900125710mu_+
+    mu_p = res.mus.sum() / 2.0
+    assert np.allclose(delta, mu_p * 1.1622005617900125710)
+
+    
 def test_Homogeneous3D_scattering_length():
     """Compare the Homogeneous1D class with get_BCS_v_n_e for T=0."""
     kc = 10000.0
