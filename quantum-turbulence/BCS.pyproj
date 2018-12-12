@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>d96035f2-d7ba-4540-adc5-a336a7b7a91f</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>test_homogeneous.py</StartupFile>
+    <StartupFile>scratch.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -24,6 +24,9 @@
     <Compile Include="bcs.py" />
     <Compile Include="homogeneous.py" />
     <Compile Include="Lattice.py" />
+    <Compile Include="scratch.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="test_homogeneous.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />

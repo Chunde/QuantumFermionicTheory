@@ -21,8 +21,7 @@ def quad(f, kF=None, k_0=0, k_inf=np.inf, limit=1000):
         err = max(err0, err1)
 
     if abs(err) > 1e-6 and abs(err/res) > 1e-6:
-        warnings.warn(
-            "Gap integral did not converge: res, err = %g, %g" % (res, err))
+        warnings.warn("Gap integral did not converge: res, err = %g, %g" % (res, err))
     return 2*res   # Accounts for integral from -inf to inf
 
 def dquad(f, kF=None, k_0=0, k_inf=np.inf, limit=1000, int_name="Gap"):
@@ -224,7 +223,7 @@ class Homogeneous3D(object):
     #def get_gap_unitary(self, delta,mus_eff, k_c):
 
 
-    def get_inv_scattering_length(self, delta, mus_eff, k_c):
+    def get_inverse_scattering_length(self, delta, mus_eff, k_c):
         kF = np.sqrt(2*max(0, max(mus_eff)))
         def gap_integrand(kz_, kp_): 
             # this integration will diverge?
@@ -258,7 +257,7 @@ class Homogeneous3D(object):
         #gap_int = dquad(f=gap_integrand, kF = kF, int_name="Gap")# bad, the result is finite, something goes wrong
         #v_0 = 4*np.pi / gap_int #without regularization, v_0 should be zero?
         if not unitary:
-            ainv_s = self.get_inv_scattering_length(delta=delta, mus_eff=mus_eff, k_c=k_c)
+            ainv_s = self.get_inverse_scattering_length(delta=delta, mus_eff=mus_eff, k_c=k_c)
             v_0 = np.pi * 4.0 / (ainv_s  - 2.0 * k_c/np.pi)
         else:
             v_0 = 2 * np.pi **2 / k_c
@@ -283,6 +282,35 @@ class Homogeneous3D(object):
 
         n_m = dquad(f=nm_integrand, kF=kF, k_inf=k_c, int_name="Density Difference")/4/np.pi**2#check the factor, should change
         n_p = dquad(f=np_integrand, kF=kF, k_inf=k_c, int_name="Total Density")/4/np.pi**2#check the factor, should change
+        n_a = (n_p + n_m)/2.0
+        n_b = (n_p - n_m)/2.0
+        ns = np.array([n_a, n_b])
+        mus = mus_eff - np.array([n_b, n_a])*v_0
+
+        return v_0, ns, mus
+
+    def get_BCS_v_n_e_in_spherical(self, delta, mus_eff, k_c=10000.0, unitary = False):
+        """Return `(v_0, n, mu, e)` for the 3D BCS solution at T=0 or T > 0."""
+        kF = np.sqrt(2*max(0, max(mus_eff)))
+
+        if not unitary:
+            ainv_s = self.get_inverse_scattering_length(delta=delta, mus_eff=mus_eff, k_c=k_c)
+            v_0 = np.pi * 4.0 / (ainv_s  - 2.0 * k_c/np.pi)
+        else:
+            v_0 = 2 * np.pi **2 / k_c
+            
+        def np_integrand(kr):
+            res = self.get_res(kz=kr,kp=0, mus_eff=mus_eff, delta=delta)
+            n_p = 1 - res.e_p/res.E*(self.f(res.w_p) + self.f(-res.w_m) - 1)
+            return n_p * kr**2
+        
+        def nm_integrand(kr):
+            res = self.get_res(kz=kr,kp=0, mus_eff=mus_eff, delta=delta)
+            n_m = self.f(res.w_p) - self.f(-res.w_m)
+            return n_m * kr**2
+
+        n_m = quad(f=nm_integrand, kF=kF)/2/np.pi**2#check the factor, should change
+        n_p = quad(f=np_integrand, kF=kF)/2/np.pi**2#check the factor, should change
         n_a = (n_p + n_m)/2.0
         n_b = (n_p - n_m)/2.0
         ns = np.array([n_a, n_b])
