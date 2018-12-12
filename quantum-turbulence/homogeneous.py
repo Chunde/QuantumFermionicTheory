@@ -263,12 +263,18 @@ class Homogeneous3D(object):
         else:
             v_0 = 2 * np.pi **2 / k_c
 
-        def np_integrand(kz_, kp_):
-            """Density"""
+        def n_p(kz_, kp_):
             res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta)
             n_p = 1 + res.e_p/res.E*(self.f(res.w_p) + self.f(-res.w_m) - 1)
-            return n_p * kp_
+            return n_p
+            
+        def np_integrand(kz_, kp_):
+            """Density"""
+            #n_p = 1 - res.e_p/res.E*(self.f(res.w_m) - self.f(res.w_p)) #this line the the next line are equivalent, give same value
+            return n_p(kz_=kz_, kp_=kp_) * kp_
 
+        self._n_p = n_p
+        
         def nm_integrand(kz_, kp_):
             """Density"""
             res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta)
