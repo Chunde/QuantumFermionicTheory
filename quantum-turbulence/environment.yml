@@ -1,0 +1,27 @@
+name: _bdg
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3
+  - numpy
+  - scipy>=0.17.1
+  - matplotlib>=1.5
+  - uncertainties
+  - sympy
+
+  - ipykernel        # Use with nb_conda_kernels so jupyter sees this kernel
+  - notebook
+  
+  # For testing
+  - flake8
+  - pytest-cov
+  - pytest-runner
+  #- pylint
+  #- mock
+  #- pep8
+  
+  - pip:
+    - ad
+    - mmf_setup>=0.1.11
+    - mmfutils
