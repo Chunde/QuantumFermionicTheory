@@ -4,18 +4,21 @@ import numpy as np
 from scipy.optimize import brentq
 import homogeneous;reload(homogeneous)
 from homogeneous import get_BCS_v_n_e, Homogeneous3D
+import vortex_2d;reload(vortex_2d)
 
 if __name__ == "__main__":
-    h3 = Homogeneous3D(T=0.0)
-    k0 = 1.0
-    mu = k0**2/2
-    eF = mu/0.5906055
-    kF = np.sqrt(2*eF)
-    n_p = kF**3/3/np.pi**2
-    mus_eff = (mu,)*2
-    delta = 1.16220056*mus_eff[0]
-    k_c = 10.0
-    #Lambda = h3.get_inverse_scattering_length(mus_eff=mus_eff, delta=delta, k_c=k_c)/4/np.pi
-    #Lambda, -k_c/2/np.pi**2*k0/2/k_c*np.log((k_c+k0)/(k_c-k0))
-    v0, ns, mus = h3.get_BCS_v_n_e(mus_eff=mus_eff, delta=delta, k_c=100)
-    v0, ns, mus = h3.get_BCS_v_n_e_in_spherical(mus_eff=mus_eff, delta=delta, k_c=100)
+    Nx, Ny = 64, 64
+    H = np.eye(Nx*Ny).reshape(Nx, Ny, Nx, Ny) # Hamiltanian is of 4d > 2d? I need to think about it H is of size 4096 * 4096, or 64*64*64*64
+
+    U = np.fft.fftn(H, axes=[0,1]).reshape(Nx*Ny, Nx*Ny)
+    psi = np.random.random((Nx, Ny)) # the wave function is of 2d
+    np.allclose(np.fft.fftn(psi).ravel(), U.dot(psi.ravel()))
+
+    s = vortex_2d.BCS(Nxy=(16,)*2)
+    k_c = abs(s.kxy[0]).max()
+    E_c = (s.hbar*k_c)**2/2/s.m
+    s = vortex_2d.BCS(Nxy=(16,)*2, E_c=E_c)
+    kw = dict(mus=(mu, mu), delta=delta)
+    #R = s.get_R(**kw)
+    H = s.get_H(**kw)
+    assert np.allclose(H, H.T.conj())

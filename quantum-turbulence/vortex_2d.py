@@ -18,8 +18,7 @@ class BCS(object):
     m = 1.0
     w = 1.0                     # Trapping potential
 
-    def __init__(self, Nxy=(32, 32), Lxy=(10.0, 10.0), dx=None, T=0,
-                 E_c=np.inf):
+    def __init__(self, Nxy=(32, 32), Lxy=(10.0, 10.0), dx=None, T=0,E_c=np.inf):
         """Specify any two of `Nxy`, `Lxy`, or `dx`.
 
         Arguments
