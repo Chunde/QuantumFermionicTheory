@@ -46,7 +46,7 @@ class BCS(object):
 
         Nx, Ny = Nxy
         Lx, Ly = Lxy
-        self.xy = ((np.arange(Nx) * dx - Lx / 2)[:, None],
+        self.xy = ((np.arange(Nx) * dx - Lx / 2)[:, None],# half of the length
                    (np.arange(Ny) * dy - Ly / 2)[None, :])
         
         self.kxy = (2*np.pi * np.fft.fftfreq(Nx, dx)[:, None],
@@ -69,11 +69,8 @@ class BCS(object):
         mat_shape = (np.prod(self.Nxy),)*2
         tensor_shape = self.Nxy + self.Nxy
         K = np.eye(mat_shape[0]).reshape(tensor_shape)
-            
-        K = self.ifftn(
-            sum((self.hbar*_k)**2/2/self.m for _k in self.kxy)
-            [:, :,  None, None]
-            *self.fftn(K)).reshape((np.prod(self.Nxy),)*2).reshape(mat_shape)
+        # this line is hard to understand    
+        K = self.ifftn(sum((self.hbar*_k)**2/2/self.m for _k in self.kxy)[:, :,  None, None]*self.fftn(K)).reshape((np.prod(self.Nxy),)*2).reshape(mat_shape)
         return (K, K)
 
     def fftn(self, y):
@@ -118,7 +115,7 @@ class BCS(object):
         K_a, K_b = self.get_Ks(twist=twist)
         Mu_a, Mu_b = np.diag((mu_a - v_a).ravel()), np.diag((mu_b - v_b).ravel())
         H = np.bmat([[K_a - Mu_a, -Delta],
-                     [-Delta.conj(), -(K_b - Mu_b)]])
+                     [-Delta.conj(), -(K_b - Mu_b)]]) # H is 512 * 512?
         return np.asarray(H)
 
     def get_R(self, mus, delta, N_twist=1, twists=None):

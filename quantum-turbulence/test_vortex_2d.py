@@ -99,16 +99,23 @@ def test_BdG_homogeneous():
     # |0|0|, |0|0|,|1|0|, |0|1|
 
 def test_BdG_lattice_2d():
+    e_F = 1.0
+    k_F = np.sqrt(2*m*e_F)
+    n_F = k_F**3/3/np.pi**2
+    E_FG = 2./3*n_F*e_F
+    mu = 0.59060550703283853378393810185221521748413488992993*e_F
+    delta = 0.68640205206984016444108204356564421137062514068346*e_F
+
     Nx, Ny = 64, 64
-    H = np.eye(Nx*Ny).reshape(Nx, Ny, Nx, Ny) # Hamiltanian is of 4d > 2d? I need to think about it H is of size 4096 * 4096, or 64*64*64*64
+    H = np.eye(Nx*Ny).reshape(Nx, Ny, Nx, Ny) # apply 2d dft to the first and second dimensions only
     U = np.fft.fftn(H, axes=[0,1]).reshape(Nx*Ny, Nx*Ny)
-    psi = np.random.random((Nx, Ny)) # the wave function is of 2d
+    psi = np.random.random((Nx, Ny)) # the wave function is 2d
     np.allclose(np.fft.fftn(psi).ravel(), U.dot(psi.ravel())) # the relation means : dft(H) . psi = dft(psi) ???
 
-    s = vortex_2d.BCS(Nxy=(16,)*2)
+    s = vortex_2d.BCS(Nxy=(2,)*2)
     k_c = abs(s.kxy[0]).max()
     E_c = (s.hbar*k_c)**2/2/s.m
-    s = vortex_2d.BCS(Nxy=(16,)*2, E_c=E_c)
+    s = vortex_2d.BCS(Nxy=(2,)*2, E_c=E_c)
     kw = dict(mus=(mu, mu), delta=delta)
     #R = s.get_R(**kw)
     H = s.get_H(**kw)
