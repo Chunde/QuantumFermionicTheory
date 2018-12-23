@@ -46,33 +46,46 @@ class ASLDA(object):
 
         Nx, Ny = Nxy
         Lx, Ly = Lxy
-        self.xy = ((np.arange(Nx) * dx - Lx / 2)[:, None],# half of the length
-                   (np.arange(Ny) * dy - Ly / 2)[None, :])
+        self.xy = ((np.arange(Nx) * dx - Lx / 2)[:, None], (np.arange(Ny) * dy - Ly / 2)[None, :])
         
-        self.kxy = (2*np.pi * np.fft.fftfreq(Nx, dx)[:, None],
-                    2*np.pi * np.fft.fftfreq(Ny, dy)[None, :])
+        self.kxy = (2*np.pi * np.fft.fftfreq(Nx, dx)[:, None],2*np.pi * np.fft.fftfreq(Ny, dy)[None, :])
         self.dx = dx
-        
         self.Nxy = tuple(Nxy)
         self.Lxy = tuple(Lxy)
         self.T = T
         self.E_c = E_c
-
         # External potential
         self.v_ext = self.get_v_ext()
-        
-        # to-do modified the Ks
-    def get_Ks(self, ns=(0,0), twist=(0, 0)): 
+
+    def get_nabla(self, twist=(0,0)):
+        k_bloch = np.divide(twist, self.Lxy)
+        kxy = [_k + _kb for _k, _kb in zip(self.kxy, k_bloch)]
+        mat_shape = (np.prod(self.Nxy),)*2
+        tensor_shape = self.Nxy + self.Nxy
+        nabla = np.eye(mat_shape[0]).reshape(tensor_shape)
+        N= self.hbar/2/self.m
+        nabla = self.ifft2(-1j*sum(_k  for _k in self.kxy)[:, :,  None, None]*self.fft2(nabla)).reshape((np.prod(self.Nxy),)*2).reshape(mat_shape)
+        return nabla
+
+    def get_Ks_Vs(self, ns=(0,0), twist=(0, 0)): 
         """Return the kinetic energy matrix."""
         k_bloch = np.divide(twist, self.Lxy)
         kxy = [_k + _kb for _k, _kb in zip(self.kxy, k_bloch)]
 
+        alpha_a, alpha_b, alpha_p = self.get_alphas(ns)
+
+        if type(alpha_a) != type(np.array):
+            alpha_a = np.eye(self.Nxy[0]) * alpha_a # this will be problematic if Nx != Ny
+            alpha_b = np.eye(self.Nxy[0]) * alpha_b
+        nabla = self.get_nabla(twist)
         mat_shape = (np.prod(self.Nxy),)*2
         tensor_shape = self.Nxy + self.Nxy
         K = np.eye(mat_shape[0]).reshape(tensor_shape)
-        # this line is hard to understand    
-        K = self.ifft2(sum((self.hbar*_k)**2/2/self.m for _k in self.kxy)[:, :,  None, None]*self.fft2(K)).reshape((np.prod(self.Nxy),)*2).reshape(mat_shape)
-        return (K, K)
+        K = self.ifft2(sum(_k**2 for _k in self.kxy)[:, :,  None, None]*self.fft2(K)).reshape((np.prod(self.Nxy),)*2).reshape(mat_shape) * self.hbar**2/2/self.m
+
+        K_a = np.diag(nabla.dot(alpha_a.ravel())).dot(nabla) + np.diag(alpha_a.ravel()).dot(K)
+        K_b = np.diag(nabla.dot(alpha_b.ravel())).dot(nabla) + np.diag(alpha_b.ravel()).dot(K)
+        return (K_a, K_b)
 
     def fft2(self, y):
             return np.fft.fftn(y, axes=(0,1))
@@ -94,6 +107,9 @@ class ASLDA(object):
         return (n_a, n_b)
 
     def get_p(self, ns):
+        # ns start with initialized value (0,0)
+        if ns == (0,0):
+            return 0
         n_a, n_b = ns
         n_p,n_m = n_a + n_b,n_a - n_b
         p = n_p / n_m # may be wrong
@@ -149,7 +165,7 @@ class ASLDA(object):
         mu_a, mu_b = mus
         mu_a += zero
         mu_b += zero
-        K_a, K_b = self.get_Ks(twist=twist)
+        K_a, K_b = self.get_Ks_Vs(twist=twist)
         Mu_a, Mu_b = np.diag((mu_a - v_a).ravel()), np.diag((mu_b - v_b).ravel())
         H = np.bmat([[K_a - Mu_a, -Delta],
                      [-Delta.conj(), -(K_b - Mu_b)]]) # H is 512 * 512?

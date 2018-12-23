@@ -69,8 +69,10 @@ class BCS(object):
         mat_shape = (np.prod(self.Nxy),)*2
         tensor_shape = self.Nxy + self.Nxy
         K = np.eye(mat_shape[0]).reshape(tensor_shape)
-        # this line is hard to understand    
-        K = self.ifftn(sum((self.hbar*_k)**2/2/self.m for _k in self.kxy)[:, :,  None, None]*self.fftn(K)).reshape((np.prod(self.Nxy),)*2).reshape(mat_shape)
+        # K = self.ifftn(sum((self.hbar*_k)**2/2/self.m for _k in self.kxy)[:, :,  None, None]*self.fftn(K)).reshape((np.prod(self.Nxy),)*2).reshape(mat_shape)
+        # move the factor hbar^2/2m of the fourier transform to speed up a bit
+        N = self.hbar**2/2/self.m   
+        K = N * self.ifftn(sum(_k**2 for _k in self.kxy)[:, :,  None, None]*self.fftn(K)).reshape((np.prod(self.Nxy),)*2).reshape(mat_shape)
         return (K, K)
 
     def fftn(self, y):

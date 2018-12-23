@@ -98,6 +98,37 @@ def test_BdG_homogeneous():
     # |1|0|, |0|1|,|0|0|, |0|0|
     # |0|0|, |0|0|,|1|0|, |0|1|
 
+
+# Need to check very very carefully, the factor 2 in the T1 is not normal!!!!
+def test_kinetic_matrix():
+    # The code is a bit silly, but it works, and it's connected to all what I have done above
+    # Obviously can be shorten a lot 
+    def getKineticMatrix(s):
+        U = []
+        for x in s.xy[0].ravel():
+            for y in s.xy[0].ravel():
+                for kx in s.kxy[0].ravel():
+                    for ky in s.kxy[1].ravel():
+                        U.append(np.exp(-1j*(kx * x + ky * y)) )
+
+        a= np.reshape(U,(np.prod(s.Nxy),)*2 )
+
+        f = []
+        for k1 in s.kxy[0].ravel():
+            for k2 in s.kxy[1].ravel():
+                f.append(k1**2 + k2**2 )
+        b = np.diag(f) / np.prod(s.Nxy)
+        T=a.dot(b)# a.dot(b) #np.matmul(a,b)
+        T2 = T.dot(a.conj().T) # np.matmul(T,a.conj().T)
+        return T2
+
+    for n in range(1,6):
+        s = vortex_2d.BCS(Nxy=(2**n,)*2)
+        T1 = s.get_Ks()
+        s.Nxy
+        T2 = getKineticMatrix(s)
+        assert np.allclose(T1[0] *2, T2) # I am confused, here I need to multiply a factor of two, which is not in the notebook
+
 def test_BdG_lattice_2d():
     e_F = 1.0
     k_F = np.sqrt(2*m*e_F)
@@ -112,7 +143,7 @@ def test_BdG_lattice_2d():
     psi = np.random.random((Nx, Ny)) # the wave function is 2d
     np.allclose(np.fft.fftn(psi).ravel(), U.dot(psi.ravel())) # the relation means : dft(H) . psi = dft(psi) ???
 
-    s = vortex_2d.BCS(Nxy=(2,)*2)
+    s = vortex_2d.BCS(Nxy=(2,)*2) 
     k_c = abs(s.kxy[0]).max()
     E_c = (s.hbar*k_c)**2/2/s.m
     s = vortex_2d.BCS(Nxy=(2,)*2, E_c=E_c)
@@ -122,4 +153,4 @@ def test_BdG_lattice_2d():
     assert np.allclose(H, H.T.conj())
 
 if __name__ == '__main__':
-    test_BdG_lattice_2d()
+    test_kinetic_matrix()
