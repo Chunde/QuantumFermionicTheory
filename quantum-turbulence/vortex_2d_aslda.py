@@ -63,8 +63,8 @@ class ASLDA(object):
         mat_shape = (np.prod(self.Nxy),)*2
         tensor_shape = self.Nxy + self.Nxy
         nabla = np.eye(mat_shape[0]).reshape(tensor_shape)
-        N= self.hbar/2/self.m
-        nabla = self.ifft2(-1j*sum(_k  for _k in self.kxy)[:, :,  None, None]*self.fft2(nabla)).reshape((np.prod(self.Nxy),)*2).reshape(mat_shape)
+        N= self.hbar**2/2/self.m # the constant here should get some more check!!!
+        nabla = N * self.ifft2(-1j*sum(_k  for _k in self.kxy)[:, :,  None, None]*self.fft2(nabla)).reshape((np.prod(self.Nxy),)*2).reshape(mat_shape)
         return nabla
 
     def get_Ks_Vs(self, ns=(0,0), twist=(0, 0)): 
