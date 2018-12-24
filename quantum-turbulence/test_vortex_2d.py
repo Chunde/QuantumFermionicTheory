@@ -116,10 +116,10 @@ def test_kinetic_matrix():
         f = []
         for k1 in s.kxy[0].ravel():
             for k2 in s.kxy[1].ravel():
-                f.append(k1**2 + k2**2 )
+                f.append((k1**2 + k2**2 )/2)
         b = np.diag(f) / np.prod(s.Nxy)
-        T=a.dot(b)# a.dot(b) #np.matmul(a,b)
-        T2 = T.dot(a.conj().T) # np.matmul(T,a.conj().T)
+        T=np.matmul(a,b)
+        T2 = np.matmul(T,a.conj().T)
         return T2
 
     for n in range(1,6):
@@ -127,7 +127,7 @@ def test_kinetic_matrix():
         T1 = s.get_Ks()
         s.Nxy
         T2 = getKineticMatrix(s)
-        assert np.allclose(T1[0] *2, T2) # I am confused, here I need to multiply a factor of two, which is not in the notebook
+        assert np.allclose(T1[0], T2) 
 
 def test_BdG_lattice_2d():
     e_F = 1.0
