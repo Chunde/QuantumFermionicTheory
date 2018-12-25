@@ -103,7 +103,7 @@ class ASLDA(object):
         n = -3
         us, vs = psi[:, ].reshape(2, Nx, Ny)
 
-        n_a, n_b = np.sum(u**2 for u in us), np.sum(v**2 for v in vs)
+        n_a, n_b = np.sum(u*u.conj() for u in us), np.sum(v*v.conj() for v in vs)
         return (n_a, n_b)
 
     def get_p(self, ns):
