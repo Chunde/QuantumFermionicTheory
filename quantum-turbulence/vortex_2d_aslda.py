@@ -67,6 +67,33 @@ class ASLDA(object):
         nabla = N * self.ifft2(-1j*sum(_k  for _k in self.kxy)[:, :,  None, None]*self.fft2(nabla)).reshape((np.prod(self.Nxy),)*2).reshape(mat_shape)
         return nabla
 
+    
+    def get_Vs(self,ns=(0,0), alphas = None,twist=(0,0)):
+        """get the modified V functional terms
+           make it as efficient as possible since this is very long
+        """
+        k_bloch = np.divide(twist, self.Lxy)
+        kxy = [_k + _kb for _k, _kb in zip(self.kxy, k_bloch)]
+        if alphas == None:
+            alphas = self.get_alphas(ns)
+        
+        na,nb = ns
+        n = na + nb
+        n2 = n**2
+        p = self.get_p(ns)
+        p2,p3,p4,p5,p6 = p**2,p**3,p**4,p**5, p**6
+
+        alpha_a, alpha_b, alpha_p = self.get_alphas(ns)
+       # alpha_p = 1.094 - 0.532*p2 + 0.532*p4 - 0.177333*p6
+        alpha_m = 0.156*p + 0.104*p3 + 0.0312*p5
+        dp_a = 2*nb/n2
+        dp_b = -2*na/n2
+        dalpha = -1.064*p5 + 0.156*p4 + 2.128*p3 + 0.312*p2-1.064*p+0.156
+        dalpha_p = -1.064*p5 + 2.128*p3 - 1.064*p
+        dalpha_m = 0.156*(p2+1.)**2
+        dalpha_p_a, dalpha_p_b, dalphalpha_m_b= dalpha_p * dp_a, dalpha_p * dp_b, dalpha_m * dp_a, dalpha_m * dp_b # apply chain rule
+
+
     def get_Ks_Vs(self, ns=(0,0), twist=(0, 0)): 
         """Return the kinetic energy matrix."""
         k_bloch = np.divide(twist, self.Lxy)
