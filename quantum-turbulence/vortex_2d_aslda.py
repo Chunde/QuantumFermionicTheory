@@ -17,7 +17,7 @@ class ASLDA(object):
     hbar = 1.0
     m = 1.0
     w = 1.0                     # Trapping potential
-
+    
     def __init__(self, Nxy=(32, 32), Lxy=(10.0, 10.0), dx=None, T=0,E_c=np.inf):
         """Specify any two of `Nxy`, `Lxy`, or `dx`.
 
@@ -54,6 +54,7 @@ class ASLDA(object):
         self.Lxy = tuple(Lxy)
         self.T = T
         self.E_c = E_c
+        self.gamma = -11.11
         # External potential
         self.v_ext = self.get_v_ext()
 
@@ -63,20 +64,34 @@ class ASLDA(object):
         mat_shape = (np.prod(self.Nxy),)*2
         tensor_shape = self.Nxy + self.Nxy
         nabla = np.eye(mat_shape[0]).reshape(tensor_shape)
-        N= self.hbar**2/2/self.m # the constant here should get some more check!!!
-        nabla = N * self.ifft2(-1j*sum(_k  for _k in self.kxy)[:, :,  None, None]*self.fft2(nabla)).reshape((np.prod(self.Nxy),)*2).reshape(mat_shape)
+        nabla  = self.ifft2(-1j*sum(_k  for _k in self.kxy)[:, :,  None, None]*self.fft2(nabla)).reshape((np.prod(self.Nxy),)*2).reshape(mat_shape)
         return nabla
-
-    
-    def get_Vs(self,ns=(0,0), alphas = None,twist=(0,0)):
+    def get_K(self, twist=(0,0)):
+        k_bloch = np.divide(twist, self.Lxy)
+        kxy = [_k + _kb for _k, _kb in zip(self.kxy, k_bloch)]
+        mat_shape = (np.prod(self.Nxy),)*2
+        tensor_shape = self.Nxy + self.Nxy
+        K = np.eye(mat_shape[0]).reshape(tensor_shape)
+        K = self.ifft2(sum(_k**2 for _k in self.kxy)[:, :,  None, None]*self.fft2(K)).reshape((np.prod(self.Nxy),)*2).reshape(mat_shape) * self.hbar**2/2/self.m
+        return (K,K)
+    def get_Ds(self):
+        return (0,0)
+    def get_Vs(self,delta, ns=None, taus=None,nu=0, alphas = None,twist=(0,0)):
         """get the modified V functional terms
            make it as efficient as possible since this is very long
         """
+        if ns == None:
+            return self.v_ext
+
+        U_a, U_b = self.v_ext
+        
         k_bloch = np.divide(twist, self.Lxy)
         kxy = [_k + _kb for _k, _kb in zip(self.kxy, k_bloch)]
-        if alphas == None:
+        if(alphas == None):
             alphas = self.get_alphas(ns)
-        
+
+        tau_a, tau_b = taus
+        tau_p, tau_m = tau_a + tau_b,tau_a - tau_b
         na,nb = ns
         n = na + nb
         n2 = n**2
@@ -91,28 +106,38 @@ class ASLDA(object):
         dalpha = -1.064*p5 + 0.156*p4 + 2.128*p3 + 0.312*p2-1.064*p+0.156
         dalpha_p = -1.064*p5 + 2.128*p3 - 1.064*p
         dalpha_m = 0.156*(p2+1.)**2
-        dalpha_p_a, dalpha_p_b, dalphalpha_m_b= dalpha_p * dp_a, dalpha_p * dp_b, dalpha_m * dp_a, dalpha_m * dp_b # apply chain rule
+        dalpha_p_a, dalpha_p_b, dalpha_m_a, dalpha_m_b= dalpha_p * dp_a, dalpha_p * dp_b, dalpha_m * dp_a, dalpha_m * dp_b # apply chain rule
 
+        C_a,C_b = (dalpha_p * dp_a + alpha_p * n **(-2/3) / 3)/self.gamma,(dalpha_p * dp_b + alpha_p * n **(-2/3) / 3)/self.gamma # comman term can be compute just once, do it later
+        # the partial D terms are too long, but doable
+        D_a,D_b = self.get_Dc()
 
-    def get_Ks_Vs(self, ns=(0,0), twist=(0, 0)): 
-        """Return the kinetic energy matrix."""
-        k_bloch = np.divide(twist, self.Lxy)
-        kxy = [_k + _kb for _k, _kb in zip(self.kxy, k_bloch)]
+        # ignore the D terms now
+        C1 = self.hbar**2 /2/self.m 
+        V_a = dalpha_m_a * tau_m * C1 + dalpha_p_a * (tau_p * C1 - delta.conj().T * nu / alpha_p) + C_a + D_a + U_a # the common term can be compute just once
+        V_b = dalpha_m_b * tau_m * C1 + dalpha_p_b * (tau_p * C1 - delta.conj().T * nu / alpha_p) + C_b + D_b + U_b
 
-        alpha_a, alpha_b, alpha_p = self.get_alphas(ns)
+        return (V_a,V_b)
+
+    def get_Ks_Vs(self, delta, taus=None, nu=0, ns=None, twist=(0, 0)): 
+        """Return the kinetic energy and modifled potential matrics."""
+        alphas = self.get_alphas(ns)
+        if alphas == None:
+            return (self.get_K(twist=twist), self.get_Vs(delta=delta,ns=ns,taus=taus,nu=nu,alphas=alphas,twist=twist))
+
+        alpha_a, alpha_b, alpha_p = alphas
 
         if type(alpha_a) != type(np.array):
             alpha_a = np.eye(self.Nxy[0]) * alpha_a # this will be problematic if Nx != Ny
             alpha_b = np.eye(self.Nxy[0]) * alpha_b
-        nabla = self.get_nabla(twist)
-        mat_shape = (np.prod(self.Nxy),)*2
-        tensor_shape = self.Nxy + self.Nxy
-        K = np.eye(mat_shape[0]).reshape(tensor_shape)
-        K = self.ifft2(sum(_k**2 for _k in self.kxy)[:, :,  None, None]*self.fft2(K)).reshape((np.prod(self.Nxy),)*2).reshape(mat_shape) * self.hbar**2/2/self.m
-
-        K_a = np.diag(nabla.dot(alpha_a.ravel())).dot(nabla) + np.diag(alpha_a.ravel()).dot(K)
-        K_b = np.diag(nabla.dot(alpha_b.ravel())).dot(nabla) + np.diag(alpha_b.ravel()).dot(K)
-        return (K_a, K_b)
+        nabla = self.hbar**2/2/self.m  * self.get_nabla(twist)
+        k_a,k_b = self.get_K(twist=twist)
+        
+        
+        K_a = np.diag(nabla.dot(alpha_a.ravel())).dot(nabla) + np.diag(alpha_a.ravel()).dot(k_a)
+        K_b = np.diag(nabla.dot(alpha_b.ravel())).dot(nabla) + np.diag(alpha_b.ravel()).dot(k_b)
+        V_a, V_b = self.get_Vs(delta=delta,ns=ns,taus=taus,nu=nu,alphas=alphas,twist=twist)
+        return ((K_a, K_b), (V_a, V_b))
 
     def fft2(self, y):
             return np.fft.fftn(y, axes=(0,1))
@@ -124,25 +149,43 @@ class ASLDA(object):
         """Return the external potential."""
         return (0, 0)
 
-    def get_ns(self, H):
+    def get_ns_taus_nu(self, H, Ec=0): # Ec not used yet
         """Return the n_a, n_b"""
-        E, psi = np.linalg.eigh(H)
-        n = -3
-        us, vs = psi[:, ].reshape(2, Nx, Ny)
+        """Testing status: phase 1"""
+        Nx, Ny = self.Nxy
+        # E and psi contain redudant information, we may only need the first half with eith nagetive or positive energy
+        E, psi = np.linalg.eigh(H) 
+        """ psi structure"""
+        # u1,u2,u3,u4,-u1,-u2,-u3,-u4
+        # v1,v2,v3,u4,-v1,-v2,-v3,-v4
+        """psi_p = psi.T[0] structure"""
+        # u1,v1
+        # u2,v2
+        # u3,v3
+        # u3,v4
+        """ us,vs = psi_p.T[2,Nx,Ny] structure"""
+        # u1,u2,u3,u4
+        # v1,v2,v3,v4
+        psi_p = psi.T.reshape(2, Nx*Ny*2 * Nx*Ny)[0].T # take one half
+        us, vs = psi_p.reshape(2, Nx * Ny, Nx,Ny)
+        # density
+        n_a, n_b = np.sum(np.abs(u)**2 for u in us), np.sum(np.abs(v)**2 for v in vs)
+        #Tau terms
+        nabla = self.get_nabla()
+        tau_a, tau_b = np.sum(np.abs(nabla.dot(u.ravel()))**2 for u in us), np.sum(np.abs(nabla.dot(v.ravel()))**2 for v in vs)
+        nu = np.sum(us[i]*vs[i].conj() for i in range(len(us))) # a factor of 1/2 ?????
+        return ((n_a, n_b),(tau_a,tau_b),nu)
 
-        n_a, n_b = np.sum(u*u.conj() for u in us), np.sum(v*v.conj() for v in vs)
-        return (n_a, n_b)
-
-    def get_p(self, ns):
+    def get_p(self, ns=None):
         # ns start with initialized value (0,0)
-        if ns == (0,0):
+        if ns == None:
             return 0
         n_a, n_b = ns
         n_p,n_m = n_a + n_b,n_a - n_b
-        p = n_p / n_m # may be wrong
+        p = n_m / n_p # may be wrong
         return p
 
-    def get_alphas(self,ns):
+    def get_alphas(self,ns = None):
         p = self.get_p(ns)
         p2 = p**2
         p4 = p2**2
@@ -188,12 +231,11 @@ class ASLDA(object):
         """
         zero = np.zeros_like(sum(self.xy))
         Delta = np.diag((delta + zero).ravel())
-        v_a, v_b = self.v_ext
         mu_a, mu_b = mus
         mu_a += zero
         mu_b += zero
-        K_a, K_b = self.get_Ks_Vs(twist=twist)
-        Mu_a, Mu_b = np.diag((mu_a - v_a).ravel()), np.diag((mu_b - v_b).ravel())
+        (K_a, K_b),(V_a,V_b) = self.get_Ks_Vs(delta = delta, twist=twist)
+        Mu_a, Mu_b = np.diag((mu_a - V_a).ravel()), np.diag((mu_b - V_b).ravel())
         H = np.bmat([[K_a - Mu_a, -Delta],
                      [-Delta.conj(), -(K_b - Mu_b)]]) # H is 512 * 512?
         return np.asarray(H)
