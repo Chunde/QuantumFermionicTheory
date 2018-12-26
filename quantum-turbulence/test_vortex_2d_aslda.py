@@ -25,9 +25,9 @@ def test_iterate_ASLDA():
         nb = (1 - np.diag(R)[np.prod(self.Nxy):])/self.dx **2
 
         H = self.get_H(mus=mus,delta = delta)
-        # Q:the way I calculate ns yields different results from the density R
+        # Q: the way I calculate ns yields different results from the density R
         # A: Because when compute ns from R, twist may be applied, which will yield different result,
-        # after turn off the twist, the results agree
+        #    after turn off the twist, the results agree
         ns,taus,nu = self.get_ns_taus_nu(H) 
         na,nb = ns
         mu_a = mu_a*(1 + (na_avg - na.mean()))

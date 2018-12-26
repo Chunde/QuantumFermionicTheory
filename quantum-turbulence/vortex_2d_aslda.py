@@ -155,26 +155,16 @@ class ASLDA(object):
         Nx, Ny = self.Nxy
         # Es and psi contain redudant information, we may only need the first half with eith nagetive or positive energy
         Es, psi = np.linalg.eigh(H) 
-        """ psi structure"""
-        # u1,u2,u3,u4,-u1,-u2,-u3,-u4
-        # v1,v2,v3,u4,-v1,-v2,-v3,-v4
-        """psi_p = psi.T[0] structure"""
-        # u1,v1
-        # u2,v2
-        # u3,v3
-        # u3,v4
-        """ us,vs = psi_p.T[2,Nx,Ny] structure"""
-        # u1,u2,u3,u4
-        # v1,v2,v3,v4
-        psi_p = psi.T.reshape(2, Nx*Ny*2 * Nx*Ny)[0].T # take one half
-        us, vs = psi_p.reshape(2, Nx * Ny, Nx,Ny)
+        # after some debugging, fix the error when doing matrix manipulations.
+        us, vs = psi.reshape(2, Nx*Ny , Nx*Ny*2)
+        us,vs = us.T,vs.T
         # density
         n_a, n_b = np.sum(np.abs(us[i])**2 * self.f(Es[i])  for i in range(len(us))), np.sum(np.abs(vs[i])**2 * self.f(-Es[i])  for i in range(len(vs)))
         #Tau terms
         nabla = self.get_nabla()
-        tau_a = np.sum(np.abs(nabla.dot(us[i].ravel()))**2 * self.f(Es[i]) for i in range(len(us))).reshape(self.Nxy)
+        tau_a = np.sum(np.abs(nabla.dot(us[i].ravel()))**2 * self.f(Es[i]) for i in range(len(us))).reshape(self.Nxy) # should divided by a factor dx^2?????
         tau_b = np.sum(np.abs(nabla.dot(vs[i].ravel()))**2 * self.f(-Es[i]) for i in range(len(vs))).reshape(self.Nxy)
-        nu = 0.5 * np.sum(us[i]*vs[i].conj() *(self.f(-Es[i]) - self.f(Es[i])) for i in range(len(us))) # a factor of 1/2 ?????
+        nu = 0.5 * np.sum(us[i]*vs[i].conj() *(self.f(-Es[i]) - self.f(Es[i])) for i in range(len(us)))
         return ((n_a, n_b),(tau_a,tau_b),nu)
 
     def get_p(self, ns=None):
