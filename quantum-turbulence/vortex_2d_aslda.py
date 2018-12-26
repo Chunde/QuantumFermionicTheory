@@ -110,7 +110,7 @@ class ASLDA(object):
 
         C_a,C_b = (dalpha_p * dp_a + alpha_p * n **(-2/3) / 3)/self.gamma,(dalpha_p * dp_b + alpha_p * n **(-2/3) / 3)/self.gamma # comman term can be compute just once, do it later
         # the partial D terms are too long, but doable
-        D_a,D_b = self.get_Dc()
+        D_a,D_b = self.get_Ds()
 
         # ignore the D terms now
         C1 = self.hbar**2 /2/self.m 
@@ -119,7 +119,7 @@ class ASLDA(object):
 
         return (V_a,V_b)
 
-    def get_Ks_Vs(self, delta, taus=None, nu=0, ns=None, twist=(0, 0)): 
+    def get_Ks_Vs(self, delta, ns=None, taus=None, nu=0, twist=(0, 0)): 
         """Return the kinetic energy and modifled potential matrics."""
         alphas = self.get_alphas(ns)
         if alphas == None:
@@ -153,8 +153,8 @@ class ASLDA(object):
         """Return the n_a, n_b"""
         """Testing status: phase 1"""
         Nx, Ny = self.Nxy
-        # E and psi contain redudant information, we may only need the first half with eith nagetive or positive energy
-        E, psi = np.linalg.eigh(H) 
+        # Es and psi contain redudant information, we may only need the first half with eith nagetive or positive energy
+        Es, psi = np.linalg.eigh(H) 
         """ psi structure"""
         # u1,u2,u3,u4,-u1,-u2,-u3,-u4
         # v1,v2,v3,u4,-v1,-v2,-v3,-v4
@@ -169,11 +169,12 @@ class ASLDA(object):
         psi_p = psi.T.reshape(2, Nx*Ny*2 * Nx*Ny)[0].T # take one half
         us, vs = psi_p.reshape(2, Nx * Ny, Nx,Ny)
         # density
-        n_a, n_b = np.sum(np.abs(u)**2 for u in us), np.sum(np.abs(v)**2 for v in vs)
+        n_a, n_b = np.sum(np.abs(us[i])**2 * self.f(Es[i])  for i in range(len(us))), np.sum(np.abs(vs[i])**2 * self.f(-Es[i])  for i in range(len(vs)))
         #Tau terms
         nabla = self.get_nabla()
-        tau_a, tau_b = np.sum(np.abs(nabla.dot(u.ravel()))**2 for u in us), np.sum(np.abs(nabla.dot(v.ravel()))**2 for v in vs)
-        nu = np.sum(us[i]*vs[i].conj() for i in range(len(us))) # a factor of 1/2 ?????
+        tau_a = np.sum(np.abs(nabla.dot(us[i].ravel()))**2 * self.f(Es[i]) for i in range(len(us))).reshape(self.Nxy)
+        tau_b = np.sum(np.abs(nabla.dot(vs[i].ravel()))**2 * self.f(-Es[i]) for i in range(len(vs))).reshape(self.Nxy)
+        nu = 0.5 * np.sum(us[i]*vs[i].conj() *(self.f(-Es[i]) - self.f(Es[i])) for i in range(len(us))) # a factor of 1/2 ?????
         return ((n_a, n_b),(tau_a,tau_b),nu)
 
     def get_p(self, ns=None):
@@ -216,7 +217,7 @@ class ASLDA(object):
             f = (1 - np.sign(E))/2
         return np.where(abs(E)<E_c, f, 0)
 
-    def get_H(self, mus, delta, twist=(0,0)):
+    def get_H(self, mus, delta, ns=None,taus=None, nu=0, twist=(0,0)):
         """Return the single-particle Hamiltonian with pairing.
 
         Arguments
@@ -234,7 +235,7 @@ class ASLDA(object):
         mu_a, mu_b = mus
         mu_a += zero
         mu_b += zero
-        (K_a, K_b),(V_a,V_b) = self.get_Ks_Vs(delta = delta, twist=twist)
+        (K_a, K_b),(V_a,V_b) = self.get_Ks_Vs(delta = delta,nu=nu,taus=taus,ns=ns,twist=twist)
         Mu_a, Mu_b = np.diag((mu_a - V_a).ravel()), np.diag((mu_b - V_b).ravel())
         H = np.bmat([[K_a - Mu_a, -Delta],
                      [-Delta.conj(), -(K_b - Mu_b)]]) # H is 512 * 512?
@@ -260,7 +261,6 @@ class ASLDA(object):
 
     def get_R_twist_average(self, mus, delta, abs_tol=1e-12):
         """Return the density matrix R."""
-        N = self.N
         R0 = 1.0
         def f(twist):
             H = self.get_H(mus=mus, delta=delta, twist=twist)

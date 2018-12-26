@@ -11,23 +11,32 @@ hbar = 1
 m = 1
 
 
-def test_iterate_ASLDA(self, mudelta,   na_avg=0.5, nb_avg=0.5, N_twist=1, plot=False, **kw):
-    def iterate(self, mudelta,   na_avg=0.5, nb_avg=0.5, N_twist=1, plot=False, **kw):
+def test_iterate_ASLDA():
+    def iterate(self, mudelta,   na_avg=0.5, nb_avg=0.5, N_twist=0, plot=False, **kw):
         mu_a, mu_b, mu_a_eff, mu_b_eff, delta = mudelta
         mus = (mu_a_eff, mu_b_eff)
         if np.isinf(N_twist):
             R = self.get_R_twist_average(mus=mus, delta=delta, **kw)
         else:
             R = self.get_R(mus=mus, delta=delta, N_twist=N_twist)
-        na = np.diag(R)[:l.N]/l.dx
-        nb = (1 - np.diag(R)[l.N:])/l.dx
 
+        #Modified these code for 2D
+        na = np.diag(R)[:np.prod(self.Nxy)]/self.dx**2  #this demoninor should be checked again, physical meaning?
+        nb = (1 - np.diag(R)[np.prod(self.Nxy):])/self.dx **2
+
+        H = self.get_H(mus=mus,delta = delta)
+        # Q:the way I calculate ns yields different results from the density R
+        # A: Because when compute ns from R, twist may be applied, which will yield different result,
+        # after turn off the twist, the results agree
+        ns,taus,nu = self.get_ns_taus_nu(H) 
+        na,nb = ns
         mu_a = mu_a*(1 + (na_avg - na.mean()))
         mu_b = mu_b*(1 + (nb_avg - nb.mean()))
 
-        kappa = np.diag(R[:l.N, l.N:])/l.dx
-        mu_a_eff = mu_a + self.v0*nb
-        mu_b_eff = mu_b + self.v0*na
+        kappa = np.diag(R[:np.prod(self.Nxy), np.prod(self.Nxy):])/self.dx
+        v_a,v_b = self.get_v_ext()
+        mu_a_eff = mu_a + v_a*nb
+        mu_b_eff = mu_b + v_b*na
         delta = self.v0*kappa
         if plot:
             plt.clf()
@@ -41,13 +50,22 @@ def test_iterate_ASLDA(self, mudelta,   na_avg=0.5, nb_avg=0.5, N_twist=1, plot=
                 delta.real.max(), na.real.mean(), nb.real.mean()))
         return (mu_a, mu_b, mu_a_eff, mu_b_eff, delta)
 
-    l = Lattice(T=0.0, N=N, L=L, v0=v_0, V0=0)
-    qT = (mu, mu) + (mu_eff*np.ones(l.N),)*2 + (np.ones(l.N)*delta,)
+    mu_eff = 1.0
+    n = 1.0
+    e_F = 1.0
+    k_F = np.sqrt(2*m*e_F)
+    n_F = k_F**3/3/np.pi**2
+    E_FG = 2./3*n_F*e_F
+    mu = 0.59060550703283853378393810185221521748413488992993*e_F
+    delta = 0.68640205206984016444108204356564421137062514068346*e_F
+
+    aslda = vortex_2d_aslda.ASLDA(T=0.0,Nxy=(2,)*2)
+    qT = (mu, mu) + (mu_eff*np.ones(aslda.Nxy),)*2 + (np.ones(aslda.Nxy)*delta,)
     max_iteration = 5
-    with NoInterrupt() as interrupted:
-        while max_iteration > 0:
-            max_iteration -= 1
-            qT = l.iterate_full(qT, plot=False, N_twist=np.inf,na_avg=n/2, nb_avg=n/2, abs_tol=1e-2)
+    
+    while max_iteration > 0:
+        max_iteration -= 1
+        qT = iterate(self=aslda,mudelta = qT, plot=False, N_twist=1,na_avg=n/2, nb_avg=n/2, abs_tol=1e-2)
 
 
 
@@ -72,10 +90,13 @@ def test_aslda():
     kw = dict(mus=(mu, mu), delta=delta)
     #R = s.get_R(**kw)
     H = s.get_H(**kw)
-    ns, taus,nu = s.get_ns_taus_nu(H)
-    p = s.get_p(ns=ns)
-    alphas=s.get_alphas(ns)
+    while(True):
+        ns, taus,nu = s.get_ns_taus_nu(H)
+        p = s.get_p(ns=ns)
+        alphas=s.get_alphas(ns)
+        H = s.get_H(mus=(mu,mu),delta = delta,ns = ns, taus=taus,nu = nu)
 
 
 if __name__ == '__main__':
-    test_aslda()
+    #test_aslda()
+    test_iterate_ASLDA()
