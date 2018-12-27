@@ -13,7 +13,7 @@ m = 1
 
 def test_iterate_ASLDA():
     def iterate(self, mudelta,   na_avg=0.5, nb_avg=0.5, N_twist=0, plot=False, **kw):
-        mu_a, mu_b, mu_a_eff, mu_b_eff, delta = mudelta
+        mu_a, mu_b, mu_a_eff, mu_b_eff, delta,taus = mudelta
         mus = (mu_a_eff, mu_b_eff)
         if np.isinf(N_twist):
             R = self.get_R_twist_average(mus=mus, delta=delta, **kw)
@@ -21,10 +21,10 @@ def test_iterate_ASLDA():
             R = self.get_R(mus=mus, delta=delta, N_twist=N_twist)
 
         #Modified these code for 2D
-        na = np.diag(R)[:np.prod(self.Nxy)]/self.dx**2  #this demoninor should be checked again, physical meaning?
-        nb = (1 - np.diag(R)[np.prod(self.Nxy):])/self.dx **2
+        na = np.diag(R)[:np.prod(self.Nxy)].reshape(self.Nxy)/self.dx**2  #this demoninor should be checked again, physical meaning?
+        nb = (1 - np.diag(R)[np.prod(self.Nxy):]).reshape(self.Nxy)/self.dx **2
 
-        H = self.get_H(mus=mus,delta = delta)
+        H = self.get_H(mus=mus,delta = delta,ns=(na,nb),taus = taus)
         # Q: the way I calculate ns yields different results from the density R
         # A: Because when compute ns from R, twist may be applied, which will yield different result,
         #    after turn off the twist, the results agree
@@ -33,7 +33,7 @@ def test_iterate_ASLDA():
         mu_a = mu_a*(1 + (na_avg - na.mean()))
         mu_b = mu_b*(1 + (nb_avg - nb.mean()))
 
-        kappa = np.diag(R[:np.prod(self.Nxy), np.prod(self.Nxy):])/self.dx**2 # this kappa is nu in chunde's code, they difference by a minus sign, need to double check and fix!!
+        kappa = np.diag(R[:np.prod(self.Nxy), np.prod(self.Nxy):]).reshape(self.Nxy)/self.dx**2 # this kappa is nu in chunde's code, they difference by a minus sign, need to double check and fix!!
         v_a,v_b = self.get_v_ext()
         mu_a_eff = mu_a + v_a*nb
         mu_b_eff = mu_b + v_b*na
@@ -47,7 +47,7 @@ def test_iterate_ASLDA():
             print(delta.real.max(), na.real.mean(), nb.real.mean())
         else:
             print("{:.12f}, {:.12f}, {:.12f}".format(delta.real.max(), na.real.mean(), nb.real.mean()))
-        return (mu_a, mu_b, mu_a_eff, mu_b_eff, delta)
+        return (mu_a, mu_b, mu_a_eff, mu_b_eff, delta,taus)
 
     mu_eff = 1.0
     n = 1.0
@@ -62,7 +62,7 @@ def test_iterate_ASLDA():
     k_c = abs(aslda.kxy[0]).max()
     E_c = (aslda.hbar*k_c)**2/2/aslda.m
     aslda = vortex_2d_aslda.ASLDA(Nxy=(16,)*2, E_c=E_c)
-    qT = (mu, mu) + (mu_eff*np.ones(aslda.Nxy),)*2 + (np.ones(aslda.Nxy)*delta,)
+    qT = (mu, mu) + (mu_eff*np.ones(aslda.Nxy),)*2 + (np.ones(aslda.Nxy)*delta, None)
     max_iteration = 5
     
     while max_iteration > 0:
