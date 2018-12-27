@@ -21,6 +21,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="ASLDA.py" />
     <Compile Include="bcs.py" />
     <Compile Include="homogeneous.py" />
     <Compile Include="Lattice.py" />
