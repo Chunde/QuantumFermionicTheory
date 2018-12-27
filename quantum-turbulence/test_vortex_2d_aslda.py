@@ -33,11 +33,11 @@ def test_iterate_ASLDA():
         mu_a = mu_a*(1 + (na_avg - na.mean()))
         mu_b = mu_b*(1 + (nb_avg - nb.mean()))
 
-        kappa = np.diag(R[:np.prod(self.Nxy), np.prod(self.Nxy):])/self.dx
+        kappa = np.diag(R[:np.prod(self.Nxy), np.prod(self.Nxy):])/self.dx**2 # this kappa is nu in chunde's code, they difference by a minus sign, need to double check and fix!!
         v_a,v_b = self.get_v_ext()
         mu_a_eff = mu_a + v_a*nb
         mu_b_eff = mu_b + v_b*na
-        delta = self.v0*kappa
+        delta = self.g_eff*kappa
         if plot:
             plt.clf()
             plt.plot(self.x, na)
@@ -46,8 +46,7 @@ def test_iterate_ASLDA():
             display(plt.gcf())
             print(delta.real.max(), na.real.mean(), nb.real.mean())
         else:
-            display("{:.12f}, {:.12f}, {:.12f}".format(
-                delta.real.max(), na.real.mean(), nb.real.mean()))
+            print("{:.12f}, {:.12f}, {:.12f}".format(delta.real.max(), na.real.mean(), nb.real.mean()))
         return (mu_a, mu_b, mu_a_eff, mu_b_eff, delta)
 
     mu_eff = 1.0
@@ -59,13 +58,16 @@ def test_iterate_ASLDA():
     mu = 0.59060550703283853378393810185221521748413488992993*e_F
     delta = 0.68640205206984016444108204356564421137062514068346*e_F
 
-    aslda = vortex_2d_aslda.ASLDA(T=0.0,Nxy=(2,)*2)
+    aslda = vortex_2d_aslda.ASLDA(Nxy=(16,)*2)
+    k_c = abs(aslda.kxy[0]).max()
+    E_c = (aslda.hbar*k_c)**2/2/aslda.m
+    aslda = vortex_2d_aslda.ASLDA(Nxy=(16,)*2, E_c=E_c)
     qT = (mu, mu) + (mu_eff*np.ones(aslda.Nxy),)*2 + (np.ones(aslda.Nxy)*delta,)
     max_iteration = 5
     
     while max_iteration > 0:
-        max_iteration -= 1
-        qT = iterate(self=aslda,mudelta = qT, plot=False, N_twist=1,na_avg=n/2, nb_avg=n/2, abs_tol=1e-2)
+       # max_iteration -= 1
+        qT = iterate(self=aslda,mudelta = qT, plot=False, N_twist=1,na_avg=0.5, nb_avg=0.5, abs_tol=1e-2)
 
 
 
@@ -83,10 +85,10 @@ def test_aslda():
     psi = np.random.random((Nx, Ny)) # the wave function is 2d
     np.allclose(np.fft.fftn(psi).ravel(), U.dot(psi.ravel())) # the relation means : dft(H) . psi = dft(psi) ???
 
-    s = vortex_2d_aslda.ASLDA(Nxy=(2,)*2)
+    s = vortex_2d_aslda.ASLDA(Nxy=(16,)*2)
     k_c = abs(s.kxy[0]).max()
     E_c = (s.hbar*k_c)**2/2/s.m
-    s = vortex_2d_aslda.ASLDA(Nxy=(2,)*2, E_c=E_c)
+    s = vortex_2d_aslda.ASLDA(Nxy=(16,)*2, E_c=E_c)
     kw = dict(mus=(mu, mu), delta=delta)
     #R = s.get_R(**kw)
     H = s.get_H(**kw)
