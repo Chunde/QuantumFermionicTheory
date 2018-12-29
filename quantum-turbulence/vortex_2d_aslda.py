@@ -110,6 +110,8 @@ class ASLDA(object):
         """get the modified V functional terms
            make it as efficient as possible since this is very long
         """
+        return self.v_ext
+
         if ns == None or taus == None or alphas == None:
             return self.v_ext
         U_a, U_b = self.v_ext
@@ -138,7 +140,7 @@ class ASLDA(object):
         D_a,D_b = self.get_Ds(ns=ns,alphas=alphas)
         # ignore the D terms now
         C1 = self.hbar**2 /2/self.m 
-        V_a = dalpha_m_a * tau_m * C1 + dalpha_p_a * (tau_p * C1 - delta.conj().T * nu / alpha_p) + C_a + D_a + U_a # the common term can be compute just once
+        V_a = dalpha_m_a * tau_m * C1  + dalpha_p_a * (tau_p * C1 - delta.conj().T * nu / alpha_p) + C_a + D_a + U_a # the common term can be compute just once
         V_b = dalpha_m_b * tau_m * C1 + dalpha_p_b * (tau_p * C1 - delta.conj().T * nu / alpha_p) + C_b + D_b + U_b
         return (V_a,V_b)
 
@@ -182,24 +184,29 @@ class ASLDA(object):
             
     def get_v_ext(self):
         """Return the external potential."""
+        #v_a = (-self.V0 * (1-((1+np.cos(2*np.pi * self.cells*self.x/self.L))/2)**self.power))
+        #v_b = 0 * self.x
+        #return v_a, v_b
         return (0, 0)
-
+    # One problem, for Nxy=16 x 16, the Vs components will change sign from positive to negative and backforwad
     def get_ns_taus_nu(self, H, Ec=0): # Ec not used yet
         """Return the n_a, n_b"""
         """Testing status: phase 1"""
+        #print(H[:np.prod(self.Nxy), np.prod(self.Nxy):].real)
         Nx, Ny = self.Nxy
         # Es and psi contain redudant information, we may only need the first half with eith nagetive or positive energy
         Es, psi = np.linalg.eigh(H) 
         # after some debugging, fix the error when doing matrix manipulations.
         us, vs = psi.reshape(2, Nx*Ny , Nx*Ny*2)
         us,vs = us.T,vs.T
+        #print(vs[0].real)
         # density
         n_a, n_b = np.sum(np.abs(us[i])**2 * self.f(Es[i])  for i in range(len(us))).reshape(self.Nxy)/self.dx**2, np.sum(np.abs(vs[i])**2 * self.f(-Es[i])  for i in range(len(vs))).reshape(self.Nxy)/self.dx**2
         #Tau terms
         nabla = self.get_nabla()
         tau_a = np.sum(np.abs(nabla.dot(us[i].ravel()))**2 * self.f(Es[i]) for i in range(len(us))).reshape(self.Nxy)/self.dx**2 # should divided by a factor dx^2?????
         tau_b = np.sum(np.abs(nabla.dot(vs[i].ravel()))**2 * self.f(-Es[i]) for i in range(len(vs))).reshape(self.Nxy)/self.dx**2
-        nu = 0.5 * np.sum(us[i]*vs[i].conj() *(self.f(-Es[i]) - self.f(Es[i])) for i in range(len(us))).reshape(self.Nxy)/self.dx**2
+        nu = 0.5 * np.sum(us[i]*vs[i].conj() *(self.f(Es[i]) - self.f(-Es[i])) for i in range(len(us))).reshape(self.Nxy)/self.dx**2
         return ((n_a, n_b),(tau_a,tau_b),nu)  # divided by a factor, not sure if wrong or right, check later !!!
 
     def get_p(self, ns=None):
@@ -250,8 +257,8 @@ class ASLDA(object):
         mu_b += zero
         (K_a, K_b),(V_a,V_b) = self.get_Ks_Vs(delta = delta,nu=nu,taus=taus,ns=ns,twist=twist)
         Mu_a, Mu_b = np.diag((mu_a - V_a).ravel()), np.diag((mu_b - V_b).ravel())
-        H = np.bmat([[K_a - Mu_a, -Delta],
-                     [-Delta.conj(), -(K_b - Mu_b)]]) # H is 512 * 512?
+        H = np.bmat([[K_a - Mu_a, Delta], # I remove the minus sign for Delta, need to check
+                     [Delta.conj(), -(K_b - Mu_b)]]) # H is 512 * 512?
         return np.asarray(H)
 
     def get_R(self, mus, delta, N_twist=1, twists=None):

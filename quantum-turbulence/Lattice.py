@@ -73,4 +73,4 @@ if __name__ == '__main__':
     qT = (mu, mu) + (mu_eff*np.ones(l.N),)*2 + (np.ones(l.N)*delta,)
 
     while True:
-        qT = l.iterate_full(qT, plot=False, N_twist=np.inf, na_avg=n/2, nb_avg=n/2, abs_tol=1e-2)
+        qT = l.iterate_full(qT, plot=False, N_twist=np.inf, na_avg=n* 2/5, nb_avg=n*3/5, abs_tol=1e-2)

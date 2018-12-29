@@ -5,6 +5,7 @@ from scipy.integrate import quad
 from uncertainties import ufloat
 from importlib import reload  # Python 3.4+
 import numpy as np
+import homogeneous;reload(homogeneous)
 import vortex_2d_aslda;reload(vortex_2d_aslda)
 
 hbar = 1
@@ -38,15 +39,15 @@ def test_iterate_ASLDA():
         mu_a_eff = mu_a + v_a*nb
         mu_b_eff = mu_b + v_b*na
         delta = self.g_eff*kappa
-        if plot:
-            plt.clf()
-            plt.plot(self.x, na)
-            plt.plot(self.x, nb)
-            plt.plot(self.x, delta)
-            display(plt.gcf())
-            print(delta.real.max(), na.real.mean(), nb.real.mean())
-        else:
-            print("{:.12f}, {:.12f}, {:.12f}".format(delta.real.max(), na.real.mean(), nb.real.mean()))
+        #if plot:
+        #    plt.clf()
+        #    plt.plot(self.x, na)
+        #    plt.plot(self.x, nb)
+        #    plt.plot(self.x, delta)
+        #    display(plt.gcf())
+        print(delta.real.max(), na.real.mean(), nb.real.mean())
+        #else:
+            #print("{:.12f}, {:.12f}, {:.12f}".format(delta.real.max(), na.real.mean(), nb.real.mean()))
         return (mu_a, mu_b, mu_a_eff, mu_b_eff, delta,taus)
 
     mu_eff = 1.0
@@ -57,17 +58,18 @@ def test_iterate_ASLDA():
     E_FG = 2./3*n_F*e_F
     mu = 0.59060550703283853378393810185221521748413488992993*e_F
     delta = 0.68640205206984016444108204356564421137062514068346*e_F
-
-    aslda = vortex_2d_aslda.ASLDA(Nxy=(16,)*2)
+    grid_size = 4
+    aslda = vortex_2d_aslda.ASLDA(Nxy=(grid_size,)*2)
     k_c = abs(aslda.kxy[0]).max()
     E_c = (aslda.hbar*k_c)**2/2/aslda.m
-    aslda = vortex_2d_aslda.ASLDA(Nxy=(16,)*2, E_c=E_c)
+    aslda = vortex_2d_aslda.ASLDA(Nxy=(grid_size,)*2, E_c=E_c)
     qT = (mu, mu) + (mu_eff*np.ones(aslda.Nxy),)*2 + (np.ones(aslda.Nxy)*delta, None)
     max_iteration = 5
-    
+    v_0, n, mu, e_0 = homogeneous.get_BCS_v_n_e(delta=delta, mu_eff=mu_eff)
+
     while max_iteration > 0:
        # max_iteration -= 1
-        qT = iterate(self=aslda,mudelta = qT, plot=False, N_twist=1,na_avg=0.5, nb_avg=0.5, abs_tol=1e-2)
+        qT = iterate(self=aslda,mudelta = qT, plot=False, N_twist=1,na_avg=0.4 * n, nb_avg=0.6 * n, abs_tol=1e-2)
 
 
 
