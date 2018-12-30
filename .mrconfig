@@ -1,0 +1,2 @@
+[_ext/slda]
+checkout = hg clone 'ssh://hg@bitbucket.org/mforbes/slda' '_ext/slda'
