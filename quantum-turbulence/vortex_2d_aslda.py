@@ -18,23 +18,7 @@ class ASLDA(object):
     w = 1.0                     # Trapping potential
     
     def __init__(self, Nxy=(32, 32), Lxy=(2*np.pi,2 * np.pi), dx=None, T=0,E_c=np.inf):
-        """Specify any two of `Nxy`, `Lxy`, or `dx`.
 
-        Arguments
-        ---------
-        Nxy : (int, int)
-           Number of lattice points.
-        Lxy : (float, float)
-           Length of the periodic box.
-           Can also be understood as the largetest wavelenght of
-           possible waves host in the box. Then the minimum
-           wave-vector k0 = 2PI/lambda = 2 * np.pi / L, and all
-           possible ks should be integer times of k0.
-        dx : float
-           Lattice spacing.
-        T : float
-           Temperature.
-        """
         dy = dx
         if dx is None:
             dx, dy = np.divide(Lxy, Nxy)
@@ -56,6 +40,118 @@ class ASLDA(object):
         # External potential
         self.v_ext = self.get_v_ext()
 
+    def fft2(self, y):
+            return np.fft.fftn(y, axes=(0,1))
+            
+    def ifft2(self, y):
+            return np.fft.ifftn(y, axes=(0,1))
+    def _get_p(self, ns):
+        """return p for a given ns"""
+        "[Numerical Test Status:Pass]"
+        if ns == None:
+            return 0
+        n_a, n_b = ns
+        n_p,n_m = n_a + n_b,n_a - n_b
+        p = n_m / n_p 
+        return p
+
+    def _alpha(self, p=0):
+        """return alpha"""
+        "[Numerical Test Status:Pass]"
+        p2,p3,p4 = p**2,p**3,p**4
+        alpha = 1.0094 + 0.532 * p2 * (1 - p2 + p4 / 3.0) +  0.156 * p * (1 - 2.0 * p2 / 3.0 + p4 / 5.0)
+        return alpha
+
+    def _G(self,p):
+        "[Numerical Test Status:Pass]"
+        return 0.357 + 0.642 * p **2
+
+    def _dG_dp(self,p):
+        "[Numerical Test Status:Pass]"
+        return 1.284 * p
+
+    def _dalpha_dp(self,p):
+        """return dalpha / dp"""
+        "[Numerical Test Status:Pass]"
+        #return -1.064*p**5 + 0.156*p**4 + 2.128*p**3 + 0.312*p**2 - 1.064*p + 0.156 # from mathmatica, wrong
+        #return (133*p*(p**4/3 - p**2 + 1))/125 - (39*p*((4*p)/3 - (4*p**3)/5))/250 - (133*p**2*(2*p - (4*p**3)/3))/250 - (13*p**2)/125 + (39*p**4)/1250 + 39/250 # from matlab,right
+        return ((266*p + 39)*(p**2 - 1)**2)/250 # from matlab, simplified version, pass the test
+
+    def _gamma(self,p):
+        "[Numerical Test Status:Pass]"
+        return -11.11
+
+    def _alpha_a(self,n_a,n_b):
+        return _alpha(self._get_p((n_a,n_b)))
+     
+    def _alpha_b(self,n_a,n_b):
+        return _alpha(-self._get_p((n_a,n_b)))
+
+    def _alpha_p(self,n_a,n_b):
+        return 0.5 * (self._alpha_a(n_a,n_b) + self._alpha_b(n_a,n_b))
+
+    def _alpha_m(self,n_a,n_b):
+        return 0.5 * (self._alpha_a(n_a,n_b) - self._alpha_b(n_a,n_b))
+
+    def _C(self,n_a,n_b):
+        return self.alpha_p(n_a,n_b) * (n_a + n_b)**(1.0/3) / self._gamma(self._get_p(n_a,n_b))
+
+    def _D(self,n_a,n_b):
+        N1 = (6 * np.pi**2 *(n_a + n_b))**(5.0/3)/20/np.pi**2
+        p = self._get_p((n_a,n_b))
+        N2 = self._G(p) - self._alpha(p) * ((1+p)/2.0)**(5.0/3) - self._alpha(-p) * ((1-p)/2.0)**(5/3)
+        return N1 * N2
+
+    def _Dp(self,p):
+        "[Numerical Test Status:Pass]"
+        return self._G(p) - self._alpha(p) * ((1+p)/2.0)**(5.0/3) - self._alpha(-p) * ((1-p)/2.0)**(5/3)
+
+    def _get_dD_dp(self,p):
+        """return the derivative 'dD(p)/dp' """
+        "[Numerical Test Status:Pass]"
+        p_p, p_m = (1+p)**(2.0/3), (1-p)**(2.0/3)
+        dD_p = 1.284*p + 0.57904*p_m + 0.51615*p**2*p_m +0.82315*p**3*p_m - 0.90042*p**4*p_m - 0.40065*p**5*p_m + 0.42823*p**6*p_m - 0.46617*p*p_p - 0.57904*p_p - 0.51615*p**2*p_p + 0.82315*p**3*p_p + 0.90042*p**4*p_p- 0.40065*p**5*p_p - 0.42823*p**6*p_p - 0.46617*p*p_m
+        return dD_p
+
+    def get_alphas_p(self,ns = None):
+        p = self._get_p(ns)
+        p2 = p**2
+        p4 = p2**2
+        # too make code faster, equation (98) is divived into even part and odd part
+        alpha_even,alpha_odd = 1.0094 + 0.532 * p2 * (1 - p2 + p4 / 3.0), 0.156 * p * (1 - 2.0 * p2 / 3.0 + p4 / 5.0)
+
+        alpha_a,alpha_b =  alpha_odd + alpha_even, -alpha_odd + alpha_even #fixed an error here
+        alpha_p = alpha_even # it's defined as (alpha_a + alpha_b) /2 , which is just alpha_even
+        return (alpha_a,alpha_b,alpha_p,p)
+    def _get_dD_dn(self,ns):
+        """Return the derivative `dD(n_a,n_b)/d n_a and d n_b` """
+        "[Numerical Test Status:Pass]"
+        na, nb = ns
+        n = na + nb
+
+        ### matlab gives long formulas used to check numerical code.
+        # the follow 3 lines is from matlab
+        #nb32 = (nb/(na + nb))**(2/3)
+        #na32 = (na/(na + nb))**(2/3)
+        #dD_n_a = 7.5963331205759943604501182783546*n**(2/3)*((0.642*(na - 1.0*nb)**2)/n**2 - (0.000066666666666666666666666666666667*(na/n)**(5/3)*(19049.0*na**6 + 114294.0*na**5*nb + 285735.0*na**4*nb**2 + 185780.0*na**3*nb**3 + 248295.0*na**2*nb**4 + 99318.0*na*nb**5 + 16553.0*nb**6))/n**6 - (0.000066666666666666666666666666666667*(nb/n)**(5/3)*(16553.0*na**6 + 99318.0*na**5*nb + 248295.0*na**4*nb**2 + 185780.0*na**3*nb**3 + 285735.0*na**2*nb**4 + 114294.0*na*nb**5 + 19049.0*nb**6))/n**6 + 0.357) - (0.00050642220803839962403000788522364*(92448.0*na*nb**6 - 23112.0*na**6*nb + 23112.0*nb**7 + 16553.0*nb**7*na32 - 19049.0*nb**7*nb32 + 115560.0*na**2*nb**5 - 115560.0*na**4*nb**3 - 92448.0*na**5*nb**2 + 99318.0*na*nb**6*na32 + 19049.0*na**6*nb*na32 - 114294.0*na*nb**6*nb32 - 16553.0*na**6*nb*nb32 + 248295.0*na**2*nb**5*na32 - 75724.0*na**3*nb**4*na32 + 637095.0*na**4*nb**3*na32 + 114294.0*na**5*nb**2*na32 - 637095.0*na**2*nb**5*nb32 + 75724.0*na**3*nb**4*nb32 - 248295.0*na**4*nb**3*nb32 - 99318.0*na**5*nb**2*nb32))/n**(19/3)
+        #dD_n_b = (0.00050642220803839962403000788522364*(23112.0*na*nb**6 - 92448.0*na**6*nb - 23112.0*na**7 + 19049.0*na**7*na32 - 16553.0*na**7*nb32 + 92448.0*na**2*nb**5 + 115560.0*na**3*nb**4 - 115560.0*na**5*nb**2 + 16553.0*na*nb**6*na32 + 114294.0*na**6*nb*na32 - 19049.0*na*nb**6*nb32 - 99318.0*na**6*nb*nb32 + 99318.0*na**2*nb**5*na32 + 248295.0*na**3*nb**4*na32 - 75724.0*na**4*nb**3*na32 + 637095.0*na**5*nb**2*na32 - 114294.0*na**2*nb**5*nb32 - 637095.0*na**3*nb**4*nb32 + 75724.0*na**4*nb**3*nb32 - 248295.0*na**5*nb**2*nb32))/n**(19/3) + 7.5963331205759943604501182783546*n**(2/3)*((0.642*(na - 1.0*nb)**2)/n**2 - (0.000066666666666666666666666666666667*(na/n)**(5/3)*(19049.0*na**6 + 114294.0*na**5*nb + 285735.0*na**4*nb**2 + 185780.0*na**3*nb**3 + 248295.0*na**2*nb**4 + 99318.0*na*nb**5 + 16553.0*nb**6))/n**6 - (0.000066666666666666666666666666666667*(nb/n)**(5/3)*(16553.0*na**6 + 99318.0*na**5*nb + 248295.0*na**4*nb**2 + 185780.0*na**3*nb**3 + 285735.0*na**2*nb**4 + 114294.0*na*nb**5 + 19049.0*nb**6))/n**6 + 0.357)
+
+
+        n2 = n**2
+        p = self._get_p(ns)
+        p2 = p**2
+
+        dp_n_a = 2*nb/n2 # dp/dna
+        dp_n_b = -2*na/n2# dp/dnb
+        
+        dD_p = self._get_dD_dp(p=p)
+        N0 = (6 * np.pi**2) ** (5.0/3) / 20 / np.pi**2
+        N1 = self._D(na,nb) / 0.6 / n
+        N2 = N0 * n**(5/3) * dD_p
+        dD_n_a = N1 + N2 * dp_n_a
+        dD_n_b = N1 + N2 * dp_n_b
+        return (dD_n_a,dD_n_b)
+
     def get_nabla(self, twist=(0,0)):
         k_bloch = np.divide(twist, self.Lxy)
         kxy = [_k + _kb for _k, _kb in zip(self.kxy, k_bloch)]
@@ -74,42 +170,6 @@ class ASLDA(object):
         D2 = self.ifft2(sum(-_k**2 for _k in self.kxy)[:, :,  None, None]*self.fft2(K)).reshape((np.prod(self.Nxy),)*2).reshape(mat_shape)
         return D2
 
-     #def get_functionals(self,ns):
-     #   na, nb = ns
-     #   alpha_a, alpha_b, alpha_p,p = get_alphas_p(ns)
-     #   G = 0.357 + 0.642 * p2
-     #   C = alpha_p * (n_a + n_b)**(1.0/3) / gamma
-     #   D = (6 * np.pi**2) ** (5.0/3) / 20 / np.pi**2 *(G + alpha_a * ((1.0 + p)/2.0) ** (5.0/3) - alpha_b * ((1.0-p)/2.0)**(5.0/3))
-     #   return (G, gamma, C, D)
-    
-    def get_dD_dp(self,p,p_p,p_m):
-        """return the derivative 'dD(p)/dp' """
-        dD_p = 0.623451*p_m-0.623451*p_m+p*(0.204107*p_m+0.204107*p_p+p*(-0.516148*p_m+0.516148*p_p+
-        p*(-0.823148*p_m-0.823148*p_p+p*(0.998697*p_m-0.998697*p_p+p*(-0.428233*p*p_m+0.269623*p_m+0.428233*p*p_p+0.269623*p_p))))+1.284) #dD/dp
-        return dD_p
-
-    def get_dD_dn(self,ns,alphas):
-        """Return the derivative `dD(n_a,n_b)/d n_a and d n_b` """
-      #  return (0,0) # check
-        na, nb = ns
-        n = na + nb
-        n2 = n**2
-        alpha_a, alpha_b, alpha_p,p = alphas
-        p_p, p_m = (1+p)**(2.0/3), (1-p)**(2.0/3)
-        p2 = p**2
-        G = 0.357 + 0.642 * p2
-        D = (G + alpha_a * ((1.0 + p)/2.0) ** (5.0/3) - alpha_b * ((1.0-p)/2.0)**(5.0/3))
-
-        dp_n_a = 2*nb/n2 # dp/dna
-        dp_n_b = -2*na/n2# dp/dnb
-        
-        dD_p = self.get_dD_dp(p=p,p_p=p_p,p_m=p_m)
-        N1 = 18 * (6 * np.pi**2 * n**(2.0/3))/ 100 * D # dD / d_N(n_a, n_b), N(n_a,n_b) is the part without p
-        N2 = (6 * np.pi**2) ** (5.0/3) / 20 / np.pi**2 * dD_p  # N * dD_p 
-        dD_n_a = N1 + N2 * dp_n_a
-        dD_n_b = N1 + N2 * dp_n_b
-        return (dD_n_a,dD_n_b)
-
     def get_Ks(self, twist=(0,0)):
         """return the original kinetic density matrix for homogeneous system"""
         D2 = self.get_D2(twist)
@@ -118,12 +178,14 @@ class ASLDA(object):
 
     def get_modified_K(self, D2,alpha):
         """"return a modified kinetic density  matrix"""
+        "[Numerical Test Status:Pass]"
         A = np.diag(alpha.ravel())
         K = (D2.dot(A) - np.diag(D2.dot(alpha.ravel())) + A.dot(D2)) / 2
         return K
 
     def get_modified_Ks(self,alpha_a,alpha_b,twist=(0,0)):
         """return the modified kinetic density  matrix"""
+        "[Numerical Test Status:Pass]"
         D2 = self.get_D2(twist=twist)
         # K( A U') = [(A u')'= (A u)'' - A'' u + A u'']/2
         #A_a,A_b = np.diag(alpha_a.ravel()),np.diag(alpha_b.ravel())
@@ -132,9 +194,7 @@ class ASLDA(object):
         return (K_a,K_b)
 
     def get_modified_Vs(self,delta, ns=None, taus=None,nu=0, alphas = None,twist=(0,0)):
-        """get the modified V functional terms
-           make it as efficient as possible since this is very long
-        """
+        """get the modified V functional terms"""
         #return self.v_ext
         if ns == None or taus == None or alphas == None:
             return self.v_ext
@@ -160,7 +220,7 @@ class ASLDA(object):
         dalpha_p_n_a, dalpha_p_n_b, dalpha_m_a, dalpha_m_b= dalpha_p * dp_n_a, dalpha_p * dp_n_b, dalpha_m * dp_n_a, dalpha_m * dp_n_b # apply chain rule
         # partial C / partial a and b
         dC_n_a,dC_n_b = (dalpha_p * dp_n_a + alpha_p * n **(-2/3) / 3)/self.gamma,(dalpha_p * dp_n_b + alpha_p * n **(-2/3) / 3)/self.gamma # comman term can be compute just once, do it later
-        dD_n_a,dD_n_b = self.get_dD_dn(ns=ns,alphas=alphas)
+        dD_n_a,dD_n_b = self._get_dD_dn(ns=ns)
         C1 = self.hbar**2 /2/self.m 
         V_a = dalpha_m_a * tau_m * C1  + dalpha_p_n_a * (tau_p * C1 - delta.conj().T * nu / alpha_p) + dC_n_a + dD_n_a + U_a # the common term can be compute just once
         V_b = dalpha_m_b * tau_m * C1 + dalpha_p_n_b * (tau_p * C1 - delta.conj().T * nu / alpha_p) + dC_n_b + dD_n_b + U_b
@@ -203,11 +263,6 @@ class ASLDA(object):
         self.g_eff = self.get_effective_g(ns = ns, Vs=(V_a,V_b), mus = mus,alpha_p = alpha_p)
         return ((K_a, K_b), (V_a, V_b))
 
-    def fft2(self, y):
-            return np.fft.fftn(y, axes=(0,1))
-            
-    def ifft2(self, y):
-            return np.fft.ifftn(y, axes=(0,1))
             
     def get_v_ext(self):
         """Return the external potential."""
@@ -235,25 +290,8 @@ class ASLDA(object):
         nu = 0.5 * np.sum(us[i]*vs[i].conj() *(self.f(Es[i]) - self.f(-Es[i])) for i in range(len(us))).reshape(self.Nxy)/self.dx**2
         return ((n_a, n_b),(tau_a,tau_b),nu)  # divided by a factor, not sure if wrong or right, check later !!!
 
-    def get_p(self, ns=None):
-        # ns start with initialized value (0,0)
-        if ns == None:
-            return 0
-        n_a, n_b = ns
-        n_p,n_m = n_a + n_b,n_a - n_b
-        p = n_m / n_p # may be wrong
-        return p
 
-    def get_alphas_p(self,ns = None):
-        p = self.get_p(ns)
-        p2 = p**2
-        p4 = p2**2
-        # too make code faster, equation (98) is divived into even part and odd part
-        alpha_even,alpha_odd = 1.0094 + 0.532 * p2 * (1 - p2 + p4 / 3.0), 0.156 * p * (1 - 2.0 * p2 / 3.0 + p4 / 5.0)
 
-        alpha_a,alpha_b =  alpha_odd + alpha_even, -alpha_odd + alpha_even #fixed an error here
-        alpha_p = alpha_even # it's defined as (alpha_a + alpha_b) /2 , which is just alpha_even
-        return (alpha_a,alpha_b,alpha_p,p)
 
     def f(self, E, E_c=None):
         """Return the Fermi-Dirac distribution at E."""
