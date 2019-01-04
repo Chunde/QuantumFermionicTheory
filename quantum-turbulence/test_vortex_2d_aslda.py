@@ -128,4 +128,4 @@ def test_aslda():
 
 if __name__ == '__main__':
     #test_aslda()
-    test_iterate_ASLDA()
+    test_derivative()

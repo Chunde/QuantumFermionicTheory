@@ -97,6 +97,7 @@ class ASLDA(object):
         return self.alpha_p(n_a,n_b) * (n_a + n_b)**(1.0/3) / self._gamma(self._get_p(n_a,n_b))
 
     def _D(self,n_a,n_b):
+        "[Numerical Test Status:Pass]"
         N1 = (6 * np.pi**2 *(n_a + n_b))**(5.0/3)/20/np.pi**2
         p = self._get_p((n_a,n_b))
         N2 = self._G(p) - self._alpha(p) * ((1+p)/2.0)**(5.0/3) - self._alpha(-p) * ((1-p)/2.0)**(5/3)
@@ -110,7 +111,17 @@ class ASLDA(object):
         """return the derivative 'dD(p)/dp' """
         "[Numerical Test Status:Pass]"
         p_p, p_m = (1+p)**(2.0/3), (1-p)**(2.0/3)
-        dD_p = 1.284*p + 0.57904*p_m + 0.51615*p**2*p_m +0.82315*p**3*p_m - 0.90042*p**4*p_m - 0.40065*p**5*p_m + 0.42823*p**6*p_m - 0.46617*p*p_p - 0.57904*p_p - 0.51615*p**2*p_p + 0.82315*p**3*p_p + 0.90042*p**4*p_p- 0.40065*p**5*p_p - 0.42823*p**6*p_p - 0.46617*p*p_m
+        pp = p_p + p_m
+        pm = p_p - p_m
+        p2 = p**2
+        p3 = p2*p
+        p4 = p3*p
+        p5 = p4*p
+        p6 = p5*p
+        #dD_p = 1.284*p + 0.57904*p_m + 0.51615*p**2*p_m +0.82315*p**3*p_m - 0.90042*p**4*p_m - 0.40065*p**5*p_m + 0.42823*p**6*p_m - 0.46617*p*p_p - 0.57904*p_p - 0.51615*p**2*p_p + 0.82315*p**3*p_p + 0.90042*p**4*p_p- 0.40065*p**5*p_p - 0.42823*p**6*p_p - 0.46617*p*p_m
+        #dD_p = 1.284*p + (0.57904 - 0.46617*p+ 0.51615*p2 +0.82315*p3 - 0.90042*p4 - 0.40065*p5 + 0.42823*p6)*p_m + ( - 0.57904- 0.46617*p - 0.51615*p2 + 0.82315*p3 + 0.90042*p4- 0.40065*p5 - 0.42823*p6)*p_p
+        #dD_p = 1.284*p - 0.57904 * pm - 0.46617 *p * pp - 0.51615*p2 * pm +0.82315*p3 * pp + 0.90042*p4 * pm - 0.40065*p5 * pp -0.42823*p6*pm
+        dD_p = 1.284*p + (- 0.57904  - 0.51615*p2 + 0.90042*p4 -0.42823*p6)*pm +(0.82315*p3- 0.46617 *p- 0.40065*p5) * pp
         return dD_p
 
     def get_alphas_p(self,ns = None):
@@ -162,6 +173,7 @@ class ASLDA(object):
         return nabla
 
     def get_D2(self, twist=(0,0)):
+        """return the second order derivative operator matrix"""
         k_bloch = np.divide(twist, self.Lxy)
         kxy = [_k + _kb for _k, _kb in zip(self.kxy, k_bloch)]
         mat_shape = (np.prod(self.Nxy),)*2
@@ -188,14 +200,13 @@ class ASLDA(object):
         "[Numerical Test Status:Pass]"
         D2 = self.get_D2(twist=twist)
         # K( A U') = [(A u')'= (A u)'' - A'' u + A u'']/2
-        #A_a,A_b = np.diag(alpha_a.ravel()),np.diag(alpha_b.ravel())
-        K_a = - self.hbar**2/2/self.m * self.get_modified_K(D2,alpha_a)#(D2.dot(A_a) - np.diag(D2.dot(alpha_a.ravel())) + A_a.dot(D2)) / 2 * self.hbar**2/2/self.m
-        K_b = - self.hbar**2/2/self.m * self.get_modified_K(D2,alpha_b)#(D2.dot(A_b) - np.diag(D2.dot(alpha_b.ravel())) + A_b.dot(D2)) / 2 * self.hbar**2/2/self.m
+        K_a = - self.hbar**2/2/self.m * self.get_modified_K(D2,alpha_a)
+        K_b = - self.hbar**2/2/self.m * self.get_modified_K(D2,alpha_b)
         return (K_a,K_b)
 
     def get_modified_Vs(self,delta, ns=None, taus=None,nu=0, alphas = None,twist=(0,0)):
         """get the modified V functional terms"""
-        #return self.v_ext
+        return self.v_ext
         if ns == None or taus == None or alphas == None:
             return self.v_ext
         U_a, U_b = self.v_ext
@@ -289,9 +300,6 @@ class ASLDA(object):
         tau_b = np.sum(np.abs(nabla.dot(vs[i].ravel()))**2 * self.f(-Es[i]) for i in range(len(vs))).reshape(self.Nxy)/self.dx**2
         nu = 0.5 * np.sum(us[i]*vs[i].conj() *(self.f(Es[i]) - self.f(-Es[i])) for i in range(len(us))).reshape(self.Nxy)/self.dx**2
         return ((n_a, n_b),(tau_a,tau_b),nu)  # divided by a factor, not sure if wrong or right, check later !!!
-
-
-
 
     def f(self, E, E_c=None):
         """Return the Fermi-Dirac distribution at E."""
