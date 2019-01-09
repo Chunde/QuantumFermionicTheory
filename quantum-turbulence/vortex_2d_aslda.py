@@ -240,36 +240,23 @@ class ASLDA(object):
         U_a, U_b = self.v_ext
         k_bloch = np.divide(twist, self.Lxy)
         kxy = [_k + _kb for _k, _kb in zip(self.kxy, k_bloch)]
-        if(alphas == None):
-            alphas = self.get_alphas(ns)
-
         tau_a, tau_b = taus
         tau_p, tau_m = tau_a + tau_b,tau_a - tau_b
         na,nb = ns
         n = na + nb
         n2 = n**2
         alpha_a, alpha_b, alpha_p = alphas
-        p = (na-nb)/n
-        #p2,p3,p4,p5,p6 = p**2,p**3,p**4,p**5, p**6
-        #alpha_m = 0.156*p + 0.104*p3 + 0.0312*p5
-        dp_n_a = 2*nb/n2
-        dp_n_b = -2*na/n2
+        p = self._get_p(ns)
+        dp_n_a, dp_n_b= 2*nb/n2,-2*na/n2
         dalpha_p = self._dalpha_p_dp(p)
         dalpha_m = self._dalpha_m_dp(p)
-        dalpha_p_dn_a, dalpha_p_dn_b, dalpha_m_dn_a, dalpha_m_dn_b= dalpha_p * dp_n_a, dalpha_p * dp_n_b, dalpha_m * dp_n_a, dalpha_m * dp_n_b # apply chain rule
-        #dalpha = -1.064*p5 + 0.156*p4 + 2.128*p3 + 0.312*p2-1.064*p+0.156
-        #dalpha_p = -1.064*p5 + 2.128*p3 - 1.064*p
-        #dalpha_m = 0.156*(p2+1.)**2 # matlab give a different result, it's minus sign in the parensis not plus, matlab is right, this result from mathematica is wrong
-        # partial C / partial a and b, and this line is right as it yield same results as _Dc_dn
-        #dC_n_a,dC_n_b = (dalpha_p * dp_n_a + alpha_p * n **(-2/3) / 3)/self.gamma,(dalpha_p * dp_n_b + alpha_p * n **(-2/3) / 3)/self.gamma # comman term can be compute just once, do it later
-        #dC_dn_a_, dC_dn_b_ = self._dC_dn(ns)
-        #assert np.allclose(dC_n_a, dC_dn_a_, atol=0.0005)
-        #assert np.allclose(dC_n_b, dC_dn_b_, atol=0.0005)
+        dalpha_p_dn_a, dalpha_p_dn_b, dalpha_m_dn_a, dalpha_m_dn_b= dalpha_p * dp_n_a, dalpha_p * dp_n_b, dalpha_m * dp_n_a, dalpha_m * dp_n_b
         dC_dn_a, dC_dn_b = self._dC_dn(ns)
         dD_dn_a,dD_dn_b = self._dD_dn(ns=ns)
         C1 = self.hbar**2 /2/self.m 
-        V_a = dalpha_m_dn_a * tau_m * C1  + dalpha_p_dn_a * (tau_p * C1 - delta.conj().T * nu / alpha_p) + dC_dn_a + dD_dn_a + U_a # the common term can be compute just once
-        V_b = dalpha_m_dn_b * tau_m * C1 + dalpha_p_dn_b * (tau_p * C1 - delta.conj().T * nu / alpha_p) + dC_dn_b + dD_dn_b + U_b
+        C2 = tau_p * C1 - delta.conj().T * nu / alpha_p
+        V_a = dalpha_m_dn_a * tau_m * C1 + dalpha_p_dn_a * C2 + dC_dn_a + dD_dn_a + U_a 
+        V_b = dalpha_m_dn_b * tau_m * C1 + dalpha_p_dn_b * C2 + dC_dn_b + dD_dn_b + U_b
         return (V_a,V_b)
 
     def get_Lambda(self,k0,kc,dim = 2):
@@ -388,11 +375,25 @@ class ASLDA(object):
     def get_R_per_average(self,mus,delta, abs_tol=1e-12):
         
         def f(kz):
-            R = self.get_R(mus=mus,delta=delta,N_twist=1,kz=kz)
+            R = self.get_R(mus=mus,delta=delta,N_twist=4,kz=kz)
             return R
         kc = np.sqrt(2 * self.m * self.E_c)/self.hbar
         R = mquad(f,-kc,kc,abs_tol=abs_tol) # may need to divide a factor of 2*kc?
         return R
+
+    def get_energy_density(self, ns,taus,nu):
+        """return energy density for aslda"""
+        n_a,n_b = ns
+        tau_a, tau_b = taus
+        energy_density = (self._alpha_a(n_a,n_b) * tau_a / 2 + self._alpha_b(n_a,n_b) * tau_b + self._D(n_a,n_b)) * self.hbar**2/self.m + self.g_eff * nu.conj().T * nu # dot product or element-wise?
+        return energy_density
+
+    def gx(self,ns,taus,nu):
+        """PRL 101, 215301 (2008):Unitary Fermi Supersolid: The Larkin-Ovchinnikov Phase"""
+        ed = self.get_energy_density(ns=ns,taus=taus,nu=nu)
+        na,nb = ns
+        gx53_= ed * 10 *self.m /3/self.hbar**2 *(6 * np.pi**2)**(-2.0/3) / na**(5.0/3)
+        return gx53_ **(3.0/5)
 
     def get_LDA(mu_eff, delta):
         """Return the LDA solution"""

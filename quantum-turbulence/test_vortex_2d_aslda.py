@@ -96,7 +96,7 @@ def test_iterate_ASLDA():
     E_FG = 2./3*n_F*e_F
     mu = 0.59060550703283853378393810185221521748413488992993*e_F #I change this number
     delta = 0.68640205206984016444108204356564421137062514068346*e_F
-    grid_size = 16
+    grid_size = 32
     aslda = vortex_2d_aslda.ASLDA(Nxy=(grid_size,)*2)
     k_c = abs(aslda.kxy[0]).max()
     E_c = (aslda.hbar*k_c)**2/2/aslda.m
