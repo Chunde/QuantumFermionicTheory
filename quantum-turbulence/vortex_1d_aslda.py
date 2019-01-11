@@ -331,7 +331,7 @@ class ASLDA(object):
         mu_a, mu_b = mus
         mu_a += zero
         mu_b += zero
-        (K_a, K_b),(V_a,V_b) = self.get_Ks_Vs(delta = delta,kappa=kappa,taus=taus,ns=ns,ky=ky,kz=kz,twist=twist)
+        (K_a, K_b),(V_a,V_b) = self.get_Ks_Vs(delta = delta,mus=mus,kappa=kappa,taus=taus,ns=ns,ky=ky,kz=kz,twist=twist)
         Mu_a, Mu_b = np.diag((mu_a - V_a).ravel()), np.diag((mu_b - V_b).ravel())
         H = np.bmat([[K_a - Mu_a, Delta], # I remove the minus sign for Delta, need to check
                      [Delta.conj(), -(K_b - Mu_b)]]) 
@@ -353,20 +353,26 @@ class ASLDA(object):
         kappa = 0.5 * np.sum(us[i]*vs[i].conj() *(self.f(Es[i]) - self.f(-Es[i])) for i in range(len(us)))/self.dx
         return ((n_a, n_b),(tau_a,tau_b),kappa)  # divided by a factor, not sure if wrong or right, check later !!!
 
-    # I do not think this will work
-    #def get_ns_taus_kappa_average(self,mus,delta,ns=None,taus=None,kappa=None):
-    #    kc = np.sqrt(2 * self.m * self.E_c)/self.hbar
-        
-    #    def f(kz=0):
-    #        def g(ky=0):
-    #            H_ = self.get_H(mus=mus,delta=delta,N_twist=4,ky=ky,kz=kz)
-    #            return H
-    #        H = mquad(g,-kc,kc,abs_tol=abs_tol) /2 /kc# may need to divide a factor of 2*kc?
-    #        return H
+    def get_ns_taus_kappa_average(self,mus,delta,ns=None,taus=None,kappa=None, N_twist = 4,abs_tol=1e-12):
+        kc = np.sqrt(2 * self.m * self.E_c)/self.hbar
+        twists = np.arange(0, N_twist)*2*np.pi/N_twist
+        n_a,n_b,tau_a_,tau_b_,kappa_ =0,0,0,0,0
+        for twist in twists:
+            def f(kz=0):
+                def g(ky=0):
+                    H = self.get_H(mus=mus,delta=delta,kappa=kappa,ky=ky,kz=kz,twist=twist)
+                    return H
+                H = mquad(g,-kc,kc,abs_tol=abs_tol) /2 /kc# may need to divide a factor of 2*kc?
+                return H
+            H = mquad(f,-kc,kc,abs_tol=abs_tol) /2 /kc# may need to divide a factor of 2*kc?
+            _ns,_taus,_kappa = self.get_ns_taus_kappa(H)
+            n_a = n_a + _ns[0]
+            n_b = n_b + _ns[1]
+            tau_a_ = tau_a_ + _taus[0]
+            tau_b_ = tau_b_ + _taus[1]
+            kappa_ = kappa_ + _kappa
 
-    #    R = mquad(f,-kc,kc,abs_tol=abs_tol) /2 /kc# may need to divide a factor of 2*kc?
-    #    return R
-
+        return ((n_a/N_twist,n_b/N_twist),(tau_a_/N_twist,tau_b_/N_twist),kappa_/N_twist)
 
     """
     Can't use R to compute the densities, so the follow 3 fucntions would be used. 

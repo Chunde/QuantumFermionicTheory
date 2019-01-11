@@ -26,7 +26,7 @@ def test_iterate_ASLDA():
         if nb is None:
             nb = np.ones(lda.Nx) * nb_avg
         H = lda.get_H(mus=mus,delta = delta,ns=(na,nb),taus = taus)
-        ns,taus,kappa = lda.get_ns_taus_kappa(H) 
+        ns,taus,kappa = lda.get_ns_taus_kappa_average(mus=mus,delta = delta,ns=(na,nb),taus = taus) #lda.get_ns_taus_kappa(H) 
         na_,nb_ = ns # the new densities are not used in the iteration, just used for compute new mus
         mu_a = mu_a*(1 + (na_avg - na_.mean()))
         mu_b = mu_b*(1 + (nb_avg - nb_.mean()))
@@ -38,7 +38,7 @@ def test_iterate_ASLDA():
         print(mu_a_eff.real.max(),mu_b_eff.real.max(),delta.real.max(), na_.real.mean(), nb_.real.mean())
         return (mu_a, mu_b,na,nb, mu_a_eff, mu_b_eff, delta,taus)
 
-    grid_size = 128
+    grid_size = 64
     aslda = ASLDA_(Nx=grid_size)
     k_c = abs(aslda.kx).max()
     E_c = 3*(aslda.hbar*k_c)**2/2/aslda.m # 3 dimension, so E_c should have a factor of 3
@@ -59,7 +59,7 @@ def test_iterate_ASLDA():
 
     while max_iteration > 0:
        # max_iteration -= 1
-        qT = iterate(lda=aslda,mudelta = qT, N_twist=np.inf,na_avg=0.5 * n, nb_avg=0.5 * n, abs_tol=1e-2)
+        qT = iterate(lda=aslda,mudelta = qT, N_twist=np.inf,na_avg=0.5, nb_avg=0.5, abs_tol=1e-2)
 
 
 
