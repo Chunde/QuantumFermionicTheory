@@ -81,10 +81,10 @@ class ASLDA(object):
         return -11.11
 
     def _alpha_a(self,n_a,n_b):
-        return _alpha(self._get_p((n_a,n_b)))
+        return self._alpha(self._get_p((n_a,n_b)))
      
     def _alpha_b(self,n_a,n_b):
-        return _alpha(-self._get_p((n_a,n_b)))
+        return self._alpha(-self._get_p((n_a,n_b)))
 
     def _alpha_p(self,p):
         return 0.5 * (self._alpha(p) + self._alpha(-p))
@@ -177,7 +177,6 @@ class ASLDA(object):
         dC_dn_a = self._alpha_p(p) * n **(-2/3)/3 + n**(1/3)*self._dalpha_p_dp(p) * dp_n_a
         dC_dn_b = self._alpha_p(p) * n **(-2/3)/3 + n**(1/3)*self._dalpha_p_dp(p) * dp_n_b
         gamma = self._gamma(p) # do not forget the gamma in the demonimor
-
         return (dC_dn_a/gamma,dC_dn_b/gamma)
 
     def get_alphas(self,ns = None):
@@ -327,7 +326,7 @@ class ASLDA(object):
     def get_H(self, mus, delta, ns=None,taus=None, kappa=0,ky=0,kz=0,twist=0):
         """Return the single-particle Hamiltonian with pairing. """
         zero = np.zeros_like(sum((self.Nx,self.Nx)))
-        Delta = np.diag((delta.reshape(self.Nx) + zero)) # I do not understand why we just take the diagnal term of Delta?
+        Delta = np.diag((delta.reshape(self.Nx) + zero)) 
         mu_a, mu_b = mus
         mu_a += zero
         mu_b += zero
@@ -344,16 +343,20 @@ class ASLDA(object):
         Es, psi = np.linalg.eigh(H) 
         us, vs = psi.reshape(2, Nx, Nx*2)
         us,vs = us.T,vs.T
-        # densities
+
+        #fEp = self.f(Es)
+        #fEm = self.f(-Es)
+
+        #n_a_, n_b_ = np.sum(np.abs(us[i])**2 * fEp[i]  for i in range(len(us)))/self.dx, np.sum(np.abs(vs[i])**2 * fEm[i]  for i in range(len(vs)))/self.dx
+
         n_a, n_b = np.sum(np.abs(us[i])**2 * self.f(Es[i])  for i in range(len(us)))/self.dx, np.sum(np.abs(vs[i])**2 * self.f(-Es[i])  for i in range(len(vs)))/self.dx
-        # Tau terms
         nabla = self.get_nabla()
         tau_a = np.sum(np.abs(nabla.dot(us[i]))**2 * self.f(Es[i]) for i in range(len(us)))/self.dx # should divided by a factor dx^2?????
         tau_b = np.sum(np.abs(nabla.dot(vs[i]))**2 * self.f(-Es[i]) for i in range(len(vs)))/self.dx
         kappa = 0.5 * np.sum(us[i]*vs[i].conj() *(self.f(Es[i]) - self.f(-Es[i])) for i in range(len(us)))/self.dx
         return ((n_a, n_b),(tau_a,tau_b),kappa)  # divided by a factor, not sure if wrong or right, check later !!!
 
-    def get_ns_taus_kappa_average(self,mus,delta,ns=None,taus=None,kappa=None, N_twist = 4,abs_tol=1e-12):
+    def get_ns_taus_kappa_average(self,mus,delta,ns=None,taus=None,kappa=None, N_twist = 18,abs_tol=1e-12):
         kc = np.sqrt(2 * self.m * self.E_c)/self.hbar
         twists = np.arange(0, N_twist)*2*np.pi/N_twist
         n_a,n_b,tau_a_,tau_b_,kappa_ =0,0,0,0,0
@@ -374,6 +377,21 @@ class ASLDA(object):
 
         return ((n_a/N_twist,n_b/N_twist),(tau_a_/N_twist,tau_b_/N_twist),kappa_/N_twist)
 
+    #def get_ns_taus_kappa_twist_average(self,mus,delta,ns=None,taus=None,kappa=None,abs_tol=1e-12):
+    #    kc = np.sqrt(2 * self.m * self.E_c)/self.hbar
+    #    def t(twist):
+    #        def f(kz=0):
+    #            def g(ky=0):
+    #                H = self.get_H(mus=mus,delta=delta,kappa=kappa,ky=ky,kz=kz,twist=twist)
+    #                return H
+    #            H = mquad(g,-kc,kc,abs_tol=abs_tol) /2 /kc# may need to divide a factor of 2*kc?
+    #            return H
+    #        H = mquad(f,-kc,kc,abs_tol=abs_tol) /2 /kc# may need to divide a factor of 2*kc?
+    #        _ns,_taus,_kappa = self.get_ns_taus_kappa(H)
+    #        return np.concatenate([_ns[0],_ns[1],_taus[0],_taus[1],_kappa])
+    #    ret =  mquad(t, -np.pi, np.pi, abs_tol=abs_tol)/2/np.pi
+    #    return ((n_a/2/np.pi,n_b),(tau_a/2/np.pi,tau_b/2/np.pi),kappa/2/np.pi)
+
     """
     Can't use R to compute the densities, so the follow 3 fucntions would be used. 
     I need to figure out how to do that use the H directly. Not clear yet!
@@ -388,8 +406,6 @@ class ASLDA(object):
             H = self.get_H(mus=mus, delta=delta,ky = ky, kz=kz, twist=twist)
             d, UV = np.linalg.eigh(H)
             R = UV.dot(self.f(d)[:, None]*UV.conj().T)
-            # R_ = np.eye(2*N) - UV.dot(self.f(-d)[:, None]*UV.conj().T)
-            # assert np.allclose(R, R_)
             Rs.append(R)
         R = sum(Rs)/len(Rs)
         return R
@@ -432,6 +448,3 @@ class ASLDA(object):
         na,nb = ns
         gx53_= ed * 10 *self.m /3/self.hbar**2 *(6 * np.pi**2)**(-2.0/3) / na**(5.0/3)
         return gx53_ **(3.0/5)
-
-    def get_LDA(mu_eff, delta):
-        """Return the LDA solution"""
