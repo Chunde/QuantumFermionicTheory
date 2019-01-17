@@ -77,7 +77,6 @@ class ASLDA(object):
         return ((266*p + 39)*(p**2 - 1)**2)/250 # from matlab, simplified version, pass the test
 
     def _gamma(self,p):
-        "[Numerical Test Status:Pass]"
         return -11.11
 
     def _alpha_a(self,n_a,n_b):
@@ -108,7 +107,7 @@ class ASLDA(object):
         """return C tilde"""
         "[Numerical Test Status:Pass]"
         p = self._get_p((n_a,n_b))
-        return self._alpha_p(p) * (n_a + n_b)**(1.0/3) / self._gamma(p)
+        return self._alpha_p(p) * (n_a + n_b)**(1.0/3) / self.gamma
 
     def _D(self,n_a,n_b):
         "[Numerical Test Status:Pass]"
@@ -176,7 +175,7 @@ class ASLDA(object):
         dp_n_b = -2*na/n2# dp/dnb
         dC_dn_a = self._alpha_p(p) * n **(-2/3)/3 + n**(1/3)*self._dalpha_p_dp(p) * dp_n_a
         dC_dn_b = self._alpha_p(p) * n **(-2/3)/3 + n**(1/3)*self._dalpha_p_dp(p) * dp_n_b
-        gamma = self._gamma(p) # do not forget the gamma in the demonimor
+        gamma = self.gamma # do not forget the gamma in the demonimor
         return (dC_dn_a/gamma,dC_dn_b/gamma)
 
     def get_alphas(self,ns = None):
@@ -208,20 +207,23 @@ class ASLDA(object):
         k_bloch = twist/self.Lx
         k = self.kx + k_bloch
         N = self.Nx
-
         # Unitary matrix implementing the FFT including the phase
         # twist
         U = np.exp(-1j*k[:, None]*self.x[None, :])/np.sqrt(N)
         assert np.allclose(U.conj().T.dot(U), np.eye(N))
-
         # Kinetic energy matrix
-        D2 = np.dot(U.conj().T, (self.hbar * k)[:, None]**2/2/self.m * U)
-        return D2
+        D2 = np.dot(U.conj().T, (self.hbar * k)[:, None]**2* U)
+
+        #D_ = np.fft.ifft(-1j*k*np.fft.fft(np.eye(N), axis=1), axis=1)
+        #D2_ = -D_.dot(D_.T.conj())
+        #assert np.allclose(D2, D2_)
+
+        return D2 # is there a minus sign??? Need to verify!!!!
 
     def get_Ks(self, twist=0):
         """return the original kinetic density matrix for homogeneous system"""
         D2 = self.get_D2(twist)
-        K = -D2  * self.hbar**2/2/self.m
+        K = D2  * self.hbar**2/2/self.m
         return (K,K)
 
     def get_modified_K(self, D2,alpha):
@@ -229,6 +231,7 @@ class ASLDA(object):
         "[Numerical Test Status:Pass]"
         A = np.diag(alpha)
         K = (D2.dot(A) - np.diag(D2.dot(alpha)) + A.dot(D2)) / 2
+        #assert np.allclose(K, K.conj().T) # the assertion is not always good, K would be slighly off from being Haermintian
         return K
 
     def get_modified_Ks(self,alpha_a,alpha_b,twist=0):
@@ -236,8 +239,10 @@ class ASLDA(object):
         "[Numerical Test Status:Pass]"
         D2 = self.get_D2(twist=twist)
         # K( A U') = [(A u')'= (A u)'' - A'' u + A u'']/2
-        K_a = - self.hbar**2/2/self.m * self.get_modified_K(D2,alpha_a)
-        K_b = - self.hbar**2/2/self.m * self.get_modified_K(D2,alpha_b)
+        K_a =  self.hbar**2/2/self.m * self.get_modified_K(D2,alpha_a)
+        K_b =  self.hbar**2/2/self.m * self.get_modified_K(D2,alpha_b)
+        #assert np.allclose(K_a, K_a.conj().T)
+        #assert np.allclose(K_b, K_b.conj().T)
         return (K_a,K_b)
 
     def get_modified_Vs(self,delta, ns=None, taus=None, kappa=0, alphas = None,twist=0):
@@ -262,7 +267,6 @@ class ASLDA(object):
         dC_dn_a, dC_dn_b = self._dC_dn(ns)
         dD_dn_a,dD_dn_b = self._dD_dn(ns=ns)
         C1 = self.hbar**2 /2/self.m 
-        C2 = 0
         C2 = tau_p * C1 - delta.conj().T * kappa / alpha_p
         V_a = dalpha_m_dn_a * tau_m * C1 + dalpha_p_dn_a * C2 + dC_dn_a + dD_dn_a + U_a 
         V_b = dalpha_m_dn_b * tau_m * C1 + dalpha_p_dn_b * C2 + dC_dn_b + dD_dn_b + U_b
@@ -332,9 +336,10 @@ class ASLDA(object):
         mu_b += zero
         (K_a, K_b),(V_a,V_b) = self.get_Ks_Vs(delta = delta,mus=mus,kappa=kappa,taus=taus,ns=ns,ky=ky,kz=kz,twist=twist)
         Mu_a, Mu_b = np.diag((mu_a - V_a).ravel()), np.diag((mu_b - V_b).ravel())
-        H = np.bmat([[K_a - Mu_a, Delta], # I remove the minus sign for Delta, need to check
-                     [Delta.conj(), -(K_b - Mu_b)]]) 
-        assert np.allclose(H,H.conj().T)
+        assert (Mu_a.shape[0] == self.x.shape[0])
+        H = np.bmat([[K_a - Mu_a, -Delta], # I remove the minus sign for Delta, need to check
+                     [-Delta.conj(), -(K_b - Mu_b)]]) 
+        assert np.allclose(H.real,H.conj().T.real)
         return np.asarray(H)
 
     def get_ns_taus_kappa(self, H): 
@@ -344,30 +349,57 @@ class ASLDA(object):
         us, vs = psi.reshape(2, Nx, Nx*2)
         us,vs = us.T,vs.T
 
-        #fEp = self.f(Es)
-        #fEm = self.f(-Es)
-
-        #n_a_, n_b_ = np.sum(np.abs(us[i])**2 * fEp[i]  for i in range(len(us)))/self.dx, np.sum(np.abs(vs[i])**2 * fEm[i]  for i in range(len(vs)))/self.dx
-
         n_a, n_b = np.sum(np.abs(us[i])**2 * self.f(Es[i])  for i in range(len(us)))/self.dx, np.sum(np.abs(vs[i])**2 * self.f(-Es[i])  for i in range(len(vs)))/self.dx
         nabla = self.get_nabla()
-        tau_a = np.sum(np.abs(nabla.dot(us[i]))**2 * self.f(Es[i]) for i in range(len(us)))/self.dx # should divided by a factor dx^2?????
+        tau_a = np.sum(np.abs(nabla.dot(us[i]))**2 * self.f(Es[i]) for i in range(len(us)))/self.dx
         tau_b = np.sum(np.abs(nabla.dot(vs[i]))**2 * self.f(-Es[i]) for i in range(len(vs)))/self.dx
         kappa = 0.5 * np.sum(us[i]*vs[i].conj() *(self.f(Es[i]) - self.f(-Es[i])) for i in range(len(us)))/self.dx
-        return ((n_a, n_b),(tau_a,tau_b),kappa)  # divided by a factor, not sure if wrong or right, check later !!!
+        return ((n_a, n_b),(tau_a,tau_b),kappa)
 
-    def get_ns_taus_kappa_average(self,mus,delta,ns=None,taus=None,kappa=None, N_twist = 18,abs_tol=1e-12):
+    def get_ns_taus_kappa_average_3d(self,mus,delta,ns=None,taus=None,kappa=None, N_twist = 8,abs_tol=1e-12):
         kc = np.sqrt(2 * self.m * self.E_c)/self.hbar
         twists = np.arange(0, N_twist)*2*np.pi/N_twist
         n_a,n_b,tau_a_,tau_b_,kappa_ =0,0,0,0,0
         for twist in twists:
             def f(kz=0):
                 def g(ky=0):
-                    H = self.get_H(mus=mus,delta=delta,kappa=kappa,ky=ky,kz=kz,twist=twist)
+                    H = self.get_H(mus=mus,delta=delta,ns=ns,taus=taus,kappa=kappa,ky=ky,kz=kz,twist=twist)
                     return H
-                H = mquad(g,-kc,kc,abs_tol=abs_tol) /2 /kc# may need to divide a factor of 2*kc?
+                H = mquad(g,-kc,kc,abs_tol=abs_tol)/2/kc# may need to divide a factor of 2*kc?
                 return H
-            H = mquad(f,-kc,kc,abs_tol=abs_tol) /2 /kc# may need to divide a factor of 2*kc?
+            H = mquad(f,-kc,kc,abs_tol=abs_tol)/2/kc# may need to divide a factor of 2*kc?
+            _ns,_taus,_kappa = self.get_ns_taus_kappa(H)
+            n_a = n_a + _ns[0]
+            n_b = n_b + _ns[1]
+            tau_a_ = tau_a_ + _taus[0]
+            tau_b_ = tau_b_ + _taus[1]
+            kappa_ = kappa_ + _kappa
+        return ((n_a/N_twist,n_b/N_twist),(tau_a_/N_twist,tau_b_/N_twist),kappa_/N_twist)
+
+    def get_ns_taus_kappa_average_2d(self,mus,delta,ns=None,taus=None,kappa=None, N_twist = 8,abs_tol=1e-12):
+        kc = np.sqrt(2 * self.m * self.E_c)/self.hbar
+        twists = np.arange(0, N_twist)*2*np.pi/N_twist
+        n_a,n_b,tau_a_,tau_b_,kappa_ =0,0,0,0,0
+        for twist in twists:
+            def f(ky=0):
+                H = self.get_H(mus=mus,delta=delta,ns=ns,taus=taus,kappa=kappa,ky=ky,kz=0,twist=twist)
+                return H
+            H = mquad(f,-kc,kc,abs_tol=abs_tol)/2/kc# may need to divide a factor of 2*kc?
+            _ns,_taus,_kappa = self.get_ns_taus_kappa(H)
+            n_a = n_a + _ns[0]
+            n_b = n_b + _ns[1]
+            tau_a_ = tau_a_ + _taus[0]
+            tau_b_ = tau_b_ + _taus[1]
+            kappa_ = kappa_ + _kappa
+        return ((n_a/N_twist,n_b/N_twist),(tau_a_/N_twist,tau_b_/N_twist),kappa_/N_twist)
+
+
+    def get_ns_taus_kappa_average_1d(self,mus,delta,ns=None,taus=None,kappa=None, N_twist = 8,abs_tol=1e-12):
+        kc = np.sqrt(2 * self.m * self.E_c)/self.hbar
+        twists = np.arange(0, N_twist)*2*np.pi/N_twist
+        n_a,n_b,tau_a_,tau_b_,kappa_ =0,0,0,0,0
+        for twist in twists:
+            H = self.get_H(mus=mus,delta=delta,ns=ns,taus=taus,kappa=kappa,twist=twist)
             _ns,_taus,_kappa = self.get_ns_taus_kappa(H)
             n_a = n_a + _ns[0]
             n_b = n_b + _ns[1]
@@ -376,22 +408,6 @@ class ASLDA(object):
             kappa_ = kappa_ + _kappa
 
         return ((n_a/N_twist,n_b/N_twist),(tau_a_/N_twist,tau_b_/N_twist),kappa_/N_twist)
-
-    #def get_ns_taus_kappa_twist_average(self,mus,delta,ns=None,taus=None,kappa=None,abs_tol=1e-12):
-    #    kc = np.sqrt(2 * self.m * self.E_c)/self.hbar
-    #    def t(twist):
-    #        def f(kz=0):
-    #            def g(ky=0):
-    #                H = self.get_H(mus=mus,delta=delta,kappa=kappa,ky=ky,kz=kz,twist=twist)
-    #                return H
-    #            H = mquad(g,-kc,kc,abs_tol=abs_tol) /2 /kc# may need to divide a factor of 2*kc?
-    #            return H
-    #        H = mquad(f,-kc,kc,abs_tol=abs_tol) /2 /kc# may need to divide a factor of 2*kc?
-    #        _ns,_taus,_kappa = self.get_ns_taus_kappa(H)
-    #        return np.concatenate([_ns[0],_ns[1],_taus[0],_taus[1],_kappa])
-    #    ret =  mquad(t, -np.pi, np.pi, abs_tol=abs_tol)/2/np.pi
-    #    return ((n_a/2/np.pi,n_b),(tau_a/2/np.pi,tau_b/2/np.pi),kappa/2/np.pi)
-
     """
     Can't use R to compute the densities, so the follow 3 fucntions would be used. 
     I need to figure out how to do that use the H directly. Not clear yet!
