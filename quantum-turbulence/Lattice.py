@@ -21,7 +21,7 @@ class Lattice(BCS):
         BCS.__init__(self, L=cells*L, N=cells*N, **kw)
     
     def get_v_ext(self):
-        v_a = (-self.V0 * (1-((1+np.cos(2*np.pi * self.cells*self.x/self.L))/2)**self.power))
+        v_a =  (-self.V0 * (1-((1+np.cos(2*np.pi * self.cells*self.x/self.L))/2)**self.power))
         v_b = 0 * self.x
         return v_a, v_b
     
@@ -34,7 +34,7 @@ class Lattice(BCS):
             R = self.get_R(mus=mus, delta=delta, N_twist=N_twist)
         na = np.diag(R)[:self.N]/self.dx
         nb = (1 - np.diag(R)[self.N:])/self.dx
-        #where this relation comes from?
+        
         mu_a = mu_a*(1 + (na_avg - na.mean()))
         mu_b = mu_b*(1 + (nb_avg - nb.mean()))
 
@@ -51,8 +51,8 @@ def TestWithHomogenous():
     v_0, n, mu, e_0 = homogeneous.get_BCS_v_n_e(delta=delta, mu_eff=mu_eff)
 
     L = 0.46
-    N = 2**8
-    N_twist = 2**5
+    N = 8
+    N_twist = 20#2**5
     for b in [bcs.BCS(T=0, N=N, L=L),
               Lattice(T=0.0, N=N, L=L, v0=v_0, V0=0)]:
         R = b.get_R(mus=(mu_eff, mu_eff), delta=delta, N_twist=N_twist)
@@ -63,14 +63,14 @@ def TestWithHomogenous():
 
 if __name__ == '__main__':
     # Test - reproduce homogeneous results
-    # TestWithHomogenous()
-    L = 0.46
-    N = 2**8
-    delta = 1.0
-    mu_eff = 1.0
-    v_0, n, mu, e_0 = homogeneous.get_BCS_v_n_e(delta=delta, mu_eff=mu_eff)
-    l = Lattice(T=0.0, N=N, L=L, v0=v_0, V0=0)
-    qT = (mu, mu) + (mu_eff*np.ones(l.N),)*2 + (np.ones(l.N)*delta,)
+    TestWithHomogenous()
+    #L = 0.46
+    #N = 128
+    #delta = 1.0
+    #mu_eff = 1.0
+    #v_0, n, mu, e_0 = homogeneous.get_BCS_v_n_e(delta=delta, mu_eff=mu_eff)
+    #l = Lattice(T=0.0, N=N, L=L, v0=v_0, V0=0)
+    #qT = (mu, mu) + (mu_eff*np.ones(l.N),)*2 + (np.ones(l.N)*delta,)
 
-    while True:
-        qT = l.iterate_full(qT, plot=False, N_twist=np.inf, na_avg=n* 2/5, nb_avg=n*3/5, abs_tol=1e-2)
+    #while True:
+    #    qT = l.iterate_full(qT, plot=False, N_twist=np.inf, na_avg=n* 2/5, nb_avg=n*3/5, abs_tol=1e-2)

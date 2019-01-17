@@ -58,7 +58,7 @@ def test_derivative():
         assert np.allclose(dalpha_p_dp,dalpha_p_dp_)
 
 def test_iterate_ASLDA():
-    def iterate(lda, mudelta,   na_avg=0.5, nb_avg=0.5, N_twist=0, **kw):
+    def iterate(lda, mudelta, na_avg=0.5, nb_avg=0.5, N_twist=0, **kw):
         mu_a, mu_b, mu_a_eff, mu_b_eff, delta,taus = mudelta
         mus = (mu_a_eff, mu_b_eff)
         if np.isinf(N_twist):

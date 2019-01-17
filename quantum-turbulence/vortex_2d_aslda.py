@@ -259,7 +259,7 @@ class ASLDA(object):
         V_b = dalpha_m_dn_b * tau_m * C1 + dalpha_p_dn_b * C2 + dC_dn_b + dD_dn_b + U_b
         return (V_a,V_b)
 
-    def get_Lambda(self,k0,kc,dim = 2):
+    def get_Lambda(self,k0,kc,dim = 3):
         """return the renomalization condition parameter Lambda"""
         if dim ==3:
             Lambda = self.m / self.hbar**2/2/np.pi**2 *(1.0 - k0/kc/2*np.log((kc+k0)/(kc-k0)))
@@ -269,7 +269,7 @@ class ASLDA(object):
             Lambda = self.m/self.hbar**2/2/np.pi * np.log((kc-k0)/(kc+k0))/k0
         return Lambda
 
-    def get_effective_g(self,ns,Vs,mus,alpha_p,dim = 2):
+    def get_effective_g(self,ns,Vs,mus,alpha_p,dim = 3):
         """get the effective g"""
         V_a, V_b = Vs
         mu_p = (np.sum(mus) - V_a + V_b) / 2
@@ -287,14 +287,14 @@ class ASLDA(object):
             return (self.get_Ks(twist=twist), self.get_modified_Vs(delta=delta,ns=ns,taus=taus,nu=nu,alphas=alphas,twist=twist))
 
         alpha_a, alpha_b, alpha_p = alphas
-
+        Ez = self.hbar**2/2/self.m  * kz**2
         if type(alpha_a) != type(np.array):
             alpha_a = np.eye(self.Nxy[0]) * alpha_a # this will be problematic if Nx != Ny
             alpha_b = np.eye(self.Nxy[0]) * alpha_b
         K_a,K_b = self.get_modified_Ks(alpha_a=alpha_a,alpha_b=alpha_b,twist = twist)
         V_a, V_b = self.get_modified_Vs(delta=delta,ns=ns,taus=taus,nu=nu,alphas=alphas,twist=twist)
         self.g_eff = self.get_effective_g(ns = ns, Vs=(V_a,V_b), mus = mus,alpha_p = alpha_p)
-        return ((K_a, K_b), (V_a, V_b))
+        return ((K_a + Ez, K_b + Ez), (V_a, V_b))
 
             
     def get_v_ext(self):
@@ -329,14 +329,14 @@ class ASLDA(object):
             f = (1 - np.sign(E))/2
         return np.where(abs(E)<E_c, f, 0)
 
-    def get_H(self, mus, delta, ns=None,taus=None, nu=0,twist=(0,0)):
+    def get_H(self, mus, delta, ns=None,taus=None, nu=0,kz=0,twist=(0,0)):
         """Return the single-particle Hamiltonian with pairing. """
         zero = np.zeros_like(sum((np.prod(self.Nxy),np.prod(self.Nxy))))
         Delta = np.diag((delta.reshape(self.Nxy) + zero).ravel()) # I do not understand why we just take the diagnal term of Delta?
         mu_a, mu_b = mus
         mu_a += zero
         mu_b += zero
-        (K_a, K_b),(V_a,V_b) = self.get_Ks_Vs(delta = delta,nu=nu,taus=taus,ns=ns,twist=twist)
+        (K_a, K_b),(V_a,V_b) = self.get_Ks_Vs(delta = delta,nu=nu,taus=taus,ns=ns,kz=kz,twist=twist)
         Mu_a, Mu_b = np.diag((mu_a - V_a).ravel()), np.diag((mu_b - V_b).ravel())
         H = np.bmat([[K_a - Mu_a, Delta], # I remove the minus sign for Delta, need to check
                      [Delta.conj(), -(K_b - Mu_b)]]) # H is 512 * 512?
@@ -351,9 +351,9 @@ class ASLDA(object):
             twists = itertools.product(*(np.arange(0, N_twist)*2*np.pi/N_twist, )*2)
 
         for twist in twists:
-            H = self.get_H(mus=mus, delta=delta, twist=twist)
+            H = self.get_H(mus=mus, delta=delta, kz=kz, twist=twist)
             d, UV = np.linalg.eigh(H)
-            R = UV.dot(self.f(d + (self.hbar*kz)**2/2/self.m)[:, None]*UV.conj().T)
+            R = UV.dot(self.f(d)[:, None]*UV.conj().T)
             # R_ = np.eye(2*N) - UV.dot(self.f(-d)[:, None]*UV.conj().T)
             # assert np.allclose(R, R_)
             Rs.append(R)
@@ -364,9 +364,9 @@ class ASLDA(object):
         """Return the density matrix R."""
         R0 = 1.0
         def f(twist):
-            H = self.get_H(mus=mus, delta=delta, twist=twist)
+            H = self.get_H(mus=mus, delta=delta, kz=kz, twist=twist)
             d, UV = np.linalg.eigh(H)
-            R = UV.dot(self.f(d + (self.hbar*kz)**2/2/self.m)[:, None]*UV.conj().T)
+            R = UV.dot(self.f(d)[:, None]*UV.conj().T)
             return R/R0
         R0 = f(0)
         R = R0 * mquad(f, -np.pi, np.pi, abs_tol=abs_tol)/2/np.pi
@@ -378,7 +378,7 @@ class ASLDA(object):
             R = self.get_R(mus=mus,delta=delta,N_twist=4,kz=kz)
             return R
         kc = np.sqrt(2 * self.m * self.E_c)/self.hbar
-        R = mquad(f,-kc,kc,abs_tol=abs_tol) # may need to divide a factor of 2*kc?
+        R = mquad(f,-kc,kc,abs_tol=abs_tol) /2 /kc# may need to divide a factor of 2*kc?
         return R
 
     def get_energy_density(self, ns,taus,nu):

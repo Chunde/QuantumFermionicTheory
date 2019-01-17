@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>d96035f2-d7ba-4540-adc5-a336a7b7a91f</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>test_vortex_2d_aslda.py</StartupFile>
+    <StartupFile>Lattice.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -29,9 +29,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="test_homogeneous.py" />
+    <Compile Include="test_vortex_1d_aslda.py" />
     <Compile Include="test_vortex_2d_aslda.py" />
-    <Compile Include="vortex_2d.py" />
-    <Compile Include="test_vortex_2d.py" />
+    <Compile Include="vortex_1d_aslda.py" />
     <Compile Include="vortex_2d_aslda.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
