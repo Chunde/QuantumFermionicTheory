@@ -6,7 +6,6 @@ two-species Fermi gas with short-range interaction.
 from __future__ import division
 
 import itertools
-
 import numpy as np
 import scipy.integrate
 
@@ -342,19 +341,26 @@ class ASLDA(object):
         assert np.allclose(H.real,H.conj().T.real)
         return np.asarray(H)
 
-    def get_ns_taus_kappa(self, H): 
+    def _get_modified_taus(self,taus,js):
+        """return the modified taus with currents in it, not implement"""
+        return taus
+
+    def get_ns_taus_kappa(self, H, compute_current_flag=False): 
         """Return the n_a, n_b"""
         Nx = self.Nx
         Es, psi = np.linalg.eigh(H) 
         us, vs = psi.reshape(2, Nx, Nx*2)
         us,vs = us.T,vs.T
-
+        j_a,j_b =None,None
         n_a, n_b = np.sum(np.abs(us[i])**2 * self.f(Es[i])  for i in range(len(us)))/self.dx, np.sum(np.abs(vs[i])**2 * self.f(-Es[i])  for i in range(len(vs)))/self.dx
         nabla = self.get_nabla()
         tau_a = np.sum(np.abs(nabla.dot(us[i]))**2 * self.f(Es[i]) for i in range(len(us)))/self.dx
         tau_b = np.sum(np.abs(nabla.dot(vs[i]))**2 * self.f(-Es[i]) for i in range(len(vs)))/self.dx
         kappa = 0.5 * np.sum(us[i]*vs[i].conj() *(self.f(Es[i]) - self.f(-Es[i])) for i in range(len(us)))/self.dx
-        return ((n_a, n_b),(tau_a,tau_b),kappa)
+        if compute_current_flag:
+            j_a = 0.5 * sum( (us[i].conj()*nabla.dot(us[i])-us[i]*nabla.dot(us[i].conj())) * self.f(Es[i]) for i in range(len(us)))
+            j_b = 0.5 * sum( (vs[i].conj()*nabla.dot(vs[i])-vs[i]*nabla.dot(vs[i].conj())) * self.f(Es[i]) for i in range(len(vs)))
+        return ((n_a, n_b),self._get_modified_taus(taus=(tau_a,tau_b),js=(j_a,j_b)),kappa)
 
     def get_ns_taus_kappa_average_3d(self,mus,delta,ns=None,taus=None,kappa=None, N_twist = 8,abs_tol=1e-12):
         kc = np.sqrt(2 * self.m * self.E_c)/self.hbar
@@ -393,7 +399,6 @@ class ASLDA(object):
             kappa_ = kappa_ + _kappa
         return ((n_a/N_twist,n_b/N_twist),(tau_a_/N_twist,tau_b_/N_twist),kappa_/N_twist)
 
-
     def get_ns_taus_kappa_average_1d(self,mus,delta,ns=None,taus=None,kappa=None, N_twist = 8,abs_tol=1e-12):
         kc = np.sqrt(2 * self.m * self.E_c)/self.hbar
         twists = np.arange(0, N_twist)*2*np.pi/N_twist
@@ -406,7 +411,6 @@ class ASLDA(object):
             tau_a_ = tau_a_ + _taus[0]
             tau_b_ = tau_b_ + _taus[1]
             kappa_ = kappa_ + _kappa
-
         return ((n_a/N_twist,n_b/N_twist),(tau_a_/N_twist,tau_b_/N_twist),kappa_/N_twist)
     """
     Can't use R to compute the densities, so the follow 3 fucntions would be used. 

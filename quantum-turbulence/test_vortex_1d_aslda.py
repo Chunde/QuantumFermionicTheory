@@ -1,9 +1,6 @@
 # this file will eventually be changed to a test file for pytest, now just for debugging in Visual Studio
 # Chunde's comment will start with a single sharp '#', to track modifications.
 import numpy as np
-import matplotlib
-matplotlib.use('agg')
-from matplotlib import pyplot as plt
 from scipy.optimize import brentq
 from scipy.integrate import quad
 from uncertainties import ufloat
@@ -56,8 +53,6 @@ def iterate(lda, mudelta, na_avg=0.5, nb_avg=0.5, N_twist=0, **kw):
         nb = np.ones(lda.Nx) * nb_avg
     #H = lda.get_H(mus=mus,delta = delta,ns=(na,nb),taus = taus,kappa=kappa)
     ns_,taus_,kappa_ = lda.get_ns_taus_kappa_average_3d(mus=mus,delta = delta,ns=(na,nb),taus = taus,kappa=kappa) #lda.get_ns_taus_kappa(H) 
-    plt.plot(lda.x,ns_[0].real)
-    plt.show()
     gx = lda.gx(ns_,taus_,kappa_)
     na_,nb_ = ns_ # the new densities are not used in the iteration, just used for compute new mus
     nomral_na = na_.mean() / (na_.mean() + nb_.mean())
@@ -116,6 +111,7 @@ def test_ASLDA_Homogenous():
     assert np.allclose(delta, v_0*kappa[0].real,atol=0.001)
 
 def test_ASLDA_unitary():
+    """"test the unitary case, but seems not close"""
     L = 0.46
     N = 128
     N_twist = 32
