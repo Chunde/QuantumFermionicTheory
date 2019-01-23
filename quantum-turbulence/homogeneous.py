@@ -222,10 +222,11 @@ class Homogeneous3D(object):
         # Factor of 1/4/pi**2 but we include the factor of 2 from -k_z to k_z
         res /= 2*np.pi**2 # the result should be the 1/g, where g=-v_0
 
+        # the shift of mu to impprove  convergence, due to 
         k0 = (np.mean(mus_eff) * 2 * self.m )**0.5 / self.hbar
-        co = - k_c/2/np.pi**2*k0/2/k_c*np.log((k_c+k0)/(k_c-k0)) *4*np.pi
+        shift_correction = - k_c/2/np.pi**2*k0/2/k_c*np.log((k_c+k0)/(k_c-k0)) *4*np.pi
 
-        return (-np.pi * 2.0 * res + 2 * k_c / np.pi) + co
+        return (-np.pi * 2.0 * res + 2 * k_c / np.pi) + shift_correction
 
     def get_BCS_v_n_e_in_cylindrical(self, delta, mus_eff, k_c=10000.0, q = 0, unitary = False):
         kF = np.sqrt(2*max(0, max(mus_eff)))
