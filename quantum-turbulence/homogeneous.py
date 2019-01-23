@@ -106,7 +106,6 @@ def BCS(mu_eff, delta=1.0):
     E_N_E_2 = E_N/abs(E_2)
     return E_N_E_2, lam
 
-
 class Homogeneous1D(object):
     """Solutions to the homogeneous BCS equations in 1D at finite T.
 
@@ -174,6 +173,7 @@ class Homogeneous1D(object):
 """3D homogenous system with regularization"""
 class Homogeneous3D(object):
     T = 0.0
+    m = hbar = 1
     k_cutoff = np.inf
     def __init__(self, **kw):
         self.__dict__.update(kw)
@@ -184,14 +184,14 @@ class Homogeneous3D(object):
         else:
             return 1./(1+np.exp(E/self.T))
 
-    def get_es(self, kz,kp, mus_eff):
-        return ((kz**2+kp**2)/2.0/m - mus_eff[0],
-               (kz**2+kp**2)/2.0/m - mus_eff[1])
+    def get_es(self, kz,kp, mus_eff,q=0):
+        return (((kz+q)**2+kp**2)/2.0/m - mus_eff[0],
+                ((kz+q)**2+kp**2)/2.0/m - mus_eff[1])
 
     Results = namedtuple('Results', ['e_p', 'E', 'w_p', 'w_m'])
 
-    def get_res(self, kz,kp, mus_eff, delta):
-        e_a, e_b = self.get_es(kz,kp, mus_eff=mus_eff)
+    def get_res(self, kz,kp, mus_eff, delta,q=0):
+        e_a, e_b = self.get_es(kz,kp, mus_eff=mus_eff,q=q)
         e_p, e_m = (e_a + e_b)/2, (e_a - e_b)/2
         E = np.sqrt(e_p**2 + abs(delta)**2)
         w_p, w_m = e_m + E, e_m - E
@@ -221,17 +221,22 @@ class Homogeneous3D(object):
 
         # Factor of 1/4/pi**2 but we include the factor of 2 from -k_z to k_z
         res /= 2*np.pi**2 # the result should be the 1/g, where g=-v_0
-        return (-np.pi * 2.0 * res + 2 * k_c / np.pi)
 
-    def np_integrand_test(self, kz_, kp_,delta, mus_eff):
-            #n_p = 1 - res.e_p/res.E*(self.f(res.w_m) - self.f(res.w_p)) #this line the the next line are equivalent, give same value
-            res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta)
-            #n_p = 1 + res.e_p/res.E*(self.f(res.w_p) + self.f(-res.w_m) - 1)#-->Dr. Forbes's equation
-            n_p = 0.5 *(1 + res.e_p/res.E*(self.f(res.w_m) - self.f(res.w_p)))
-            return n_p * kp_
+        k0 = (np.mean(mus_eff) * 2 * self.m )**0.5 / self.hbar
+        co = - k_c/2/np.pi**2*k0/2/k_c*np.log((k_c+k0)/(k_c-k0)) *4*np.pi
 
-    def get_BCS_v_n_e_in_cylindrical(self, delta, mus_eff, k_c=10000.0, unitary = False):
+        return (-np.pi * 2.0 * res + 2 * k_c / np.pi) + co
+
+    def get_BCS_v_n_e_in_cylindrical(self, delta, mus_eff, k_c=10000.0, q = 0, unitary = False):
         kF = np.sqrt(2*max(0, max(mus_eff)))
+
+        #For 
+        def gap_integrand(kz_,kp_):
+            res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta)
+            return (self.f(res.w_m) - self.f(res.w_p))/res.E
+
+        v_0 = 4*np.pi / dquad(f=gap_integrand, kF=kF, k_inf=k_c, int_name="Gap Integral")/4/np.pi**2
+
 
         if not unitary:
             ainv_s = self.get_inverse_scattering_length(delta=delta, mus_eff=mus_eff, k_c=k_c)
@@ -239,22 +244,16 @@ class Homogeneous3D(object):
         else:
             v_0 = 2 * np.pi **2 / k_c
 
-        def n_p(kz_, kp_):
-            res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta)
-            n_p = 1 + res.e_p/res.E*(self.f(res.w_p) + self.f(-res.w_m) - 1)
-            return n_p
-         
         def np_integrand(kz_, kp_):
-            #n_p = 1 - res.e_p/res.E*(self.f(res.w_m) - self.f(res.w_p)) #this line the the next line are equivalent, give same value
+            #n_p = 1 - res.e_p/res.E*(self.f(res.w_m) - self.f(res.w_p)) #this line and the the next line are equivalent, give same value
             res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta)
             n_p = 1 + res.e_p/res.E*(self.f(res.w_p) + self.f(-res.w_m) - 1)#-->Dr. Forbes's equation
             #n_p = 0.5 *(1 + res.e_p/res.E*(self.f(res.w_m) - self.f(res.w_p))) #-->Chunde's equation, seems wrong
             return n_p * kp_
 
-        self._n_p  = n_p
         
         def nm_integrand(kz_, kp_):
-            res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta)
+            res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta,q=q)
             n_m = self.f(res.w_p) - self.f(-res.w_m) #--> Dr. Forbes's equation
             #n_m = 0.5 *(self.f(res.w_p)-self.f(res.w_m) + res.e_p/res.E*(-self.f(res.w_p)-self.f(res.w_m))) #Chunde's equation
             return n_m * kp_
@@ -265,7 +264,6 @@ class Homogeneous3D(object):
         n_b = (n_p - n_m)/2.0
         ns = np.array([n_a, n_b])
         mus = mus_eff - np.array([n_b, n_a])*v_0
-
         return v_0, ns, mus
 
     def get_BCS_v_n_e_in_spherical(self, delta, mus_eff, k_c=10000.0, unitary = False):

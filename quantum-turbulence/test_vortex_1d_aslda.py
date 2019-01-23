@@ -10,14 +10,14 @@ from bcs import BCS
 import vortex_1d_aslda;reload(vortex_1d_aslda)
 import itertools  
 import matplotlib.pyplot as plt
+
 import time
 hbar = 1
 m = 1
 innerTest = False
+plt.autoscale(enable=True, axis='both', tight=None)
 plt.ion()
-fig = plt.figure()
-ax = fig.add_subplot(111)
-line1 = None
+fig = None
 
 class Lattice(BCS):
     """Adds optical lattice potential to species a with depth V0."""
@@ -44,13 +44,11 @@ class ASLDA_(vortex_1d_aslda.ASLDA):
     def get_alphas(self, ns = None):
         alpha_a,alpha_b,alpha_p =np.ones(self.Nx),np.ones(self.Nx),np.ones(self.Nx)
         return (alpha_a,alpha_b,alpha_p)       
-        #return super().get_alphas(ns)
+        return super().get_alphas(ns)
     def _dp_dn(self,ns):
         return (ns[0] * 0, ns[1]*0)
     #def f(self, E, E_c=None):
         #return 1
-    #def get_modified_Vs(self,delta, ns=None, taus=None, kappa=0, alphas = None,twist=0):
-    #    return self.v_ext
     #def get_Ks_Vs(self, delta, mus=(0,0), ns=None, taus=None, kappa=0, ky=0, kz=0, twist=0):
     #    alphas = self.get_alphas(ns)
     #    return (self.get_Ks(twist=twist), self.get_modified_Vs(delta=delta,ns=ns,taus=taus,kappa=kappa,alphas=alphas))
@@ -62,7 +60,7 @@ def iterate(lda, mudelta, na_avg=0.5, nb_avg=0.5, N_twist=0, lines=None,**kw):
         na = np.ones(lda.Nx) * na_avg
     if nb is None:
         nb = np.ones(lda.Nx) * nb_avg
-    ns_,taus_,kappa_ = lda.get_ns_taus_kappa_average_3d(mus=mus,delta = delta,ns=(na,nb),taus = taus,kappa=kappa,N_twist=N_twist) #lda.get_ns_taus_kappa(H) 
+    ns_,taus_,kappa_ = lda.get_ns_taus_kappa_average_1d(mus=mus,delta = delta,ns=(na,nb),taus = taus,kappa=kappa,N_twist=N_twist) #lda.get_ns_taus_kappa(H) 
     gx = lda.gx(ns_,taus_,kappa_)
     na_,nb_ = ns_ # the new densities are not used in the iteration, just used for compute new mus
     if lines is not None:
@@ -90,7 +88,7 @@ def test_ASLDA_Homogenous():
     N = 128
     N_twist = 32
     delta = 1.0
-    mu_eff = 2.0
+    mu_eff = 1.0
     v_0, n, mu, e_0 = homogeneous.get_BCS_v_n_e(delta=delta, mu_eff=mu_eff)
     n_ = np.ones((N),)*n
     print("Test 1d lattice with homogeneous system")
@@ -106,23 +104,24 @@ def test_ASLDA_Homogenous():
     ns,taus,kappa = b.get_ns_taus_kappa_average_1d(mus=(mu_eff  * np.ones((N),), mu_eff  * np.ones((N),)), delta=delta * np.ones((N),), N_twist=N_twist)
     na,nb = ns
     print((n, na[0].real + nb[0].real), (delta, v_0*kappa[0].real))
+    #assert np.allclose(n_, na.real + nb.real,atol=0.001)
+    #assert np.allclose(delta, v_0*kappa[0].real,atol=0.001)
+    #print("Test 1d lattice plus 1d integral over y with homogeneous system")
+    #k_c = abs(b.kx).max()
+    #E_c = (b.hbar*k_c)**2/2/b.m # 3 dimension, so E_c should have a factor of 3
+    #b.E_c = E_c
+    #ns,taus,kappa = b.get_ns_taus_kappa_average_2d(mus=(mu_eff  * np.ones((N),), mu_eff  * np.ones((N),)), delta=delta * np.ones((N),), N_twist=N_twist)
+    #na,nb = ns
+    #print((n, na[0].real + nb[0].real), (delta, v_0*kappa[0].real))
+    #assert np.allclose(n_, na.real + nb.real,atol=0.001)
+    #assert np.allclose(delta, v_0*kappa[0].real,atol=0.001)
+    #print("Test 1d lattice plus 2d integrals over y and  z with homogeneous system")
+    #ns,taus,kappa = b.get_ns_taus_kappa_average_3d(mus=(mu_eff  * np.ones((N),), mu_eff  * np.ones((N),)), delta=delta * np.ones((N),), N_twist=N_twist)
+    #na,nb = ns
+    #print((n, na[0].real + nb[0].real), (delta, v_0*kappa[0].real))
     assert np.allclose(n_, na.real + nb.real,atol=0.001)
     assert np.allclose(delta, v_0*kappa[0].real,atol=0.001)
-    print("Test 1d lattice plus 1d integral over y with homogeneous system")
-    k_c = abs(b.kx).max()
-    E_c = (b.hbar*k_c)**2/2/b.m # 3 dimension, so E_c should have a factor of 3
-    b.E_c = E_c
-    ns,taus,kappa = b.get_ns_taus_kappa_average_2d(mus=(mu_eff  * np.ones((N),), mu_eff  * np.ones((N),)), delta=delta * np.ones((N),), N_twist=N_twist)
-    na,nb = ns
-    print((n, na[0].real + nb[0].real), (delta, v_0*kappa[0].real))
-    assert np.allclose(n_, na.real + nb.real,atol=0.001)
-    assert np.allclose(delta, v_0*kappa[0].real,atol=0.001)
-    print("Test 1d lattice plus 2d integrals over y and  z with homogeneous system")
-    ns,taus,kappa = b.get_ns_taus_kappa_average_3d(mus=(mu_eff  * np.ones((N),), mu_eff  * np.ones((N),)), delta=delta * np.ones((N),), N_twist=N_twist)
-    na,nb = ns
-    print((n, na[0].real + nb[0].real), (delta, v_0*kappa[0].real))
-    assert np.allclose(n_, na.real + nb.real,atol=0.001)
-    assert np.allclose(delta, v_0*kappa[0].real,atol=0.001)
+
 def test_ASLDA_twisting():
     """[pass]"""
     L = 0.46
@@ -142,6 +141,7 @@ def test_ASLDA_twisting():
         assert np.allclose(np.concatenate((ns1[0],ns1[0])), ns2[0])
         assert np.allclose(np.concatenate((ns1[1],ns1[1])), ns2[1])
         print("Twisting Number = %d pass"%(i))
+
 def test_ASLDA_unitary():
     """"test the unitary case, but seems not close"""
     L = 0.46
@@ -194,34 +194,37 @@ def test_ASLDA_unitary():
     ns,taus,kappa = b.get_ns_taus_kappa_average_3d(mus=(mu_eff  * np.ones((N),), mu_eff  * np.ones((N),)), delta=delta * np.ones((N),), N_twist=N_twist)
     na,nb = ns
     print((n, na[0].real + nb[0].real), (delta, v_0*kappa[0].real))
+
 def test_ASLDA_iterate():
-    N = 256
+    Nx = 128
+    Lx = 0.46
     N_twist = 32
     delta = 1.0
     mu_eff = 1.0
-    lda = ASLDA_(Nx=N)
+    lda = ASLDA_(T=0,Nx=Nx,Lx=Lx)
     k_c = abs(lda.kx).max()
     E_c = (lda.hbar*k_c)**2/2/lda.m # 3 dimension, so E_c should have a factor of 3
     lda.E_c = E_c
-    k_F = np.sqrt(2*m*E_c)
-    n_F = k_F**3/3/np.pi**2
-    E_FG = 2./3*n_F*E_c
     mu = 1# 0.59060550703283853378393810185221521748413488992993*E_c
-    delta = 0#1# 0.68640205206984016444108204356564421137062514068346*E_c
+    delta = 1# 0.68640205206984016444108204356564421137062514068346*E_c
     qT = (mu, mu) +(None,None)+ (mu_eff*np.ones(lda.Nx),)*2 + (delta * np.ones((lda.Nx),), None,None)
     max_iteration = 5
     v_0, n, mu, e_0 = homogeneous.get_BCS_v_n_e(delta=delta, mu_eff=mu_eff)
     x = 0.75
-    line1, = ax.plot(lda.x, lda.x, 'r-') 
-    line2, = ax.plot(lda.x, lda.x, 'b-') 
-    ax.set_title('N=%d twist number=%d'%(N,N_twist))
+    global fig
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    (line1,),(line2,) = ax.plot(lda.x, lda.x, 'r-') ,ax.plot(lda.x, lda.x, 'b-') 
+    ax.set_title('Nx=%d Lx=%f N_twist=%d'%(Nx,Lx,N_twist))
+    ax.set_ylim(0,1.2)
     while max_iteration > 0:
         qT = iterate(lda=lda,mudelta = qT, N_twist=N_twist,na_avg=1/(1+x), nb_avg=x/(1+x), lines=(line1,line2),abs_tol=1e-2)
         if not innerTest:
             break
 
 def zero_densities_case():
-    N = 64
+    #happens when Lx =0.46
+    N = 4
     N_twist=5
     lda = ASLDA_(Nx=N)
     k_c = abs(lda.kx).max()
@@ -235,9 +238,7 @@ def zero_densities_case():
     delta = 0# 0.68640205206984016444108204356564421137062514068346*E_c
     qT = (mu, mu) +(None,None)+ (mu_eff*np.ones(lda.Nx),)*2 + (delta * np.ones((lda.Nx),), None,None)
     max_iteration = 5
-    v_0, n, mu, e_0 = homogeneous.get_BCS_v_n_e(delta=delta, mu_eff=mu_eff)
     x = 1
-    N=5
     while max_iteration > 0:
         if N < 0:
             break
@@ -248,4 +249,3 @@ def zero_densities_case():
 if __name__ == '__main__':
     innerTest = True
     test_ASLDA_iterate()
-    

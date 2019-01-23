@@ -16,7 +16,7 @@ class ASLDA(object):
     m = 1.0
     w = 1.0                     # Trapping potential
     
-    def __init__(self, Nx=32, Lx=2*np.pi, dx=None, T=0,E_c=np.inf):
+    def __init__(self, Nx=32, Lx=0.46, dx=None, T=0,E_c=np.inf):
 
         dy = dx
         if dx is None:
@@ -37,8 +37,8 @@ class ASLDA(object):
         self.alpha0 = 0 # the constant to turn on or off the alpha tems
         # External potential
         self.v_ext = self.get_v_ext()
-        self._D2 = self.get_D2()
-        self._D1 = self.get_nabla()
+        self._D2 = self.get_Laplacian()
+        self._D1 = self.get_Del()
     def fft(self, y):
             return np.fft.fft(y)
             
@@ -190,7 +190,7 @@ class ASLDA(object):
         alpha_p = alpha_even # it's defined as (alpha_a + alpha_b) /2 , which is just alpha_even
         return (alpha_a,alpha_b,alpha_p)
 
-    def get_nabla(self, twist=0):
+    def get_Del(self, twist=0):
         """return the second order derivative operator matrix"""
         k_bloch = twist/self.Lx
         k = self.kx + k_bloch
@@ -204,7 +204,7 @@ class ASLDA(object):
         nabla  = np.dot(U.conj().T, (1j*self.hbar * k)[:, None]/2/self.m * U)
         return nabla
 
-    def get_D2(self, twist=0):
+    def get_Laplacian(self, twist=0):
         """return the second order derivative operator matrix"""
         k_bloch = twist/self.Lx
         k = self.kx + k_bloch
@@ -224,7 +224,7 @@ class ASLDA(object):
 
     def get_Ks(self, kper=0,twist=0):
         """return the original kinetic density matrix for homogeneous system"""
-        D2 = self.get_D2(twist)
+        D2 = self.get_Laplacian(twist)
         K = D2  * self.hbar**2/2/self.m + kper
         return (K,K)
 
@@ -239,7 +239,7 @@ class ASLDA(object):
     def get_modified_Ks(self,alpha_a,alpha_b,twist=0):
         """return the modified kinetic density  matrix"""
         "[Numerical Test Status:Pass]"
-        D2 = self.get_D2(twist=twist)
+        D2 = self.get_Laplacian(twist=twist)
         # K( A U') = [(A u')'= (A u)'' - A'' u + A u'']/2
         K_a =  self.get_modified_K(D2,alpha_a)
         K_b =  self.get_modified_K(D2,alpha_b)
@@ -260,7 +260,7 @@ class ASLDA(object):
         dalpha_p = self._dalpha_p_dp(p)
         dalpha_m = self._dalpha_m_dp(p)
         dalpha_p_dn_a, dalpha_p_dn_b, dalpha_m_dn_a, dalpha_m_dn_b= dalpha_p * dp_n_a, dalpha_p * dp_n_b, dalpha_m * dp_n_a, dalpha_m * dp_n_b
-        dC_dn_a, dC_dn_b = self._dC_dn(ns)
+        dC_dn_a,dC_dn_b = self._dC_dn(ns)
         dD_dn_a,dD_dn_b = self._dD_dn(ns=ns)
         C0 = self.hbar**2 /self.m 
         C1 = C0 / 2
@@ -296,6 +296,7 @@ class ASLDA(object):
         k_per = self.hbar**2/2/self.m  *( kz**2 + ky**2)
         if alphas == None or ns == None or taus == None:
             return (self.get_Ks(kper=k_per,twist=twist), self.get_modified_Vs(delta=delta,ns=ns,taus=taus,kappa=kappa,alphas=alphas))
+        return (self.get_Ks(kper=k_per,twist=twist), self.get_modified_Vs(delta=delta,ns=ns,taus=taus,kappa=kappa,alphas=alphas))
         alpha_a, alpha_b, alpha_p = alphas
        
         K_a,K_b = self.get_modified_Ks(alpha_a=alpha_a,alpha_b=alpha_b,twist = twist)
@@ -309,6 +310,7 @@ class ASLDA(object):
         #v_b = 0 * self.x
         #return v_a, v_b
         return (0, 0)
+
     def f(self, E, E_c=None):
         """Return the Fermi-Dirac distribution at E."""
         if E_c is None:
@@ -318,10 +320,10 @@ class ASLDA(object):
         else:
             f = (1 - np.sign(E))/2
         return f
-        # the following line of code will remove some states when computing density, causeing inhomogeneous  and unphysical
+        # the following line of code will remove some states when computing density, causing distortion
         #return np.where(abs(E)<E_c, f, 0)
 
-    def get_H(self, mus, delta, ns=None,taus=None, kappa=0,ky=0,kz=0,twist=0):
+    def get_H(self, mus, delta, ns=None,taus=None, kappa=0, ky=0, kz=0, twist=0):
         """Return the single-particle Hamiltonian with pairing. """
         zero = np.zeros_like(sum((self.Nx,self.Nx)))
         Delta = np.diag((delta.reshape(self.Nx) + zero)) 
@@ -331,7 +333,7 @@ class ASLDA(object):
         (K_a, K_b),(V_a,V_b) = self.get_Ks_Vs(delta = delta,mus=mus,kappa=kappa,taus=taus,ns=ns,ky=ky,kz=kz,twist=twist)
         Mu_a, Mu_b = np.diag((mu_a - V_a).ravel()), np.diag((mu_b - V_b).ravel())
         assert (Mu_a.shape[0] == self.x.shape[0])
-        H = np.bmat([[K_a - Mu_a, -Delta], # I remove the minus sign for Delta, need to check
+        H = np.bmat([[K_a - Mu_a, -Delta], # may need remove the minus sign for Delta, need to check
                      [-Delta.conj(), -(K_b - Mu_b)]]) 
         assert np.allclose(H.real,H.conj().T.real)
         return np.asarray(H)
@@ -350,7 +352,7 @@ class ASLDA(object):
         n_a, n_b = np.sum(np.abs(us[i])**2 * self.f(Es[i])  for i in range(len(us)))/self.dx, np.sum(np.abs(vs[i])**2 * self.f(-Es[i])  for i in range(len(vs)))/self.dx
 
         assert not np.allclose(n_a,0) and not np.allclose(n_b,0)
-        nabla = self.get_nabla()
+        nabla = self.get_Del()
 
         # From Dr. Forbes' implementaiton
         #tau_a = (6*np.pi**2*n_a)**(5/3)/10/np.pi**2
@@ -429,7 +431,6 @@ class ASLDA(object):
             Rs.append(R)
         R = sum(Rs)/len(Rs)
         return R
-
     def get_R_twist_average(self, mus, delta,ky=0, kz=0,abs_tol=1e-12):
         """Return the density matrix R."""
         R0 = 1.0
@@ -441,7 +442,6 @@ class ASLDA(object):
         R0 = f(0)
         R = R0 * mquad(f, -np.pi, np.pi, abs_tol=abs_tol)/2/np.pi
         return R
-
     def get_R_per_average(self,mus,delta, abs_tol=1e-12):
         kc = np.sqrt(2 * self.m * self.E_c)/self.hbar
         
@@ -463,7 +463,6 @@ class ASLDA(object):
         N3 = self._alpha(p) * ((1 + p)/2)**(5/3) + self._alpha(-p)*((1-p)/2)**(5/3)
         N = N1 + N2 * N3
         return N
-
     def get_energy_density(self, ns,taus,kappa):
         """return energy density for aslda"""
         n_a,n_b = ns
@@ -481,7 +480,6 @@ class ASLDA(object):
         assert(np.allclose(normal_ed - aslda_ed,N3))
         """
         return normal_ed
-
     def gx(self,ns,taus,kappa):
         na,nb = ns
         """PRL 101, 215301 (2008):Unitary Fermi Supersolid: The Larkin-Ovchinnikov Phase"""

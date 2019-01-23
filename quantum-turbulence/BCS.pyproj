@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>d96035f2-d7ba-4540-adc5-a336a7b7a91f</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>test_vortex_1d_aslda.py</StartupFile>
+    <StartupFile>FuldeFerrelState.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -30,9 +30,18 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="bcs.py" />
+    <Compile Include="FuldeFerrelState.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="homogeneous.py" />
     <Compile Include="Lattice.py" />
     <Compile Include="scratch.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="test_ASLDA_Homogenous.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="test_ASLDA_iterate.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="test_homogeneous.py" />
