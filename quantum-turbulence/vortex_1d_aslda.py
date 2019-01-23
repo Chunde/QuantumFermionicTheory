@@ -37,7 +37,8 @@ class ASLDA(object):
         self.alpha0 = 0 # the constant to turn on or off the alpha tems
         # External potential
         self.v_ext = self.get_v_ext()
-
+        self._D2 = self.get_D2()
+        self._D1 = self.get_nabla()
     def fft(self, y):
             return np.fft.fft(y)
             
@@ -148,12 +149,9 @@ class ASLDA(object):
         #dD_n_a = 7.5963331205759943604501182783546*n**(2/3)*((0.642*(na - 1.0*nb)**2)/n**2 - (0.000066666666666666666666666666666667*(na/n)**(5/3)*(19049.0*na**6 + 114294.0*na**5*nb + 285735.0*na**4*nb**2 + 185780.0*na**3*nb**3 + 248295.0*na**2*nb**4 + 99318.0*na*nb**5 + 16553.0*nb**6))/n**6 - (0.000066666666666666666666666666666667*(nb/n)**(5/3)*(16553.0*na**6 + 99318.0*na**5*nb + 248295.0*na**4*nb**2 + 185780.0*na**3*nb**3 + 285735.0*na**2*nb**4 + 114294.0*na*nb**5 + 19049.0*nb**6))/n**6 + 0.357) - (0.00050642220803839962403000788522364*(92448.0*na*nb**6 - 23112.0*na**6*nb + 23112.0*nb**7 + 16553.0*nb**7*na32 - 19049.0*nb**7*nb32 + 115560.0*na**2*nb**5 - 115560.0*na**4*nb**3 - 92448.0*na**5*nb**2 + 99318.0*na*nb**6*na32 + 19049.0*na**6*nb*na32 - 114294.0*na*nb**6*nb32 - 16553.0*na**6*nb*nb32 + 248295.0*na**2*nb**5*na32 - 75724.0*na**3*nb**4*na32 + 637095.0*na**4*nb**3*na32 + 114294.0*na**5*nb**2*na32 - 637095.0*na**2*nb**5*nb32 + 75724.0*na**3*nb**4*nb32 - 248295.0*na**4*nb**3*nb32 - 99318.0*na**5*nb**2*nb32))/n**(19/3)
         #dD_n_b = (0.00050642220803839962403000788522364*(23112.0*na*nb**6 - 92448.0*na**6*nb - 23112.0*na**7 + 19049.0*na**7*na32 - 16553.0*na**7*nb32 + 92448.0*na**2*nb**5 + 115560.0*na**3*nb**4 - 115560.0*na**5*nb**2 + 16553.0*na*nb**6*na32 + 114294.0*na**6*nb*na32 - 19049.0*na*nb**6*nb32 - 99318.0*na**6*nb*nb32 + 99318.0*na**2*nb**5*na32 + 248295.0*na**3*nb**4*na32 - 75724.0*na**4*nb**3*na32 + 637095.0*na**5*nb**2*na32 - 114294.0*na**2*nb**5*nb32 - 637095.0*na**3*nb**4*nb32 + 75724.0*na**4*nb**3*nb32 - 248295.0*na**5*nb**2*nb32))/n**(19/3) + 7.5963331205759943604501182783546*n**(2/3)*((0.642*(na - 1.0*nb)**2)/n**2 - (0.000066666666666666666666666666666667*(na/n)**(5/3)*(19049.0*na**6 + 114294.0*na**5*nb + 285735.0*na**4*nb**2 + 185780.0*na**3*nb**3 + 248295.0*na**2*nb**4 + 99318.0*na*nb**5 + 16553.0*nb**6))/n**6 - (0.000066666666666666666666666666666667*(nb/n)**(5/3)*(16553.0*na**6 + 99318.0*na**5*nb + 248295.0*na**4*nb**2 + 185780.0*na**3*nb**3 + 285735.0*na**2*nb**4 + 114294.0*na*nb**5 + 19049.0*nb**6))/n**6 + 0.357)
 
-        n2 = n**2
         p = self._get_p(ns)
         p2 = p**2
-        dp_n_a = 2*nb/n2 # dp/dna
-        dp_n_b = -2*na/n2# dp/dnb
-        
+        dp_n_a,dp_n_b = self._dp_dn(ns)
         dD_p = self._dD_dp(p=p)
         N0 = (6 * np.pi**2) ** (5.0/3) / 20 / np.pi**2
         N1 = self._D(na,nb) / 0.6 / n
@@ -168,14 +166,19 @@ class ASLDA(object):
         na, nb = ns
         n = na + nb
         p = self._get_p(ns)
-        n2 = n**2
         p2 = p**2
-        dp_n_a = 2*nb/n2 # dp/dna
-        dp_n_b = -2*na/n2# dp/dnb
+        dp_n_a,dp_n_b = self._dp_dn(ns)
         dC_dn_a = self._alpha_p(p) * n **(-2/3)/3 + n**(1/3)*self._dalpha_p_dp(p) * dp_n_a
         dC_dn_b = self._alpha_p(p) * n **(-2/3)/3 + n**(1/3)*self._dalpha_p_dp(p) * dp_n_b
         gamma = self.gamma # do not forget the gamma in the demonimor
         return (dC_dn_a/gamma,dC_dn_b/gamma)
+
+    def _dp_dn(self,ns):
+        na,nb = ns
+        n = na + nb
+        n2 = n*n
+        dp_n_a, dp_n_b= 2*nb/n2,-2*na/n2
+        return (dp_n_a, dp_n_b)
 
     def get_alphas(self,ns = None):
         p = self._get_p(ns)
@@ -198,7 +201,7 @@ class ASLDA(object):
         U = np.exp(-1j*k[:, None]*self.x[None, :])/np.sqrt(N)
         assert np.allclose(U.conj().T.dot(U), np.eye(N))
         
-        nabla  = np.dot(U.conj().T, (-1j*self.hbar * k)[:, None]/2/self.m * U)
+        nabla  = np.dot(U.conj().T, (1j*self.hbar * k)[:, None]/2/self.m * U)
         return nabla
 
     def get_D2(self, twist=0):
@@ -219,17 +222,17 @@ class ASLDA(object):
 
         return D2 # is there a minus sign??? Need to verify!!!!
 
-    def get_Ks(self, twist=0):
+    def get_Ks(self, kper=0,twist=0):
         """return the original kinetic density matrix for homogeneous system"""
         D2 = self.get_D2(twist)
-        K = D2  * self.hbar**2/2/self.m
+        K = D2  * self.hbar**2/2/self.m + kper
         return (K,K)
 
     def get_modified_K(self, D2,alpha):
         """"return a modified kinetic density  matrix"""
         "[Numerical Test Status:Pass]"
         A = np.diag(alpha)
-        K = (D2.dot(A) - np.diag(D2.dot(alpha)) + A.dot(D2)) / 2
+        K = (D2.dot(A) - np.diag(self._D2.dot(alpha)) + A.dot(D2)) / 2
         #assert np.allclose(K, K.conj().T) # the assertion is not always good, K would be slighly off from being Haermintian
         return K
 
@@ -238,37 +241,32 @@ class ASLDA(object):
         "[Numerical Test Status:Pass]"
         D2 = self.get_D2(twist=twist)
         # K( A U') = [(A u')'= (A u)'' - A'' u + A u'']/2
-        K_a =  self.hbar**2/2/self.m * self.get_modified_K(D2,alpha_a)
-        K_b =  self.hbar**2/2/self.m * self.get_modified_K(D2,alpha_b)
-        #assert np.allclose(K_a, K_a.conj().T)
+        K_a =  self.get_modified_K(D2,alpha_a)
+        K_b =  self.get_modified_K(D2,alpha_b)
         #assert np.allclose(K_b, K_b.conj().T)
-        return (K_a,K_b)
+        return (self.hbar**2/2/self.m * K_a,self.hbar**2/2/self.m * K_b)
 
-    def get_modified_Vs(self,delta, ns=None, taus=None, kappa=0, alphas = None,twist=0):
+    def get_modified_Vs(self,delta, ns=None, taus=None, kappa=0, alphas = None):
         """get the modified V functional terms"""
-       # return self.v_ext
+        #return self.v_ext
         if ns == None or taus == None or alphas == None:
             return self.v_ext
         U_a, U_b = self.v_ext
-        k_bloch = np.divide(twist, self.Lx)
-        kx = self.kx + k_bloch
         tau_a, tau_b = taus
         tau_p, tau_m = tau_a + tau_b,tau_a - tau_b
-        na,nb = ns
-        n = na + nb
-        n2 = n**2
         alpha_a, alpha_b, alpha_p = alphas
         p = self._get_p(ns)
-        dp_n_a, dp_n_b= 2*nb/n2,-2*na/n2
+        dp_n_a,dp_n_b = self._dp_dn(ns)
         dalpha_p = self._dalpha_p_dp(p)
         dalpha_m = self._dalpha_m_dp(p)
         dalpha_p_dn_a, dalpha_p_dn_b, dalpha_m_dn_a, dalpha_m_dn_b= dalpha_p * dp_n_a, dalpha_p * dp_n_b, dalpha_m * dp_n_a, dalpha_m * dp_n_b
         dC_dn_a, dC_dn_b = self._dC_dn(ns)
         dD_dn_a,dD_dn_b = self._dD_dn(ns=ns)
-        C1 = self.hbar**2 /2/self.m 
+        C0 = self.hbar**2 /self.m 
+        C1 = C0 / 2
         C2 = tau_p * C1 - delta.conj().T * kappa / alpha_p
-        V_a = dalpha_m_dn_a * tau_m * C1 + dalpha_p_dn_a * C2 + dC_dn_a + dD_dn_a + U_a 
-        V_b = dalpha_m_dn_b * tau_m * C1 + dalpha_p_dn_b * C2 + dC_dn_b + dD_dn_b + U_b
+        V_a = dalpha_m_dn_a * tau_m * C1 + dalpha_p_dn_a * C2 + dC_dn_a + C0 * dD_dn_a + U_a 
+        V_b = dalpha_m_dn_b * tau_m * C1 + dalpha_p_dn_b * C2 + dC_dn_b + C0 * dD_dn_b + U_b
         return (V_a,V_b)
 
     def get_Lambda(self,k0,kc,dim = 3):
@@ -295,20 +293,15 @@ class ASLDA(object):
     def get_Ks_Vs(self, delta, mus=(0,0), ns=None, taus=None, kappa=0, ky=0, kz=0, twist=0): 
         """Return the kinetic energy and modifled potential matrics."""
         alphas = self.get_alphas(ns)
-        if alphas == None or ns == None or taus == None:
-            return (self.get_Ks(twist=twist), self.get_modified_Vs(delta=delta,ns=ns,taus=taus,kappa=kappa,alphas=alphas,twist=twist))
-
-        alpha_a, alpha_b, alpha_p = alphas
         k_per = self.hbar**2/2/self.m  *( kz**2 + ky**2)
-        if len(alpha_a) == 1:
-            alpha_a = (alpha_a,)*self.Nx 
-        if len(alpha_b) == 1:
-            alpha_b = (alpha_b,)*self.Nx
+        if alphas == None or ns == None or taus == None:
+            return (self.get_Ks(kper=k_per,twist=twist), self.get_modified_Vs(delta=delta,ns=ns,taus=taus,kappa=kappa,alphas=alphas))
+        alpha_a, alpha_b, alpha_p = alphas
+       
         K_a,K_b = self.get_modified_Ks(alpha_a=alpha_a,alpha_b=alpha_b,twist = twist)
-        V_a, V_b = self.get_modified_Vs(delta=delta,ns=ns,taus=taus,kappa=kappa,alphas=alphas,twist=twist)
+        V_a, V_b = self.get_modified_Vs(delta=delta,ns=ns,taus=taus,kappa=kappa,alphas=alphas)
         self.g_eff = self.get_effective_g(ns = ns, Vs=(V_a,V_b), mus = mus,alpha_p = alpha_p)
         return ((K_a + k_per, K_b + k_per), (V_a, V_b))
-
             
     def get_v_ext(self):
         """Return the external potential."""
@@ -324,7 +317,9 @@ class ASLDA(object):
             f = 1./(1+np.exp(E/self.T))
         else:
             f = (1 - np.sign(E))/2
-        return np.where(abs(E)<E_c, f, 0)
+        return f
+        # the following line of code will remove some states when computing density, causeing inhomogeneous  and unphysical
+        #return np.where(abs(E)<E_c, f, 0)
 
     def get_H(self, mus, delta, ns=None,taus=None, kappa=0,ky=0,kz=0,twist=0):
         """Return the single-particle Hamiltonian with pairing. """
@@ -347,13 +342,21 @@ class ASLDA(object):
 
     def get_ns_taus_kappa(self, H, compute_current_flag=False): 
         """Return the n_a, n_b"""
-        Nx = self.Nx
+        N = self.Nx
         Es, psi = np.linalg.eigh(H) 
-        us, vs = psi.reshape(2, Nx, Nx*2)
+        us, vs = psi.reshape(2, N, N*2)
         us,vs = us.T,vs.T
         j_a,j_b =None,None
         n_a, n_b = np.sum(np.abs(us[i])**2 * self.f(Es[i])  for i in range(len(us)))/self.dx, np.sum(np.abs(vs[i])**2 * self.f(-Es[i])  for i in range(len(vs)))/self.dx
+
+        assert not np.allclose(n_a,0) and not np.allclose(n_b,0)
         nabla = self.get_nabla()
+
+        # From Dr. Forbes' implementaiton
+        #tau_a = (6*np.pi**2*n_a)**(5/3)/10/np.pi**2
+        #tau_b = (6*np.pi**2*n_b)**(5/3)/10/np.pi**2
+
+
         tau_a = np.sum(np.abs(nabla.dot(us[i]))**2 * self.f(Es[i]) for i in range(len(us)))/self.dx
         tau_b = np.sum(np.abs(nabla.dot(vs[i]))**2 * self.f(-Es[i]) for i in range(len(vs)))/self.dx
         kappa = 0.5 * np.sum(us[i]*vs[i].conj() *(self.f(Es[i]) - self.f(-Es[i])) for i in range(len(us)))/self.dx
@@ -371,9 +374,9 @@ class ASLDA(object):
                 def g(ky=0):
                     H = self.get_H(mus=mus,delta=delta,ns=ns,taus=taus,kappa=kappa,ky=ky,kz=kz,twist=twist)
                     return H
-                H = mquad(g,-kc,kc,abs_tol=abs_tol)/2/kc# may need to divide a factor of 2*kc?
+                H = mquad(g,-kc,kc,abs_tol=abs_tol)/2/kc# may need to divide a factor of 2*kc? Yes
                 return H
-            H = mquad(f,-kc,kc,abs_tol=abs_tol)/2/kc# may need to divide a factor of 2*kc?
+            H = mquad(f,-kc,kc,abs_tol=abs_tol)/2/kc# may need to divide a factor of 2*kc? Yes
             _ns,_taus,_kappa = self.get_ns_taus_kappa(H)
             n_a = n_a + _ns[0]
             n_b = n_b + _ns[1]
@@ -390,7 +393,7 @@ class ASLDA(object):
             def f(ky=0):
                 H = self.get_H(mus=mus,delta=delta,ns=ns,taus=taus,kappa=kappa,ky=ky,kz=0,twist=twist)
                 return H
-            H = mquad(f,-kc,kc,abs_tol=abs_tol)/2/kc# may need to divide a factor of 2*kc?
+            H = mquad(f,-kc,kc,abs_tol=abs_tol)/2/kc
             _ns,_taus,_kappa = self.get_ns_taus_kappa(H)
             n_a = n_a + _ns[0]
             n_b = n_b + _ns[1]
@@ -412,10 +415,7 @@ class ASLDA(object):
             tau_b_ = tau_b_ + _taus[1]
             kappa_ = kappa_ + _kappa
         return ((n_a/N_twist,n_b/N_twist),(tau_a_/N_twist,tau_b_/N_twist),kappa_/N_twist)
-    """
-    Can't use R to compute the densities, so the follow 3 fucntions would be used. 
-    I need to figure out how to do that use the H directly. Not clear yet!
-    """
+
     def get_R(self, mus, delta, N_twist=1, ky=0, kz=0,twists=None):
         """Return the density matrix R."""
         Rs = []
@@ -454,17 +454,40 @@ class ASLDA(object):
 
         R = mquad(f,-kc,kc,abs_tol=abs_tol) /2 /kc# may need to divide a factor of 2*kc?
         return R
+    def get_abnormal_energy_density(self,ns,taus,kappa):
+        na,nb=ns
+        ta,tb = taus
+        N1 = self.hbar**2/self.m *(self._alpha_a(na,nb) * ta/2 + self._alpha_b(na,nb) * tb/2)
+        N2 = -(6*np.pi**2*self.hbar**2*(na+nb))**(5/3)/20/self.m/np.pi**2
+        p = self._get_p(ns)
+        N3 = self._alpha(p) * ((1 + p)/2)**(5/3) + self._alpha(-p)*((1-p)/2)**(5/3)
+        N = N1 + N2 * N3
+        return N
 
     def get_energy_density(self, ns,taus,kappa):
         """return energy density for aslda"""
         n_a,n_b = ns
+        p = self._get_p(ns)
         tau_a, tau_b = taus
-        energy_density = (self._alpha_a(n_a,n_b) * tau_a / 2 + self._alpha_b(n_a,n_b) * tau_b + self._D(n_a,n_b)) * self.hbar**2/self.m + self.g_eff * kappa.conj().T * kappa # dot product or element-wise?
-        return energy_density
+        normal_ed = self.hbar**2 / self.m * (6 * np.pi**2 * (n_a + n_b))**(5/3)/20/np.pi**2 * self._G(p)
+        """
+        # Check if the difference of energy densities from aslda and normal phase is as expected
+        tau_a = tau_a * 0
+        tau_b = tau_b * 0
+        N1 = (6*np.pi**2*self.hbar**2*(n_a+n_b))**(5/3)/20/self.m/np.pi**2
+        N2 = self._alpha(p) *((1+p)/2)**(5/3) + self._alpha(-p) * ((1-p)/2)**(5/3)
+        N3 = N1 * N2 
+        aslda_ed = (self._alpha_a(n_a,n_b) * tau_a / 2 + self._alpha_b(n_a,n_b) * tau_b + self._D(n_a,n_b)) * self.hbar**2/self.m + self.g_eff * kappa.conj().T * kappa # dot product or element-wise?
+        assert(np.allclose(normal_ed - aslda_ed,N3))
+        """
+        return normal_ed
 
     def gx(self,ns,taus,kappa):
+        na,nb = ns
         """PRL 101, 215301 (2008):Unitary Fermi Supersolid: The Larkin-Ovchinnikov Phase"""
         ed = self.get_energy_density(ns=ns,taus=taus,kappa=kappa)
-        na,nb = ns
-        gx53_= ed * 10 *self.m /3/self.hbar**2 *(6 * np.pi**2)**(-2.0/3) / na**(5.0/3)
+        gx53_= ed * 10 *self.m /3/self.hbar**2 /(6 * np.pi**2)**(2.0/3) / na**(5.0/3)
         return gx53_ **(3.0/5)
+    #Try to use broyden method
+    #https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.optimize.broyden1.html
+   

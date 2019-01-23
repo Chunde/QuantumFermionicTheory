@@ -107,7 +107,7 @@ def test_iterate_ASLDA():
     v_0, n, mu, e_0 = homogeneous.get_BCS_v_n_e(delta=delta, mu_eff=mu_eff)
 
     while max_iteration > 0:
-       # max_iteration -= 1
+        max_iteration -= 1
         qT = iterate(lda=aslda,mudelta = qT, N_twist=np.inf,na_avg=0.5 * n, nb_avg=0.5 * n, abs_tol=1e-2)
 
 
@@ -120,7 +120,7 @@ def test_aslda():
     mu = 0.59060550703283853378393810185221521748413488992993*e_F
     delta = 0.68640205206984016444108204356564421137062514068346*e_F
 
-    Nx, Ny = 64, 64
+    Nx, Ny = 32, 32
     H = np.eye(Nx*Ny).reshape(Nx, Ny, Nx, Ny) # apply 2d dft to the first and second dimensions only
     U = np.fft.fftn(H, axes=[0,1]).reshape(Nx*Ny, Nx*Ny)
     psi = np.random.random((Nx, Ny)) # the wave function is 2d
@@ -137,9 +137,9 @@ def test_aslda():
         p = s.get_p(ns=ns)
         alphas=s.get_alphas(ns)
         H = s.get_H(mus=(mu,mu),delta = delta,ns = ns, taus=taus,nu = nu)
-
+        break
 
 if __name__ == '__main__':
-    #test_aslda()
-    #test_derivative()
+    test_aslda()
+    test_derivative()
     test_iterate_ASLDA()
