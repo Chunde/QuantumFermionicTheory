@@ -225,19 +225,10 @@ class Homogeneous3D(object):
         # the shift of mu to impprove  convergence, due to 
         k0 = (np.mean(mus_eff) * 2 * self.m )**0.5 / self.hbar
         shift_correction = - k_c/2/np.pi**2*k0/2/k_c*np.log((k_c+k0)/(k_c-k0)) *4*np.pi
-
         return (-np.pi * 2.0 * res + 2 * k_c / np.pi) + shift_correction
 
     def get_BCS_v_n_e_in_cylindrical(self, delta, mus_eff, k_c=10000.0, q = 0, unitary = False):
         kF = np.sqrt(2*max(0, max(mus_eff)))
-
-        #For 
-        def gap_integrand(kz_,kp_):
-            res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta)
-            return (self.f(res.w_m) - self.f(res.w_p))/res.E
-
-        v_0 = 4*np.pi / dquad(f=gap_integrand, kF=kF, k_inf=k_c, int_name="Gap Integral")/4/np.pi**2
-
 
         if not unitary:
             ainv_s = self.get_inverse_scattering_length(delta=delta, mus_eff=mus_eff, k_c=k_c)
@@ -246,17 +237,14 @@ class Homogeneous3D(object):
             v_0 = 2 * np.pi **2 / k_c
 
         def np_integrand(kz_, kp_):
-            #n_p = 1 - res.e_p/res.E*(self.f(res.w_m) - self.f(res.w_p)) #this line and the the next line are equivalent, give same value
             res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta)
             n_p = 1 + res.e_p/res.E*(self.f(res.w_p) + self.f(-res.w_m) - 1)#-->Dr. Forbes's equation
-            #n_p = 0.5 *(1 + res.e_p/res.E*(self.f(res.w_m) - self.f(res.w_p))) #-->Chunde's equation, seems wrong
             return n_p * kp_
 
         
         def nm_integrand(kz_, kp_):
             res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta,q=q)
             n_m = self.f(res.w_p) - self.f(-res.w_m) #--> Dr. Forbes's equation
-            #n_m = 0.5 *(self.f(res.w_p)-self.f(res.w_m) + res.e_p/res.E*(-self.f(res.w_p)-self.f(res.w_m))) #Chunde's equation
             return n_m * kp_
 
         n_m = dquad(f=nm_integrand, kF=kF, k_inf=k_c, int_name="Density Difference")/4/np.pi**2
