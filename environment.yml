@@ -1,0 +1,45 @@
+name: _qt
+channels:
+  - defaults
+  - conda-forge
+  - ioam
+  - bokeh
+dependencies:
+  - ipykernel
+
+  # Core
+  - scipy
+  - uncertainties
+
+  # Performance
+  - ipyparallel
+  - numba
+  - numexpr
+
+  # Documentation
+  - nbstripout
+
+  # Plotting
+  - matplotlib
+  - holoviews
+  - paramnb
+
+  # Testing
+  - pytest-flake8
+  - pytest-cov
+  - pytest-runner
+
+  # Profiling
+  - snakeviz
+  - line_profiler
+  - memory_profiler
+  
+  - pip:
+    # Core
+    - mmfutils
+    - pytimeode
+    - mmf_setup
+    - scikits.bvp1lg
+
+    # Performance
+    - pyfftw
