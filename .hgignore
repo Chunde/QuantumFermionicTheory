@@ -1,0 +1,29 @@
+syntax: glob
+
+htmlcov/
+\.pytest_cache/
+_ext/
+\.coverage
+
+BLD,ENH,TST: Added tf_correction code, tests, and config files.
+
+.hgignore:
+- Added.  Ignore some cache directories, coverage output etc.
+
+quantum_turbulence/ASLDA.py:
+- Move this to the _trash directory... until this code has a change of
+  passing tests, it should not be included in the main directory.
+
+pytest.ini:
+- This provides configuration options for py.test.  In particular, it
+  triggers coverage testing.
+
+setup.cfg:
+- Some other configuration options for linting, etc.
+
+quantum_turbulence/tf_completion.py:
+quantum_turbulence/test_tf_completion.py:
+- Main code for integrals...  Will use numba for performance (see the
+  next DOC update.)
+
+
