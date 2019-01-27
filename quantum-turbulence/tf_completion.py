@@ -10,6 +10,21 @@ import scipy as sp
 
 from uncertainties import ufloat
 
+
+@numba.jit(nopython=True)
+def step(t, t1):
+    r"""Smooth step function that goes from 0 at time ``t=0`` to 1 at time
+    ``t=t1``.  This step function is $C_\infty$:
+    """
+    alpha = 3.0
+    if t < 0.0:
+        return 0.0
+    elif t < t1:
+        return (1 + math.tanh(alpha*math.tan(math.pi*(2*t/t1-1)/2)))/2
+    else:
+        return 1.0
+
+
 @numba.jit(nopython=True)
 def f(E, T):
     """Fermi distribution function."""
@@ -25,9 +40,9 @@ def f(E, T):
 # appropriate wrapper).
     
 @numba.jit(nopython=True)
-def n_p_integrand(k2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
-    e = hbar**2*k2/2
-    e_a, e_b = e/m_a - mu_a, e/m_b - mu_b
+def n_p_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
+    e = hbar**2/2
+    e_a, e_b = e*ka2/m_a - mu_a, e*kb2/m_b - mu_b
     e_m, e_p = (e_a - e_b)/2, (e_a + e_b)/2
     E = np.sqrt(e_p**2 + abs(delta)**2)
     w_m, w_p = e_m - E, e_m + E
@@ -37,9 +52,9 @@ def n_p_integrand(k2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
 
 
 @numba.jit(nopython=True)
-def n_m_integrand(k2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
-    e = hbar**2*k2/2
-    e_a, e_b = e/m_a - mu_a, e/m_b - mu_b
+def n_m_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
+    e = hbar**2/2
+    e_a, e_b = e*ka2/m_a - mu_a, e*kb2/m_b - mu_b
     e_m, e_p = (e_a - e_b)/2, (e_a + e_b)/2
     E = np.sqrt(e_p**2 + abs(delta)**2)
     w_m, w_p = e_m - E, e_m + E
@@ -48,9 +63,9 @@ def n_m_integrand(k2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
 
 
 @numba.jit(nopython=True)
-def tau_p_integrand(k2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
-    e = hbar**2*k2/2
-    e_a, e_b = e/m_a - mu_a, e/m_b - mu_b
+def tau_p_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
+    e = hbar**2/2
+    e_a, e_b = e*ka2/m_a - mu_a, e*kb2/m_b - mu_b
     e_m, e_p = (e_a - e_b)/2, (e_a + e_b)/2
     E = np.sqrt(e_p**2 + abs(delta)**2)
     w_m, w_p = e_m - E, e_m + E
@@ -60,9 +75,9 @@ def tau_p_integrand(k2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
 
 
 @numba.jit(nopython=True)
-def tau_m_integrand(k2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
-    e = hbar**2*k2/2
-    e_a, e_b = e/m_a - mu_a, e/m_b - mu_b
+def tau_m_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
+    e = hbar**2/2
+    e_a, e_b = e*ka2/m_a - mu_a, e*kb2/m_b - mu_b
     e_m, e_p = (e_a - e_b)/2, (e_a + e_b)/2
     E = np.sqrt(e_p**2 + abs(delta)**2)
     w_m, w_p = e_m - E, e_m + E
@@ -71,9 +86,9 @@ def tau_m_integrand(k2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
 
 
 @numba.jit(nopython=True)
-def nu_integrand(k2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
-    e = hbar**2*k2/2
-    e_a, e_b = e/m_a - mu_a, e/m_b - mu_b
+def nu_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
+    e = hbar**2/2
+    e_a, e_b = e*ka2/m_a - mu_a, e*kb2/m_b - mu_b
     e_m, e_p = (e_a - e_b)/2, (e_a + e_b)/2
     E = np.sqrt(e_p**2 + abs(delta)**2)
     w_m, w_p = e_m - E, e_m + E
@@ -82,9 +97,9 @@ def nu_integrand(k2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
 
 
 @numba.jit(nopython=True)
-def kappa_integrand(k2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
-    e = hbar**2*k2/2
-    e_a, e_b = e/m_a - mu_a, e/m_b - mu_b
+def kappa_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
+    e = hbar**2/2
+    e_a, e_b = e*ka2/m_a - mu_a, e*kb2/m_b - mu_b
     e_m, e_p = (e_a - e_b)/2, (e_a + e_b)/2
     E = np.sqrt(e_p**2 + abs(delta)**2)
     w_m, w_p = e_m - E, e_m + E
@@ -95,9 +110,9 @@ def kappa_integrand(k2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
 
 
 @numba.jit(nopython=True)
-def C_integrand(k2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
-    e = hbar**2*k2/2
-    e_a, e_b = e/m_a - mu_a, e/m_b - mu_b
+def C_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
+    e = hbar**2/2
+    e_a, e_b = e*ka2/m_a - mu_a, e*kb2/m_b - mu_b
     e_m, e_p = (e_a - e_b)/2, (e_a + e_b)/2
     E = np.sqrt(e_p**2 + abs(delta)**2)
     w_m, w_p = e_m - E, e_m + E
@@ -109,19 +124,21 @@ def integrate(f, mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0):
     args = (mu_a, mu_b, delta, m_a, m_b, hbar, T)
     if d == 1:
         def integrand(k):
-            return f(k**2, *args) / np.pi
+            k2 = k**2
+            return f(k2, k2, *args) / np.pi
     elif d == 2:
         def integrand(k):
-            return f(k**2, *args) * (k/2/np.pi)
+            k2 = k**2
+            return f(k2, k2, *args) * (k/2/np.pi)
     elif d == 3:
         def integrand(k):
             k2 = k**2
-            return f(k2, *args) * (k2/(2*np.pi**2))
+            return f(k2, k2, *args) * (k2/(2*np.pi**2))
     else:
         raise ValueError(f"Only d=1, 2, or 3 supported (got d={d})")
     
     integrand = numba.cfunc(numba.float64(numba.float64))(integrand)
-    integrand =sp.LowLevelCallable(integrand.ctypes)
+    integrand = sp.LowLevelCallable(integrand.ctypes)
 
     mu = (mu_a + mu_b)/2
     minv = (1/m_a + 1/m_b)/2
