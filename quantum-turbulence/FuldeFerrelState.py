@@ -3,7 +3,8 @@ from scipy.optimize import brentq
 import homogeneous
 import tf_completion as tf
 import matplotlib.pyplot as plt
-
+import ParallellelHelpers
+from ParallellelHelpers import ParallelAgent
 from homogeneous import Homogeneous1D,Homogeneous3D
 
 def special_momenta(kz, kp,q, mu_a, mu_b, delta, m_a, m_b, hbar, T):
@@ -37,7 +38,11 @@ def get_pressure(mu_a,mu_b,delta,m=1,hbar=1, T=0, q=0):
     pressure = mu_p * n_p + mu_m * n_m - kappa
     return pressure
 
+
 if __name__ == "__main__":
+    test_thermodynamic_relations()
+
+
     np.random.seed(1)
     m, hbar, kF = 1 + np.random.random(3)
     eF = (hbar*kF)**2/2/m
