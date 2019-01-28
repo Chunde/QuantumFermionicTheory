@@ -13,14 +13,26 @@ def test_3D():
     m, hbar, kF = 1 + np.random.random(3)
     eF = (hbar*kF)**2/2/m
     nF = kF**3/3/np.pi**2
-    mu = 0.59060550703283853378393810185221521748413488992993*eF
+    E_FG = 3./5*nF*eF
+    xi = 0.59060550703283853378393810185221521748413488992993
+    mu = xi*eF
     delta = 0.68640205206984016444108204356564421137062514068346*eF
     args = dict(mu_a=mu, mu_b=mu, delta=delta, m_a=m, m_b=m, hbar=hbar, T=0.0)
     n_p = tf_completion.integrate(tf_completion.n_p_integrand, d=3, **args)
     assert np.allclose(n_p.n, nF)
 
+    E = tf_completion.integrate(tf_completion.kappa_integrand, d=3,
+                                k_c=10.0, **args)
+    assert np.allclose(E.n, xi*E_FG)
+    
+    args_ = dict(mu_a=mu, mu_b=mu, delta=delta, m=m, hbar=hbar, T=0.0)
+    C_tilde = tf_completion.compute_C(d=3, **args_)
+    assert np.allclose(C_tilde.n, 0)
+    
     n_p = tf_completion.integrate_q(tf_completion.n_p_integrand, d=3, q=0, **args)
     assert np.allclose(n_p.n, nF, rtol=0.0001)
+    C_tilde = tf_completion.compute_C(d=3, q=0.00001, **args_)
+    assert np.allclose(C_tilde.n, 0)
 
     
 def test_2D():

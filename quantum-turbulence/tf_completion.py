@@ -35,18 +35,29 @@ def f(E, T):
 
 
 def dquad(f, kF=None, k_inf=np.inf):
-    """Return ufloat(res, err) for 2D integral of f(kz, kp)."""
+    """Return ufloat(res, err) for 2D integral of f(kz, kp).
+
+    kp < sqrt(k_inf**2 - kz**2)
+
+    Assumes k_inf >> k_F
+    """
+    if np.isinf(k_inf):
+        kp_inf = k_inf
+    else:
+        def kp_inf(kz):
+            return math.sqrt(k_inf**2 - kz**2)
+    
     if kF is None:
         res = ufloat(*dblquad(f,
-                              0, k_inf,   # kz
-                              0, k_inf))  # kp
+                              0, k_inf,     # kz
+                              0, kp_inf))   # kp
     else:
         res0 = ufloat(*dblquad(f,
-                               0, kF,      # kz
-                               0, k_inf))  # kp
+                               0, kF,       # kz
+                               0, kp_inf))  # kp
         res1 = ufloat(*dblquad(f,
-                               kF, np.inf,  # kz
-                               0, k_inf))   # kp
+                               kF, k_inf,   # kz
+                               0, kp_inf))  # kp
         res = res0 + res1
     return res
 
@@ -127,7 +138,7 @@ def nu_delta_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     E = np.sqrt(e_p**2 + abs(delta)**2)
     w_m, w_p = e_m - E, e_m + E
     f_nu = (f(w_m, T) - f(w_p, T))
-    return 0.5*E*f_nu
+    return 0.5/E*f_nu
 
 
 @numba.jit(nopython=True)
@@ -135,7 +146,7 @@ def kappa_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     m_p_inv = (1/m_a + 1/m_b)/2
     tau_p = tau_p_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T)
     nu_delta = nu_delta_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T)
-    return (tau_p * m_p_inv * hbar**2 /2 - abs(delta)**2 * nu_delta)
+    return (tau_p * m_p_inv * hbar**2 / 2 - abs(delta)**2 * nu_delta)
 
 
 @numba.jit(nopython=True)
@@ -149,7 +160,53 @@ def C_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     return f_nu/2*(1/e_p - 1/E)
 
 
-def integrate(f, mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0):
+def Lambda(m, mu, hbar, d, q=0, E_c=None, k_c=None):
+    """Compute the cutoff function Lambda assuming equal masses, and
+    that (hbar*q)**2/2m < mu.
+    """
+    k_0 = np.sqrt(2*m*mu/hbar**2 - q**2)
+    if k_c is None:
+        k_c = np.sqrt(2*m*(E_c+mu)/hbar**2 - q**2)
+    if d == 1:
+        return m/hbar**2/2/np.pi/k_0*np.log((k_c-k_0)/(k_c+k_0))
+    elif d == 2:
+        return m/hbar**2/4/np.pi * np.log((k_c/k_0)**2-1)
+    elif d == 3:
+        return m/hbar**2 * k_c/2/np.pi**2 * (
+            1 - k_0/2/k_c*np.log((k_c+k_0)/(k_c-k_0)))
+    else:
+        raise ValueError(f"Only d=1, 2, or 3 supported (got d={d})")
+
+
+def compute_C(mu_a, mu_b, delta, m, d=3, hbar=1.0, T=0.0, q=0,
+              k_c=None):
+    args = dict(mu_a=mu_a, mu_b=mu_b, delta=delta, m_a=m, m_b=m, d=d,
+                hbar=hbar, T=T)
+    mu = (mu_a + mu_b)/2
+    if k_c is None:
+        k_F = np.sqrt(2*m*mu)/hbar
+        k_c = 100*k_F
+    
+    if q == 0:
+        Lambda_c = Lambda(m=m, mu=mu, hbar=hbar, d=d, q=0, k_c=k_c)
+        nu_c_delta = integrate(f=nu_delta_integrand, k_c=k_c, **args)
+        C_c = -nu_c_delta + Lambda_c
+        C = C_c + integrate(f=C_integrand, k_0=k_c, **args)
+        return C
+    else:
+        Lambda_c = Lambda(m=m, mu=mu, hbar=hbar, d=d, q=q, k_c=k_c)
+        nu_c_delta = integrate_q(f=nu_delta_integrand, k_c=k_c, q=q, **args)
+        C_c = -nu_c_delta + Lambda_c
+        return C_c
+    
+    
+def integrate(f, mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0,
+              k_0=0.0, k_c=np.inf):
+    """Integrate the function f from k=k_0 to k=k_c.
+
+    Assume that k_0 = 0 or k_0 >> k_F etc.
+    Assumes k_c >> k_F etc.
+    """
     args = (mu_a, mu_b, delta, m_a, m_b, hbar, T)
 
     # We can do spherical integration
@@ -176,12 +233,18 @@ def integrate(f, mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0):
     kF = math.sqrt(2*mu/minv)/hbar
     points = [kF]
 
-    return (ufloat(*quad(integrand, 0, max(points), points=points))
-            +ufloat(*quad(integrand, max(points), np.inf)))
+    if k_0 == 0:
+        return (ufloat(*quad(integrand, 0, max(points), points=points))
+                +ufloat(*quad(integrand, max(points), k_c)))
+    else:
+        return ufloat(*quad(integrand, k_0, k_c))
 
 
-def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3, q=0.0, hbar=1.0, T=0.0):
+def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
+                q=0.0, hbar=1.0, T=0.0, k_0=0, k_c=None):
     args = (mu_a, mu_b, delta, m_a, m_b, hbar, T)
+
+    k_inf = np.inf if k_c is None else k_c
 
     # 2d integrals over kz and kp
     if d == 1:
@@ -212,7 +275,7 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3, q=0.0, hbar=1.0, T=0.0):
         integrand = sp.LowLevelCallable(integrand.ctypes)
 
         return (ufloat(*quad(integrand, 0, max(points), points=points))
-                +ufloat(*quad(integrand, max(points), np.inf)))
+                +ufloat(*quad(integrand, max(points), k_inf)))
     # integrand = numba.cfunc(numba.float64(numba.float64,numba.float64))(integrand)
     # integrand = sp.LowLevelCallable(integrand.ctypes)
-    return dquad(f=integrand, kF=kF, k_inf=np.inf)
+    return dquad(f=integrand, kF=kF, k_inf=k_inf)
