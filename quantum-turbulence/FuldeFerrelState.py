@@ -8,17 +8,19 @@ from ParallellelHelpers import ParallelAgent
 from homogeneous import Homogeneous1D,Homogeneous3D
 from multiprocessing import Pool
 
-def special_momenta(kz, kp,q, mu_a, mu_b, delta, m_a, m_b, hbar, T):
+
+def special_momenta(kz, kp, q, mu_a, mu_b, delta, m_a, m_b, hbar, T):
+    """Return the condition at the boundary of integration regions."""
     ka2 = (kz+q)**2 + kp**2
     kb2 = (kz-q)**2 + kp**2
     e = hbar**2/2
     e_a, e_b = e*ka2/m_a - mu_a, e*kb2/m_b - mu_b
     e_m, e_p = (e_a - e_b)/2, (e_a + e_b)/2
-    return e_m**2 - e_p**2 - delta**2 # this will be zero at the boundary of interested
+    return e_m**2 - e_p**2 - delta**2
 
 
 
-def get_delta(mu_a,mu_b,m=1,T=0,hbar=1, q=0):
+def get_delta(mu_a, mu_b, m=1, T=0, hbar=1, q=0):
     def get_C_tilde(delta):
         args_ = dict(mu_a=mu_a, mu_b=mu_b, delta=delta, m=m, hbar=hbar, T=T)
         C_tilde = tf_completion.compute_C(d=3, q=q, **args_)
@@ -58,14 +60,15 @@ def test_thermodynamic_relations():
     assert np.allclose(n_a,n_a_)
     assert np.allclose(n_b,n_b_)
 
+
 if __name__ == "__main__":
     np.random.seed(1)
     m, hbar, kF = 1 + np.random.random(3)
     eF = (hbar*kF)**2/2/m
     nF = kF**3/3/np.pi**2
-    mu =  0.59060550703283853378393810185221521748413488992993*eF
+    mu = 0.59060550703283853378393810185221521748413488992993*eF
     delta = 0.68640205206984016444108204356564421137062514068346*eF
-    dmu = 0.9 * delta
+    args = dict(mu_a=mu, mu_b=mu, delta=delta, m_a=m, m_b=m, hbar=hbar, T=0.0)
     #p0 = get_pressure(mu_a = mu,mu_b=mu,delta=delta,m=m,T=0,q=1)
     qs = np.linspace(0,2,10)
    

@@ -150,6 +150,15 @@ def kappa_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
 
 
 @numba.jit(nopython=True)
+def pressure_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
+    mu_p, mu_m = (mu_a + mu_b)/2, (mu_a-mu_b)/2
+    n_p = n_p_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T)
+    n_m = n_m_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T)
+    kappa = kappa_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T)
+    return mu_p*n_p + mu_m*n_m - kappa
+
+
+@numba.jit(nopython=True)
 def C_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     e = hbar**2/2
     e_a, e_b = e*ka2/m_a - mu_a, e*kb2/m_b - mu_b
