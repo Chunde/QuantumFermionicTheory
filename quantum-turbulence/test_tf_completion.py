@@ -16,8 +16,9 @@ def test_3D():
     mu = 0.59060550703283853378393810185221521748413488992993*eF
     delta = 0.68640205206984016444108204356564421137062514068346*eF
     args = dict(mu_a=mu, mu_b=mu, delta=delta, m_a=m, m_b=m, hbar=hbar, T=0.0)
-    n_p = tf_completion.integrate(tf_completion.n_p_integrand, d=3, **args)
-    assert np.allclose(n_p.n, nF)
+    n_p = tf_completion.integrate(tf_completion.n_p_integrand, d=3, q=0,**args)
+    print(n_p.n, nF)
+    assert np.allclose(n_p.n, nF,atol=0.00001)
 
 
 def test_2D():
@@ -28,8 +29,9 @@ def test_2D():
     nF = kF**2/2/np.pi
     mu = 0.5*eF
     delta = np.sqrt(2)*eF
-    args = dict(mu_a=mu, mu_b=mu, delta=delta, m_a=m, m_b=m, hbar=hbar, T=0.0)
+    args = dict(mu_a=mu, mu_b=mu, delta=delta, m_a=m, m_b=m, hbar=hbar, q=0,T=0.0)
     n_p = tf_completion.integrate(tf_completion.n_p_integrand, d=2, **args)
+    print(n_p.n, nF)
     assert np.allclose(n_p.n, nF)
 
 
@@ -48,7 +50,7 @@ def test_1D():
     mu_eff = brentq(_lam, 0.1, 20)
 
     args = dict(mu_a=mu_eff, mu_b=mu_eff, delta=delta, m_a=m, m_b=m,
-                hbar=hbar, T=0.0)
+                hbar=hbar, T=0.0,q=0)
     n_p = tf_completion.integrate(tf_completion.n_p_integrand, d=1, **args)
     nu = tf_completion.integrate(tf_completion.nu_integrand, d=1, **args)
     v_0 = delta/nu.n
@@ -58,7 +60,13 @@ def test_1D():
     #v_0, n, mu, e = homogeneous.get_BCS_v_n_e(mu_eff=mu_eff, delta=delta)
     #E_N_E_2, lam = homogeneous.BCS(mu_eff=mu_eff,  delta=delta)
     mu_tilde = (hbar**2/m/v_0**2)*mu
-    
+    print(lam, 1./lam_inv)
     assert np.allclose(lam, 1./lam_inv)
     assert np.allclose(mu_tilde, 0.0864, atol=0.0005)    
     #assert np.allclose(E_N_E_2, -0.3037, atol=0.0005)
+
+if __name__ == "__main__":
+
+    test_1D()
+    test_2D()
+    test_3D()
