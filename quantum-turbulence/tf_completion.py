@@ -35,7 +35,8 @@ def f(E, T):
 
 
 def dquad(f, kF=None, k_0=0, k_inf=np.inf):
-    """Return ufloat(res, err) for 2D integral of f(kz, kp).
+    """Return ufloat(res, err) for 2D integral of f(kz, kp) over the
+    entire plane.    
 
         k_0**2 < kz**2 + kp**2 < k_inf**2
         sqrt(k_0**2 - kz**2) < kp < sqrt(k_inf**2 - kz**2)
@@ -57,22 +58,48 @@ def dquad(f, kF=None, k_0=0, k_inf=np.inf):
 
     if k_0 == 0:
         kp_0 == 0
-    
+
     if kF is None:
         if k_0 == 0:
             res = ufloat(*dblquad(f,
                                   -k_inf, k_inf,   # kz
                                   kp_0, kp_inf))   # kp
+        else:
+            res = (
+                ufloat(*dblquad(f,
+                                -k_inf, -k_0,  # kz
+                                kp_0, kp_inf)) # kp
+                +
+                ufloat(*dblquad(f,
+                                k_0, k_inf,
+                                kp_0, kp_inf)))
     else:
-        res0 = ufloat(*dblquad(f,
-                               k_0, kF,        # kz
-                               kp_0, kp_inf))  # kp
-        res1 = ufloat(*dblquad(f,
-                               kF, k_inf,      # kz
-                               kp_0, kp_inf))  # kp
-        res = res0 + res1
-    return res
-
+        if k_0 == 0:
+            res = (
+                ufloat(*dblquad(f,
+                                -k_inf, -kF,
+                                kp_0, kp_inf))
+                +
+                ufloat(*dblquad(f,
+                                -kF, kF,
+                                kp_0, kp_inf))
+                +
+                ufloat(*dblquad(f,
+                                kF, k_inf,
+                                kp_0, kp_inf))
+            )
+        else:
+            res = (
+                ufloat(*dblquad(f,
+                                -k_inf, -k_0,
+                                kp_0, kp_inf))
+                +
+                ufloat(*dblquad(f,
+                                k_0, k_inf,
+                                kp_0, kp_inf))
+            )
+    # Factor of 2 here to complete symmetric integral over kp.
+    return 2*res
 
 ######################################################################
 # These *_integrand functions do not have the integration measure
@@ -287,21 +314,23 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
 
     k_inf = np.inf if k_c is None else k_c
 
-    # 2d integrals over kz and kp
+    # 2d integrals over kz and kp.  NOTE: Read the documentation of
+    # dblquad carefully - the indices need to be in the other order.
     if d == 1:
         def integrand(k):
             k2_a = (k+q)**2
             k2_b = (k-q)**2
             return f(k2_a, k2_b, *args) / np.pi
     elif d == 2:
-        def integrand(kz, kp):
+        def integrand(kp, kz):
             k2_a = (kz+q)**2 + kp**2
             k2_b = (kz-q)**2 + kp**2
             return f(k2_a, k2_b, *args) / np.pi**2
     elif d == 3:
-        def integrand(kz, kp):
+        def integrand(kp, kz):
             k2_a = (kz+q)**2 + kp**2
             k2_b = (kz-q)**2 + kp**2
+            assert(kp>=0)
             return f(k2_a, k2_b, *args) * (kp/2/np.pi**2)
     else:
         raise ValueError(f"Only d=1, 2, or 3 supported (got d={d})")
@@ -319,4 +348,7 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
                 +ufloat(*quad(integrand, max(points), k_inf)))
     # integrand = numba.cfunc(numba.float64(numba.float64,numba.float64))(integrand)
     # integrand = sp.LowLevelCallable(integrand.ctypes)
-    return dquad(f=integrand, kF=kF, k_0=k_0, k_inf=k_inf)
+
+    # The factor of 4 here is because integrand is normalized for
+    # integrals over the upper quadrant.
+    return dquad(f=integrand, kF=None, k_0=k_0, k_inf=k_inf) / 4
