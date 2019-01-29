@@ -25,19 +25,19 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="ASLDA.py" />
     <Compile Include="aslda_functional.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="bcs.py" />
+    <Compile Include="FFStatePhaseMapper.py" />
+    <Compile Include="FFStatePhaseMapperCmd.py" />
     <Compile Include="FuldeFerrelState.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="homogeneous-spherical.py" />
     <Compile Include="homogeneous.py" />
+    <Compile Include="homogeneous_mmf.py" />
     <Compile Include="Lattice.py" />
-    <Compile Include="scratch.py">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="test_ASLDA_Homogenous.py">
       <SubType>Code</SubType>
     </Compile>
@@ -45,9 +45,14 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="test_homogeneous.py" />
+    <Compile Include="test_homogeneous_mmf.py" />
+    <Compile Include="test_tf_completion.py" />
     <Compile Include="test_vortex_1d_aslda.py" />
+    <Compile Include="test_vortex_2d.py" />
     <Compile Include="test_vortex_2d_aslda.py" />
+    <Compile Include="tf_completion.py" />
     <Compile Include="vortex_1d_aslda.py" />
+    <Compile Include="vortex_2d.py" />
     <Compile Include="vortex_2d_aslda.py" />
   </ItemGroup>
   <ItemGroup>
