@@ -226,18 +226,20 @@ def Lambda(m, mu, hbar, d, E_c=None, k_c=None):
        
        E_c = (hbar*k_c)**2/2/m - mu
     """
-    k_0 = np.sqrt(2*m*mu/hbar**2)
+    k_0 = np.sqrt(2*m*mu/hbar**2 + 0.j)
     if k_c is None:
         k_c = np.sqrt(2*m*(E_c+mu)/hbar**2)
     if d == 1:
-        return m/hbar**2/2/np.pi/k_0*np.log((k_c-k_0)/(k_c+k_0))
+        res = m/hbar**2/2/np.pi/k_0*np.log((k_c-k_0)/(k_c+k_0))
     elif d == 2:
-        return m/hbar**2/4/np.pi * np.log((k_c/k_0)**2-1)
+        res = m/hbar**2/4/np.pi * np.log((k_c/k_0)**2-1)
     elif d == 3:
-        return m/hbar**2 * k_c/2/np.pi**2 * (
+        res = m/hbar**2 * k_c/2/np.pi**2 * (
             1 - k_0/2/k_c*np.log((k_c+k_0)/(k_c-k_0)))
     else:
         raise ValueError(f"Only d=1, 2, or 3 supported (got d={d})")
+    assert np.allclose(res.imag, 0)
+    return res.real
 
 
 def compute_C(mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0, q=0,
