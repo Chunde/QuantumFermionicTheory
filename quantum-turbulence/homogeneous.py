@@ -33,30 +33,38 @@ def quad(f, kF=None, k_0=0, k_inf=np.inf, limit=1000, **kw):
     return 2*res   # Accounts for integral from -inf to inf
 
 
-def quadl(f, N, L, twist=1):
+def quadl(f, Nxyz, Lxyz, twist=1):
     """Integrate f(k) using a lattice.
 
     Arguments
     ---------
-    N : int
-    L : float
+    Nxyz : (int,)
+    Lxyz : (float,)
+       These tuples specify the size of the lattice and box.  Their
+       length specifies the dimension.
     twist : int, np.inf
-       How many twists to sample.  (This is done by just multiplying N
-       and L by this factor.)  If twist==np.inf, then to the integral
-       (with cutoff).
+       How many twists to sample in each direction.
+       (This is done by just multiplying N and L by this factor.)  If
+       twist==np.inf, then to the integral (with cutoff).
     """
-    dx = L/N
-    k_max = np.pi/dx
-    
+    Nxyz, Lxyz = np.asarray(Nxyz), np.asarray(Lxyz)
+    dxyz = Lxyz/Nxyz
+
     if np.isinf(twist):
+        k_max = np.pi/dx
         return quad(f, k_inf=k_max)
 
-    N *= twist
-    L *= twist
-    dx = L/N
-    k = 2*np.pi * np.fft.fftshift(np.fft.fftfreq(N, dx))
-    dk = k[1] - k[0]
-    return f(k).sum() * dk
+    Nxyz *= twist
+    Lxyz *= twist
+    dxyz = Lxyz/Nxyz
+    dkxyz = 2*np.pi/Lxyz
+    ks = np.meshgrid(
+        *[2*np.pi * np.fft.fftshift(np.fft.fftfreq(_N, _dx))
+          for (_N, _dx) in zip(Nxyz, dxyz)],
+        indexing='ij', sparse=True)
+    k2 = sum(_k**2 for _k in ks)
+    k = np.sqrt(k2)
+    return f(k).sum() * np.prod(dkxyz)
 
 
 def dquad(f, kF=None, k_0=0, k_inf=np.inf, limit=1000, int_name="Gap"):
@@ -183,9 +191,14 @@ class Homogeneous1D(object):
         e_p, e_m = (e_a + e_b)/2, (e_a - e_b)/2
         E = np.sqrt(e_p**2 + abs(delta)**2)
         w_p, w_m = e_m + E, e_m - E
+
+        # This is a bit of a hack to get all of the desired Results
+        # from the field names.  They are extracted from the local
+        # dictionary.  In the final version of the code, these should
+        # just be explicitly set.
         args = dict(locals())
-        rets = self.Results(*[args[_n] for _n in self.Results._fields])
-        return rets
+        res = self.Results(*[args[_n] for _n in self.Results._fields])
+        return res
 
     def get_BCS_v_n_e(self, mus_eff, delta, N=None, L=None, dx=None, twist=1):
         """Return `(v_0, n, mu, e)` for the 1D BCS solution at T=0."""
@@ -202,7 +215,57 @@ class Homogeneous1D(object):
                 N = np.ceil(L / dx).astype(int)
 
             def quad_(f, kF):
-                return quadl(f, N=N, L=L, twist=twist)
+                return quadl(f, Nxyz=(N,), Lxyz=(L,), twist=twist)
+
+        kF = np.sqrt(2*max(0, max(mus_eff)))
+
+        def gap_integrand(k):
+            res = self.get_res(k=k, mus_eff=mus_eff, delta=delta)
+            return (self.f(res.w_m) - self.f(res.w_p))/res.E
+
+        v_0 = 4*np.pi / quad_(gap_integrand, kF)
+
+        def np_integrand(k):
+            """Density"""
+            res = self.get_res(k=k, mus_eff=mus_eff, delta=delta)
+            n_p = 1 - res.e_p/res.E*(self.f(res.w_m) - self.f(res.w_p))
+            return n_p
+
+        def nm_integrand(k):
+            """Density"""
+            res = self.get_res(k=k, mus_eff=mus_eff, delta=delta)
+            n_m = self.f(res.w_p) - self.f(-res.w_m)
+            return n_m
+
+        n_m = quad_(nm_integrand, kF) / 2/np.pi
+        n_p = quad_(np_integrand, kF) / 2/np.pi
+        n_a = (n_p + n_m)/2.0
+        n_b = (n_p - n_m)/2.0
+        ns = np.array([n_a, n_b])
+        mus = mus_eff - np.array([n_b, n_a])*v_0
+
+        return namedtuple('BCS_Results', ['v_0', 'ns', 'mus'])(v_0, ns, mus)
+
+
+class Homogeneous2D(Homogeneous1D):
+    """Solutions to the homogeneous BCS equations in 2D at finite T.
+    """
+    def get_BCS_v_n_e(self, mus_eff, delta, N=None, L=None, dx=None, twist=1):
+        """Return `(v_0, n, mu, e)` for the 1D BCS solution at T=0."""
+
+        if N is None and L is None and dx is None:
+            quad_ = dquad
+        else:
+            # Use finite lattice for integration
+            if dx is None:
+                dx = L/N
+            elif L is None:
+                L = N * dx
+            elif N is None:
+                N = np.ceil(L / dx).astype(int)
+
+            def quad_(f, kF):
+                return quadl(f, Nxyz=(N,), Lxyz=(L,), twist=twist)
 
         kF = np.sqrt(2*max(0, max(mus_eff)))
 
@@ -262,8 +325,8 @@ class Homogeneous3D(object):
         E = np.sqrt(e_p**2 + abs(delta)**2)
         w_p, w_m = e_m + E, e_m - E
         args = dict(locals())
-        rets = self.Results(*[args[_n] for _n in self.Results._fields])
-        return rets
+        res = self.Results(*[args[_n] for _n in self.Results._fields])
+        return res
 
     def get_inverse_scattering_length(self, mus_eff, delta, k_c):
         kF = np.sqrt(2*max(0, max(mus_eff)))
