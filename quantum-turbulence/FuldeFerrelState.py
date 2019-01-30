@@ -26,6 +26,7 @@ def get_delta(mu_a, mu_b, m_a, m_b, T=0, hbar = 1, k_c = 10, q=0):
 def get_pressure(mu_a, mu_b, delta=None, d=3, m_a=1,m_b=1, hbar=1, T=0, q=0):
     if delta is None:
         delta = get_delta(mu_a= mu_a, mu_b=mu_b, m_a=m_a, m_b=m_b,T=T, q=q)
+    print(delta)
     args = dict(mu_a=mu_a, mu_b=mu_b, m_a = m_a, m_b=m_b,delta=delta,hbar=hbar,q=q,T=0.0)
     mu_p,mu_m = (mu_a + mu_b)/2, (mu_a - mu_b)/2
     n_p = tf.integrate_q(tf.n_p_integrand,d=d, **args)

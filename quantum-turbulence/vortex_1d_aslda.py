@@ -246,15 +246,15 @@ class ASLDA(object):
         #assert np.allclose(K_b, K_b.conj().T)
         return (self.hbar**2/2/self.m * K_a,self.hbar**2/2/self.m * K_b)
 
-    def get_modified_Vs(self,delta, ns=None, taus=None, kappa=0, alphas = None):
+    def get_modified_Vs(self,delta, ns=None, taus=None, kappa=0):
         """get the modified V functional terms"""
         #return self.v_ext
-        if ns == None or taus == None or alphas == None:
+        if ns == None or taus == None:
             return self.v_ext
         U_a, U_b = self.v_ext
         tau_a, tau_b = taus
         tau_p, tau_m = tau_a + tau_b,tau_a - tau_b
-        alpha_a, alpha_b, alpha_p = alphas
+        alpha_a, alpha_b, alpha_p = self.get_alphas(ns)
         p = self._get_p(ns)
         dp_n_a,dp_n_b = self._dp_dn(ns)
         dalpha_p = self._dalpha_p_dp(p)
@@ -294,8 +294,9 @@ class ASLDA(object):
         """Return the kinetic energy and modifled potential matrics."""
         alphas = self.get_alphas(ns)
         k_per = self.hbar**2/2/self.m  *( kz**2 + ky**2)
+        k_per = np.diag(np.ones(self.Nx)) * k_per
         if alphas == None or ns == None or taus == None:
-            return (self.get_Ks(kper=k_per,twist=twist), self.get_modified_Vs(delta=delta,ns=ns,taus=taus,kappa=kappa,alphas=alphas))
+            return (self.get_Ks(kper=k_per,twist=twist), self.get_modified_Vs(delta=delta,ns=ns,taus=taus,kappa=kappa))
         return (self.get_Ks(kper=k_per,twist=twist), self.get_modified_Vs(delta=delta,ns=ns,taus=taus,kappa=kappa,alphas=alphas))
         alpha_a, alpha_b, alpha_p = alphas
        
@@ -331,6 +332,9 @@ class ASLDA(object):
         mu_a += zero
         mu_b += zero
         (K_a, K_b),(V_a,V_b) = self.get_Ks_Vs(delta = delta,mus=mus,kappa=kappa,taus=taus,ns=ns,ky=ky,kz=kz,twist=twist)
+        #V_a, V_b = self.get_modified_Vs(delta=delta,ns=ns,taus=taus,kappa=kappa)
+        #alpha_a, alpha_b, alpha_p = self.get_alphas(ns)
+        #K_a,K_b = self.get_modified_Ks(alpha_a=alpha_a,alpha_b=alpha_b,twist = twist)
         Mu_a, Mu_b = np.diag((mu_a - V_a).ravel()), np.diag((mu_b - V_b).ravel())
         assert (Mu_a.shape[0] == self.x.shape[0])
         H = np.bmat([[K_a - Mu_a, -Delta], # may need remove the minus sign for Delta, need to check
@@ -367,41 +371,71 @@ class ASLDA(object):
             j_b = 0.5 * sum( (vs[i].conj()*nabla.dot(vs[i])-vs[i]*nabla.dot(vs[i].conj())) * self.f(Es[i]) for i in range(len(vs)))
         return ((n_a, n_b),self._get_modified_taus(taus=(tau_a,tau_b),js=(j_a,j_b)),kappa)
 
-    def get_ns_taus_kappa_average_3d(self,mus,delta,ns=None,taus=None,kappa=None, N_twist = 8,abs_tol=1e-12):
-        kc = np.sqrt(2 * self.m * self.E_c)/self.hbar
+    def get_ns_taus_kappa_average_3d(self,mus,delta,ns=None,taus=None,kappa=None, kc=None, N_twist=8,abs_tol=1e-6):
+        if kc is None:
+            kc = 100 * np.sqrt(2 * self.m * self.E_c)/self.hbar
         twists = np.arange(0, N_twist)*2*np.pi/N_twist
         n_a,n_b,tau_a_,tau_b_,kappa_ =0,0,0,0,0
+
+        zero = np.zeros_like(sum((self.Nx,self.Nx)))
+        Delta = np.diag((delta.reshape(self.Nx) + zero)) 
+        mu_a, mu_b = mus
+        mu_a, mu_b= zero + mu_a, zero + mu_b
+        V_a, V_b = self.get_modified_Vs(delta=delta, ns=ns, taus=taus, kappa=kappa)
+        Mu_a, Mu_b = np.diag((mu_a - V_a).ravel()), np.diag((mu_b - V_b).ravel())
+        alpha_a,alpha_b, alpha_p = self.get_alphas(ns)
+        iMat = np.diag(np.ones(self.Nx))
         for twist in twists:
-            def f(kz=0):
-                def g(ky=0):
-                    H = self.get_H(mus=mus,delta=delta,ns=ns,taus=taus,kappa=kappa,ky=ky,kz=kz,twist=twist)
-                    return H
-                H = mquad(g,-kc,kc,abs_tol=abs_tol)/2/kc# may need to divide a factor of 2*kc? Yes
-                return H
-            H = mquad(f,-kc,kc,abs_tol=abs_tol)/2/kc# may need to divide a factor of 2*kc? Yes
-            _ns,_taus,_kappa = self.get_ns_taus_kappa(H)
-            n_a = n_a + _ns[0]
-            n_b = n_b + _ns[1]
-            tau_a_ = tau_a_ + _taus[0]
-            tau_b_ = tau_b_ + _taus[1]
-            kappa_ = kappa_ + _kappa
+            def g(kz=0):
+                def f(ky=0):
+                    k_per = self.hbar**2/2/self.m  *ky**2
+                    K_a,K_b = self.get_modified_Ks(alpha_a=alpha_a,alpha_b=alpha_b,twist = twist)
+                    H = np.bmat([[K_a - Mu_a, -Delta], # may need remove the minus sign for Delta, need to check
+                         [-Delta.conj(), -(K_b - Mu_b)]]) 
+                    assert np.allclose(H.real,H.conj().T.real)
+                    _ns,_taus,_kappa = self.get_ns_taus_kappa(np.asarray(H))
+                    return np.concatenate((_ns[0].ravel(),_ns[1].ravel(),_taus[0].ravel(),_taus[1].ravel(),_kappa.ravel()))
+                rets = mquad(f,-kc,kc,abs_tol=abs_tol)/2/kc
+                return rets
+            rets = mquad(g,-kc,kc,abs_tol=abs_tol)/2/kc
+            rets = rets.reshape(5,self.Nx)
+            n_a = n_a + rets[0]
+            n_b = n_b + rets[1]
+            tau_a_ = tau_a_ + rets[2]
+            tau_b_ = tau_b_ + rets[3]
+            kappa_ = kappa_ + rets[4]
         return ((n_a/N_twist,n_b/N_twist),(tau_a_/N_twist,tau_b_/N_twist),kappa_/N_twist)
 
-    def get_ns_taus_kappa_average_2d(self,mus,delta,ns=None,taus=None,kappa=None, N_twist = 8,abs_tol=1e-12):
-        kc = np.sqrt(2 * self.m * self.E_c)/self.hbar
+    def get_ns_taus_kappa_average_2d(self,mus,delta,ns=None,taus=None,kappa=None, kc=None, N_twist=8,abs_tol=1e-6):
+        if kc is None:
+            kc = 100 * np.sqrt(2 * self.m * self.E_c)/self.hbar
         twists = np.arange(0, N_twist)*2*np.pi/N_twist
         n_a,n_b,tau_a_,tau_b_,kappa_ =0,0,0,0,0
+
+        zero = np.zeros_like(sum((self.Nx,self.Nx)))
+        Delta = np.diag((delta.reshape(self.Nx) + zero)) 
+        mu_a, mu_b = mus
+        mu_a, mu_b= zero + mu_a, zero + mu_b
+        V_a, V_b = self.get_modified_Vs(delta=delta, ns=ns, taus=taus, kappa=kappa)
+        Mu_a, Mu_b = np.diag((mu_a - V_a).ravel()), np.diag((mu_b - V_b).ravel())
+        alpha_a,alpha_b, alpha_p = self.get_alphas(ns)
+        iMat = np.diag(np.ones(self.Nx))
         for twist in twists:
             def f(ky=0):
-                H = self.get_H(mus=mus,delta=delta,ns=ns,taus=taus,kappa=kappa,ky=ky,kz=0,twist=twist)
-                return H
-            H = mquad(f,-kc,kc,abs_tol=abs_tol)/2/kc
-            _ns,_taus,_kappa = self.get_ns_taus_kappa(H)
-            n_a = n_a + _ns[0]
-            n_b = n_b + _ns[1]
-            tau_a_ = tau_a_ + _taus[0]
-            tau_b_ = tau_b_ + _taus[1]
-            kappa_ = kappa_ + _kappa
+                k_per = self.hbar**2/2/self.m  *ky**2
+                K_a,K_b = self.get_modified_Ks(alpha_a=alpha_a,alpha_b=alpha_b,twist = twist)
+                H = np.bmat([[K_a - Mu_a, -Delta], # may need remove the minus sign for Delta, need to check
+                     [-Delta.conj(), -(K_b - Mu_b)]]) 
+                assert np.allclose(H.real,H.conj().T.real)
+                _ns,_taus,_kappa = self.get_ns_taus_kappa(np.asarray(H))
+                return np.concatenate((_ns[0].ravel(),_ns[1].ravel(),_taus[0].ravel(),_taus[1].ravel(),_kappa.ravel()))
+            rets = mquad(f,-kc,kc,abs_tol=abs_tol)/2/kc
+            rets = rets.reshape(5,self.Nx)
+            n_a = n_a + rets[0]
+            n_b = n_b + rets[1]
+            tau_a_ = tau_a_ + rets[2]
+            tau_b_ = tau_b_ + rets[3]
+            kappa_ = kappa_ + rets[4]
         return ((n_a/N_twist,n_b/N_twist),(tau_a_/N_twist,tau_b_/N_twist),kappa_/N_twist)
 
     def get_ns_taus_kappa_average_1d(self,mus,delta,ns=None,taus=None,kappa=None, N_twist = 8,abs_tol=1e-12):
