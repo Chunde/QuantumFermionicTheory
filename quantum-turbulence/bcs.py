@@ -90,7 +90,7 @@ class BCS(object):
            external trapping potential.
         delta : array
            Pairing field (gap).
-        phi_bloch : float
+        twist : float
            Bloch phase.
         """
         zero = np.zeros_like(self.x)

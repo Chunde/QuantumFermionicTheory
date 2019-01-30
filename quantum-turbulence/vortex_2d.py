@@ -5,6 +5,7 @@ two-species Fermi gas with short-range interaction.
 """
 from __future__ import division
 
+from collections import namedtuple
 import itertools
 
 import numpy as np
@@ -13,12 +14,145 @@ import scipy.integrate
 from mmfutils.math.integrate import mquad
 
 
-class BCS(object):
+class BCS_1D(object):
+    """Simple implementation of the BCS equations in a periodic box.
+
+    We use all states in the box, regularizing the theory with a fixed
+    coupling constant g_c which will depend on the box parameters.
+    """
     hbar = 1.0
     m = 1.0
-    w = 1.0                     # Trapping potential
 
-    def __init__(self, Nxy=(32, 32), Lxy=(10.0, 10.0), dx=None, T=0,E_c=np.inf):
+    def __init__(self, Nx=32, Lx=10.0, dx=None, T=0):
+        """Specify any two of `Nx`, `Lx`, or `dx`.
+
+        Arguments
+        ---------
+        Nx : int
+           Number of lattice points.
+        Lx : float
+           Length of the periodic box.
+           Can also be understood as the largetest wavelenght of
+           possible waves host in the box. Then the minimum
+           wave-vector k0 = 2PI/lambda = 2 * np.pi / L, and all
+           possible ks should be integer times of k0.
+        dx : float
+           Lattice spacing.
+        T : float
+           Temperature.
+        """
+        if dx is None:
+            dx = Lx/Nx
+        elif Lx is None:
+            Lx = Nx * dx
+        elif Nx is None:
+            Nx = np.ceil(Lx / dx).astype(int)
+
+        self.x = np.arange(Nx) * dx - Lx / 2
+        self.k = 2*np.pi * np.fft.fftfreq(Nx, dx)
+        self.dx = dx
+        self.Lx = Lx
+        self.Nx = Nx
+        self.T = T
+
+        # External potential
+        self.v_ext = self.get_v_ext()
+        
+    def get_Ks(self, twist=0):
+        """Return the kinetic energy matrix."""
+        k_bloch = twist/self.Lx
+        k = self.k + k_bloch
+
+        # Here we use a simple trick of applying the FFT to an
+        # identify matrix.  This ensures that we appropriately
+        # calculate the matrix structure without having to worry about
+        # indices and phase factors.  The following transformation
+        # should be correct however:
+        #
+        # U = np.exp(-1j*k[:, None]*self.x[None, :])/self.Nx
+        #
+        mat_shape = (self.Nx,)*2
+        K = np.eye(self.Nx)
+        K = self.ifft((self.hbar*k[:, None])**2/2/self.m * self.fft(K))
+        return (K, K)
+
+    def fft(self, y):
+            return np.fft.fft(y, axis=0)
+            
+    def ifft(self, y):
+            return np.fft.ifft(y, axis=0)
+            
+    def get_v_ext(self):
+        """Return the external potential."""
+        return (0, 0)
+
+    def f(self, E):
+        """Return the Fermi-Dirac distribution at E."""
+        if self.T > 0:
+            f = 1./(1+np.exp(E/self.T))
+        else:
+            f = (1 - np.sign(E))/2
+        return f
+
+    def get_H(self, mus, delta, twist=0):
+        """Return the single-particle Hamiltonian with pairing.
+
+        Arguments
+        ---------
+        mus : array
+           Effective chemical potentials including the Hartree term but not the
+           external trapping potential.
+        delta : array
+           Pairing field (gap).
+        twist : float
+           Bloch phase.
+        """
+        zero = np.zeros_like(self.x)
+        Delta = np.diag((delta + zero).ravel())
+        K_a, K_b = self.get_Ks(twist=twist)
+        v_a, v_b = self.v_ext
+        mu_a, mu_b = mus
+        mu_a += zero
+        mu_b += zero
+        Mu_a, Mu_b = np.diag((mu_a - v_a).ravel()), np.diag((mu_b - v_b).ravel())
+        H = np.bmat([[K_a - Mu_a, Delta],
+                     [Delta.conj(), -(K_b - Mu_b)]])
+        return np.asarray(H)
+
+    def get_Rs(self, mus, delta):
+        """Return the density matrix R."""
+        H = self.get_H(mus=mus, delta=delta)
+        d, UV = np.linalg.eigh(H)
+        dV = self.dx
+
+        # Factor of dV here to convert to physical densities...
+        Rp = UV.dot(self.f(d)[:, None]*UV.conj().T) / dV
+        Rm = UV.dot(self.f(-d)[:, None]*UV.conj().T) / dV
+        return Rp, Rm
+
+    def get_densities(self, mus, delta):
+        Rp, Rm = self.get_Rs(mus=mus, delta=delta)
+        _N = Rp.shape[0] // 2
+        r_a = Rp[:_N, :_N]
+        r_b = Rm[_N:, _N:].conj()
+        nu_ = (Rp[:_N, _N:] - Rm[_N:, :_N].T.conj())/2.0
+        n_a = np.diag(r_a).real
+        n_b = np.diag(r_b).real
+        nu = np.diag(nu_)
+        return namedtuple('Densities', ['n_a', 'n_b', 'nu'])(n_a, n_b, nu)
+
+
+class BCS_2D(object):
+    """Simple implementation of the BCS equations in a periodic square
+    box.
+
+    We use all states in the box, regularizing the theory with a fixed
+    coupling constant g_c which will depend on the box parameters.
+    """
+    hbar = 1.0
+    m = 1.0
+
+    def __init__(self, Nxy=(32, 32), Lxy=(10.0, 10.0), dx=None, T=0):
         """Specify any two of `Nxy`, `Lxy`, or `dx`.
 
         Arguments
@@ -56,7 +190,138 @@ class BCS(object):
         self.Nxy = tuple(Nxy)
         self.Lxy = tuple(Lxy)
         self.T = T
-        self.E_c = E_c
+
+        self._Ks = self.get_Ks()
+
+        # External potential
+        self.v_ext = self.get_v_ext()
+        
+    def get_Ks(self):
+        """Return the kinetic energy matrix."""
+
+        # Here we use a simple trick of applying the FFT to an
+        # identify matrix.  This ensures that we appropriately
+        # calculate the matrix structure without having to worry about
+        # indices and phase factors.
+        mat_shape = (np.prod(self.Nxy),)*2
+        tensor_shape = self.Nxy + self.Nxy
+        K = np.eye(mat_shape[0]).reshape(tensor_shape)
+        K = (self.hbar**2/2/self.m
+             * self.ifftn(sum(_k**2 for _k in self.kxy)[:, :,  None, None]
+                          * self.fftn(K))).reshape(mat_shape)
+        return (K, K)
+
+    def fftn(self, y):
+            return np.fft.fftn(y, axes=(0, 1))
+            
+    def ifftn(self, y):
+            return np.fft.ifftn(y, axes=(0, 1))
+            
+    def get_v_ext(self):
+        """Return the external potential."""
+        return (0, 0)
+
+    def f(self, E):
+        """Return the Fermi-Dirac distribution at E."""
+        if self.T > 0:
+            f = 1./(1+np.exp(E/self.T))
+        else:
+            f = (1 - np.sign(E))/2
+        return f
+
+    def get_H(self, mus, delta):
+        """Return the single-particle Hamiltonian with pairing.
+
+        Arguments
+        ---------
+        mus : array
+           Effective chemical potentials including the Hartree term but not the
+           external trapping potential.
+        delta : array
+           Pairing field (gap).
+        phi_bloch : float
+           Bloch phase.
+        """
+        zero = np.zeros_like(sum(self.xy))
+        Delta = np.diag((delta + zero).ravel())
+        K_a, K_b = self._Ks
+        v_a, v_b = self.v_ext
+        mu_a, mu_b = mus
+        mu_a += zero
+        mu_b += zero
+        Mu_a, Mu_b = np.diag((mu_a - v_a).ravel()), np.diag((mu_b - v_b).ravel())
+        H = np.bmat([[K_a - Mu_a, -Delta],
+                     [-Delta.conj(), -(K_b - Mu_b)]])
+        return np.asarray(H)
+
+    def get_Rs(self, mus, delta):
+        """Return the density matrix R."""
+        H = self.get_H(mus=mus, delta=delta)
+        d, UV = np.linalg.eigh(H)
+        Rp = UV.dot(self.f(d)[:, None]*UV.conj().T)
+        Rm = UV.dot(self.f(-d)[:, None]*UV.conj().T)
+        return Rp, Rm
+
+    def get_densities(self, mus, delta):
+        Rp, Rm = self.get_Rs(mus=mus, delta=delta)
+        N = Rp.shape[0] // 2
+        r_a = Rp[:N, :N]
+        r_b = Rm[N:, N:]
+        kappa = (Rp[:N, N:] - Rm[N:, :N].T.conj())/2.0
+        n_a = np.diag(r_a).reshape(self.Nxy).real
+        n_b = np.diag(r_b).reshape(self.Nxy).real
+        nu = np.diag(kappa).reshape(self.Nxy)
+        return namedtuple('Densities', ['n_a', 'n_b', 'nu'])(n_a, n_b, nu)
+        
+    def get_LDA(self, mus, delta):
+        """Return the LDA solution."""
+
+
+
+
+class BCS(object):
+    hbar = 1.0
+    m = 1.0
+    w = 1.0                     # Trapping potential
+
+    def __init__(self, Nxy=(32, 32), Lxy=(10.0, 10.0), dx=None, T=0):
+        """Specify any two of `Nxy`, `Lxy`, or `dx`.
+
+        Arguments
+        ---------
+        Nxy : (int, int)
+           Number of lattice points.
+        Lxy : (float, float)
+           Length of the periodic box.
+           Can also be understood as the largetest wavelenght of
+           possible waves host in the box. Then the minimum
+           wave-vector k0 = 2PI/lambda = 2 * np.pi / L, and all
+           possible ks should be integer times of k0.
+        dx : float
+           Lattice spacing.
+        T : float
+           Temperature.
+        """
+        dy = dx
+        if dx is None:
+            dx, dy = np.divide(Lxy, Nxy)
+        elif Lxy is None:
+            Lxy = np.prod(Nxy, dx)
+        elif Nxy is None:
+            Nxy = np.ceil(Lxy / dx).astype(int)
+
+        Nx, Ny = Nxy
+        Lx, Ly = Lxy
+        self.xy = ((np.arange(Nx) * dx - Lx / 2)[:, None],# half of the length
+                   (np.arange(Ny) * dy - Ly / 2)[None, :])
+        
+        self.kxy = (2*np.pi * np.fft.fftfreq(Nx, dx)[:, None],
+                    2*np.pi * np.fft.fftfreq(Ny, dy)[None, :])
+        self.dx = dx
+        
+        self.Nxy = tuple(Nxy)
+        self.Lxy = tuple(Lxy)
+        self.T = T
 
         # External potential
         self.v_ext = self.get_v_ext()
@@ -69,10 +334,11 @@ class BCS(object):
         mat_shape = (np.prod(self.Nxy),)*2
         tensor_shape = self.Nxy + self.Nxy
         K = np.eye(mat_shape[0]).reshape(tensor_shape)
-        # K = self.ifftn(sum((self.hbar*_k)**2/2/self.m for _k in self.kxy)[:, :,  None, None]*self.fftn(K)).reshape((np.prod(self.Nxy),)*2).reshape(mat_shape)
-        # move the factor hbar^2/2m of the fourier transform to speed up a bit
         N = self.hbar**2/2/self.m   
-        K = N * self.ifftn(sum(_k**2 for _k in self.kxy)[:, :,  None, None]*self.fftn(K)).reshape((np.prod(self.Nxy),)*2).reshape(mat_shape)
+        K = N * self.ifftn(
+            sum(_k**2 for _k in self.kxy)
+            [:, :,  None, None]*self.fftn(K)
+        ).reshape(mat_shape)
         return (K, K)
 
     def fftn(self, y):

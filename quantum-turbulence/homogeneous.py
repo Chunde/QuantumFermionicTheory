@@ -4,25 +4,57 @@ import numpy as np
 import scipy.integrate
 import scipy as sp
 
+from uncertainties import ufloat
+
 m = 1.0
 
-def quad(f, kF=None, k_0=0, k_inf=np.inf, limit=1000):
+_QUAD_ARGS = dict(
+    epsabs=1.49e-08,
+    epsrel=1.49e-08)
+
+
+def quad(f, kF=None, k_0=0, k_inf=np.inf, limit=1000, **kw):
     """Wrapper for quad that deals with singularities
     at the Fermi surface.
     """
+    args = dict(_QUAD_ARGS, **kw)
     if kF is None:
-        res, err = sp.integrate.quad(f, k_0, k_inf)
+        res = ufloat(*sp.integrate.quad(f, k_0, k_inf, **args))
     else:
         # One might think that `points=[kF]` could be used here, but
         # this does not work with infinite limits.
-        res0, err0 = sp.integrate.quad(f, k_0, kF)
-        res1, err1 = sp.integrate.quad(f, kF, k_inf, limit=limit)
-        res = res0 + res1
-        err = max(err0, err1)
+        res = (ufloat(*sp.integrate.quad(f, k_0, kF, **args))
+               +
+               ufloat(*sp.integrate.quad(f, kF, k_inf, limit=limit, **args)))
 
-    if abs(err) > 1e-6 and abs(err/res) > 1e-6:
-        warnings.warn("Gap integral did not converge: res, err = %g, %g" % (res, err))
+    if abs(res.s) > 1e-6 and abs(res.s/res.n) > 1e-6:
+        warnings.warn("Integral did not converge: res, err = %g, %g"
+                      % (res, err))
     return 2*res   # Accounts for integral from -inf to inf
+
+
+def quadl(f, N, L, twist=1):
+    """Integrate f(k) using a lattice.
+
+    Arguments
+    ---------
+    N : int
+    L : float
+    twist : int, np.inf
+       How many twists to sample.  (This is done by just multiplying N
+       and L by this factor.)  If twist==np.inf, then to the integral
+       (with cutoff).
+    """
+    dx = L/N
+    k_max = np.pi/dx
+    
+    if np.isinf(twist):
+        return quad(f, k_inf=k_max)
+
+    N *= twist
+    L *= twist
+    k = 2*np.pi * np.fft.fftshift(np.fft.fftfreq(N, dx))
+    return np.trapz(f(k), k)
 
 
 def dquad(f, kF=None, k_0=0, k_inf=np.inf, limit=1000, int_name="Gap"):
@@ -56,7 +88,7 @@ def dquad(f, kF=None, k_0=0, k_inf=np.inf, limit=1000, int_name="Gap"):
                    # case, should be a factor of 4 instead of 2? 
 
 
-def get_BCS_v_n_e(delta, mu_eff):
+def get_BCS_v_n_e(mu_eff, delta):
     m = hbar = 1.0
     kF = np.sqrt(2*m*max(0, mu_eff))/hbar
 
@@ -64,7 +96,7 @@ def get_BCS_v_n_e(delta, mu_eff):
         e_p = (hbar*k)**2/2.0/m - mu_eff
         return 1./np.sqrt(e_p**2 + abs(delta)**2)
 
-    v_0 = 4*np.pi / quad(gap_integrand, kF)
+    v_0 = 4*np.pi / quad(gap_integrand, kF).n
 
     def n_integrand(k):
         """Density"""
@@ -72,7 +104,7 @@ def get_BCS_v_n_e(delta, mu_eff):
         denom = np.sqrt(e_p**2 + abs(delta)**2)
         return (denom - e_p)/denom
 
-    n = quad(n_integrand, kF) / 2/np.pi
+    n = quad(n_integrand, kF).n / 2/np.pi
 
     def e_integrand(k):
         """Energy"""
@@ -80,7 +112,7 @@ def get_BCS_v_n_e(delta, mu_eff):
         denom = np.sqrt(e_p**2 + abs(delta)**2)
         return (hbar*k)**2/2.0/m * (denom - e_p)/denom
         """Where this fomula comes from?"""
-    e = quad(e_integrand, kF) / 2/np.pi - v_0*n**2/4.0 - abs(delta)**2/v_0
+    e = quad(e_integrand, kF).n / 2/np.pi - v_0*n**2/4.0 - abs(delta)**2/v_0
     mu = mu_eff - n*v_0/2
 
     return namedtuple('BCS_Results', ['v_0', 'n', 'mu', 'e'])(v_0, n, mu, e)
@@ -108,7 +140,7 @@ def BCS(mu_eff, delta=1.0):
     lam : float
        Dimensionless interaction strength.
     """
-    v_0, n, mu, e = get_BCS_v_n_e(delta=delta, mu_eff=mu_eff)
+    v_0, n, mu, e = get_BCS_v_n_e(mu_eff=mu_eff, delta=delta)
     lam = m*v_0/n/hbar**2
 
     # Energy per-particle
@@ -118,6 +150,7 @@ def BCS(mu_eff, delta=1.0):
     E_2 = -m*v_0**2/4.0 / 2.0
     E_N_E_2 = E_N/abs(E_2)
     return E_N_E_2, lam
+
 
 class Homogeneous1D(object):
     """Solutions to the homogeneous BCS equations in 1D at finite T.
@@ -152,15 +185,30 @@ class Homogeneous1D(object):
         rets = self.Results(*[args[_n] for _n in self.Results._fields])
         return rets
 
-    def get_BCS_v_n_e(self, delta, mus_eff):
+    def get_BCS_v_n_e(self, mus_eff, delta, N=None, L=None, dx=None, twist=1):
         """Return `(v_0, n, mu, e)` for the 1D BCS solution at T=0."""
+
+        if N is None and L is None and dx is None:
+            quad_ = quad
+        else:
+            # Use finite lattice for integration
+            if dx is None:
+                dx = L/N
+            elif L is None:
+                L = N * dx
+            elif N is None:
+                N = np.ceil(L / dx).astype(int)
+
+            def quad_(f, kF):
+                return quadl(f, N=N, L=L, twist=twist)
+
         kF = np.sqrt(2*max(0, max(mus_eff)))
 
         def gap_integrand(k):
             res = self.get_res(k=k, mus_eff=mus_eff, delta=delta)
             return (self.f(res.w_m) - self.f(res.w_p))/res.E
 
-        v_0 = 4*np.pi / quad(gap_integrand, kF,)
+        v_0 = 4*np.pi / quad_(gap_integrand, kF)
 
         def np_integrand(k):
             """Density"""
@@ -174,8 +222,8 @@ class Homogeneous1D(object):
             n_m = self.f(res.w_p) - self.f(-res.w_m)
             return n_m
 
-        n_m = quad(nm_integrand, kF) / 2/np.pi
-        n_p = quad(np_integrand, kF) / 2/np.pi
+        n_m = quad_(nm_integrand, kF) / 2/np.pi
+        n_p = quad_(np_integrand, kF) / 2/np.pi
         n_a = (n_p + n_m)/2.0
         n_b = (n_p - n_m)/2.0
         ns = np.array([n_a, n_b])
@@ -215,7 +263,7 @@ class Homogeneous3D(object):
         rets = self.Results(*[args[_n] for _n in self.Results._fields])
         return rets
 
-    def get_inverse_scattering_length(self, delta, mus_eff, k_c):
+    def get_inverse_scattering_length(self, mus_eff, delta, k_c):
         kF = np.sqrt(2*max(0, max(mus_eff)))
         
         def gap_integrand(kz_, kp_): 
@@ -259,13 +307,13 @@ class Homogeneous3D(object):
             *4*np.pi)
         return (-np.pi * 2.0 * res + 2 * k_c / np.pi) + shift_correction
 
-    def get_BCS_v_n_e_in_cylindrical(self, delta, mus_eff,
+    def get_BCS_v_n_e_in_cylindrical(self, mus_eff, delta,
                                      k_c=10000.0,
                                      unitary=False):
         kF = np.sqrt(2*max(0, max(mus_eff)))
 
         ainv_s = self.get_inverse_scattering_length(
-            delta=delta, mus_eff=mus_eff, k_c=k_c)
+            mus_eff=mus_eff, delta=delta, k_c=k_c)
 
         def np_integrand(kz_, kp_):
             res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta,
@@ -291,7 +339,7 @@ class Homogeneous3D(object):
         mus = mus_eff
         return ainv_s, ns, mus
 
-    def get_BCS_v_n_e_in_spherical(self, delta, mus_eff, k_c=10000.0,
+    def get_BCS_v_n_e_in_spherical(self, mus_eff, delta, k_c=10000.0,
                                    unitary=False):
         """Return `(v_0, n, mu, e)` for the 3D BCS solution at T=0 or T > 0."""
         assert self.q == 0
@@ -299,7 +347,7 @@ class Homogeneous3D(object):
 
         if not unitary:
             ainv_s = self.get_inverse_scattering_length(
-                delta=delta, mus_eff=mus_eff, k_c=k_c)
+                mus_eff=mus_eff, delta=delta, k_c=k_c)
             v_0 = np.pi * 4.0 / (ainv_s  - 2.0 * k_c/np.pi)
         else:
             v_0 = 2 * np.pi **2 / k_c

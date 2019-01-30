@@ -3,6 +3,8 @@ import numpy as np
 
 from scipy.optimize import brentq
 
+from mmfutils.testing import allclose
+
 import homogeneous
 from homogeneous import Homogeneous3D
 
@@ -20,9 +22,9 @@ def test_BCS_1D(lam_inv=0.5):
     v_0, n, mu, e = homogeneous.get_BCS_v_n_e(mu_eff=mu_eff, delta=delta)
     E_N_E_2, lam = homogeneous.BCS(mu_eff=mu_eff,  delta=delta)
     mu_tilde = (hbar**2/m/v_0**2)*mu
-    assert np.allclose(lam, 1./0.5)
-    assert np.allclose(mu_tilde, 0.0864, atol=0.0005)    
-    assert np.allclose(E_N_E_2, -0.3037, atol=0.0005)
+    assert allclose(lam, 1./0.5)
+    assert allclose(mu_tilde, 0.0864, atol=0.0005)    
+    assert allclose(E_N_E_2, -0.3037, atol=0.0005)
 
 
 def test_Homogeneous1D_T0():
@@ -33,9 +35,9 @@ def test_Homogeneous1D_T0():
     for T in [0, 0.001]:
         res1 = homogeneous.Homogeneous1D(T=T).get_BCS_v_n_e(
             mus_eff=(mu_eff,)*2, delta=delta)
-        assert np.allclose(res0.v_0, res1.v_0)
-        assert np.allclose(res0.n, res1.ns.sum())
-        assert np.allclose(res0.mu, res1.mus)    
+        assert allclose(res0.v_0, res1.v_0)
+        assert allclose(res0.n, res1.ns.sum())
+        assert allclose(res0.mu, res1.mus)    
 
 
 def test_Homogeneous3D_T0_Unitary():
@@ -45,7 +47,7 @@ def test_Homogeneous3D_T0_Unitary():
     res = h3.get_BCS_v_n_e(mus_eff=(1.2,)*2, delta=delta,unitary = True)
     #1.1622005617900125710mu_+
     mu_p = res.mus.sum() / 2.0
-    assert np.allclose(delta, mu_p * 1.1622005617900125710)
+    assert allclose(delta, mu_p * 1.1622005617900125710)
 
     
 def test_Homogeneous3D_scattering_length():
@@ -55,7 +57,7 @@ def test_Homogeneous3D_scattering_length():
     res0 = h3.get_scattering_length(mus_eff=(1.2,)*2, delta=3.4,k_c=kc)
     res1 = h3.get_scattering_length(mus_eff=(1.2,)*2, delta=3.4,k_c=2.0 * kc)
     print(res0, res1)
-    assert np.allclose(res0, res1,atol=0.0005)    
+    assert allclose(res0, res1,atol=0.0005)    
  # to debug in Visual Studio
 if __name__ == '__main__':
     test_Homogeneous3D_scattering_length()
