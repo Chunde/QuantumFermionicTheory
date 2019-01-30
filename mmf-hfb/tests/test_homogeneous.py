@@ -5,10 +5,35 @@ import numpy as np
 
 from scipy.optimize import brentq
 
+import pytest
+
 from mmfutils.testing import allclose
 
-import homogeneous
-from homogeneous import Homogeneous3D
+from mmf_hfb import homogeneous
+from mmf_hfb.homogeneous import Homogeneous3D
+
+@pytest.fixture(params=[1, 2, 3])
+def dim(request):
+    return request.param
+
+
+class TestIntegration(object):
+    """Test the integrators in homogeneous"""
+    # Normalized Gaussians in d=1,2,3 dimensions
+    f = {1: lambda k: 2*np.sqrt(np.pi) * np.exp(-k**2),
+         2: lambda k: 4*np.pi * np.exp(-k**2),
+         3: lambda k: 8*np.sqrt(np.pi)**3 * np.exp(-k**2)}
+
+    def test_quad_k(self, dim):
+        f = self.f[dim]
+        assert np.allclose(homogeneous.quad_k(f, dim=dim).n, 1)
+    
+    def test_quad_l(self, dim):
+        f = self.f[dim]
+        Nxyz = (64,)*dim
+        Lxyz = (10.0,)*dim
+        assert np.allclose(homogeneous.quad_l(f, Nxyz=Nxyz, Lxyz=Lxyz).n, 1)
+
 
 def test_BCS_1D(lam_inv=0.5):
     """Test a few values from Table I of Quick:1993."""
