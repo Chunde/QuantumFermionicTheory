@@ -119,41 +119,54 @@ class BCS_1D(object):
                      [Delta.conj(), -(K_b - Mu_b)]])
         return np.asarray(H)
 
-    def get_Rs(self, mus, delta,N_twist = 1):
-        """Return the density matrix R."""
+    def get_Rs(self, mus, delta, N_twist=1, abs_tol=1e-12):
+        """Return the density matrices (R, Rm).
 
-        Rps = []
-        Rms = []
-        twists = np.arange(0, N_twist)*2*np.pi/N_twist
+        Arguments
+        ---------
+        N_twist : int, np.inf
+           Number of twists to average over.  Integrate if
+           N_twist==np.inf.
+        abs_tol : float
+           Absolute tolerance if performing twist averaging.
 
-        for twist in twists:
+        Returns
+        -------                
+        R : array
+           This is density matrix computed as R = f(M).  This can be
+           used to extract n_a from the upper-left block.
+        Rm : array
+           This is (eye - R) = f(-M).  This can be used to extract n_b
+           from the lower-right block.
+        """
+        # Here we use the notation Rp = R = f(M) and Rm = f(-M) = 1-R
+        def get_Rs(twist):
+            """Return (R, Rm) with the specified twist."""
             H = self.get_H(mus=mus, delta=delta, twist=twist)
             d, UV = np.linalg.eigh(H)
             Rp = UV.dot(self.f(d)[:, None]*UV.conj().T)
             Rm = UV.dot(self.f(-d)[:, None]*UV.conj().T)
-            Rps.append(Rp)
-            Rms.append(Rm)
-        Rp = sum(Rps)/len(Rps)
-        Rm = sum(Rms)/len(Rms)
-        return Rp/self.dx, Rm/self.dx
+            return np.array([Rp, Rm])
+            
+        if np.isinf(N_twist):
+            Rp_Rm = mquad(get_Rs, -np.pi/2, np.pi/2, abs_tol=abs_tol)
+        else:
+            twists = np.arange(0, N_twist)*2*np.pi/N_twist
+            Rp_Rm = 0
+            for twist in twists:
+                Rp_Rm += get_Rs(twist)
+            Rp_Rm /= len(twists)
 
-
-
-        H = self.get_H(mus=mus, delta=delta)
-        d, UV = np.linalg.eigh(H)
+        # Factor of dV here to convert to physical densities.
         dV = self.dx
+        return Rp_Rm / dV
 
-        # Factor of dV here to convert to physical densities...
-        Rp = UV.dot(self.f(d)[:, None]*UV.conj().T) / dV
-        Rm = UV.dot(self.f(-d)[:, None]*UV.conj().T) / dV
-        return Rp, Rm
-
-    def get_densities(self, mus, delta,N_twist=1):
-        Rp, Rm = self.get_Rs(mus=mus, delta=delta,N_twist=N_twist)
-        _N = Rp.shape[0] // 2
-        r_a = Rp[:_N, :_N]
+    def get_densities(self, mus, delta, N_twist=1):
+        R, Rm = self.get_Rs(mus=mus, delta=delta, N_twist=N_twist)
+        _N = R.shape[0] // 2
+        r_a = R[:_N, :_N]
         r_b = Rm[_N:, _N:].conj()
-        nu_ = (Rp[:_N, _N:] - Rm[_N:, :_N].T.conj())/2.0
+        nu_ = (R[:_N, _N:] - Rm[_N:, :_N].T.conj())/2.0
         n_a = np.diag(r_a).real
         n_b = np.diag(r_b).real
         nu = np.diag(nu_)
