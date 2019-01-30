@@ -3,8 +3,7 @@ from scipy.optimize import brentq
 
 import py.test
 
-
-import tf_completion
+from mmf_hfb import tf_completion, homogeneous
 
 
 def test_3D():
@@ -22,15 +21,15 @@ def test_3D():
     assert np.allclose(n_p.n, nF)
 
     E = tf_completion.integrate(tf_completion.kappa_integrand, d=3,
-                                k_c=10.0, **args)
-    assert np.allclose(E.n, xi*E_FG)
+                                k_c=100.0, **args)
+    assert np.allclose(E.n, xi*E_FG, rtol=1e-2)
     
-    args_ = dict(mu_a=mu, mu_b=mu, delta=delta, m=m, hbar=hbar, T=0.0)
+    args_ = dict(mu_a=mu, mu_b=mu, delta=delta, m_a=m, m_b=m, hbar=hbar, T=0.0)
     C_tilde = tf_completion.compute_C(d=3, **args_)
     assert np.allclose(C_tilde.n, 0)
     
     n_p = tf_completion.integrate_q(tf_completion.n_p_integrand, d=3, q=0, **args)
-    assert np.allclose(n_p.n, nF, rtol=0.0001)
+    assert np.allclose(n_p.n, nF, rtol=0.0002)
     C_tilde = tf_completion.compute_C(d=3, q=0.00001, **args_)
     assert np.allclose(C_tilde.n, 0)
 
@@ -57,7 +56,6 @@ def test_1D():
     np.random.seed(1)
     m, hbar, delta = 0.1 + np.random.random(3)
     lam = 1./lam_inv
-    import homogeneous
 
     def _lam(mu_eff):
         E_N_E_2, _lam = homogeneous.BCS(mu_eff=mu_eff, delta=delta)
