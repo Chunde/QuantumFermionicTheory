@@ -337,8 +337,8 @@ class ASLDA(object):
         #K_a,K_b = self.get_modified_Ks(alpha_a=alpha_a,alpha_b=alpha_b,twist = twist)
         Mu_a, Mu_b = np.diag((mu_a - V_a).ravel()), np.diag((mu_b - V_b).ravel())
         assert (Mu_a.shape[0] == self.x.shape[0])
-        H = np.bmat([[K_a - Mu_a, -Delta], # may need remove the minus sign for Delta, need to check
-                     [-Delta.conj(), -(K_b - Mu_b)]]) 
+        H = np.bmat([[K_a - Mu_a, Delta], # may need remove the minus sign for Delta, need to check
+                     [Delta.conj(), -(K_b - Mu_b)]]) 
         assert np.allclose(H.real,H.conj().T.real)
         return np.asarray(H)
 
@@ -390,8 +390,8 @@ class ASLDA(object):
                 def f(ky=0):
                     k_per = self.hbar**2/2/self.m  *ky**2
                     K_a,K_b = self.get_modified_Ks(alpha_a=alpha_a,alpha_b=alpha_b,twist = twist)
-                    H = np.bmat([[K_a - Mu_a, -Delta], # may need remove the minus sign for Delta, need to check
-                         [-Delta.conj(), -(K_b - Mu_b)]]) 
+                    H = np.bmat([[K_a - Mu_a, Delta], # may need remove the minus sign for Delta, need to check
+                         [Delta.conj(), -(K_b - Mu_b)]]) 
                     assert np.allclose(H.real,H.conj().T.real)
                     _ns,_taus,_kappa = self.get_ns_taus_kappa(np.asarray(H))
                     return np.concatenate((_ns[0].ravel(),_ns[1].ravel(),_taus[0].ravel(),_taus[1].ravel(),_kappa.ravel()))
@@ -424,8 +424,8 @@ class ASLDA(object):
             def f(ky=0):
                 k_per = self.hbar**2/2/self.m  *ky**2
                 K_a,K_b = self.get_modified_Ks(alpha_a=alpha_a,alpha_b=alpha_b,twist = twist)
-                H = np.bmat([[K_a - Mu_a, -Delta], # may need remove the minus sign for Delta, need to check
-                     [-Delta.conj(), -(K_b - Mu_b)]]) 
+                H = np.bmat([[K_a - Mu_a, Delta], # may need remove the minus sign for Delta, need to check
+                     [Delta.conj(), -(K_b - Mu_b)]]) 
                 assert np.allclose(H.real,H.conj().T.real)
                 _ns,_taus,_kappa = self.get_ns_taus_kappa(np.asarray(H))
                 return np.concatenate((_ns[0].ravel(),_ns[1].ravel(),_taus[0].ravel(),_taus[1].ravel(),_kappa.ravel()))

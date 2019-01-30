@@ -119,8 +119,26 @@ class BCS_1D(object):
                      [Delta.conj(), -(K_b - Mu_b)]])
         return np.asarray(H)
 
-    def get_Rs(self, mus, delta):
+    def get_Rs(self, mus, delta,N_twist = 1):
         """Return the density matrix R."""
+
+        Rps = []
+        Rms = []
+        twists = np.arange(0, N_twist)*2*np.pi/N_twist
+
+        for twist in twists:
+            H = self.get_H(mus=mus, delta=delta, twist=twist)
+            d, UV = np.linalg.eigh(H)
+            Rp = UV.dot(self.f(d)[:, None]*UV.conj().T)
+            Rm = UV.dot(self.f(-d)[:, None]*UV.conj().T)
+            Rps.append(Rp)
+            Rms.append(Rm)
+        Rp = sum(Rps)/len(Rps)
+        Rm = sum(Rms)/len(Rms)
+        return Rp/self.dx, Rm/self.dx
+
+
+
         H = self.get_H(mus=mus, delta=delta)
         d, UV = np.linalg.eigh(H)
         dV = self.dx
@@ -130,8 +148,8 @@ class BCS_1D(object):
         Rm = UV.dot(self.f(-d)[:, None]*UV.conj().T) / dV
         return Rp, Rm
 
-    def get_densities(self, mus, delta):
-        Rp, Rm = self.get_Rs(mus=mus, delta=delta)
+    def get_densities(self, mus, delta,N_twist=1):
+        Rp, Rm = self.get_Rs(mus=mus, delta=delta,N_twist=N_twist)
         _N = Rp.shape[0] // 2
         r_a = Rp[:_N, :_N]
         r_b = Rm[_N:, _N:].conj()

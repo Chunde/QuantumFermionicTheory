@@ -57,7 +57,7 @@ class ASLDA_(vortex_1d_aslda.ASLDA):
 def test_ASLDA_Homogenous():
     L = 0.46
     N = 16
-    N_twist = 64
+    N_twist = 128
     delta = 1.0
     mu_eff = 1.0
     v_0, n, mu, e_0 = homogeneous.get_BCS_v_n_e(delta=delta, mu_eff=mu_eff)
@@ -71,26 +71,26 @@ def test_ASLDA_Homogenous():
     na = np.diag(R)[:N]/b.dx
     nb = (1 - np.diag(R)[N:])/b.dx
     kappa = np.diag(R[:N, N:])/b.dx
-    print((n, na[0].real + nb[0].real), (delta, v_0*kappa[0].real))
+    print((n, na[0].real + nb[0].real), (delta, -v_0*kappa[0].real))
     assert np.allclose(n_, na.real + nb.real,atol=0.001)
-    #assert np.allclose(delta, v_0*kappa[0].real,atol=0.001)
+    assert np.allclose(delta, -v_0*kappa[0].real,atol=0.01)
     print("Test 1d lattice with homogeneous system")
     ns,taus,kappa = b.get_ns_taus_kappa_average_1d(mus=(mu_eff  * np.ones((N),), mu_eff  * np.ones((N),)), delta=delta * np.ones((N),), N_twist=N_twist)
     na,nb = ns
-    print((n, na[0].real + nb[0].real), (delta, v_0*kappa[0].real))
+    print((n, na[0].real + nb[0].real), (delta, -v_0*kappa[0].real))
     assert np.allclose(n_, na.real + nb.real,atol=0.001)
-    #assert np.allclose(delta, v_0*kappa[0].real,atol=0.001)
+    assert np.allclose(delta, -v_0*kappa[0].real,atol=0.01)
     print("Test 1d lattice plus 1d integral over y with homogeneous system")
     ns,taus,kappa = b.get_ns_taus_kappa_average_2d(mus=(mu_eff  * np.ones((N),), mu_eff  * np.ones((N),)), delta=delta * np.ones((N),), N_twist=N_twist)
     na,nb = ns
-    print((n, na[0].real + nb[0].real), (delta, v_0*kappa[0].real))
+    print((n, na[0].real + nb[0].real), (delta, -v_0*kappa[0].real))
     assert np.allclose(n_, na.real + nb.real,atol=0.001)
-    #assert np.allclose(delta, v_0*kappa[0].real,atol=0.001)
+    assert np.allclose(delta, -v_0*kappa[0].real,atol=0.01)
     print("Test 1d lattice plus 2d integrals over y and  z with homogeneous system")
     ns,taus,kappa = b.get_ns_taus_kappa_average_3d(mus=(mu_eff  * np.ones((N),), mu_eff  * np.ones((N),)), delta=delta * np.ones((N),), N_twist=N_twist)
     na,nb = ns
-    print((n, na[0].real + nb[0].real), (delta, v_0*kappa[0].real))
-    assert np.allclose(n_, na.real + nb.real,atol=0.001)
+    print((n, na[0].real + nb[0].real), (delta, -v_0*kappa[0].real))
+    assert np.allclose(n_, na.real + nb.real,atol=0.01)
     #assert np.allclose(delta, v_0*kappa[0].real,atol=0.001)
 
 
