@@ -211,6 +211,12 @@ def C_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     return 0.5*(1/e_p - f_nu/E)
 
 
+class Series(object):
+    """Series expansions for T=0 and large enough k_c."""
+    def kappa(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
+        
+            
+    
 def Lambda(m, mu, hbar, d, E_c=None, k_c=None):
     """Compute the cutoff function Lambda assuming equal masses.
 
