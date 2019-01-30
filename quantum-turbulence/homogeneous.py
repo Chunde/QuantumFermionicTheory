@@ -53,8 +53,10 @@ def quadl(f, N, L, twist=1):
 
     N *= twist
     L *= twist
+    dx = L/N
     k = 2*np.pi * np.fft.fftshift(np.fft.fftfreq(N, dx))
-    return np.trapz(f(k), k)
+    dk = k[1] - k[0]
+    return f(k).sum() * dk
 
 
 def dquad(f, kF=None, k_0=0, k_inf=np.inf, limit=1000, int_name="Gap"):
