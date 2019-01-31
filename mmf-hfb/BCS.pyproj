@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>d96035f2-d7ba-4540-adc5-a336a7b7a91f</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>test_ASLDA_Homogeneous.py</StartupFile>
+    <StartupFile>mmf_hfb\scracch.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -25,38 +25,40 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="aslda_functional.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="bcs.py" />
-    <Compile Include="FFStatePhaseMapper.py" />
-    <Compile Include="FFStatePhaseMapperCmd.py" />
-    <Compile Include="FuldeFerrelState.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="homogeneous-spherical.py" />
-    <Compile Include="homogeneous.py" />
-    <Compile Include="homogeneous_mmf.py" />
-    <Compile Include="Lattice.py" />
-    <Compile Include="test_ASLDA_Homogeneous.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="test_ASLDA_iterate.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="test_homogeneous.py" />
-    <Compile Include="test_homogeneous_mmf.py" />
-    <Compile Include="test_tf_completion.py" />
-    <Compile Include="test_vortex_1d_aslda.py" />
-    <Compile Include="test_vortex_2d.py" />
-    <Compile Include="test_vortex_2d_aslda.py" />
-    <Compile Include="tf_completion.py" />
-    <Compile Include="vortex_1d_aslda.py" />
-    <Compile Include="vortex_2d.py" />
-    <Compile Include="vortex_2d_aslda.py" />
+    <InterpreterReference Include="Global|PythonCore|3.7" />
   </ItemGroup>
   <ItemGroup>
-    <InterpreterReference Include="Global|PythonCore|3.7" />
+    <Folder Include="mmf_hfb\" />
+    <Folder Include="tests\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="mmf_hfb\aslda_functional.py" />
+    <Compile Include="mmf_hfb\bcs.py" />
+    <Compile Include="mmf_hfb\FFStatePhaseMapper.py" />
+    <Compile Include="mmf_hfb\FFStatePhaseMapperCmd.py" />
+    <Compile Include="mmf_hfb\FuldeFerrelState.py" />
+    <Compile Include="mmf_hfb\homogeneous.py" />
+    <Compile Include="mmf_hfb\homogeneous_mmf.py" />
+    <Compile Include="mmf_hfb\Lattice.py" />
+    <Compile Include="mmf_hfb\scracch.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="mmf_hfb\tf_completion.py" />
+    <Compile Include="mmf_hfb\vortex_1d_aslda.py" />
+    <Compile Include="mmf_hfb\vortex_2d.py" />
+    <Compile Include="mmf_hfb\vortex_2d_aslda.py" />
+    <Compile Include="tests\hfb_dir_init.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="tests\test_ASLDA_Homogeneous.py" />
+    <Compile Include="tests\test_ASLDA_iterate.py" />
+    <Compile Include="tests\test_homogeneous.py" />
+    <Compile Include="tests\test_homogeneous_mmf.py" />
+    <Compile Include="tests\test_tf_completion.py" />
+    <Compile Include="tests\test_vortex_1d_aslda.py" />
+    <Compile Include="tests\test_vortex_2d.py" />
+    <Compile Include="tests\test_vortex_2d_aslda.py" />
+    <Compile Include="tests\__init__.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

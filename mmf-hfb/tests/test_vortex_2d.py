@@ -1,5 +1,6 @@
 # this file will eventually be changed to a test file for pytest, now just for debugging in Visual Studio
 # Chunde's comment will start with a single sharp '#', to track modifications.
+import hfb_dir_init
 import numpy as np
 from scipy.integrate import quad
 from uncertainties import ufloat

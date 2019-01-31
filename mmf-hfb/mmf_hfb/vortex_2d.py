@@ -353,7 +353,7 @@ class BCS(object):
         self.Nxy = tuple(Nxy)
         self.Lxy = tuple(Lxy)
         self.T = T
-
+        self.E_c = 100
         # External potential
         self.v_ext = self.get_v_ext()
         

@@ -1,3 +1,5 @@
+import hfb_dir_init
+
 import numpy as np
 from scipy.optimize import brentq
 
