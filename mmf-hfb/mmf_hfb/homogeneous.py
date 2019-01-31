@@ -319,7 +319,7 @@ class Homogeneous3D(object):
 
     Results = namedtuple('Results', ['e_p', 'E', 'w_p', 'w_m'])
 
-    def get_res(self, kz, kp, mus_eff, delta, q):
+    def get_res(self, kz, kp, mus_eff, delta, q=0):
         e_a, e_b = self.get_es(kz, kp, mus_eff=mus_eff,q=q)
         e_p, e_m = (e_a + e_b)/2, (e_a - e_b)/2
         E = np.sqrt(e_p**2 + abs(delta)**2)
