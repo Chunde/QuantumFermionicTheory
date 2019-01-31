@@ -6,8 +6,6 @@ import scipy as sp
 
 from uncertainties import ufloat
 
-m = 1.0
-
 _QUAD_ARGS = dict(
     epsabs=1.49e-08,
     epsrel=1.49e-08)
@@ -145,7 +143,9 @@ def BCS(mu_eff, delta=1.0):
     lam : float
        Dimensionless interaction strength.
     """
-    v_0, n, mu, e = get_BCS_v_n_e(mu_eff=mu_eff, delta=delta)
+    h = Homogeneous1D()
+    v_0, ns, mu, e = h.get_BCS_v_n_e(mus_eff=(mu_eff,)*2, delta=delta)
+    n = sum(ns)
     lam = m*v_0/n/hbar**2
 
     # Energy per-particle
@@ -154,7 +154,7 @@ def BCS(mu_eff, delta=1.0):
     # Energy per-particle for 2 particles
     E_2 = -m*v_0**2/4.0 / 2.0
     E_N_E_2 = E_N/abs(E_2)
-    return E_N_E_2, lam
+    return E_N_E_2.n, lam.n
 
 
 class Homogeneous1D(object):
@@ -164,6 +164,8 @@ class Homogeneous1D(object):
     """
     T = 0.0
     dim = 1
+    m = 1
+    hbar = 1
     
     def __init__(self, Nxyz=None, Lxyz=None, dx=None, **kw):
         if Nxyz is None and Lxyz is None and dx is None:
@@ -188,8 +190,8 @@ class Homogeneous1D(object):
             return 1./(1+np.exp(E/self.T))
 
     def get_es(self, k, mus_eff):
-        return (k**2/2.0/m - mus_eff[0],
-                k**2/2.0/m - mus_eff[1])
+        e = (self.hbar*k)**2/2.0/self.m
+        return (e - mus_eff[0], e - mus_eff[1])
 
     Results = namedtuple('Results', ['e_p', 'E', 'w_p', 'w_m'])
 
@@ -235,7 +237,7 @@ class Homogeneous1D(object):
         n_a = (n_p + n_m)/2.0
         n_b = (n_p - n_m)/2.0
 
-        return (n_a, n_b)
+        return namedtuple('Densities', ['n_a', 'n_b'])(n_a, n_b)
     
     def get_BCS_v_n_e(self, mus_eff, delta, twist=1):
         """Return `(v_0, n, mu, e)` for the 1D BCS solution at T=0."""
@@ -269,14 +271,25 @@ class Homogeneous1D(object):
             n_m = self.f(res.w_p) - self.f(-res.w_m)
             return n_m
 
+        def kappa_integrand(k):
+            res = self.get_res(k=k, mus_eff=mus_eff, delta=delta)
+            f_nu = self.f(res.w_m) - self.f(res.w_p)
+            f_p = 1 - res.e_p/res.E*f_nu
+            tau_p = k**2*f_p
+            nu_delta = nu_delta_integrand(k)
+            return self.hbar**2 * tau_p/self.m/2 - abs(delta)**2 * nu_delta
+
         n_m = quad(nm_integrand)
         n_p = quad(np_integrand)
+        kappa = quad(kappa_integrand)
         n_a = (n_p + n_m)/2.0
         n_b = (n_p - n_m)/2.0
         ns = np.array([n_a, n_b])
         mus = mus_eff - np.array([n_b, n_a])*v_0
+        e = kappa - v_0*n_a*n_b
 
-        return namedtuple('BCS_Results', ['v_0', 'ns', 'mus'])(v_0, ns, mus)
+        return namedtuple('BCS_Results', ['v_0', 'ns', 'mus', 'e'])(
+            v_0, ns, mus, e)
 
 
 class Homogeneous2D(Homogeneous1D):

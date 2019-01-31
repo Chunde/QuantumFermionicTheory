@@ -35,36 +35,76 @@ class TestIntegration(object):
         assert np.allclose(homogeneous.quad_l(f, Nxyz=Nxyz, Lxyz=Lxyz).n, 1)
 
 
-def test_BCS_1D(lam_inv=0.5):
-    """Test a few values from Table I of Quick:1993."""
-    m = hbar = 1.0
-    np.random.seed(2)    
-    delta = np.random.random(1)
-    lam = 1./lam_inv
-    def _lam(mu_eff):
-        E_N_E_2, _lam = homogeneous.BCS(mu_eff=mu_eff,  delta=delta)
-        return _lam - lam
+class TestHomogeneous(object):
+    """Test Homogeneous classes."""
+    def test_1D_T0(self):
+        """Test the Homogeneous1D class for a known solution."""
+        np.random.seed(2)
+        hbar, m, kF = 1.0 + np.random.random(3)
+        nF = kF/np.pi
+        eF = (hbar*kF)**2/2/m
+        E_FG = 2*nF*eF/3
+        C_unit = m/hbar**2/kF
 
-    mu_eff = brentq(_lam, 0.6, 0.8)
-    v_0, n, mu, e = homogeneous.get_BCS_v_n_e(mu_eff=mu_eff, delta=delta)
-    E_N_E_2, lam = homogeneous.BCS(mu_eff=mu_eff,  delta=delta)
-    mu_tilde = (hbar**2/m/v_0**2)*mu
-    assert allclose(lam, 1./0.5)
-    assert allclose(mu_tilde, 0.0864, atol=0.0005)    
-    assert allclose(E_N_E_2, -0.3037, atol=0.0005)
+        mu = 0.28223521359748843*eF
+        delta = 0.411726229961806*eF
+        h = homogeneous.Homogeneous1D(m=m, hbar=hbar)
+        res1 = h.get_BCS_v_n_e(mus_eff=(mu,)*2, delta=delta)
+        assert allclose(res1.v_0, 1./C_unit)
+        assert allclose(sum(res1.ns), nF)
 
+    def test_1D_Quick(self, lam_inv=0.5):
+        """Test a few values from Table I of Quick:1993."""
+        m = hbar = 1.0
+        np.random.seed(2)    
+        delta = np.random.random(1)
+        lam = 1./lam_inv
 
-def test_Homogeneous1D_T0():
-    """Compare the Homogeneous1D class with get_BCS_v_n_e for T=0."""
-    np.random.seed(2)    
-    mu_eff, delta = np.random.random(2)
-    res0 = homogeneous.get_BCS_v_n_e(mu_eff=mu_eff, delta=delta)
-    for T in [0, 0.001]:
-        res1 = homogeneous.Homogeneous1D(T=T).get_BCS_v_n_e(
-            mus_eff=(mu_eff,)*2, delta=delta)
-        assert allclose(res0.v_0, res1.v_0)
-        assert allclose(res0.n, res1.ns.sum())
-        assert allclose(res0.mu, res1.mus)    
+        h = homogeneous.Homogeneous1D(m=m, hbar=hbar)
+        
+        def _lam(mu_eff):
+            E_N_E_2, _lam = homogeneous.BCS(mu_eff=mu_eff,  delta=delta)
+            return _lam - lam
+
+        mu_eff = brentq(_lam, 0.6, 0.8, xtol=1e-5)
+        v_0, n, mu, e = h.get_BCS_v_n_e(mus_eff=(mu_eff, mu_eff), delta=delta)
+        E_N_E_2, lam = homogeneous.BCS(mu_eff=mu_eff,  delta=delta)
+        mu_tilde = (hbar**2/m/v_0**2)*mu
+        assert allclose(lam, 1./0.5)
+        assert allclose(mu_tilde, 0.0864, atol=0.0005)    
+        assert allclose(E_N_E_2, -0.3037, atol=0.0005)
+        
+    def test_2D_T0(self):
+        """Test the Homogeneous1D class for a known solution."""
+        np.random.seed(2)
+        hbar, m, kF = 1.0 + np.random.random(3)
+        nF = kF**2/2/np.pi
+        eF = (hbar*kF)**2/2/m
+        E_FG = nF*eF/2
+
+        mu = 0.5 * eF
+        delta = np.sqrt(2) * eF
+
+        h = homogeneous.Homogeneous2D(m=m, hbar=hbar)
+        res = h.get_densities(mus_eff=(mu,)*2, delta=delta)
+        assert allclose(res.n_a+res.n_b, nF)
+
+    def test_3D_T0(self):
+        """Test the Homogeneous1D class for a known solution."""
+        np.random.seed(2)
+        hbar, m, kF = 1.0 + np.random.random(3)
+        xi = 0.59060550703283853378393810185221521748413488992993
+        nF = kF**3/3/np.pi**2
+        eF = (hbar*kF)**2/2/m
+        E_FG = 3*nF*eF/5
+
+        mu = xi * eF
+        delta = 0.68640205206984016444108204356564421137062514068346 * eF
+
+        h = homogeneous.Homogeneous3D(m=m, hbar=hbar)
+        res = h.get_densities(mus_eff=(mu,)*2, delta=delta)
+        assert allclose(res.n_a+res.n_b, nF)
+
 
 
 def test_Homogeneous3D_T0_Unitary():
