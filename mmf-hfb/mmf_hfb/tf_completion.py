@@ -169,7 +169,7 @@ def nu_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     E = np.sqrt(e_p**2 + abs(delta)**2)
     w_m, w_p = e_m - E, e_m + E
     f_nu = (f(w_m, T) - f(w_p, T))
-    return delta/2/E*f_nu
+    return -0.5*delta/E*f_nu
 
 
 @numba.jit(nopython=True)
@@ -180,7 +180,7 @@ def nu_delta_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     E = np.sqrt(e_p**2 + abs(delta)**2)
     w_m, w_p = e_m - E, e_m + E
     f_nu = (f(w_m, T) - f(w_p, T))
-    return 0.5/E*f_nu
+    return -0.5/E*f_nu
 
 
 @numba.jit(nopython=True)
@@ -188,7 +188,7 @@ def kappa_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     m_p_inv = (1/m_a + 1/m_b)/2
     tau_p = tau_p_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T)
     nu_delta = nu_delta_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T)
-    return (tau_p * m_p_inv * hbar**2 / 2 - abs(delta)**2 * nu_delta)
+    return (tau_p * m_p_inv * hbar**2 / 2 + abs(delta)**2 * nu_delta)
 
 
 @numba.jit(nopython=True)
@@ -270,7 +270,7 @@ def compute_C(mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0, q=0,
         nu_c_delta = integrate_q(f=nu_delta_integrand, k_c=k_c, q=q, **args)
         C_corr = integrate_q(f=C_integrand, k_0=k_c, **args)
     
-    C_c = -nu_c_delta + Lambda_c
+    C_c = nu_c_delta + Lambda_c
     C = C_c + C_corr
     if debug:
         return locals()

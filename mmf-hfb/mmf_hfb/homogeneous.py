@@ -22,10 +22,12 @@ def quad_k(f, kF=None, k_0=0, k_inf=np.inf, dim=1, limit=1000, **kw):
         integrand = f
     elif dim == 2:
         factor = 1./2/np.pi
+        
         def integrand(k):
             return f(k) * k
     elif dim == 3:
         factor = 1./2/np.pi**2
+        
         def integrand(k):
             return f(k) * k**2
     else:
@@ -37,17 +39,16 @@ def quad_k(f, kF=None, k_0=0, k_inf=np.inf, dim=1, limit=1000, **kw):
         # One might think that `points=[kF]` could be used here, but
         # this does not work with infinite limits.
         res = (ufloat(*sp.integrate.quad(integrand, k_0, kF, **args))
-               +
-               ufloat(*sp.integrate.quad(integrand, kF, k_inf, limit=limit, **args)))
+               + ufloat(*sp.integrate.quad(
+                   integrand, kF, k_inf, limit=limit, **args)))
 
     if abs(res.s) > 1e-6 and abs(res.s/res.n) > 1e-6:
-        warnings.warn("Integral did not converge: res, err = %g, %g"
-                      % (res, err))
+        warnings.warn(f"Integral did not converge: {res}")
         
     return res * factor
 
 
-def quad_l(f, Nxyz, Lxyz, twist=1, **kw):
+def quad_l(f, Nxyz, Lxyz, N_twist=1, **kw):
     """Integrate f(k) using a lattice including factors of 1/(2*pi)**dim.
 
     Arguments
@@ -56,19 +57,19 @@ def quad_l(f, Nxyz, Lxyz, twist=1, **kw):
     Lxyz : (float,)
        These tuples specify the size of the lattice and box.  Their
        length specifies the dimension.
-    twist : int, np.inf
+    N_twist : int, np.inf
        How many twists to sample in each direction.
        (This is done by just multiplying N and L by this factor.)  If
-       twist==np.inf, then to the integral (with cutoff).
+       N_twist==np.inf, then to the integral (with cutoff).
 
     BUG: Currently, integration is done over a spherical shell with
     radius k_max.  This only matches the lattice calculation in 1D.
     """
     dim = len(Nxyz)
-    Nxyz, Lxyz = np.asarray(Nxyz), np.asarray(Lxyz)
+    Nxyz, Lxyz = np.array(Nxyz), np.array(Lxyz)
     dxyz = Lxyz/Nxyz
     
-    if np.isinf(twist):
+    if np.isinf(N_twist):
         k_max = np.pi/np.max(dxyz)
         
         ## This is the idea, but we really need to compute the measure
@@ -77,8 +78,8 @@ def quad_l(f, Nxyz, Lxyz, twist=1, **kw):
         return quad_k(f, k_inf=k_max, dim=dim, **kw)
 
     # Lattice sums.
-    Nxyz *= twist
-    Lxyz *= twist
+    Nxyz *= N_twist
+    Lxyz *= N_twist
     dxyz = Lxyz/Nxyz
     dkxyz = 2*np.pi/Lxyz
     ks = np.meshgrid(
@@ -121,65 +122,34 @@ def dquad(f, kF=None, k_0=0, k_inf=np.inf, limit=1000, int_name="Gap"):
                    # case, should be a factor of 4 instead of 2? 
 
 
-def BCS(mu_eff, delta=1.0):
-    m = hbar = 1.0
-    """Return `(E_N_E_2, lam)` for comparing with the exact Gaudin
-    solution.
-
-    Arguments
-    ---------
-    delta : float
-       Pairing gap.  This is the gap in the energy spectrum.
-    mu_eff : float
-       Effective chemical potential including both the bare chemical
-       potential and the self-energy correction arising from the
-       Hartree term.
-
-    Returns
-    -------
-    E_N_E_2 : float
-       Energy per particle divided by the two-body binding energy
-       abs(energy per particle) for 2 particles.
-    lam : float
-       Dimensionless interaction strength.
-    """
-    h = Homogeneous1D()
-    v_0, ns, mu, e = h.get_BCS_v_n_e(mus_eff=(mu_eff,)*2, delta=delta)
-    n = sum(ns)
-    lam = m*v_0/n/hbar**2
-
-    # Energy per-particle
-    E_N = e/n
-
-    # Energy per-particle for 2 particles
-    E_2 = -m*v_0**2/4.0 / 2.0
-    E_N_E_2 = E_N/abs(E_2)
-    return E_N_E_2.n, lam.n
-
-
-class Homogeneous1D(object):
-    """Solutions to the homogeneous BCS equations in 1D at finite T.
+class Homogeneous(object):
+    """Solutions to the homogeneous BCS equations at finite T.
 
     Allows for modified dispersion as well as asymmetric populations.
     """
     T = 0.0
-    dim = 1
     m = 1
     hbar = 1
     
-    def __init__(self, Nxyz=None, Lxyz=None, dx=None, **kw):
+    def __init__(self, Nxyz=None, Lxyz=None, dx=None, dim=None, **kw):
         if Nxyz is None and Lxyz is None and dx is None:
-            pass
-        elif dx is None:
-            dxyz = np.divide(Lxyz, Nxyz)
-        elif Lxyz is None:
-            Lxyz = np.asarray(Nxyz) * dx
-        elif Nxy is None:
-            Nxyz = np.ceil(np.divide(Lxyz, dx)).astype(int)
+            self._dim = dim
+        elif dx is not None:
+            if Lxyz is None:
+                Lxyz = np.multiply(Nxyz, dx)
+            elif Nxyz is None:
+                Nxyz = np.ceil(np.divide(Lxyz, dx)).astype(int)
 
+            self.dxyz = np.divide(Lxyz, Nxyz)
+            self._dim = len(Nxyz)
+            
         self.Nxyz = Nxyz
         self.Lxyz = Lxyz
         self.__dict__.update(kw)
+
+    @property
+    def dim(self):
+        return self._dim
 
     def f(self, E):
         """Return the Fermi distribution function."""
@@ -209,7 +179,7 @@ class Homogeneous1D(object):
         res = self.Results(*[args[_n] for _n in self.Results._fields])
         return res
 
-    def get_densities(self, mus_eff, delta, twist=1):
+    def get_densities(self, mus_eff, delta, N_twist=1):
         """Return the densities (n_a, n_b)."""
         kF = np.sqrt(2*max(0, max(mus_eff)))
         
@@ -218,7 +188,8 @@ class Homogeneous1D(object):
                 return quad_k(f, dim=self.dim, kF=kF)
         else:
             def quad(f):
-                return quad_l(f, Nxyz=self.Nxyz, Lxyz=self.Lxyz, twist=twist)
+                return quad_l(f, Nxyz=self.Nxyz, Lxyz=self.Lxyz,
+                              N_twist=N_twist)
 
         def np_integrand(k):
             """Density"""
@@ -232,14 +203,26 @@ class Homogeneous1D(object):
             n_m = self.f(res.w_p) - self.f(-res.w_m)
             return n_m
 
+        def nu_delta_integrand(k):
+            res = self.get_res(k=k, mus_eff=mus_eff, delta=delta)
+            f_nu = self.f(res.w_m) - self.f(res.w_p)
+            return -0.5/res.E*f_nu
+        
         n_m = quad(nm_integrand)
         n_p = quad(np_integrand)
         n_a = (n_p + n_m)/2.0
         n_b = (n_p - n_m)/2.0
-
-        return namedtuple('Densities', ['n_a', 'n_b'])(n_a, n_b)
+        if self.Nxyz is None and self.dim != 1:
+            # This is divergent:
+            nu = np.inf
+        else:
+            nu_delta = quad(nu_delta_integrand)
+            nu = nu_delta * delta
+        
+        return namedtuple('Densities', ['n_a', 'n_b', 'nu'])(
+            n_a, n_b, nu)
     
-    def get_BCS_v_n_e(self, mus_eff, delta, twist=1):
+    def get_BCS_v_n_e(self, mus_eff, delta, N_twist=1):
         """Return `(v_0, n, mu, e)` for the 1D BCS solution at T=0."""
         kF = np.sqrt(2*max(0, max(mus_eff)))
         
@@ -248,15 +231,16 @@ class Homogeneous1D(object):
                 return quad_k(f, dim=self.dim, kF=kF)
         else:
             def quad(f):
-                return quad_l(f, Nxyz=self.Nxyz, Lxyz=self.Lxyz, twist=twist)
+                return quad_l(f, Nxyz=self.Nxyz, Lxyz=self.Lxyz,
+                              N_twist=N_twist)
 
         def nu_delta_integrand(k):
             res = self.get_res(k=k, mus_eff=mus_eff, delta=delta)
             f_nu = self.f(res.w_m) - self.f(res.w_p)
-            return 0.5/res.E*f_nu
+            return -0.5/res.E*f_nu
         
         nu_delta = quad(nu_delta_integrand)
-        v_0 = 1/nu_delta
+        v_0 = -1/nu_delta
 
         def np_integrand(k):
             """Density"""
@@ -277,7 +261,7 @@ class Homogeneous1D(object):
             f_p = 1 - res.e_p/res.E*f_nu
             tau_p = k**2*f_p
             nu_delta = nu_delta_integrand(k)
-            return self.hbar**2 * tau_p/self.m/2 - abs(delta)**2 * nu_delta
+            return self.hbar**2 * tau_p/self.m/2 + abs(delta)**2 * nu_delta
 
         n_m = quad(nm_integrand)
         n_p = quad(np_integrand)
@@ -292,12 +276,15 @@ class Homogeneous1D(object):
             v_0, ns, mus, e)
 
 
-class Homogeneous2D(Homogeneous1D):
-    """Solutions to the homogeneous BCS equations in 2D at finite T."""
+class Homogeneous1D(Homogeneous):
+    dim = 1
+
+
+class Homogeneous2D(Homogeneous):
     dim = 2
 
 
-class Homogeneous3D(Homogeneous1D):
+class Homogeneous3D(Homogeneous):
     """Solutions to the homogeneous BCS equations in 3D at finite T."""
     dim = 3
     
@@ -415,4 +402,41 @@ class Homogeneous3D(Homogeneous1D):
         mus = mus_eff
 
         return v_0, ns, mus
+
+
+def BCS(mu_eff, delta=1.0):
+    m = hbar = 1.0
+    """Return `(E_N_E_2, lam)` for comparing with the exact Gaudin
+    solution.
+
+    Arguments
+    ---------
+    delta : float
+       Pairing gap.  This is the gap in the energy spectrum.
+    mu_eff : float
+       Effective chemical potential including both the bare chemical
+       potential and the self-energy correction arising from the
+       Hartree term.
+
+    Returns
+    -------
+    E_N_E_2 : float
+       Energy per particle divided by the two-body binding energy
+       abs(energy per particle) for 2 particles.
+    lam : float
+       Dimensionless interaction strength.
+    """
+    h = Homogeneous1D()
+    v_0, ns, mu, e = h.get_BCS_v_n_e(mus_eff=(mu_eff,)*2, delta=delta)
+    n = sum(ns)
+    lam = m*v_0/n/hbar**2
+
+    # Energy per-particle
+    E_N = e/n
+
+    # Energy per-particle for 2 particles
+    E_2 = -m*v_0**2/4.0 / 2.0
+    E_N_E_2 = E_N/abs(E_2)
+    return E_N_E_2.n, lam.n
+
 
