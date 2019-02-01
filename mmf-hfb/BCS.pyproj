@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>d96035f2-d7ba-4540-adc5-a336a7b7a91f</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>mmf_hfb\scratch.py</StartupFile>
+    <StartupFile>mmf_hfb\FuldeFerrelState.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -28,10 +28,12 @@
     <InterpreterReference Include="Global|PythonCore|3.7" />
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="Docs\" />
     <Folder Include="mmf_hfb\" />
     <Folder Include="tests\" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Docs\nbimports.py" />
     <Compile Include="mmf_hfb\aslda_functional.py" />
     <Compile Include="mmf_hfb\bcs.py" />
     <Compile Include="mmf_hfb\FFStatePhaseMapper.py" />

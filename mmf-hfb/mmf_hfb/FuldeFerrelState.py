@@ -1,9 +1,9 @@
 import numpy as np
+from mmf_hfb import homogeneous
+from mmf_hfb import tf_completion as tf
 from scipy.optimize import brentq
-import homogeneous
-import tf_completion as tf
 import matplotlib.pyplot as plt
-from homogeneous import Homogeneous1D,Homogeneous3D
+from mmf_hfb.homogeneous import Homogeneous1D,Homogeneous3D
 from multiprocessing import Pool
 
 
@@ -66,7 +66,7 @@ def test_thermodynamic_relations():
 
 
 if __name__ == "__main__":
-    test_thermodynamic_relations()
+    #test_thermodynamic_relations()
     np.random.seed(1)
     m, hbar, kF = 1 + np.random.random(3)
     eF = (hbar*kF)**2/2/m
@@ -76,8 +76,8 @@ if __name__ == "__main__":
     args = dict(mu_a=mu, mu_b=mu, delta=delta, m_a=m, m_b=m, hbar=hbar, T=0.0)
     #p0 = get_pressure(mu_a = mu,mu_b=mu,delta=delta,m=m,T=0,q=1)
     qs = np.linspace(0,2,10)
-   
-    ps = [get_pressure(mu_a = mu +  q * dmu /2,mu_b=mu - q * dmu /2,delta=delta,m=m,T=0,q=0).n for q in qs]
+    dmu = 0.4 * delta
+    ps = [get_pressure(mu_a = mu +  q*dmu /2, mu_b = mu - q*dmu/2, delta=delta,m_a=m, m_b=m, T=0, q=0).n for q in qs]
     plt.plot(qs,ps)
     print(f'Delta={delta} mu={mu} ')
     plt.show()
