@@ -45,13 +45,13 @@
     </Compile>
     <Compile Include="mmf_hfb\tf_completion.py" />
     <Compile Include="mmf_hfb\vortex_1d_aslda.py" />
-    <Compile Include="mmf_hfb\vortex_2d.py" />
     <Compile Include="mmf_hfb\vortex_2d_aslda.py" />
     <Compile Include="tests\hfb_dir_init.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="tests\test_ASLDA_Homogeneous.py" />
     <Compile Include="tests\test_ASLDA_iterate.py" />
+    <Compile Include="tests\test_bcs.py" />
     <Compile Include="tests\test_homogeneous.py" />
     <Compile Include="tests\test_homogeneous_mmf.py" />
     <Compile Include="tests\test_tf_completion.py" />

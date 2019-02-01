@@ -126,4 +126,5 @@ def _test_Homogeneous3D_scattering_length():
     assert allclose(res0, res1,atol=0.0005)    
  # to debug in Visual Studio
 if __name__ == '__main__':
-    test_Homogeneous3D_scattering_length()
+    t = TestHomogeneous()
+    t.test_2D_T0()

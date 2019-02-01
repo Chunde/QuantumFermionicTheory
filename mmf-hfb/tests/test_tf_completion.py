@@ -1,8 +1,6 @@
 import hfb_dir_init
-
 import numpy as np
 from scipy.optimize import brentq
-
 import py.test
 
 from mmf_hfb import tf_completion, homogeneous

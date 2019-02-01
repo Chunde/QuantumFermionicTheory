@@ -287,14 +287,13 @@ class Homogeneous2D(Homogeneous):
 class Homogeneous3D(Homogeneous):
     """Solutions to the homogeneous BCS equations in 3D at finite T."""
     dim = 3
-    
+    q = 0
     def get_inverse_scattering_length(self, mus_eff, delta, k_c):
         kF = np.sqrt(2*max(0, max(mus_eff)))
         
         def gap_integrand(kz_, kp_): 
             # this integration will diverge?
-            res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta,
-                               q=self.q)
+            res = self._get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta)
             return kp_* (1 - self.f(res.w_p) - self.f(-res.w_m))/res.E
 
         self._gap_integrand = gap_integrand
@@ -332,6 +331,21 @@ class Homogeneous3D(Homogeneous):
             *4*np.pi)
         return (-np.pi * 2.0 * res + 2 * k_c / np.pi) + shift_correction
 
+    def _get_es(self, kz, kp, mus_eff, q):
+        return (((kz+q)**2 + kp**2)/2.0/self.m - mus_eff[0],
+                ((kz+q)**2 + kp**2)/2.0/self.m - mus_eff[1])
+
+    Results = namedtuple('Results', ['e_p', 'E', 'w_p', 'w_m'])
+
+    def _get_res(self, kz, kp, mus_eff, delta, q=0):
+        e_a, e_b = self._get_es(kz, kp, mus_eff=mus_eff,q=q)
+        e_p, e_m = (e_a + e_b)/2, (e_a - e_b)/2
+        E = np.sqrt(e_p**2 + abs(delta)**2)
+        w_p, w_m = e_m + E, e_m - E
+        args = dict(locals())
+        res = self.Results(*[args[_n] for _n in self.Results._fields])
+        return res
+
     def get_BCS_v_n_e_in_cylindrical(self, mus_eff, delta,
                                      k_c=10000.0,
                                      unitary=False):
@@ -341,7 +355,7 @@ class Homogeneous3D(Homogeneous):
             mus_eff=mus_eff, delta=delta, k_c=k_c)
 
         def np_integrand(kz_, kp_):
-            res = self.get_res(kz=kz_,kp=kp_, mus_eff=mus_eff, delta=delta,
+            res = self._get_res(kz=kz_, kp=kp_, mus_eff=mus_eff, delta=delta,
                                q=self.q)
             n_p = 1 + res.e_p/res.E*(
                 self.f(res.w_p) + self.f(-res.w_m) - 1)  # --> Dr. Forbes's equation
@@ -349,7 +363,7 @@ class Homogeneous3D(Homogeneous):
 
         
         def nm_integrand(kz_, kp_):
-            res = self.get_res(kz=kz_, kp=kp_, mus_eff=mus_eff,
+            res = self._get_res(kz=kz_, kp=kp_, mus_eff=mus_eff,
                                delta=delta, q=self.q)
             n_m = self.f(res.w_p) - self.f(-res.w_m) #--> Dr. Forbes's equation
             return n_m * kp_
@@ -378,7 +392,7 @@ class Homogeneous3D(Homogeneous):
             v_0 = 2 * np.pi **2 / k_c
             
         def np3(kr):
-             res = self.get_res(kz=kr,kp=0, mus_eff=mus_eff, delta=delta)
+             res = self._get_res(kz=kr, kp=0, mus_eff=mus_eff, delta=delta)
              n_p = 1 + res.e_p/res.E*(self.f(res.w_p) + self.f(-res.w_m) - 1)
              return n_p
          
@@ -388,7 +402,7 @@ class Homogeneous3D(Homogeneous):
         self._np3 = np3
         
         def nm_integrand(kr):
-            res = self.get_res(kz=kr,kp=0, mus_eff=mus_eff, delta=delta)
+            res = self._get_res(kz=kr, kp=0, mus_eff=mus_eff, delta=delta)
             n_m = self.f(res.w_p) - self.f(-res.w_m)
             return n_m * kr**2
 
