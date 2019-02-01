@@ -4,7 +4,7 @@ Include something like the following in your first cell:
 
 import mmf_setup;mmf_setup.nbinit()
 %pylab inline --no-import-all
-from nbinit import *                # Conveniences like clear_output
+from nbimports import *                # Conveniences like clear_output
 
 Note: you must start your Jupyter notebook in this directory for this
 to work.
