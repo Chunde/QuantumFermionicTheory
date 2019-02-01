@@ -110,12 +110,12 @@ class BCS(object):
             f = (1 - np.sign(E))/2
         return f
 
-    def get_H(self, mus, delta, twists=0):
+    def get_H(self, mus_eff, delta, twists=0):
         """Return the single-particle Hamiltonian with pairing.
 
         Arguments
         ---------
-        mus : array
+        mus_eff : array
            Effective chemical potentials including the Hartree term but not the
            external trapping potential.
         delta : array
@@ -127,7 +127,7 @@ class BCS(object):
         Delta = np.diag((delta + zero).ravel())
         K_a, K_b = self.get_Ks(twists=twists)
         v_a, v_b = self.v_ext
-        mu_a, mu_b = mus
+        mu_a, mu_b = mus_eff
         mu_a += zero
         mu_b += zero
         Mu_a, Mu_b = np.diag((mu_a - v_a).ravel()), np.diag((mu_b - v_b).ravel())
@@ -135,7 +135,7 @@ class BCS(object):
                       [Delta.conj(), -(K_b - Mu_b)]])
         return H
 
-    def get_Rs(self, mus, delta, N_twist=1, abs_tol=1e-12):
+    def get_Rs(self, mus_eff, delta, N_twist=1, abs_tol=1e-12):
         """Return the density matrices (R, Rm).
 
         Arguments
@@ -158,7 +158,7 @@ class BCS(object):
         # Here we use the notation Rp = R = f(M) and Rm = f(-M) = 1-R
         def get_Rs(twists):
             """Return (R, Rm) with the specified twist."""
-            H = self.get_H(mus=mus, delta=delta, twists=twists)
+            H = self.get_H(mus_eff=mus_eff, delta=delta, twists=twists)
             d, UV = np.linalg.eigh(H)
             Rp = UV.dot(self.f(d)[:, None]*UV.conj().T)
             Rm = UV.dot(self.f(-d)[:, None]*UV.conj().T)
@@ -183,8 +183,8 @@ class BCS(object):
         dV = np.prod(self.dxyz)
         return Rp_Rm / dV
 
-    def get_densities(self, mus, delta, N_twist=1):
-        R, Rm = self.get_Rs(mus=mus, delta=delta, N_twist=N_twist)
+    def get_densities(self, mus_eff, delta, N_twist=1):
+        R, Rm = self.get_Rs(mus_eff=mus_eff, delta=delta, N_twist=N_twist)
         _N = R.shape[0] // 2
         r_a = R[:_N, :_N]
         r_b = Rm[_N:, _N:].conj()
