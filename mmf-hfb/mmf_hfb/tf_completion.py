@@ -10,6 +10,7 @@ import scipy as sp
 
 from uncertainties import ufloat
 
+from Integrates import dquad_kF
 
 @numba.jit(nopython=True)
 def step(t, t1):
@@ -39,13 +40,15 @@ def quad2(func, a, b, gfun, hfun, args=(), epsabs=1.49e-8, epsrel=1.49e-8):
 
     raise Exception('Not implement yet!') 
 
-def dquad(f, kF=None, k_0=0, k_inf=np.inf):
+def dquad(f, kF=None, k_0=0, k_inf=np.inf, limit=50):
     """Return ufloat(res, err) for 2D integral of f(kz, kp) over the
     entire plane.    
         k_0**2 < kz**2 + kp**2 < k_inf**2
         sqrt(k_0**2 - kz**2) < kp < sqrt(k_inf**2 - kz**2)
     Assumes k_F << k_inf, k_0
     """
+    return dquad_kF(f, kF, k_0, k_inf, limit) # the dquad_kF surport limit parameter
+
     def kp_0(kz):
         D = k_0**2 - kz**2
         if D < 0:
@@ -104,6 +107,7 @@ def dquad(f, kF=None, k_0=0, k_inf=np.inf):
     # Factor of 2 here to complete symmetric integral over kp.
     return 2*res
 
+
 ######################################################################
 # These *_integrand functions do not have the integration measure
 # factors, so they can be used for any dimension (but need an
@@ -154,6 +158,7 @@ def tau_m_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     e_m, e_p = (e_a - e_b)/2, (e_a + e_b)/2
     E = np.sqrt(e_p**2 + abs(delta)**2)
     w_m, w_p = e_m - E, e_m + E
+    f_nu = (f(w_m, T) - f(w_p, T))
     f_p = 1 - e_p/E*f_nu
     f_m = f(w_p, T) - f(-w_m, T)
     f_a = (f_p + f_m)/2
@@ -311,10 +316,10 @@ def integrate(f, mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0,
     points = [kF]
 
     if k_0 == 0:
-        return (ufloat(*quad(integrand, 0, max(points), points=points))
-                +ufloat(*quad(integrand, max(points), k_c)))
+        return (ufloat(*quad(func=integrand, a=0, b=max(points), points=points))
+                +ufloat(*quad(func=integrand, a=max(points), b=k_c)))
     else:
-        return ufloat(*quad(integrand, k_0, k_c))
+        return ufloat(*quad(func=integrand, a=k_0, b=k_c))
 
 
 def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
@@ -353,11 +358,15 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
         integrand = numba.cfunc(numba.float64(numba.float64))(integrand)
         integrand = sp.LowLevelCallable(integrand.ctypes)
 
-        return (ufloat(*quad(integrand, 0, max(points), points=points))
-                +ufloat(*quad(integrand, max(points), k_inf)))
+        return (ufloat(*quad(func=integrand, a=0, b=max(points), points=points))
+                +ufloat(*quad(func = integrand, a=max(points), b=k_inf)))
     # integrand = numba.cfunc(numba.float64(numba.float64,numba.float64))(integrand)
     # integrand = sp.LowLevelCallable(integrand.ctypes)
 
     # The factor of 4 here is because integrand is normalized for
     # integrals over the upper quadrant.
-    return dquad(f=integrand, kF=None, k_0=k_0, k_inf=k_inf) / 4
+    return dquad(f=integrand, kF=None, k_0=k_0, k_inf=k_inf, limit=50) / 4
+
+
+
+
