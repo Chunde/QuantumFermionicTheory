@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>d96035f2-d7ba-4540-adc5-a336a7b7a91f</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>mmf_hfb\FuldeFerrelState.py</StartupFile>
+    <StartupFile>mmf_hfb\scratch.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -41,6 +41,9 @@
     <Compile Include="mmf_hfb\FuldeFerrelState.py" />
     <Compile Include="mmf_hfb\homogeneous.py" />
     <Compile Include="mmf_hfb\homogeneous_mmf.py" />
+    <Compile Include="mmf_hfb\Integrates.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="mmf_hfb\Lattice.py" />
     <Compile Include="mmf_hfb\scratch.py">
       <SubType>Code</SubType>

@@ -28,7 +28,7 @@ def _infunc(x, func, gfun, hfun, more_args, limit=50):
 
 """
 
-def _dquad(func, a, b, gfun, hfun, limit=100 ,args=(), epsabs=1.49e-8, 
+def _dquad(func, a, b, gfun, hfun, limit,args=(), epsabs=1.49e-8, 
                    epsrel=1.49e-8, maxp1=50):
     """
     Compute 2d integral for f(x,y)
@@ -39,7 +39,7 @@ def _dquad(func, a, b, gfun, hfun, limit=100 ,args=(), epsabs=1.49e-8,
     return quad(_infunc, a, b, (func, gfun, hfun, args, limit), 
                           epsabs=epsabs, epsrel=epsrel, maxp1=maxp1, limit=limit)
 
-def dquad_kF(f, kF=None, k_0=0, k_inf=np.inf, limit = 100):
+def dquad_kF(f, kF=None, k_0=0, k_inf=np.inf, limit = 50):
     """Return ufloat(res, err) for 2D integral of f(kz, kp) over the
     entire plane.    
         k_0**2 < kz**2 + kp**2 < k_inf**2
@@ -66,40 +66,40 @@ def dquad_kF(f, kF=None, k_0=0, k_inf=np.inf, limit = 100):
         if k_0 == 0:
             res = ufloat(*_dquad(f,
                                   -k_inf, k_inf,   # kz
-                                  kp_0, kp_inf))   # kp
+                                  kp_0, kp_inf,limit))   # kp
         else:
             res = (
                 ufloat(*_dquad(f,
                                 -k_inf, -k_0,  # kz
-                                kp_0, kp_inf)) # kp
+                                kp_0, kp_inf,limit)) # kp
                 +
                 ufloat(*_dquad(f,
                                 k_0, k_inf,
-                                kp_0, kp_inf)))
+                                kp_0, kp_inf,limit)))
     else:
         if k_0 == 0:
             res = (
                 ufloat(*_dquad(f,
                                 -k_inf, -kF,
-                                kp_0, kp_inf))
+                                kp_0, kp_inf,limit))
                 +
                 ufloat(*_dquad(f,
                                 -kF, kF,
-                                kp_0, kp_inf))
+                                kp_0, kp_inf,limit))
                 +
                 ufloat(*_dquad(f,
                                 kF, k_inf,
-                                kp_0, kp_inf))
+                                kp_0, kp_inf,limit))
             )
         else:
             res = (
                 ufloat(*_dquad(f,
                                 -k_inf, -k_0,
-                                kp_0, kp_inf))
+                                kp_0, kp_inf,limit))
                 +
                 ufloat(*_dquad(f,
                                 k_0, k_inf,
-                                kp_0, kp_inf))
+                                kp_0, kp_inf,limit))
             )
     # Factor of 2 here to complete symmetric integral over kp.
     return 2*res

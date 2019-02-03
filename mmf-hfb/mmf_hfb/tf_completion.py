@@ -1,4 +1,6 @@
 """Numba functions for fast integration of homogeneous matter."""
+import sys
+sys.path.append(".")
 
 import math
 
@@ -9,8 +11,7 @@ from scipy.integrate import quad, dblquad
 import scipy as sp
 
 from uncertainties import ufloat
-
-from Integrates import dquad_kF
+from mmf_hfb.Integrates import dquad_kF
 
 @numba.jit(nopython=True)
 def step(t, t1):
@@ -49,6 +50,7 @@ def dquad(f, kF=None, k_0=0, k_inf=np.inf, limit=50):
     """
     return dquad_kF(f, kF, k_0, k_inf, limit) # the dquad_kF surport limit parameter
 
+    # [clean up]
     def kp_0(kz):
         D = k_0**2 - kz**2
         if D < 0:
@@ -365,7 +367,7 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
 
     # The factor of 4 here is because integrand is normalized for
     # integrals over the upper quadrant.
-    return dquad(f=integrand, kF=None, k_0=k_0, k_inf=k_inf, limit=50) / 4
+    return dquad(f=integrand, kF=kF, k_0=k_0, k_inf=k_inf, limit=100) / 4
 
 
 
