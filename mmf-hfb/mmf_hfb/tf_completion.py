@@ -274,13 +274,18 @@ def compute_C(mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0, q=0,
         nu_c_delta = integrate(f=nu_delta_integrand, k_c=k_c, **args)
         C_corr = integrate(f=C_integrand, k_0=k_c, **args)
     else:
+        print(f"To Computing Integral over nu_delta_integrand: q={q} \t Delta={delta}")
         nu_c_delta = integrate_q(f=nu_delta_integrand, k_c=k_c, q=q, **args)
+        print(f"Done Computing Integral over nu_delta_integrand: q={q}  \t Delta={delta}")
+        print(f"To Computing Integral over C_integrand: q={q}  \t Delta={delta}")
         C_corr = integrate_q(f=C_integrand, k_0=k_c, **args)
+        print(f"Done Computing Integral over C_integrand: q={q} \t Delta={delta}")
     
     C_c = nu_c_delta + Lambda_c
     C = C_c + C_corr
     if debug:
         return locals()
+    print(C)
     return C
     
     
@@ -360,8 +365,9 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
         integrand = numba.cfunc(numba.float64(numba.float64))(integrand)
         integrand = sp.LowLevelCallable(integrand.ctypes)
 
-        return (ufloat(*quad(func=integrand, a=0, b=max(points), points=points))
-                +ufloat(*quad(func = integrand, a=max(points), b=k_inf)))
+        res1 = ufloat(*quad(func=integrand, a=0, b=max(points), points=points))
+        res2 = ufloat(*quad(func = integrand, a=max(points), b=k_inf))
+        return (res1 + res2)
     # integrand = numba.cfunc(numba.float64(numba.float64,numba.float64))(integrand)
     # integrand = sp.LowLevelCallable(integrand.ctypes)
 
