@@ -50,7 +50,7 @@ def dquad(f, kF=None, k_0=0, k_inf=np.inf, limit=50):
     """
     return dquad_kF(f, kF, k_0, k_inf, limit) # the dquad_kF surport limit parameter
 
-    # [clean up]
+    # [clean up] this piece of code will be removed
     def kp_0(kz):
         D = k_0**2 - kz**2
         if D < 0:
@@ -270,22 +270,19 @@ def compute_C(mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0, q=0,
         k_c = 100*k_F
     
     Lambda_c = Lambda(m=m, mu=mu_q, hbar=hbar, d=d, k_c=k_c)
+    # [Clean up] we do not need to have to seperate pieces of code for integrate here,
+    # 
     if q == 0:
         nu_c_delta = integrate(f=nu_delta_integrand, k_c=k_c, **args)
         C_corr = integrate(f=C_integrand, k_0=k_c, **args)
     else:
-        print(f"To Computing Integral over nu_delta_integrand: q={q} \t Delta={delta}")
         nu_c_delta = integrate_q(f=nu_delta_integrand, k_c=k_c, q=q, **args)
-        print(f"Done Computing Integral over nu_delta_integrand: q={q}  \t Delta={delta}")
-        print(f"To Computing Integral over C_integrand: q={q}  \t Delta={delta}")
-        C_corr = integrate_q(f=C_integrand, k_0=k_c, **args)
-        print(f"Done Computing Integral over C_integrand: q={q} \t Delta={delta}")
+        C_corr = integrate_q(f=C_integrand, k_0=k_c, **args) # should the q passed to this function?
     
     C_c = nu_c_delta + Lambda_c
     C = C_c + C_corr
     if debug:
         return locals()
-    print(C)
     return C
     
     
@@ -330,9 +327,10 @@ def integrate(f, mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0,
 
 
 def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
-                q=0.0, hbar=1.0, T=0.0, k_0=0, k_c=None):
+                q=0.0, hbar=1.0, T=0.0, k_0=0, k_c=None, limit=50):
     args = (mu_a, mu_b, delta, m_a, m_b, hbar, T)
-
+    # should be very careful here, the k_0 may be larger than kF,
+    # in which case the integral range should not be splited by kF.
     k_inf = np.inf if k_c is None else k_c
 
     # 2d integrals over kz and kp.  NOTE: Read the documentation of
@@ -356,24 +354,24 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
     else:
         raise ValueError(f"Only d=1, 2, or 3 supported (got d={d})")
 
-    mu = (mu_a + mu_b)/2
+    mu = (mu_a + mu_b)/2 #max(mu_a,mu_b) # in the notebook, the mu is computed as the maximum of mu_a and mu_b
     minv = (1/m_a + 1/m_b)/2
     kF = math.sqrt(2*mu/minv)/hbar
-    points = [kF]
 
     if d == 1:
         integrand = numba.cfunc(numba.float64(numba.float64))(integrand)
         integrand = sp.LowLevelCallable(integrand.ctypes)
-
-        res1 = ufloat(*quad(func=integrand, a=0, b=max(points), points=points))
-        res2 = ufloat(*quad(func = integrand, a=max(points), b=k_inf))
-        return (res1 + res2)
+        if kF > k_0 and kF < k_inf:
+            res1 = ufloat(*quad(func=integrand, a=k_0, b=kF, limit=limit))
+            res2 = ufloat(*quad(func = integrand, a=kF, b=k_inf, limit=limit))
+            return (res1 + res2)
+        return ufloat(*quad(func=integrand, a=k_0, b=k_inf, limit=limit))
     # integrand = numba.cfunc(numba.float64(numba.float64,numba.float64))(integrand)
     # integrand = sp.LowLevelCallable(integrand.ctypes)
 
     # The factor of 4 here is because integrand is normalized for
     # integrals over the upper quadrant.
-    return dquad(f=integrand, kF=kF, k_0=k_0, k_inf=k_inf, limit=100) / 4
+    return dquad(f=integrand, kF=kF, k_0=k_0, k_inf=k_inf, limit=limit) / 4
 
 
 
