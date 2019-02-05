@@ -35,11 +35,13 @@ def f(E, T):
     else:
         return 1./(1+np.exp(E/T))
 
+    
 def quad2(func, a, b, gfun, hfun, args=(), epsabs=1.49e-8, epsrel=1.49e-8):
     assert callable(gfun)
     assert callable(hfun)
 
     raise Exception('Not implement yet!') 
+
 
 def dquad(f, kF=None, k_0=0, k_inf=np.inf, limit=50):
     """Return ufloat(res, err) for 2D integral of f(kz, kp) over the
