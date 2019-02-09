@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from mmf_hfb import homogeneous
 from mmf_hfb import tf_completion as tf
@@ -148,8 +149,9 @@ def compute_ff_delta_ns_2d():
     na2 = []
     nb2 = []
     rs2 = np.append(np.linspace(0.1,1,10),[np.linspace(2,4,20),np.linspace(4.1,8,20)]).tolist()#np.linspace(1,3,3).tolist() #
-
-    with Pool(10) as Pools:
+    logic_cpu_count = os.cpu_count()
+    logic_cpu_count = 1 if logic_cpu_count < 1 else logic_cpu_count
+    with Pool(logic_cpu_count) as Pools:
         rets = Pools.map(work_thread,rs2)
         for ret in rets:
             deltas2.append(ret[0])
