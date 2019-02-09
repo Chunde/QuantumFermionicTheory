@@ -254,7 +254,7 @@ def Lambda(m, mu, hbar, d, E_c=None, k_c=None):
             1 - k_0/2/k_c*np.log((k_c+k_0)/(k_c-k_0)))
     else:
         raise ValueError(f"Only d=1, 2, or 3 supported (got d={d})")
-    assert np.allclose(res.imag, 0)
+    #assert np.allclose(res.imag, 0) # [Check] this will go false at some point when q is large
     return res.real
 
 

@@ -5,39 +5,95 @@ from scipy.optimize import brentq
 import matplotlib.pyplot as plt
 from mmf_hfb.homogeneous import Homogeneous1D,Homogeneous3D
 from multiprocessing import Pool
+import json
+from json import dumps
+
+class FF(object):
+    def __init__(self, mu=10, dmu=0.4, delta=1,
+                 m=1, T=0, hbar=1, k_c=100, d=2):
+        self.d = d
+        self.T = T
+        self.mu = mu
+        self.m = m
+        self.dmu = dmu
+        self.delta = delta
+        self.hbar = hbar
+        self._tf_args = dict(m_a=1, m_b=1, d=d, hbar=hbar, T=T, k_c=k_c)
+        self.C = tf.compute_C(mu_a=mu, mu_b=mu, delta=delta, q=0, **self._tf_args).n
+        self._tf_args.update(mu_a=mu + dmu, mu_b=mu - dmu)
+        
+    def f(self, delta, r, **kw):
+        args = dict(self._tf_args)
+        args.update(kw)
+        q = 1/r
+        return tf.compute_C(delta=delta, q=q, **args).n - self.C
+    
+    def get_densities(self, delta, r):
+        q = 1/r
+        mu_a, mu_b = self.mu + self.dmu, self.mu - self.dmu
+        mu_p,mu_m = (mu_a + mu_b)/2, (mu_a - mu_b)/2
+        args = dict(mu_a=mu_a, mu_b=mu_b, delta=delta, hbar=self.hbar,
+                    m_a=self.m, m_b=self.m, q=q, T=self.T)
+        n_p = tf.integrate_q(tf.n_p_integrand,d=self.d, **args)
+        n_m = tf.integrate_q(tf.n_m_integrand,d=self.d, **args)
+        return (n_p + n_m)/2, (n_p - n_m)/2
+
+    def get_pressure(self, delta, r):
+        q = 1/r
+        mu_a, mu_b = self.mu + self.dmu, self.mu - self.dmu
+        mu_p,mu_m = (mu_a + mu_b)/2, (mu_a - mu_b)/2
+        args = dict(mu_a=mu_a, mu_b=mu_b, delta=delta, hbar=self.hbar,
+                    m_a=self.m, m_b=self.m, q=q, T=self.T)
+  
+        n_p = tf.integrate_q(tf.n_p_integrand,d=self.d, **args)
+        n_m = tf.integrate_q(tf.n_m_integrand,d=self.d, **args)
+        kappa = tf.integrate_q(tf.kappa_integrand,d=3,k_c=10.0, **args)
+        pressure = mu_p * n_p + mu_m * n_m - kappa
+        return pressure
+
+        
+    def solve(self, r, a=0.8, b=1.2):
+        q = 1/r
+        def f(delta):
+            return self.C - tf.compute_C(delta=delta, q=q, **self._tf_args).n
+        try:
+            delta = brentq(f,a,b)
+            return delta
+        except:
+            return 0
 
 
-def special_momenta(kz, kp, q, mu_a, mu_b, delta, m_a, m_b, hbar, T):
-    """Return the condition at the boundary of integration regions."""
-    ka2 = (kz+q)**2 + kp**2
-    kb2 = (kz-q)**2 + kp**2
-    e = hbar**2/2
-    e_a, e_b = e*ka2/m_a - mu_a, e*kb2/m_b - mu_b
-    e_m, e_p = (e_a - e_b)/2, (e_a + e_b)/2
-    return e_m**2 - e_p**2 - delta**2
+def min_index(fs):
+    min_value = fs[0]
+    min_index = 0
+    for i in range(1,len(fs)):
+        if fs[i] < min_value:
+            min_value = fs[i]
+            min_index = i
+    return min_index,min_value
 
 
-def get_delta(mu_a, mu_b, m_a, m_b, T=0, hbar = 1, k_c = 10, q=0):
-    def f(delta):        
-        C = tf.compute_C(mu_a = mu_a,mu_b = mu_b,delta = delta,m_a = m_a,  m_b=m_b,d=3, hbar= hbar,T=T, q=q, k_c= k_c)
-        return C.n
-    return brentq(f, 0.5, 1.0)
-
-def get_pressure(mu_a, mu_b, delta=None, d=3, m_a=1,m_b=1, hbar=1, T=0, q=0):
-    if delta is None:
-        delta = get_delta(mu_a= mu_a, mu_b=mu_b, m_a=m_a, m_b=m_b,T=T, q=q)
-    print(delta)
-    args = dict(mu_a=mu_a, mu_b=mu_b, m_a = m_a, m_b=m_b,delta=delta,hbar=hbar,q=q,T=0.0)
-    mu_p,mu_m = (mu_a + mu_b)/2, (mu_a - mu_b)/2
-    n_p = tf.integrate_q(tf.n_p_integrand,d=d, **args)
-    n_m = tf.integrate_q(tf.n_m_integrand,d=d, **args)
-    kappa = tf.integrate_q(tf.kappa_integrand,d=3,k_c=10.0, **args)
-    pressure = mu_p * n_p + mu_m * n_m - kappa
-    return pressure
-
-
+def compute_delta_n(r, d=1 ,mu=10, dmu=0.4):
+    # return (1,2,3) # for quick debug
+    ff = FF(dmu=dmu, mu=mu, d=d)
+    ds = np.linspace(0,1.5,10)
+    fs = [ff.f(delta=delta, r=r, mu_a=mu+dmu, mu_b=mu-dmu) for delta in ds]
+    index, value = min_index(fs)
+    delta = 0
+    if value < 0:
+        delta = ff.solve(r=r,a= ds[index])
+        if fs[0] > 0:
+            smaller_delta = ff.solve(r=r,a=ds[0],b=ds[index])
+            print(f"a smaller delta={smaller_delta} is found for r={r}")
+            p1 = ff.get_pressure(delta=delta,r=r)
+            p2 = ff.get_pressure(delta=smaller_delta, r=r)
+            if(p2 > p1):
+                delta = smaller_delta
+    na,nb = ff.get_densities(delta=delta, r=r)
+    return (delta, na, nb)
 
 def test_thermodynamic_relations():
+    """Not work"""
     np.random.seed(1)
     m, hbar, kF = 1 + np.random.random(3)
     eF = (hbar*kF)**2/2/m
@@ -64,9 +120,8 @@ def test_thermodynamic_relations():
     assert np.allclose(n_a,n_a_)
     assert np.allclose(n_b,n_b_)
 
-
-if __name__ == "__main__":
-    #test_thermodynamic_relations()
+def plot_pressure():
+    """Plot how pressure changes with q"""
     np.random.seed(1)
     m, hbar, kF = 1 + np.random.random(3)
     eF = (hbar*kF)**2/2/m
@@ -81,3 +136,30 @@ if __name__ == "__main__":
     plt.plot(qs,ps)
     print(f'Delta={delta} mu={mu} ')
     plt.show()
+
+
+
+def work_thread(r):
+    return compute_delta_n(r, d=2)
+
+def compute_ff_delta_ns_2d():
+    """Compute 2d FF State Delta, densities"""
+    deltas2 = []
+    na2 = []
+    nb2 = []
+    rs2 = np.append(np.linspace(0.1,1,10),[np.linspace(2,4,20),np.linspace(4.1,8,20)]).tolist()#np.linspace(1,3,3).tolist() #
+
+    with Pool(10) as Pools:
+        rets = Pools.map(work_thread,rs2)
+        for ret in rets:
+            deltas2.append(ret[0])
+            na2.append(ret[1].n)
+            nb2.append(ret[2].n)
+        outputs =[rs2,deltas2,na2,nb2]
+        print(outputs)
+        with open("delta_ns.txt",'w',encoding ='utf-8') as wf:
+            json.dump(outputs,wf, ensure_ascii=False)
+
+if __name__ == "__main__":
+    #test_thermodynamic_relations()
+    compute_ff_delta_ns_2d()
