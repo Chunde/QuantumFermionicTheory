@@ -13,6 +13,12 @@ import scipy as sp
 from uncertainties import ufloat
 from mmf_hfb.Integrates import dquad_kF
 
+global MAX_ITERATION
+MAX_ITERATION=50
+def set_max_iteration(n):
+    global MAX_ITERATION
+    MAX_ITERATION = 200
+
 @numba.jit(nopython=True)
 def step(t, t1):
     r"""Smooth step function that goes from 0 at time ``t=0`` to 1 at time
@@ -53,63 +59,63 @@ def dquad(f, kF=None, k_0=0, k_inf=np.inf, limit=50):
     return dquad_kF(f, kF, k_0, k_inf, limit) # the dquad_kF surport limit parameter
 
     # [clean up] this piece of code will be removed
-    def kp_0(kz):
-        D = k_0**2 - kz**2
-        if D < 0:
-            return 0
-        else:
-            return math.sqrt(D)
+    #def kp_0(kz):
+    #    D = k_0**2 - kz**2
+    #    if D < 0:
+    #        return 0
+    #    else:
+    #        return math.sqrt(D)
         
-    def kp_inf(kz):
-        return math.sqrt(k_inf**2 - kz**2)
+    #def kp_inf(kz):
+    #    return math.sqrt(k_inf**2 - kz**2)
 
-    if np.isinf(k_inf):
-        kp_inf = k_inf
+    #if np.isinf(k_inf):
+    #    kp_inf = k_inf
 
-    if k_0 == 0:
-        kp_0 == 0
+    #if k_0 == 0:
+    #    kp_0 == 0
 
-    if kF is None:
-        if k_0 == 0:
-            res = ufloat(*dblquad(f,
-                                  -k_inf, k_inf,   # kz
-                                  kp_0, kp_inf))   # kp
-        else:
-            res = (
-                ufloat(*dblquad(f,
-                                -k_inf, -k_0,  # kz
-                                kp_0, kp_inf)) # kp
-                +
-                ufloat(*dblquad(f,
-                                k_0, k_inf,
-                                kp_0, kp_inf)))
-    else:
-        if k_0 == 0:
-            res = (
-                ufloat(*dblquad(f,
-                                -k_inf, -kF,
-                                kp_0, kp_inf))
-                +
-                ufloat(*dblquad(f,
-                                -kF, kF,
-                                kp_0, kp_inf))
-                +
-                ufloat(*dblquad(f,
-                                kF, k_inf,
-                                kp_0, kp_inf))
-            )
-        else:
-            res = (
-                ufloat(*dblquad(f,
-                                -k_inf, -k_0,
-                                kp_0, kp_inf))
-                +
-                ufloat(*dblquad(f,
-                                k_0, k_inf,
-                                kp_0, kp_inf))
-            )
+    #if kF is None:
+    #    if k_0 == 0:
+    #        res = ufloat(*dblquad(f,
+    #                              -k_inf, k_inf,   # kz
+    #                              kp_0, kp_inf))   # kp
+    #    else:
+    #        res = (
+    #            ufloat(*dblquad(f,
+    #                            -k_inf, -k_0,  # kz
+    #                            kp_0, kp_inf)) # kp
+    #            +
+    #            ufloat(*dblquad(f,
+    #                            k_0, k_inf,
+    #                            kp_0, kp_inf)))
+    #else:
+    #    if k_0 == 0:
+    #        res = (
+    #            ufloat(*dblquad(f,
+    #                            -k_inf, -kF,
+    #                            kp_0, kp_inf))
+    #            +
+    #            ufloat(*dblquad(f,
+    #                            -kF, kF,
+    #                            kp_0, kp_inf))
+    #            +
+    #            ufloat(*dblquad(f,
+    #                            kF, k_inf,
+    #                            kp_0, kp_inf))
+    #        )
+    #    else:
+    #        res = (
+    #            ufloat(*dblquad(f,
+    #                            -k_inf, -k_0,
+    #                            kp_0, kp_inf))
+    #            +
+    #            ufloat(*dblquad(f,
+    #                            k_0, k_inf,
+    #                            kp_0, kp_inf))
+    #        )
     # Factor of 2 here to complete symmetric integral over kp.
-    return 2*res
+    #return 2*res
 
 
 ######################################################################
@@ -278,9 +284,11 @@ def compute_C(mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0, q=0,
         nu_c_delta = integrate(f=nu_delta_integrand, k_c=k_c, **args)
         C_corr = integrate(f=C_integrand, k_0=k_c, **args)
     else:
+        print(f"Doing nu_c_delta integral: {args},q={q}, k_c={k_c}")
         nu_c_delta = integrate_q(f=nu_delta_integrand, k_c=k_c, q=q, **args)
+        print(f"Doing C_integrand integral: {args},q={q}, k_c={k_c}")
         C_corr = integrate_q(f=C_integrand, k_0=k_c, **args) # should the q passed to this function?
-    
+    print(f"nu_c_delta={nu_c_delta.n}\tC_corr={C_corr.n}")
     C_c = nu_c_delta + Lambda_c
     C = C_c + C_corr
     if debug:
@@ -329,7 +337,9 @@ def integrate(f, mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0,
 
 
 def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
-                q=0.0, hbar=1.0, T=0.0, k_0=0, k_c=None, limit=50):
+                q=0.0, hbar=1.0, T=0.0, k_0=0, k_c=None, limit=None):
+    if limit is None:
+        limit = MAX_ITERATION
     args = (mu_a, mu_b, delta, m_a, m_b, hbar, T)
     # should be very careful here, the k_0 may be larger than kF,
     # in which case the integral range should not be splited by kF.

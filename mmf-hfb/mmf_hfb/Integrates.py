@@ -5,7 +5,7 @@ from uncertainties import ufloat
 """
 Implement customized integrate functions here
 """
-
+import warnings
 
 def _infunc(x, func, gfun, hfun, more_args, limit=50):
     """
@@ -22,8 +22,14 @@ def _infunc(x, func, gfun, hfun, more_args, limit=50):
     else:
         b = hfun
     args = (x,) + more_args
-    return quad(func=func, a=a, b=b, limit=limit, args=args)[0]
+    #with warnings.catch_warnings():
+    #    warnings.filterwarnings('error')
+    #    try:
+    #        return quad(func=func, a=a, b=b, limit=limit, args=args)[0]
+    #    except Warning as e:
+    #        print(f"Warning {e}")
 
+    return quad(func=func, a=a, b=b, limit=limit, args=args)[0]
 """
 
 """
@@ -46,6 +52,7 @@ def dquad_kF(f, kF=None, k_0=0, k_inf=np.inf, limit = 50):
         sqrt(k_0**2 - kz**2) < kp < sqrt(k_inf**2 - kz**2)
     Assumes k_F << k_inf, k_0
     """
+
     def kp_0(kz):
         D = k_0**2 - kz**2
         if D < 0:
