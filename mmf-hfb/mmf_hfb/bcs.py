@@ -92,11 +92,15 @@ class BCS(object):
                           * self.fft(K))).reshape(mat_shape)
         return (K, K)
 
-    def fft(self, y):
-        return np.fft.fftn(y, axes=range(self.dim))
+    def fft(self, y, axes=None):
+        if axes is None:
+            axes = range(self.dim)
+        return np.fft.fftn(y, axes=axes)
             
-    def ifft(self, y):
-        return np.fft.ifftn(y, axes=range(self.dim))
+    def ifft(self, y, axes=None):
+        if axes is None:
+            axes = range(self.dim)
+        return np.fft.ifftn(y, axes=axes)
             
     def get_v_ext(self):
         """Return the external potential."""
@@ -162,6 +166,7 @@ class BCS(object):
             d, UV = np.linalg.eigh(H)
             Rp = UV.dot(self.f(d)[:, None]*UV.conj().T)
             Rm = UV.dot(self.f(-d)[:, None]*UV.conj().T)
+            
             return np.array([Rp, Rm])
             
         if np.isinf(N_twist):
@@ -183,7 +188,8 @@ class BCS(object):
         dV = np.prod(self.dxyz)
         return Rp_Rm / dV
 
-    def get_densities(self, mus_eff, delta, N_twist=1):
+    def get_densities_R(self, mus_eff, delta, N_twist=1):
+        """Get the densities from R."""
         R, Rm = self.get_Rs(mus_eff=mus_eff, delta=delta, N_twist=N_twist)
         _N = R.shape[0] // 2
         r_a = R[:_N, :_N]
@@ -193,3 +199,69 @@ class BCS(object):
         n_b = np.diag(r_b).reshape(self.Nxyz).real
         nu = np.diag(nu_).reshape(self.Nxyz)
         return namedtuple('Densities', ['n_a', 'n_b', 'nu'])(n_a, n_b, nu)
+
+
+    def get_densities(self, mus_eff, delta, N_twist=1, abs_tol=1e-12):
+        """Return the densities.
+
+        Arguments
+        ---------
+        N_twist : int, np.inf
+           Number of twists to average over.  Integrate if
+           N_twist==np.inf.
+        abs_tol : float
+           Absolute tolerance if performing twist averaging.
+        """
+        # Here we use the notation Rp = R = f(M) and Rm = f(-M) = 1-R
+        def get_dens(twists):
+            """Return (R, Rm) with the specified twist."""
+            H = self.get_H(mus_eff=mus_eff, delta=delta, twists=twists)
+            d, UV = np.linalg.eigh(H)
+
+            U_V_shape = (2,) + tuple(self.Nxyz) + UV.shape[1:]
+            U, V = U_V = UV.reshape(U_V_shape)
+
+            # Compute derivatives for currents etc.
+            ks_bloch = np.divide(twists, self.Lxyz)
+            ks = [_k + _kb for _k, _kb in zip(self.kxyz, ks_bloch)]
+
+            axes = range(1, self.dim+1)
+            U_V_t = self.fft(U_V, axes=axes)
+            dU_Vs = np.array([self.ifft(_k[None, ..., None] * U_V_t, axes=axes)
+                              for _k in ks])
+            dUs = dU_Vs[:, 0, ...]
+            dVs = dU_Vs[:, 1, ...]
+            f_p = self.f(d)
+            f_m = self.f(-d)
+            n_a = np.dot(U*U.conj(), f_p).real
+            n_b = np.dot(V*V.conj(), f_m).real
+            nu = np.dot(U*V.conj(), f_p - f_m)/2
+            tau_a = np.dot(sum(dU.conj()*dU for dU in dUs), f_p).real
+            tau_b = np.dot(sum(dV.conj()*dV for dV in dVs), f_m).real
+
+            return np.array([n_a, n_b, tau_a, tau_b, nu.real, nu.imag])
+            
+        if np.isinf(N_twist):
+            if self.dim == 1:
+                dens = mquad(get_dens, -np.pi, np.pi, abs_tol=abs_tol)/2/np.pi
+            else:
+                raise NotImplementedError("N_twist=inf only works for dim=1")
+        else:
+            twistss = itertools.product(
+                *(np.arange(0, N_twist)*2*np.pi/N_twist,)*self.dim)
+            dens = 0
+            N_ = 0
+            for twists in twistss:
+                dens += get_dens(twists=twists)
+                N_ += 1
+            dens /= N_
+
+        # Factor of dV here to convert to physical densities.
+        dV = np.prod(self.dxyz)
+
+        n_a, n_b, tau_a, tau_b, nu_real, nu_imag = (dens / dV)
+        Densities = namedtuple('Densities',
+                               ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu'])
+        return Densities(n_a=n_a, n_b=n_b,
+                         tau_a=tau_a, tau_b=tau_b,
+                         nu=nu_real + 1j*nu_imag)
