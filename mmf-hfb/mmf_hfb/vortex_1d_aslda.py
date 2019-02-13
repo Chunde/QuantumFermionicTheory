@@ -53,6 +53,7 @@ class ASLDA(Functionals):
         return (alpha_a,alpha_b,alpha_p)
 
     def get_Del(self, twist=0):
+        """This this should only be applied to wave funtions"""
         """return the second order derivative operator matrix"""
         k_bloch = twist/self.Lx
         k = self.kx + k_bloch
@@ -63,8 +64,8 @@ class ASLDA(Functionals):
         U = np.exp(-1j*k[:, None]*self.x[None, :])/np.sqrt(N)
         assert np.allclose(U.conj().T.dot(U), np.eye(N))
         
-        nabla  = np.dot(U.conj().T, (1j*self.hbar * k)[:, None]/2/self.m * U)
-        return nabla
+        Del  = np.dot(U.conj().T, (1j * k)[:, None]/2/self.m * U)
+        return Del
 
     def get_Laplacian(self, twist=0):
         """return the second order derivative operator matrix"""
@@ -218,7 +219,7 @@ class ASLDA(Functionals):
         n_a, n_b = np.sum(np.abs(us[i])**2 * self.f(Es[i])  for i in range(len(us)))/self.dx, np.sum(np.abs(vs[i])**2 * self.f(-Es[i])  for i in range(len(vs)))/self.dx
 
         assert not np.allclose(n_a,0) and not np.allclose(n_b,0)
-        nabla = self.get_Del()
+        nabla = self.get_Del() # should be careful, can be wrong!
 
         # From Dr. Forbes' implementaiton
         #tau_a = (6*np.pi**2*n_a)**(5/3)/10/np.pi**2

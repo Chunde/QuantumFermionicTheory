@@ -67,7 +67,24 @@ class BCS(object):
     @property
     def dim(self):
         return len(self.Nxyz)
-    
+
+    def get_Dels(self, twists=0):
+        """Return the first order derivative"""
+        ks_bloch = np.divide(twists, self.Lxyz)
+        ks = [_k + _kb for _k, _kb in zip(self.kxyz, ks_bloch)]
+        
+        # Unitary matrix implementing the FFT including the phase
+        # 
+        Dels = []
+        for i in range(len(ks)):
+            k, N = ks[i], self.Nxyz[i]
+            U = np.exp(-1j*k[:, None]*self.xyz[0][None, :])/np.sqrt(N)
+            assert np.allclose(U.conj().T.dot(U), np.eye(N))
+        
+            Del  = np.dot(U.conj().T, (1j*k)[:, None]/2/self.m * U)
+            Dels.append(Del)
+        return Dels
+
     def get_Ks(self, twists):
         """Return the kinetic energy matrix."""
         ks_bloch = np.divide(twists, self.Lxyz)
@@ -200,6 +217,28 @@ class BCS(object):
         nu = np.diag(nu_).reshape(self.Nxyz)
         return namedtuple('Densities', ['n_a', 'n_b', 'nu'])(n_a, n_b, nu)
 
+    
+
+    def get_currents(self, mus_eff, delta, N_twist=1):
+        """return current for 1d only"""
+        twistss = itertools.product(*(np.arange(0, N_twist)*2*np.pi/N_twist,)*self.dim)
+        J_a = 0
+        J_b = 0
+
+        for twists in twistss:
+            H = self.get_H(mus_eff=mus_eff, delta=delta, twists=twists)
+            N = np.prod(self.Nxyz) # 
+            d, psi = np.linalg.eigh(H) 
+            us, vs = psi.reshape(2, N, N*2)
+            us, vs = us.T,vs.T
+            Dels = self.get_Dels(twists)
+            for Del in Dels:
+                j_a = 0.5j * sum( (us[i].conj()*Del.dot(us[i])-us[i]*Del.dot(us[i].conj())) * self.f(d[i]) for i in range(len(us)))
+                j_b = 0.5j * sum( (vs[i].conj()*Del.dot(vs[i])-vs[i]*Del.dot(vs[i].conj())) * self.f(-d[i]) for i in range(len(vs)))
+                J_a = J_a + j_a
+                J_b = J_b + j_b
+
+        return (J_a/N_twist, J_b/N_twist)
 
     def get_densities(self, mus_eff, delta, N_twist=1, abs_tol=1e-12):
         """Return the densities.
@@ -219,7 +258,7 @@ class BCS(object):
             d, UV = np.linalg.eigh(H)
 
             U_V_shape = (2,) + tuple(self.Nxyz) + UV.shape[1:]
-            U, V = U_V = UV.reshape(U_V_shape)
+            U, V = U_V = UV.reshape(U_V_shape) # U = us.T, V=vs.T
 
             # Compute derivatives for currents etc.
             ks_bloch = np.divide(twists, self.Lxyz)
@@ -229,8 +268,8 @@ class BCS(object):
             U_V_t = self.fft(U_V, axes=axes)
             dU_Vs = np.array([self.ifft(_k[None, ..., None] * U_V_t, axes=axes)
                               for _k in ks])
-            dUs = dU_Vs[:, 0, ...]
-            dVs = dU_Vs[:, 1, ...]
+            dUs = dU_Vs[:, 0, ...] # len(dUs) and len(dVs) is equal to the dimensions of the system
+            dVs = dU_Vs[:, 1, ...] # each component is the first order derivative of wavefunctions in each direction(x, y, z ...)
             f_p = self.f(d)
             f_m = self.f(-d)
             n_a = np.dot(U*U.conj(), f_p).real
@@ -239,7 +278,27 @@ class BCS(object):
             tau_a = np.dot(sum(dU.conj()*dU for dU in dUs), f_p).real
             tau_b = np.dot(sum(dV.conj()*dV for dV in dVs), f_m).real
 
-            return np.array([n_a, n_b, tau_a, tau_b, nu.real, nu.imag])
+            # Currents should have one more dimension than Taus
+            J_a_ = [0.5j*np.dot((U.conj()*dU - U*dU.conj()),f_p) for dU in dUs]
+            J_b_ = [0.5j*np.dot((V.conj()*dV - V*dV.conj()),f_p) for dV in dVs]
+
+            # Debug
+            J_a = 0
+            J_b = 0
+
+            N = np.prod(self.Nxyz)
+            N = np.prod(self.Nxyz) # shou
+            ds, psi = np.linalg.eigh(H) 
+            us, vs = psi.reshape(2, N, N*2)
+            us, vs = us.T,vs.T
+            Dels = self.get_Dels(twists)
+            for Del in Dels:
+                j_a = 0.5j * sum( (us[i].conj()*Del.dot(us[i])-us[i]*Del.dot(us[i].conj())) * self.f(ds[i]) for i in range(len(us)))
+                j_b = 0.5j * sum( (vs[i].conj()*Del.dot(vs[i])-vs[i]*Del.dot(vs[i].conj())) * self.f(-ds[i]) for i in range(len(vs)))
+                J_a = J_a + j_a
+                J_b = J_b + j_b
+            
+            return np.array([n_a, n_b, tau_a, tau_b, nu.real, nu.imag, *J_a, *J_b])
             
         if np.isinf(N_twist):
             if self.dim == 1:
@@ -259,9 +318,10 @@ class BCS(object):
         # Factor of dV here to convert to physical densities.
         dV = np.prod(self.dxyz)
 
-        n_a, n_b, tau_a, tau_b, nu_real, nu_imag = (dens / dV)
+        n_a, n_b, tau_a, tau_b, nu_real, nu_imag = (dens[0:6] / dV)
+        J_a, J_b = (dens[6:] / dV).reshape((2, len(self.Nxyz)) + tuple(self.Nxyz))
         Densities = namedtuple('Densities',
-                               ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu'])
+                               ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu', 'J_a', 'J_b'])
         return Densities(n_a=n_a, n_b=n_b,
                          tau_a=tau_a, tau_b=tau_b,
-                         nu=nu_real + 1j*nu_imag)
+                         nu=nu_real + 1j*nu_imag, J_a=J_a, J_b=J_b)
