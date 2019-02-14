@@ -7,11 +7,14 @@ import math
 import numpy as np
 import numba
 
-from scipy.integrate import quad, dblquad
+from scipy.integrate import dblquad
 import scipy as sp
 
 from uncertainties import ufloat
 from mmf_hfb.Integrates import dquad_kF, dquad_q
+
+from .integrate import quad
+
 global MAX_ITERATION
 MAX_ITERATION=50
 def set_max_iteration(n):
@@ -329,11 +332,7 @@ def integrate(f, mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0,
     kF = math.sqrt(2*mu/minv)/hbar
     points = [kF]
 
-    if k_0 == 0:
-        return (ufloat(*quad(func=integrand, a=0, b=max(points), points=points))
-                +ufloat(*quad(func=integrand, a=max(points), b=k_c)))
-    else:
-        return ufloat(*quad(func=integrand, a=k_0, b=k_c))
+    return quad(integrand, a=k_0, b=k_c, points=points)
 
 
 def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
