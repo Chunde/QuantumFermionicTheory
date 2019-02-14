@@ -6,6 +6,7 @@ from mmf_hfb.FuldeFerrelState import FFState as FF
 def d(request):
     return request.param
 
+@pytest.mark.bench()
 def test_thermodynamic_relations(d):
     mus = [2,4,5,6,8,10]
     dmus = [0.4,0.5,0.64]
@@ -37,7 +38,7 @@ def test_thermodynamic_relations(d):
             E1, n1 = get_E_n(mu+dx)
             E0, n0 = get_E_n(mu-dx)
 
-            #print((E1-E0)/(n1-n0), mu) #[check] at some point n1 is equal to n0, causes error
+            print((E1-E0)/(n1-n0), mu) #[check] at some point n1 is equal to n0, causes error
 
 
             dx = 1e-3
@@ -50,22 +51,6 @@ def test_thermodynamic_relations(d):
             assert np.allclose(n_a.n, n_a_.n)
             assert np.allclose(n_b.n, n_b_.n)
 
-def plot_pressure():
-    """Plot how pressure changes with q"""
-    np.random.seed(1)
-    m, hbar, kF = 1 + np.random.random(3)
-    eF = (hbar*kF)**2/2/m
-    nF = kF**3/3/np.pi**2
-    mu = 0.59060550703283853378393810185221521748413488992993*eF
-    delta = 0.68640205206984016444108204356564421137062514068346*eF
-    args = dict(mu_a=mu, mu_b=mu, delta=delta, m_a=m, m_b=m, hbar=hbar, T=0.0)
-    #p0 = get_pressure(mu_a = mu,mu_b=mu,delta=delta,m=m,T=0,q=1)
-    qs = np.linspace(0,2,10)
-    dmu = 0.4 * delta
-    ps = [get_pressure(mu_a = mu +  q*dmu /2, mu_b = mu - q*dmu/2, delta=delta,m_a=m, m_b=m, T=0, q=0).n for q in qs]
-    plt.plot(qs,ps)
-    print(f'Delta={delta} mu={mu} ')
-    plt.show()
 
 if __name__ == "__main__":
     test_thermodynamic_relations(d=2)

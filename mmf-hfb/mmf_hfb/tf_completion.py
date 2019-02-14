@@ -43,13 +43,6 @@ def f(E, T):
     else:
         return 1./(1+np.exp(E/T))
 
-    
-def quad2(func, a, b, gfun, hfun, args=(), epsabs=1.49e-8, epsrel=1.49e-8):
-    assert callable(gfun)
-    assert callable(hfun)
-
-    raise Exception('Not implement yet!') 
-
 
 def dquad(f, kF=None, k_0=0, k_inf=np.inf, limit=50):
     """Return ufloat(res, err) for 2D integral of f(kz, kp) over the
@@ -59,67 +52,6 @@ def dquad(f, kF=None, k_0=0, k_inf=np.inf, limit=50):
     Assumes k_F << k_inf, k_0
     """
     return dquad_kF(f, kF, k_0, k_inf, limit) # the dquad_kF surport limit parameter
-
-
-    # [clean up] this piece of code will be removed
-    #def kp_0(kz):
-    #    D = k_0**2 - kz**2
-    #    if D < 0:
-    #        return 0
-    #    else:
-    #        return math.sqrt(D)
-        
-    #def kp_inf(kz):
-    #    return math.sqrt(k_inf**2 - kz**2)
-
-    #if np.isinf(k_inf):
-    #    kp_inf = k_inf
-
-    #if k_0 == 0:
-    #    kp_0 == 0
-
-    #if kF is None:
-    #    if k_0 == 0:
-    #        res = ufloat(*dblquad(f,
-    #                              -k_inf, k_inf,   # kz
-    #                              kp_0, kp_inf))   # kp
-    #    else:
-    #        res = (
-    #            ufloat(*dblquad(f,
-    #                            -k_inf, -k_0,  # kz
-    #                            kp_0, kp_inf)) # kp
-    #            +
-    #            ufloat(*dblquad(f,
-    #                            k_0, k_inf,
-    #                            kp_0, kp_inf)))
-    #else:
-    #    if k_0 == 0:
-    #        res = (
-    #            ufloat(*dblquad(f,
-    #                            -k_inf, -kF,
-    #                            kp_0, kp_inf))
-    #            +
-    #            ufloat(*dblquad(f,
-    #                            -kF, kF,
-    #                            kp_0, kp_inf))
-    #            +
-    #            ufloat(*dblquad(f,
-    #                            kF, k_inf,
-    #                            kp_0, kp_inf))
-    #        )
-    #    else:
-    #        res = (
-    #            ufloat(*dblquad(f,
-    #                            -k_inf, -k_0,
-    #                            kp_0, kp_inf))
-    #            +
-    #            ufloat(*dblquad(f,
-    #                            k_0, k_inf,
-    #                            kp_0, kp_inf))
-    #        )
-    # Factor of 2 here to complete symmetric integral over kp.
-    #return 2*res
-
 
 ######################################################################
 # These *_integrand functions do not have the integration measure
@@ -282,20 +214,14 @@ def compute_C(mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0, q=0,
     
     Lambda_c = Lambda(m=m, mu=mu_q, hbar=hbar, d=d, k_c=k_c)
     # [Clean up] we do not need to have to seperate pieces of code for integrate here,
-    # 
     if q == 0:
         nu_c_delta = integrate(f=nu_delta_integrand, k_c=k_c, **args)
         C_corr = integrate(f=C_integrand, k_0=k_c, **args)
     else:
-        print(f"Doing nu_c_delta integral: {args},q={q}, k_c={k_c}")
         nu_c_delta = integrate_q(f=nu_delta_integrand, k_c=k_c, q=q, **args)
-        #print(f"Doing C_integrand integral: {args},q={q}, k_c={k_c}")
         C_corr = integrate_q(f=C_integrand, k_0=k_c, **args) # should the q passed to this function?
-    #print(f"nu_c_delta={nu_c_delta.n}\tC_corr={C_corr.n}")
     C_c = nu_c_delta + Lambda_c
     C = C_c + C_corr
-    if debug:
-        return locals()
     return C
     
     
@@ -373,20 +299,15 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
         integrand = numba.cfunc(numba.float64(numba.float64))(integrand)
         integrand = sp.LowLevelCallable(integrand.ctypes)
         return quad(func=integrand, a=k_0, b=k_inf, points=[kF], limit=limit)
-    # integrand = numba.cfunc(numba.float64(numba.float64,numba.float64))(integrand)
-    # integrand = sp.LowLevelCallable(integrand.ctypes)
 
     # The factor of 4 here is because integrand is normalized for
-    # integrals over the upper quadrant.
-    def integrand(kp, kz):
-            return np.exp(-kp**2 - 2* kz**2)
     #v0 = dquad_kF(f=integrand, kF=kF, k_0=k_0, k_inf=k_inf, limit=limit) / 4
 
     def func(kz, kp): #[clean up] will be removed later when doing clean up
         return integrand(kz,kp)
 
     v = dquad_q(func=integrand, mu_a=mu_a, mu_b=mu_b, delta=delta, 
-                   q=q, hbar=hbar, m_a=m_a, m_b=m_b, k_0=k_0, k_inf=k_inf, limit=limit)
+                  q=q, hbar=hbar, m_a=m_a, m_b=m_b, k_0=k_0, k_inf=k_inf, limit=limit)
     #print(v0, v)
     return v
 
