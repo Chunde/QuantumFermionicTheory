@@ -372,11 +372,7 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
     if d == 1:
         integrand = numba.cfunc(numba.float64(numba.float64))(integrand)
         integrand = sp.LowLevelCallable(integrand.ctypes)
-        if kF > k_0 and kF < k_inf:
-            res1 = ufloat(*quad(func=integrand, a=k_0, b=kF, limit=limit))
-            res2 = ufloat(*quad(func = integrand, a=kF, b=k_inf, limit=limit))
-            return (res1 + res2)
-        return ufloat(*quad(func=integrand, a=k_0, b=k_inf, limit=limit))
+        return quad(func=integrand, a=k_0, b=k_inf, points=[kF], limit=limit)
     # integrand = numba.cfunc(numba.float64(numba.float64,numba.float64))(integrand)
     # integrand = sp.LowLevelCallable(integrand.ctypes)
 
