@@ -8,6 +8,12 @@ from mmf_hfb.homogeneous import Homogeneous1D,Homogeneous3D
 from multiprocessing import Pool
 import json
 from json import dumps
+import sys
+import warnings
+
+#if not sys.warnoptions:
+#    warnings.simplefilter("ignore")
+tf.set_max_iteration(200)
 
 class FFState(object):
     def __init__(self, mu=10, dmu=0.4, delta=1,
@@ -126,9 +132,20 @@ def compute_ff_delta_ns_2d():
         print(outputs)
         with open("delta_ns.txt",'w',encoding ='utf-8') as wf:
             json.dump(outputs,wf, ensure_ascii=False)
+def simple_test():
+    mu=10
+    dmu=0.4
+    delta= 1.113873963246288
+    m_a=m_b=1
+    T=0
+    q=0.2222222222222222
+    d=2
+    k_c=100
+    #worker_thread(4.5)
+    tf.compute_C(mu_a = mu + dmu, mu_b = mu - dmu, delta=delta, m_a=m_a, m_b=m_b, d=d, k_c=k_c, T=T, q = q)
 
 if __name__ == "__main__":
     #test_thermodynamic_relations()
-    #compute_ff_delta_ns_2d()
-    tf.set_max_iteration(200)
-    worker_thread(3.5)
+    compute_ff_delta_ns_2d()
+    #simple_test()
+    

@@ -14,6 +14,7 @@ from mmf_hfb.FuldeFerrelState import FFState
 @pytest.fixture(params=[3, 3.5, 4])
 def r(request):
     return request.param
+
 def min_index(fs):
     min_value = fs[0]
     min_index = 0
@@ -22,6 +23,7 @@ def min_index(fs):
             min_value = fs[i]
             min_index = i
     return min_index,min_value
+
 def test_compute_delta_n(r, d=2 ,mu=10, dmu=0.4):
     # return (1,2,3) # for quick debug
     ff = FFState(dmu=dmu, mu=mu, d=d)

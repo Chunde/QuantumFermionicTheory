@@ -286,9 +286,9 @@ def compute_C(mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0, q=0,
     else:
         print(f"Doing nu_c_delta integral: {args},q={q}, k_c={k_c}")
         nu_c_delta = integrate_q(f=nu_delta_integrand, k_c=k_c, q=q, **args)
-        print(f"Doing C_integrand integral: {args},q={q}, k_c={k_c}")
+        #print(f"Doing C_integrand integral: {args},q={q}, k_c={k_c}")
         C_corr = integrate_q(f=C_integrand, k_0=k_c, **args) # should the q passed to this function?
-    print(f"nu_c_delta={nu_c_delta.n}\tC_corr={C_corr.n}")
+    #print(f"nu_c_delta={nu_c_delta.n}\tC_corr={C_corr.n}")
     C_c = nu_c_delta + Lambda_c
     C = C_c + C_corr
     if debug:
@@ -383,10 +383,17 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
 
     # The factor of 4 here is because integrand is normalized for
     # integrals over the upper quadrant.
-    #return dquad(f=integrand, kF=kF, k_0=k_0, k_inf=k_inf, limit=limit) / 4
-    return dquad_q(func=integrand, mu_a=mu_a, mu_b=mu_b, delta=delta, 
-                   q=q, hbar=hbar, m=minv, k_0=k_0, k_inf=k_inf)
+    def integrand(kp, kz):
+            return np.exp(-kp**2 - 2* kz**2)
+    #v0 = dquad_kF(f=integrand, kF=kF, k_0=k_0, k_inf=k_inf, limit=limit) / 4
 
+    def func(kz, kp): #[clean up] will be removed later when doing clean up
+        return integrand(kz,kp)
+
+    v = dquad_q(func=integrand, mu_a=mu_a, mu_b=mu_b, delta=delta, 
+                   q=q, hbar=hbar, m_a=m_a, m_b=m_b, k_0=k_0, k_inf=k_inf, limit=limit)
+    #print(v0, v)
+    return v
 
 
 

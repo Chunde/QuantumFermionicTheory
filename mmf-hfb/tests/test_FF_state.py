@@ -1,7 +1,12 @@
 import numpy as np
-from mmf_hfb.FuldeFerrelState import FFState as FF
+import pytest
 
-def test_thermodynamic_relations_1d():
+from mmf_hfb.FuldeFerrelState import FFState as FF
+@pytest.fixture(params=[1,2])
+def d(request):
+    return request.param
+
+def test_thermodynamic_relations(d):
     mus = [2,4,5,6,8,10]
     dmus = [0.4,0.5,0.64]
     for mu in mus:
@@ -9,7 +14,7 @@ def test_thermodynamic_relations_1d():
             r = np.inf
             delta0 = 1
 
-            ff = FF(dmu=dmu, mu=mu, delta=delta0, d=1) # in 1d
+            ff = FF(dmu=dmu, mu=mu, delta=delta0, d=d) # in 1d
             def get_P(mu, dmu):
                 mu_a = mu + dmu
                 mu_b = mu - dmu
@@ -28,11 +33,11 @@ def test_thermodynamic_relations_1d():
                 mu_a = mu + dmu
                 mu_b = mu - dmu
                 return ff.get_densities(mu_a=mu_a, mu_b=mu_b, r=r)   
-            dx = 0.00001
+            dx = 0.001
             E1, n1 = get_E_n(mu+dx)
             E0, n0 = get_E_n(mu-dx)
 
-            print((E1-E0)/(n1-n0), mu)
+            #print((E1-E0)/(n1-n0), mu) #[check] at some point n1 is equal to n0, causes error
 
 
             dx = 1e-3
@@ -63,4 +68,4 @@ def plot_pressure():
     plt.show()
 
 if __name__ == "__main__":
-    test_thermodynamic_relations_1d()
+    test_thermodynamic_relations(d=2)
