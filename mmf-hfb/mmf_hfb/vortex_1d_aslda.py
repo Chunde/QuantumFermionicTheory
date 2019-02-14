@@ -4,7 +4,7 @@ This module provides a class BCS2D for solving the BCS (BdG) equations in 2D for
 two-species Fermi gas with short-range interaction.
 """
 from __future__ import division
-from Functionals import Functionals
+from mmf_hfb.Functionals import Functionals
 import itertools
 import numpy as np
 import scipy.integrate

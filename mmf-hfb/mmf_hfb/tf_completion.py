@@ -11,8 +11,7 @@ from scipy.integrate import quad, dblquad
 import scipy as sp
 
 from uncertainties import ufloat
-from mmf_hfb.Integrates import dquad_kF
-
+from mmf_hfb.Integrates import dquad_kF, dquad_q
 global MAX_ITERATION
 MAX_ITERATION=50
 def set_max_iteration(n):
@@ -57,6 +56,7 @@ def dquad(f, kF=None, k_0=0, k_inf=np.inf, limit=50):
     Assumes k_F << k_inf, k_0
     """
     return dquad_kF(f, kF, k_0, k_inf, limit) # the dquad_kF surport limit parameter
+
 
     # [clean up] this piece of code will be removed
     #def kp_0(kz):
@@ -383,7 +383,9 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
 
     # The factor of 4 here is because integrand is normalized for
     # integrals over the upper quadrant.
-    return dquad(f=integrand, kF=kF, k_0=k_0, k_inf=k_inf, limit=limit) / 4
+    #return dquad(f=integrand, kF=kF, k_0=k_0, k_inf=k_inf, limit=limit) / 4
+    return dquad_q(func=integrand, mu_a=mu_a, mu_b=mu_b, delta=delta, 
+                   q=q, hbar=hbar, m=minv, k_0=k_0, k_inf=k_inf)
 
 
 

@@ -110,3 +110,47 @@ def dquad_kF(f, kF=None, k_0=0, k_inf=np.inf, limit = 50):
             )
     # Factor of 2 here to complete symmetric integral over kp.
     return 2*res
+
+
+
+def _kpfunc(x, func, more_args, limit=50):
+    a = 0
+    b = np.inf
+    m = 1 # need to change later
+    """
+    Compute a definite integral.
+    Integrate func from `a` to `b` (possibly infinite interval) 
+    More options can be packed in more_args
+    """
+    mu, dmu, delta, q = more_args
+    args = (x,) # + more_args
+    px = x
+    #e_a = ((px+q)**2+p_perp**2)/2/m - mu_a
+    #e_b = ((px-q)**2 + p_perp**2)/2/m - mu_b
+    #e_p, e_m = (e_a + e_b)/2.0, (e_a-e_b)/2.0
+    #E = np.sqrt(e_p**2 + delta**2)
+    #w_p, w_m = e_m + E, e_m - E
+    mu_q = mu - q**2/2/m
+    p1 = np.sqrt(2*m*(mu_q + np.sqrt((q*px/m - dmu)**2 - delta**2)) - px**2)
+    p2 = np.sqrt(2*m*(mu_q - np.sqrt((q*px/m - dmu)**2 - delta**2)) - px**2)
+    #with warnings.catch_warnings():
+    #    warnings.filterwarnings('error')
+    #    try:
+    #        return quad(func=func, a=a, b=b, limit=limit, args=args)[0]
+    #    except Warning as e:
+    #        print(f"Warning {e}")
+    points = []
+    if not math.isnan(p1) and p1.imag == 0:
+        points.append(p1)
+    if not math.isnan(p2)  and p2.imag == 0:
+        points.append(p2)
+    return quad(func=func, a=a, b=b, points=points, limit=limit, args=args)[0]
+
+def dquad_q(func, mu_a, mu_b, delta, q, hbar=1, m = 1, k_0=0, k_inf=np.inf, limit=50):
+    mu = (mu_a + mu_b)/2
+    dmu = (mu_a - mu_b)/2
+    
+
+    args=(mu, dmu, delta, q)
+
+    return quad(_kpfunc, k_0, k_inf, (func, args, limit), limit=limit)

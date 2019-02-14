@@ -11,8 +11,8 @@ import numpy as np
 import scipy.integrate
 
 from mmfutils.math.integrate import mquad
-from Functionals import Functionals
-class ASLDA(Functional):
+from mmf_hfb.Functionals import Functionals
+class ASLDA(Functionals):
     hbar = 1.0
     m = 1.0
     w = 1.0                     # Trapping potential

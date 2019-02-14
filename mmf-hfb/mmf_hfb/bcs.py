@@ -78,11 +78,14 @@ class BCS(object):
         Dels = []
         for i in range(len(ks)):
             k, N = ks[i], self.Nxyz[i]
+            D = np.fft.ifft(-1j*k*np.fft.fft(np.eye(N), axis=1), axis=1)
+
             U = np.exp(-1j*k[:, None]*self.xyz[0][None, :])/np.sqrt(N)
             assert np.allclose(U.conj().T.dot(U), np.eye(N))
         
-            Del  = np.dot(U.conj().T, (1j*k)[:, None]/2/self.m * U)
-            Dels.append(Del)
+            Del  = np.dot(U.conj().T, (1j*k)[:, None] * U)
+            assert np.allclose(D,Del.conj())
+            Dels.append(D)
         return Dels
 
     def get_Ks(self, twists):
@@ -283,8 +286,8 @@ class BCS(object):
             J_b_ = [0.5j*np.dot((V.conj()*dV - V*dV.conj()),f_p) for dV in dVs]
 
             # Debug
-            J_a = 0
-            J_b = 0
+            J_a_ = 0
+            J_b_ = 0
 
             N = np.prod(self.Nxyz)
             N = np.prod(self.Nxyz) # shou
@@ -292,12 +295,14 @@ class BCS(object):
             us, vs = psi.reshape(2, N, N*2)
             us, vs = us.T,vs.T
             Dels = self.get_Dels(twists)
+            #D = np.fft.ifft(-1j*ks[0]*np.fft.fft(np.eye(N), axis=1), axis=1)
+
             for Del in Dels:
                 j_a = 0.5j * sum( (us[i].conj()*Del.dot(us[i])-us[i]*Del.dot(us[i].conj())) * self.f(ds[i]) for i in range(len(us)))
                 j_b = 0.5j * sum( (vs[i].conj()*Del.dot(vs[i])-vs[i]*Del.dot(vs[i].conj())) * self.f(-ds[i]) for i in range(len(vs)))
-                J_a = J_a + j_a
-                J_b = J_b + j_b
-            
+                J_a_ = J_a_ + j_a
+                J_b_ = J_b_ + j_b
+            # Debug
             return np.array([n_a, n_b, tau_a, tau_b, nu.real, nu.imag, *J_a, *J_b])
             
         if np.isinf(N_twist):
