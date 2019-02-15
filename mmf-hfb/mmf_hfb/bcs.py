@@ -68,26 +68,6 @@ class BCS(object):
     def dim(self):
         return len(self.Nxyz)
 
-    def get_Dels(self, twists=0):
-        """Return the first order derivative"""
-        ks_bloch = np.divide(twists, self.Lxyz)
-        ks = [_k + _kb for _k, _kb in zip(self.kxyz, ks_bloch)]
-        
-        # Unitary matrix implementing the FFT including the phase
-        # 
-        Dels = []
-        for i in range(len(ks)):
-            k, N = ks[i], self.Nxyz[i]
-            D = np.fft.ifft(-1j*k*np.fft.fft(np.eye(N), axis=1), axis=1)
-
-            U = np.exp(-1j*k[:, None]*self.xyz[0][None, :])/np.sqrt(N)
-            assert np.allclose(U.conj().T.dot(U), np.eye(N))
-        
-            Del  = np.dot(U.conj().T, (1j*k)[:, None] * U)
-            assert np.allclose(D,Del.conj())
-            Dels.append(D)
-        return Dels
-
     def get_Ks(self, twists):
         """Return the kinetic energy matrix."""
         ks_bloch = np.divide(twists, self.Lxyz)
@@ -222,26 +202,36 @@ class BCS(object):
 
     
 
-    def get_currents(self, mus_eff, delta, N_twist=1):
+    def get_1d_currents(self, mus_eff, delta, N_twist=1):
         """return current for 1d only"""
         twistss = itertools.product(*(np.arange(0, N_twist)*2*np.pi/N_twist,)*self.dim)
         J_a = 0
         J_b = 0
+        # np.fft.ifft(1j*k*np.fft.fft(f))
+        def df(k, f):
+            return np.fft.ifft(1j*k*np.fft.fft(f))
 
         for twists in twistss:
+            ks_bloch = np.divide(twists, self.Lxyz)
+            k = [_k + _kb for _k, _kb in zip(self.kxyz, ks_bloch)][0]
+            
             H = self.get_H(mus_eff=mus_eff, delta=delta, twists=twists)
-            N = np.prod(self.Nxyz) # 
+            N =self.Nxyz[0]
             d, psi = np.linalg.eigh(H) 
             us, vs = psi.reshape(2, N, N*2)
             us, vs = us.T,vs.T
-            Dels = self.get_Dels(twists)
-            for Del in Dels:
-                j_a = 0.5j * sum( (us[i].conj()*Del.dot(us[i])-us[i]*Del.dot(us[i].conj())) * self.f(d[i]) for i in range(len(us)))
-                j_b = 0.5j * sum( (vs[i].conj()*Del.dot(vs[i])-vs[i]*Del.dot(vs[i].conj())) * self.f(-d[i]) for i in range(len(vs)))
-                J_a = J_a + j_a
-                J_b = J_b + j_b
+            j_a = 0.5j * sum( (us[i].conj()*df(k,us[i])-us[i]*df(k,us[i]).conj()) * self.f(d[i]) for i in range(len(us)))
+            j_b = 0.5j * sum( (vs[i].conj()*df(k,vs[i])-vs[i]*df(k,vs[i]).conj()) * self.f(-d[i]) for i in range(len(vs)))
+            J_a = J_a + j_a
+            J_b = J_b + j_b
 
-        return (J_a/N_twist, J_b/N_twist)
+            #us, vs = U.T,V.T
+
+            #J_a_ = 0.5j * sum((us[i].conj()*df(ks[0],us[i])-us[i]*df(ks[0],us[i]).conj()) * self.f(d[i]) for i in range(len(us)))
+            #J_b_ = 0.5j * sum((vs[i].conj()*df(ks[0],vs[i])-vs[i]*df(ks[0],vs[i]).conj()) * self.f(-d[i]) for i in range(len(vs)))
+
+
+        return (J_a/N_twist/np.prod(self.dxyz), J_b/N_twist/np.prod(self.dxyz))
 
     def get_densities(self, mus_eff, delta, N_twist=1, abs_tol=1e-12):
         """Return the densities.
@@ -269,8 +259,13 @@ class BCS(object):
 
             axes = range(1, self.dim+1)
             U_V_t = self.fft(U_V, axes=axes)
-            dU_Vs = np.array([self.ifft(_k[None, ..., None] * U_V_t, axes=axes)
+            dU_Vs = np.array([self.ifft(1j*_k[None, ..., None] * U_V_t, axes=axes) # fixed a bug here
                               for _k in ks])
+
+            N, U1 = self.Nxyz[0],U.T[0]
+            dU1 = np.fft.ifft(1j*ks[0]*np.fft.fft(U1))
+            #dUV = np.fft.ifftn(1j*ks[0]*np.fft.fftn(U_V, axes=axes),axes=axes)
+            
             dUs = dU_Vs[:, 0, ...] # len(dUs) and len(dVs) is equal to the dimensions of the system
             dVs = dU_Vs[:, 1, ...] # each component is the first order derivative of wavefunctions in each direction(x, y, z ...)
             f_p = self.f(d)
@@ -281,28 +276,12 @@ class BCS(object):
             tau_a = np.dot(sum(dU.conj()*dU for dU in dUs), f_p).real
             tau_b = np.dot(sum(dV.conj()*dV for dV in dVs), f_m).real
 
-            # Currents should have one more dimension than Taus
-            J_a_ = [0.5j*np.dot((U.conj()*dU - U*dU.conj()),f_p) for dU in dUs]
-            J_b_ = [0.5j*np.dot((V.conj()*dV - V*dV.conj()),f_p) for dV in dVs]
 
-            # Debug
-            J_a_ = 0
-            J_b_ = 0
 
-            N = np.prod(self.Nxyz)
-            N = np.prod(self.Nxyz) # shou
-            ds, psi = np.linalg.eigh(H) 
-            us, vs = psi.reshape(2, N, N*2)
-            us, vs = us.T,vs.T
-            Dels = self.get_Dels(twists)
-            #D = np.fft.ifft(-1j*ks[0]*np.fft.fft(np.eye(N), axis=1), axis=1)
+            J_a = [0.5j*np.dot((U.conj()*dU - U*dU.conj()),f_p) for dU in dUs] # in U.conj()*dU, the column is the us[i].conj() * dus[i], 
+            J_b = [0.5j*np.dot((V.conj()*dV - V*dV.conj()),f_m) for dV in dVs] # so we need to sum up over the rows
 
-            for Del in Dels:
-                j_a = 0.5j * sum( (us[i].conj()*Del.dot(us[i])-us[i]*Del.dot(us[i].conj())) * self.f(ds[i]) for i in range(len(us)))
-                j_b = 0.5j * sum( (vs[i].conj()*Del.dot(vs[i])-vs[i]*Del.dot(vs[i].conj())) * self.f(-ds[i]) for i in range(len(vs)))
-                J_a_ = J_a_ + j_a
-                J_b_ = J_b_ + j_b
-            # Debug
+            
             return np.array([n_a, n_b, tau_a, tau_b, nu.real, nu.imag, *J_a, *J_b])
             
         if np.isinf(N_twist):

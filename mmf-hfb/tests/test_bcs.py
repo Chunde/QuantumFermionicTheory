@@ -153,11 +153,13 @@ def test_BCS_get_currents_1d(dim, NLx, T, N_twist):
 
     delta = np.exp(1j*b.xyz[0])
     res = b.get_densities((mu, mu), delta, N_twist=N_twist)
-    J_a, J_b = b.get_currents((mu, mu), delta, N_twist=N_twist)
+    J_a, J_b = b.get_1d_currents((mu, mu), delta, N_twist=N_twist)
 
-    
     assert np.allclose(res.J_a[0], J_a)
     assert np.allclose(res.J_b[0], J_b)  
+
 if __name__ == "__main__":
     #test_BCS_get_densities(dim=3, NLx=(4, 10.0, None), T=0, N_twist=1)
-    test_BCS_get_currents_1d(dim=1, NLx=(4, 10.0, None), T=0, N_twist=1)
+    for N in range(1,5):
+        print(f"Twist Number={N}")
+        test_BCS_get_currents_1d(dim=1, NLx=(64, 10.0, None), T=0, N_twist=N)
