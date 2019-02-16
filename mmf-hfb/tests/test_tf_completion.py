@@ -67,7 +67,7 @@ def test_1D():
     
     n_p = tf_completion.integrate(tf_completion.n_p_integrand, d=1, **args)
     nu = tf_completion.integrate(tf_completion.nu_integrand, d=1, **args)
-    v_0 = delta/nu.n
+    v_0 = -delta/nu.n
     mu = mu_eff - n_p.n*v_0/2
     lam = m*v_0/n_p.n/hbar**2
     
@@ -75,21 +75,15 @@ def test_1D():
     #E_N_E_2, lam = homogeneous.BCS(mu_eff=mu_eff,  delta=delta)
     mu_tilde = (hbar**2/m/v_0**2)*mu
     assert np.allclose(lam, 1./lam_inv)
-    assert np.allclose(mu_tilde, 0.0864, atol=0.0005)    
+    assert np.allclose(mu_tilde, 0.0864, atol=0.0005)
     #assert np.allclose(E_N_E_2, -0.3037, atol=0.0005)
 
     n_p = tf_completion.integrate_q(tf_completion.n_p_integrand, d=1, q=0, **args)
     nu = tf_completion.integrate_q(tf_completion.nu_integrand, d=1, q=0, **args)
-    v_0 = delta/nu.n
+    v_0 = -delta/nu.n
     mu = mu_eff - n_p.n*v_0/2
     lam = m*v_0/n_p.n/hbar**2
     
     mu_tilde = (hbar**2/m/v_0**2)*mu
     assert np.allclose(lam, 1./lam_inv)
-    assert np.allclose(mu_tilde, 0.0864, atol=0.0005)    
-    
-if __name__ == "__main__":
-
-    test_1D()
-    test_2D()
-    test_3D()
+    assert np.allclose(mu_tilde, 0.0864, atol=0.0005)

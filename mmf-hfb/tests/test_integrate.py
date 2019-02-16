@@ -26,7 +26,7 @@ def cases():
         yield (f_, -np.inf, np.inf, [x0], exact)
         yield (f_, np.inf, -np.inf, [x0], -exact)
         yield (f_, x0-1, x0+1, [x0], exact1)
-        yield (f_, x0-1, x0+1, [x0+0.5, x0-0.5], exact1)
+        yield (f_, x0-1, x0+1, [x0+0.5, x0, x0, x0-0.5], exact1)
 
 
 @pytest.fixture(params=list(cases()))

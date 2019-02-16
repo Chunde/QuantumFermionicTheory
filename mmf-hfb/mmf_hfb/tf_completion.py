@@ -3,6 +3,7 @@ import sys
 sys.path.append(".")
 
 import math
+import cmath
 
 import numpy as np
 import numba
@@ -13,7 +14,8 @@ import scipy as sp
 from uncertainties import ufloat
 from mmf_hfb.Integrates import dquad_kF, dquad_q
 
-from .integrate import quad
+from .integrate import quad, dquad
+
 
 global MAX_ITERATION
 MAX_ITERATION=50
@@ -157,7 +159,7 @@ class Series(object):
             
     
 def Lambda(m, mu, hbar, d, E_c=None, k_c=None):
-    """Compute the cutoff function Lambda assuming equal masses.
+    """Return the cutoff function Lambda assuming equal masses.
 
     To include the effects of the Fulde Ferrell q, shift mu -> mu_q as
     appropriate.
@@ -254,44 +256,92 @@ def integrate(f, mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0,
 
 def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
                 q=0.0, hbar=1.0, T=0.0, k_0=0, k_c=None, limit=None):
+    """Return the integral of f() over d-dimensional momentum space.
+ 
+    Arguments
+    ---------
+    f : function
+       One of the base tf_completion functions called as f(k2_a, k2_b, ...).
+    
+    """
+    k_inf = np.inf if k_c is None else k_c
+    
+    if q == 0:
+        return integrate(f, d=d, k_0=k_0, k_c=k_inf,
+                         mu_a=mu_a, mu_b=mu_b, delta=delta,
+                         m_a=m_a, m_b=m_b, hbar=hbar, T=T)
+
     if limit is None:
         limit = MAX_ITERATION
+        
+    delta = abs(delta)
     args = (mu_a, mu_b, delta, m_a, m_b, hbar, T)
-    k_inf = np.inf if k_c is None else k_c
-
-    # 2d integrals over kz and kp.  NOTE: Read the documentation of
-    # dblquad carefully - the indices need to be in the other order.
+    
     if d == 1:
         def integrand(k):
             k2_a = (k+q)**2
             k2_b = (k-q)**2
             return f(k2_a, k2_b, *args) / np.pi
     elif d == 2:
-        def integrand(kp, kz):
+        def integrand(kz, kp):
             k2_a = (kz+q)**2 + kp**2
             k2_b = (kz-q)**2 + kp**2
-            return f(k2_a, k2_b, *args) /np.pi**2
+            return f(k2_a, k2_b, *args) / (2*np.pi**2)
     elif d == 3:
-        def integrand(kp, kz):
+        def integrand(kz, kp):
             k2_a = (kz+q)**2 + kp**2
             k2_b = (kz-q)**2 + kp**2
             assert(kp>=0)
-            return f(k2_a, k2_b, *args) * (kp/2/np.pi**2)
+            return f(k2_a, k2_b, *args) * (kp/4/np.pi**2)
     else:
         raise ValueError(f"Only d=1, 2, or 3 supported (got d={d})")
 
-    mu = (mu_a + mu_b)/2 
+    mu = (mu_a + mu_b)/2
+    dmu = (mu_a - mu_b)/2
     minv = (1/m_a + 1/m_b)/2
-    kF = math.sqrt(2*mu/minv)/hbar
+    mu_q = mu - q**2/2*minv
+    assert m_a == m_b   # Need to re-derive for different masses
+    m = 1./minv
+
+    p_x_special = np.ma.divide(m*(dmu - np.array([delta, -delta])),
+                               q).filled(np.nan).tolist()
+
+    # Quartic polynomial for special points.  See Docs/Integrate.ipynb
+    P = [1, 0, -4*(m*mu_q + q**2),
+         8*m*q*dmu, 4*m**2*(delta**2 + mu_q**2 - dmu**2)]
+    p_x_special.extend([p.real for p in np.roots(P)])
+    points = p_x_special/hbar
 
     if d == 1:
         integrand = numba.cfunc(numba.float64(numba.float64))(integrand)
         integrand = sp.LowLevelCallable(integrand.ctypes)
-        return quad(func=integrand, a=k_0, b=k_inf, points=[kF], limit=limit)
+        return quad(func=integrand, a=k_0, b=k_inf, points=points, limit=limit)
 
-    def func(kz, kp): #[clean up] will be removed later when doing clean up
-        return integrand(kz,kp)
-    return dquad_q(func=func, mu_a=mu_a, mu_b=mu_b, delta=delta, 
-                    q=q, hbar=hbar, m_a=m_a, m_b=m_b, k_0=k_0, k_inf=k_inf, limit=limit)/4
+    def kp0(kz):
+        # k**2 = kz**2 + kp**2 > k_0**2
+        # kp**2 > k_0**2 - kz**2
+        kz2 = kz**2
+        k_02 = k_0**2
+        if kz2 < k_02:
+            return math.sqrt(k_02 - kz2)
+        else:
+            return 0.0
 
+    def kp1(kz):
+        # k**2 = kz**2 + kp**2 < k_inf**2
+        # kp**2 < k_inf**2 - kz**2
+        # This will always work because kz < k_inf
+        return math.sqrt(k_inf**2 - kz**2)
 
+    def kp_special(kz):
+        pz = hbar*kz
+        D = (q*pz/m - dmu)**2 - delta**2
+        A = 2*m*mu_q - pz**2
+        return (cmath.sqrt(A + cmath.sqrt(D)).real/hbar,
+                cmath.sqrt(A - cmath.sqrt(D)).real/hbar)
+        
+    return dquad(func=integrand,
+                 x0=-k_inf, x1=k_inf,
+                 y0_x=kp0, y1_x=kp1,
+                 points_x=points,
+                 points_y_x=kp_special)
