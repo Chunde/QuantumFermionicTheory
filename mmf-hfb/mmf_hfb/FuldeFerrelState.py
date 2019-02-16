@@ -55,7 +55,7 @@ class FFState(object):
             n_a, n_b = self.get_densities(mu_a=mu_a, mu_b=mu_b, delta=delta, r=r)
         kappa = tf.integrate_q(tf.kappa_integrand, **args)
         g_c = 1/self.C
-        return kappa  - 0*g_c * n_a * n_b
+        return kappa #  - 0*g_c * n_a * n_b
     
     def get_pressure(self, mu_a, mu_b, r, delta=None):
         q = 1/r
@@ -79,6 +79,7 @@ class FFState(object):
         delta = brentq(f,a,b)
         return delta
 
+
 def min_index(fs):
     min_value = fs[0]
     min_index = 0
@@ -88,9 +89,7 @@ def min_index(fs):
             min_index = i
     return min_index,min_value
 
-
-def compute_delta_n(r, d ,mu=10, dmu=0.4):
-    # return (1,2,3) # for quick debug
+def compute_delta_ns(r, d ,mu=10, dmu=0.4):
     ff = FFState(dmu=dmu, mu=mu, d=d)
     ds = np.linspace(0,1.5,10)
     fs = [ff.f(delta=delta, r=r, mu_a=mu+dmu, mu_b=mu-dmu) for delta in ds]
@@ -108,11 +107,8 @@ def compute_delta_n(r, d ,mu=10, dmu=0.4):
     na,nb = ff.get_densities(delta=delta, r=r, mu_a=mu+dmu, mu_b=mu-dmu)
     return (delta, na, nb)
 
-
-
-
 def worker_thread(r):
-    return compute_delta_n(r, d=2)
+    return compute_delta_ns(r, d=2)
 
 def compute_ff_delta_ns_2d():
     """Compute 2d FF State Delta, densities"""
@@ -120,7 +116,7 @@ def compute_ff_delta_ns_2d():
     na2 = []
     nb2 = []
     rs2 = np.linspace(0.1,10,100).tolist() #np.append(np.linspace(0.1,1,10),[np.linspace(2,4,20),np.linspace(4.1,8,20)]).tolist()#
-    logic_cpu_count = os.cpu_count()
+    logic_cpu_count = os.cpu_count() - 1
     logic_cpu_count = 1 if logic_cpu_count < 1 else logic_cpu_count
     with Pool(logic_cpu_count) as Pools:
         rets = Pools.map(worker_thread,rs2)
@@ -132,20 +128,19 @@ def compute_ff_delta_ns_2d():
         print(outputs)
         with open("delta_ns.txt",'w',encoding ='utf-8') as wf:
             json.dump(outputs,wf, ensure_ascii=False)
+
 def simple_test():
     mu=10
     dmu=0.4
-    delta= 1.113873963246288
+    delta= 0
     m_a=m_b=1
     T=0
     q=0.2222222222222222
     d=2
     k_c=100
-    #worker_thread(4.5)
     tf.compute_C(mu_a = mu + dmu, mu_b = mu - dmu, delta=delta, m_a=m_a, m_b=m_b, d=d, k_c=k_c, T=T, q = q)
 
 if __name__ == "__main__":
-    #test_thermodynamic_relations()
     compute_ff_delta_ns_2d()
-    #simple_test()
+    simple_test()
     

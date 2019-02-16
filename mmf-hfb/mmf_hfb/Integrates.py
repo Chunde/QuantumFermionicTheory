@@ -42,6 +42,7 @@ def _dquad(func, a, b, gfun, hfun, limit,args=(), epsabs=1.49e-8,
     y from func(x) to gfun(x)
     Support limit options
     """
+    
     return quad(_infunc, a, b, (func, gfun, hfun, args, limit), 
                           epsabs=epsabs, epsrel=epsrel, maxp1=maxp1, limit=limit)
 
@@ -122,42 +123,44 @@ def _infunc_q(x, func, a, b, more_args, limit=50):
     minv = (1/m_a + 1/m_b)/2
     m = m_a #1/minv # now only support m_a=m_b
     args = (x,) # + more_args
-    px = x
+    px = x #x=kx may need to multiply the hbar [check]
     mu_q = mu - q**2/2/m
-    p1, p2 = 0,0
+    k1 = k2 = 0 
     sqrt0 = (q*px/m - dmu)**2 - delta**2
     if sqrt0 >=0:
         sqrt1 =np.sqrt(sqrt0)
         sqrt2 = 2*m*(mu_q + sqrt1) - px**2
         sqrt3 = 2*m*(mu_q - sqrt1) - px**2
         if sqrt2 > 0:
-            p1 = np.sqrt(sqrt2)
+            k1 = np.sqrt(sqrt2)/hbar
         if sqrt3 > 0:
-            p2 = np.sqrt(sqrt3)
-    k1 = 0 
-    k2 = 0 
-    if not math.isnan(p1) and p1.imag == 0:
-        k1 =  p1/hbar # the p1 computed in the sqrt is the momentum.
-    if not math.isnan(p2)  and p2.imag == 0:
-        k2 = p2/hbar
+            k2 = np.sqrt(sqrt3)/hbar
+
     if k1 > k2:
-        t = k2
-        k2 = k1
-        k1 = t
-    if k1 > 0 and k2 > 0: # skip region between k1 and k2
-        return quad(func=func, a=a, b=k1,  limit=limit, args=args)[0]  
-    + quad(func=func, a=k2, b=b,  limit=limit, args=args)[0]
+        k1,k2=k2,k1
+    if k1 > 0 and k2 > 0: 
+        res1 = quad(func=func, a=a, b=k1 - 1e-10, limit=limit, args=args)[0]
+        res2 = quad(func=func, a=k2 + 1e-10, b=b, limit=limit, args=args)[0]
+        # do integration over k1 and k2 will make f_nu = 0, and cause exception
+        # which is expected as in that region, f(w_p) and f(w_m) may be zero at
+        # the same time, so do skip region between k1 and k2
+        # quad(func=func, a=k1, b=k2, limit=limit, args=args)[0]
+        return res1 + res2
     if k1 > 0:
-        return quad(func=func, a=a, b=k1,  limit=limit, args=args)[0] 
-    + quad(func=func, a=k1, b=b,  limit=limit, args=args)[0]
+        res1 = quad(func=func, a=a, b=k1, limit=limit, args=args)[0]
+        res2 = quad(func=func, a=k1, b=b, limit=limit, args=args)[0]
+        return res1 + res2
     if k2 > 0:
-        return quad(func=func, a=a, b=k2,  limit=limit, args=args)[0]  
-    + quad(func=func, a=k2, b=b,  limit=limit, args=args)[0]
+        res1 = quad(func=func, a=a, b=k2, limit=limit, args=args)[0]
+        res2 = quad(func=func, a=k2, b=b, limit=limit, args=args)[0]
+        return res1 + res2
     return quad(func=func, a=a, b=b,  limit=limit, args=args)[0] 
 
-def dquad_q(func, mu_a, mu_b, delta, q, hbar=1, m_a = 1, m_b=1, k_0=0, k_inf=np.inf, limit=50):
+def dquad_q(func, mu_a, mu_b, delta, q, hbar=1,
+           m_a = 1, m_b=1, k_0=0, k_inf=np.inf, limit=50):
     mu = (mu_a + mu_b)/2
     dmu = (mu_a - mu_b)/2
     args=(mu, dmu, m_a, m_b, delta, hbar, q)
-    res = ufloat(*quad(_infunc_q, k_0, k_inf, (func, k_0, k_inf, args, limit), limit=limit))
-    return res
+    res = ufloat(*quad(_infunc_q, k_0, k_inf, 
+                       (func, k_0, k_inf, args, limit), limit=limit))
+    return res * 4

@@ -1,15 +1,10 @@
 """Test the 2d integ code."""
 import numpy as np
-
-from scipy.optimize import brentq
-
 import pytest
-
 from mmfutils.testing import allclose
-
-from mmf_hfb import bcs, homogeneous
 from mmf_hfb.FuldeFerrelState import FFState
-
+import mmf_hfb.tf_completion as tf
+from mmf_hfb.Integrates import dquad_kF, dquad_q
 
 @pytest.fixture(params=[3, 3.5, 4])
 def r(request):
@@ -24,24 +19,39 @@ def min_index(fs):
             min_index = i
     return min_index,min_value
 
-def test_compute_delta_n(r, d=2 ,mu=10, dmu=0.4):
-    # return (1,2,3) # for quick debug
-    ff = FFState(dmu=dmu, mu=mu, d=d)
-    ds = np.linspace(0,1.5,10)
-    fs = [ff.f(delta=delta, r=r, mu_a=mu+dmu, mu_b=mu-dmu) for delta in ds]
-    index, value = min_index(fs)
-    delta = 0
-    if value < 0:
-        delta = ff.solve(r=r,a= ds[index], mu_a=mu+dmu, mu_b=mu-dmu)
-        if fs[0] > 0:
-            smaller_delta = ff.solve(r=r,a=ds[0],b=ds[index], mu_a=mu+dmu, mu_b=mu-dmu)
-            print(f"a smaller delta={smaller_delta} is found for r={r}")
-            p1 = ff.get_pressure(delta=delta,r=r, mu_a=mu+dmu, mu_b=mu-dmu)
-            p2 = ff.get_pressure(delta=smaller_delta, r=r, mu_a=mu+dmu, mu_b=mu-dmu)
-            if(p2 > p1):
-                delta = smaller_delta
-    na,nb = ff.get_densities(delta=delta, r=r, mu_a=mu+dmu, mu_b=mu-dmu)
-    return (delta, na, nb)
+
+def compare_two_integration_routines_2d():
+
+    its = [tf.kappa_integrand,tf.n_m_integrand,tf.n_p_integrand,tf.nu_delta_integrand]
+    mu = 10
+    dmu = 0.4
+    mu_a=mu + dmu
+    mu_b=mu - dmu
+    m_a = m_b= delta= hbar=1
+    T=0
+    args = dict(mu_a=mu_a, mu_b=mu_b, m_a=m_a, m_b=m_b, delta=delta, hbar=hbar, T=T)
+    k_c=100
+    q = 0
+    def test_integrand(it):
+        def integrand(kp, kz):
+                k2_a = (kz+q)**2 + kp**2
+                k2_b = (kz-q)**2 + kp**2
+                return it(ka2=k2_a, kb2=k2_b, **args) /np.pi**2
+
+        def func(kz, kp): 
+            return integrand(kz,kp)
+
+        kF = np.sqrt(2*mu)
+        print("dquad_kF..............")
+        v1 = dquad_kF(f=integrand, kF=kF, k_0=0, k_inf=k_c)/4
+        print("dquad_q..............")
+        v2 = dquad_q(func=func, mu_a=mu_a, mu_b=mu_b, delta=delta, 
+                        q=q, hbar=hbar, m_a=m_a, m_b=m_b, k_0=0, k_inf=k_c)/4
+        print(v1, v2)
+        assert np.allclose(v1.n, v2.n)
+
+    for it in its:
+        test_integrand(it)
 
 if __name__ == "__main__":
-    test_compute_delta_n(3.6)
+    compare_two_integration_routines_2d()

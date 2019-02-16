@@ -55,6 +55,14 @@ class ASLDA(Functionals):
     def get_Del(self, twist=0):
         """This this should only be applied to wave funtions"""
         """return the second order derivative operator matrix"""
+        """Be careful:
+        D = np.fft.ifft(-1j*k*np.fft.fft(np.eye(N), axis=1), axis=1)
+        1) D.dot(f)
+        2) np.fft.ifft(1j*k*np.fft.fft(f))
+        1) and 2) will yield different resutls if f is complex
+           In general, the fft method is better in accuracy
+        """
+
         k_bloch = twist/self.Lx
         k = self.kx + k_bloch
         N = self.Nx

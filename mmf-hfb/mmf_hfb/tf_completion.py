@@ -44,15 +44,6 @@ def f(E, T):
         return 1./(1+np.exp(E/T))
 
 
-def dquad(f, kF=None, k_0=0, k_inf=np.inf, limit=50):
-    """Return ufloat(res, err) for 2D integral of f(kz, kp) over the
-    entire plane.    
-        k_0**2 < kz**2 + kp**2 < k_inf**2
-        sqrt(k_0**2 - kz**2) < kp < sqrt(k_inf**2 - kz**2)
-    Assumes k_F << k_inf, k_0
-    """
-    return dquad_kF(f, kF, k_0, k_inf, limit) # the dquad_kF surport limit parameter
-
 ######################################################################
 # These *_integrand functions do not have the integration measure
 # factors, so they can be used for any dimension (but need an
@@ -266,8 +257,6 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
     if limit is None:
         limit = MAX_ITERATION
     args = (mu_a, mu_b, delta, m_a, m_b, hbar, T)
-    # should be very careful here, the k_0 may be larger than kF,
-    # in which case the integral range should not be splited by kF.
     k_inf = np.inf if k_c is None else k_c
 
     # 2d integrals over kz and kp.  NOTE: Read the documentation of
@@ -281,7 +270,7 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
         def integrand(kp, kz):
             k2_a = (kz+q)**2 + kp**2
             k2_b = (kz-q)**2 + kp**2
-            return f(k2_a, k2_b, *args) / np.pi**2
+            return f(k2_a, k2_b, *args) /np.pi**2
     elif d == 3:
         def integrand(kp, kz):
             k2_a = (kz+q)**2 + kp**2
@@ -291,7 +280,7 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
     else:
         raise ValueError(f"Only d=1, 2, or 3 supported (got d={d})")
 
-    mu = (mu_a + mu_b)/2 #max(mu_a,mu_b) # in the notebook, the mu is computed as the maximum of mu_a and mu_b
+    mu = (mu_a + mu_b)/2 
     minv = (1/m_a + 1/m_b)/2
     kF = math.sqrt(2*mu/minv)/hbar
 
@@ -300,16 +289,9 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
         integrand = sp.LowLevelCallable(integrand.ctypes)
         return quad(func=integrand, a=k_0, b=k_inf, points=[kF], limit=limit)
 
-    # The factor of 4 here is because integrand is normalized for
-    #v0 = dquad_kF(f=integrand, kF=kF, k_0=k_0, k_inf=k_inf, limit=limit) / 4
-
     def func(kz, kp): #[clean up] will be removed later when doing clean up
         return integrand(kz,kp)
-
-    v = dquad_q(func=integrand, mu_a=mu_a, mu_b=mu_b, delta=delta, 
-                  q=q, hbar=hbar, m_a=m_a, m_b=m_b, k_0=k_0, k_inf=k_inf, limit=limit)
-    #print(v0, v)
-    return v
-
+    return dquad_q(func=func, mu_a=mu_a, mu_b=mu_b, delta=delta, 
+                    q=q, hbar=hbar, m_a=m_a, m_b=m_b, k_0=k_0, k_inf=k_inf, limit=limit)/4
 
 

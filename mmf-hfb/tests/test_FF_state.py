@@ -34,14 +34,13 @@ def test_thermodynamic_relations(d):
                 mu_a = mu + dmu
                 mu_b = mu - dmu
                 return ff.get_densities(mu_a=mu_a, mu_b=mu_b, r=r)   
-            dx = 0.001
+            dx = 1e-5
             E1, n1 = get_E_n(mu+dx)
             E0, n0 = get_E_n(mu-dx)
 
             print((E1-E0)/(n1-n0), mu) #[check] at some point n1 is equal to n0, causes error
 
 
-            dx = 1e-3
             n_p = (get_P(mu+dx, dmu) - get_P(mu-dx, dmu))/2/dx
             n_a, n_b = get_ns(mu, dmu)
 
