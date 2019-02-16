@@ -23,6 +23,7 @@ def set_max_iteration(n):
     global MAX_ITERATION
     MAX_ITERATION = 200
 
+
 @numba.jit(nopython=True)
 def step(t, t1):
     r"""Smooth step function that goes from 0 at time ``t=0`` to 1 at time
@@ -266,7 +267,7 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
     """
     k_inf = np.inf if k_c is None else k_c
     
-    if q == 0:
+    if False and q == 0:
         return integrate(f, d=d, k_0=k_0, k_c=k_inf,
                          mu_a=mu_a, mu_b=mu_b, delta=delta,
                          m_a=m_a, m_b=m_b, hbar=hbar, T=T)
