@@ -310,9 +310,8 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
     # Quartic polynomial for special points.  See Docs/Integrate.ipynb
     P = [1, 0, -4*(m*mu_q + q**2),
          8*m*q*dmu, 4*m**2*(delta**2 + mu_q**2 - dmu**2)]
-    p_x_special.extend([p.real for p in np.roots(P)])
-    points = p_x_special/hbar
-
+    p_x_special.extend([p.real  for p in np.roots(P)])
+    points = sorted(set([x/hbar for x in p_x_special  if not math.isnan(x)]))
     if d == 1:
         integrand = numba.cfunc(numba.float64(numba.float64))(integrand)
         integrand = sp.LowLevelCallable(integrand.ctypes)
