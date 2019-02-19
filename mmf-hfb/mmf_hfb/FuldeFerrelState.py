@@ -17,7 +17,8 @@ tf.set_max_iteration(200)
 
 class FFState(object):
     def __init__(self, mu=10, dmu=0.4, delta=1,
-                 m=1, T=0, hbar=1, k_c=100, d=2):
+                 m=1, T=0, hbar=1, k_c=100, d=2,fix_g=False):
+        self.fix_g = fix_g
         self.d = d
         self.T = T
         self.mu = mu
@@ -27,6 +28,7 @@ class FFState(object):
         self.hbar = hbar
         self._tf_args = dict(m_a=1, m_b=1, d=d, hbar=hbar, T=T, k_c=k_c)
         self.C = tf.compute_C(mu_a=mu, mu_b=mu, delta=delta, q=0, **self._tf_args).n
+        self.g = self.get_g(mu_a=mu, mu_b=mu, delta=delta, r=np.inf) 
         self._tf_args.update(mu_a=mu + dmu, mu_b=mu - dmu)
         
     def f(self, delta, r, **kw):
@@ -34,7 +36,14 @@ class FFState(object):
         args.update(kw)
         q = 1/r
         return tf.compute_C(delta=delta, q=q, **args).n - self.C
-    
+
+    def get_g(self, mu_a, mu_b, delta, r):
+        q = 1/r
+        args = dict(self._tf_args, delta=delta, q=q, mu_a=mu_a, mu_b=mu_b)
+        nu = tf.integrate_q(tf.nu_integrand, **args)
+        g = delta/nu.n
+        return g
+
     def get_densities(self, mu_a, mu_b, r, delta=None):
         q = 1/r
         if delta is None:
@@ -75,8 +84,13 @@ class FFState(object):
         args = dict(self._tf_args, mu_a=mu_a, mu_b=mu_b, q=q)
         
         def f(delta):
+            if self.fix_g:
+                return self.g - self.get_g(mu_a=mu_a, mu_b=mu_b, delta=delta, r = r)
             return self.C - tf.compute_C(delta=delta, **args).n
-        delta = brentq(f,a,b)
+        try:
+            delta = brentq(f,a,b)
+        except:
+            delta = 0
         return delta
 
 
@@ -141,6 +155,6 @@ def simple_test():
     tf.compute_C(mu_a = mu + dmu, mu_b = mu - dmu, delta=delta, m_a=m_a, m_b=m_b, d=d, k_c=k_c, T=T, q = q)
 
 if __name__ == "__main__":
-    compute_ff_delta_ns_2d()
-    simple_test()
-    
+    #compute_ff_delta_ns_2d()
+    #simple_test()
+    compute_delta_ns(5, d=1)

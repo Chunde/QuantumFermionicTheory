@@ -1,7 +1,7 @@
 from importlib import reload  # Python 3.4+
-import bcs;reload(bcs)
-import homogeneous;reload(homogeneous)
-from bcs import BCS
+from mmf_hfb import bcs;reload(bcs)
+import mmf_hfb.homogeneous as homogeneous;reload(homogeneous)
+from mmf_hfb.bcs import BCS
 import numpy as np
 class Lattice(BCS):
     """Adds optical lattice potential to species a with depth V0."""

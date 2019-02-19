@@ -1,12 +1,11 @@
 # this file will eventually be changed to a test file for pytest, now just for debugging in Visual Studio
 # Chunde's comment will start with a single sharp '#', to track modifications.
-import hfb_dir_init
 import numpy as np
 from scipy.integrate import quad
 from uncertainties import ufloat
 from importlib import reload  # Python 3.4+
 import numpy as np
-import vortex_2d;reload(vortex_2d)
+from mmf_hfb import vortex_2d;reload(vortex_2d)
 
 
 

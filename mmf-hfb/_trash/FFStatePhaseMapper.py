@@ -7,8 +7,8 @@ import multiprocessing
 import threading
 from os.path import join
 from multiprocessing import Process,Queue,Array,RLock,Lock
-import FuldeFerrelState
-from FuldeFerrelState import get_pressure
+from mmf_hfb import FuldeFerrelState as FF
+
 
 current_path = "d:\\"
 if current_path == None:

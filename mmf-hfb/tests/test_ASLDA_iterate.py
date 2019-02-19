@@ -1,15 +1,13 @@
-import hfb_dir_init
-
 import numpy as np
 from scipy.optimize import brentq
 from scipy.integrate import quad
 from uncertainties import ufloat
 from importlib import reload  # Python 3.4+
 import numpy as np
-import homogeneous;reload(homogeneous)
-import bcs;reload(bcs)
-from bcs import BCS
-import vortex_1d_aslda;reload(vortex_1d_aslda)
+from mmf_hfb import homogeneous;reload(homogeneous)
+from mmf_hfb import bcs;reload(bcs)
+from mmf_hfb.bcs import BCS
+from mmf_hfb import vortex_1d_aslda;reload(vortex_1d_aslda)
 import itertools  
 import matplotlib.pyplot as plt
 
@@ -87,7 +85,7 @@ def test_ASLDA_iterate():
     delta = 1# 0.68640205206984016444108204356564421137062514068346*E_c
     qT = (mu, mu) +(None,None)+ (mu_eff*np.ones(lda.Nx),)*2 + (delta * np.ones((lda.Nx),), None,None)
     max_iteration = 5
-    v_0, n, mu, e_0 = homogeneous.get_BCS_v_n_e(delta=delta, mu_eff=mu_eff)
+    v_0, n, mu, e_0 = homogeneous.Homogeneous1D().get_BCS_v_n_e(mus_eff=(mu_eff,mu_eff), delta=delta)
     x = 0.75
     global fig
     fig = plt.figure()

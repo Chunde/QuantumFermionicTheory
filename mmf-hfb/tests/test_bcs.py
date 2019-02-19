@@ -9,7 +9,6 @@ from mmfutils.testing import allclose
 
 from mmf_hfb import bcs, homogeneous
 
-
 @pytest.fixture(params=[1, 2, 3])
 def dim(request):
     return request.param
@@ -132,9 +131,6 @@ def test_BCS_get_currents_1d(dim, NLx, T, N_twist):
     np.random.seed(1)
     hbar, m, kF = 1 + np.random.random(3)
     eF = (hbar*kF)**2/2/m
-    # nF = kF/np.pi
-    # E_FG = 2*nF*eF/3
-    # C_unit = m/hbar**2/kF
 
     mu = 0.28223521359748843*eF
     delta = 0.411726229961806*eF
@@ -153,13 +149,8 @@ def test_BCS_get_currents_1d(dim, NLx, T, N_twist):
 
     delta = np.exp(1j*b.xyz[0])
     res = b.get_densities((mu, mu), delta, N_twist=N_twist)
-    J_a, J_b = b.get_1d_currents((mu, mu), delta, N_twist=N_twist)
+    j_a, j_b = b.get_1d_currents((mu, mu), delta, N_twist=N_twist)
 
-    assert np.allclose(res.J_a[0], J_a)
-    assert np.allclose(res.J_b[0], J_b)  
+    assert np.allclose(res.j_a[0], j_a)
+    assert np.allclose(res.j_b[0], j_b)  
 
-if __name__ == "__main__":
-    #test_BCS_get_densities(dim=3, NLx=(4, 10.0, None), T=0, N_twist=1)
-    for N in range(1,5):
-        print(f"Twist Number={N}")
-        test_BCS_get_currents_1d(dim=1, NLx=(64, 10.0, None), T=0, N_twist=N)

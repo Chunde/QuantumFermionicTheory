@@ -6,3 +6,6 @@ _ext/
 \.coverage
 mmf_hfb.egg-info
 commit_notes.txt
+*.pyc
+*.orig
+*.py~

@@ -12,7 +12,7 @@ from scipy.integrate import dblquad
 import scipy as sp
 
 from uncertainties import ufloat
-from mmf_hfb.Integrates import dquad_kF, dquad_q
+from mmf_hfb.Integrates import dquad_kF
 
 from .integrate import quad, dquad
 
@@ -207,13 +207,8 @@ def compute_C(mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0, q=0,
         k_c = 100*k_F
     
     Lambda_c = Lambda(m=m, mu=mu_q, hbar=hbar, d=d, k_c=k_c)
-    # [Clean up] we do not need to have to seperate pieces of code for integrate here,
-    if q == 0:
-        nu_c_delta = integrate(f=nu_delta_integrand, k_c=k_c, **args)
-        C_corr = integrate(f=C_integrand, k_0=k_c, **args)
-    else:
-        nu_c_delta = integrate_q(f=nu_delta_integrand, k_c=k_c, q=q, **args)
-        C_corr = integrate_q(f=C_integrand, k_0=k_c, **args) # should the q passed to this function?
+    nu_c_delta = integrate_q(f=nu_delta_integrand, k_c=k_c, q=q, **args)
+    C_corr = integrate_q(f=C_integrand, k_0=k_c, **args)
     C_c = nu_c_delta + Lambda_c
     C = C_c + C_corr
     return C

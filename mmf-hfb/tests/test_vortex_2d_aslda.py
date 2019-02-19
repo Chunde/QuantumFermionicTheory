@@ -1,11 +1,10 @@
-import hfb_dir_init
 import numpy as np
 from scipy.integrate import quad
 from uncertainties import ufloat
 from importlib import reload  # Python 3.4+
 import numpy as np
-import homogeneous;reload(homogeneous)
-import vortex_2d_aslda;reload(vortex_2d_aslda)
+from mmf_hfb import homogeneous;reload(homogeneous)
+from mmf_hfb import vortex_2d_aslda;reload(vortex_2d_aslda)
 import itertools  
 hbar = 1
 m = 1
