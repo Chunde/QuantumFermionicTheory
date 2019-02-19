@@ -12,8 +12,6 @@ from scipy.integrate import dblquad
 import scipy as sp
 
 from uncertainties import ufloat
-from mmf_hfb.Integrates import dquad_kF
-
 from .integrate import quad, dquad
 
 
@@ -339,4 +337,5 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
                  x0=-k_inf, x1=k_inf,
                  y0_x=kp0, y1_x=kp1,
                  points_x=points,
-                 points_y_x=kp_special)
+                 points_y_x=kp_special,
+                 limit=limit)

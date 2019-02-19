@@ -20,7 +20,7 @@ def quad(func, a, b, points=None, **kw):
                for _a, _b in zip(points[:-1], points[1:])]
         return sign * sum(ufloat(*_r) for _r in res)
     else:
-        return ufloat(*sp.integrate.quad(func=func, a=a, b=b, points=points))
+        return ufloat(*sp.integrate.quad(func=func, a=a, b=b, points=points, **kw))
 
 
 def dquad(func, x0, x1, y0_x, y1_x, points_x=None, points_y_x=None, **kw):

@@ -218,15 +218,10 @@ class BCS(object):
             d, psi = np.linalg.eigh(H) 
             us, vs = psi.reshape(2, N, N*2)
             us, vs = us.T,vs.T
-            j_a = 0.5j * sum( (us[i].conj()*df(k,us[i])-us[i]*df(k,us[i]).conj()) * self.f(d[i]) for i in range(len(us)))
-            j_b = 0.5j * sum( (vs[i].conj()*df(k,vs[i])-vs[i]*df(k,vs[i]).conj()) * self.f(-d[i]) for i in range(len(vs)))
+            j_a = -0.5j * sum( (us[i].conj()*df(k,us[i])-us[i]*df(k,us[i]).conj()) * self.f(d[i]) for i in range(len(us)))
+            j_b = -0.5j * sum( (vs[i]*df(k,vs[i]).conj()-vs[i].conj()*df(k,vs[i])) * self.f(-d[i]) for i in range(len(vs)))
             J_a = J_a + j_a
             J_b = J_b + j_b
-
-            #us, vs = U.T,V.T
-
-            #J_a_ = 0.5j * sum((us[i].conj()*df(ks[0],us[i])-us[i]*df(ks[0],us[i]).conj()) * self.f(d[i]) for i in range(len(us)))
-            #J_b_ = 0.5j * sum((vs[i].conj()*df(ks[0],vs[i])-vs[i]*df(ks[0],vs[i]).conj()) * self.f(-d[i]) for i in range(len(vs)))
 
 
         return (J_a/N_twist/np.prod(self.dxyz), J_b/N_twist/np.prod(self.dxyz))

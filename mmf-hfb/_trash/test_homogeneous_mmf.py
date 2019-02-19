@@ -1,12 +1,10 @@
 """Test the homogeneous code."""
-import hfb_dir_init
-
 import numpy as np
 
 from scipy.optimize import brentq
 
-import homogeneous_mmf
-from homogeneous_mmf import Homogeneous
+from mmf_hfb import homogeneous_mmf
+from mmf_hfb.homogeneous_mmf import Homogeneous
 
 
 def test_Homogeneous_3D():

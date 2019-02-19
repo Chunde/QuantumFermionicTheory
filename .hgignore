@@ -9,3 +9,7 @@ commit_notes.txt
 *.pyc
 *.orig
 *.py~
+mmf-hfb/Docs/.ipynb_checkpoints/
+mmf-hfb/.pytest_cache/
+mmf-hfb\.coverage
+mmf-hfb\.leu

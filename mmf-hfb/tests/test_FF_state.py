@@ -5,15 +5,28 @@ from mmf_hfb import tf_completion as tf
 from mmf_hfb.FuldeFerrelState import FFState as FF
 tf.set_max_iteration(200)
 
-@pytest.fixture(params=[1,2])
+@pytest.fixture(params=[1, 2])
 def d(request):
     return request.param
 
-@pytest.fixture(params=[np.inf, 3,10])
+@pytest.fixture(params=[np.inf, 3, 10])
 def r(request):
     return request.param
 
-def Thermodynamic(mu, dmu, d, k_c, r):
+@pytest.fixture(params=[10])
+def mu(request):
+    return request.param
+
+@pytest.fixture(params=[0.4])
+def dmu(request):
+    return request.param
+
+@pytest.fixture(params=[100])
+def k_c(request):
+    return request.param
+
+@pytest.mark.bench()
+def test_Thermodynamic(mu, dmu, d, k_c, r):
     print(f"mu={mu}\tdmu={dmu}\tkc={k_c}\tr={r}\td={d}")
     delta0 = 1
 
@@ -55,24 +68,24 @@ def Thermodynamic(mu, dmu, d, k_c, r):
     assert np.allclose(n_b.n, n_b_.n)
 
 
-#@pytest.mark.bench()
-def test_thermodynamic_relations(d, r=np.inf, k_c=100):
-    mus = [2,5,10]
-    dmus = [0.4,0.5,0.64]
+@pytest.mark.bench()
+def test_thermodynamic_relations(d, r, k_c=100):
+    mus = [5, 10]
+    dmus = [0.4, 0.64]
     for mu in mus:
         for dmu in dmus:
-            Thermodynamic(mu=mu, dmu=dmu, d = d, k_c=k_c, r=r)
+            test_Thermodynamic(mu=mu, dmu=dmu, d = d, k_c=k_c, r=r)
 
 
 if __name__ == "__main__":
     """Failure case:
     1) mu=10   dmu=0.64    d=2    kc=100
     """
-    Thermodynamic(mu=10, dmu=0.64, d= 2, r=10.0, k_c=100) # will fail
-    ks = [500]
-    d = 2
-    r = 10.0
-    print(f"Performing {d}-dimension, r={r} test...")
-    for kc in ks:
-        test_thermodynamic_relations(d=d, r=r, k_c=kc)
+    test_Thermodynamic(mu=10, dmu=0.64, d= 2, r=10.0, k_c=500) # will fail
+    #ks = [500]
+    #d = 2
+    #r = 10.0
+    #print(f"Performing {d}-dimension, r={r} test...")
+    #for kc in ks:
+    #    test_thermodynamic_relations(d=d, r=r, k_c=kc)
        

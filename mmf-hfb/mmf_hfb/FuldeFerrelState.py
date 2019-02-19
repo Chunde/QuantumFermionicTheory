@@ -1,23 +1,25 @@
 import os
 import numpy as np
-from mmf_hfb import homogeneous
 from mmf_hfb import tf_completion as tf
 from scipy.optimize import brentq
-import matplotlib.pyplot as plt
-from mmf_hfb.homogeneous import Homogeneous1D,Homogeneous3D
 from multiprocessing import Pool
-import json
-from json import dumps
-import sys
-import warnings
 
-#if not sys.warnoptions:
-#    warnings.simplefilter("ignore")
 tf.set_max_iteration(200)
 
 class FFState(object):
     def __init__(self, mu=10, dmu=0.4, delta=1,
                  m=1, T=0, hbar=1, k_c=100, d=2,fix_g=False):
+        """Compute a double integral.
+
+        Note: The order of arguments is not the same as dblquad.  They are
+        func(x, y) here.
+    
+        Arguments
+        ---------
+        fix_g: Boolean
+        if fix_g is False, the class will fix C_tilde when compute the detal
+        for given configuration. To use a fixing g, set fix_g to True
+        """
         self.fix_g = fix_g
         self.d = d
         self.T = T
@@ -64,7 +66,7 @@ class FFState(object):
             n_a, n_b = self.get_densities(mu_a=mu_a, mu_b=mu_b, delta=delta, r=r)
         kappa = tf.integrate_q(tf.kappa_integrand, **args)
         g_c = 1/self.C
-        return kappa #  - 0*g_c * n_a * n_b
+        return kappa #  - 0*g_c * n_a * n_b 
     
     def get_pressure(self, mu_a, mu_b, r, delta=None):
         q = 1/r
@@ -155,6 +157,6 @@ def simple_test():
     tf.compute_C(mu_a = mu + dmu, mu_b = mu - dmu, delta=delta, m_a=m_a, m_b=m_b, d=d, k_c=k_c, T=T, q = q)
 
 if __name__ == "__main__":
-    #compute_ff_delta_ns_2d()
-    #simple_test()
-    compute_delta_ns(5, d=1)
+    # compute_ff_delta_ns_2d()
+    # simple_test()
+    compute_delta_ns(5, d=2)
