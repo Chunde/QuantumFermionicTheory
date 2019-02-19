@@ -198,9 +198,7 @@ class BCS(object):
         n_a = np.diag(r_a).reshape(self.Nxyz).real
         n_b = np.diag(r_b).reshape(self.Nxyz).real
         nu = np.diag(nu_).reshape(self.Nxyz)
-        return namedtuple('Densities', ['n_a', 'n_b', 'nu'])(n_a, n_b, nu)
-
-    
+        return namedtuple('Densities', ['n_a', 'n_b', 'nu'])(n_a, n_b, nu)    
 
     def get_1d_currents(self, mus_eff, delta, N_twist=1):
         """return current for 1d only"""
@@ -251,7 +249,7 @@ class BCS(object):
             d, UV = np.linalg.eigh(H)
 
             U_V_shape = (2,) + tuple(self.Nxyz) + UV.shape[1:]
-            U, V = U_V = UV.reshape(U_V_shape) # U = us.T, V=vs.T
+            U, V = U_V = UV.reshape(U_V_shape)  # U = us.T, V=vs.T
 
             # Compute derivatives for currents etc.
             ks_bloch = np.divide(twists, self.Lxyz)
@@ -259,15 +257,13 @@ class BCS(object):
 
             axes = range(1, self.dim+1)
             U_V_t = self.fft(U_V, axes=axes)
-            dU_Vs = np.array([self.ifft(1j*_k[None, ..., None] * U_V_t, axes=axes) # fixed a bug here
-                              for _k in ks])
 
-            N, U1 = self.Nxyz[0],U.T[0]
-            dU1 = np.fft.ifft(1j*ks[0]*np.fft.fft(U1))
-            #dUV = np.fft.ifftn(1j*ks[0]*np.fft.fftn(U_V, axes=axes),axes=axes)
-            
-            dUs = dU_Vs[:, 0, ...] # len(dUs) and len(dVs) is equal to the dimensions of the system
-            dVs = dU_Vs[:, 1, ...] # each component is the first order derivative of wavefunctions in each direction(x, y, z ...)
+            # Here we compute the derivatives and pack them so that
+            # the first component is the derivative in x, y, z, etc.
+            dU_Vs = np.array([
+                self.ifft(1j *_k[None, ..., None] * U_V_t, axes=axes)
+                for _k in ks])
+            dUs, dVs = dU_Vs[:, 0, ...], dU_Vs[:, 1, ...]
             f_p = self.f(d)
             f_m = self.f(-d)
             n_a = np.dot(U*U.conj(), f_p).real
@@ -276,13 +272,12 @@ class BCS(object):
             tau_a = np.dot(sum(dU.conj()*dU for dU in dUs), f_p).real
             tau_b = np.dot(sum(dV.conj()*dV for dV in dVs), f_m).real
 
+            j_a = [0.5*np.dot((U.conj()*dU - U*dU.conj()), f_p).imag
+                   for dU in dUs]
+            j_b = [0.5*np.dot((V*dV.conj() - V.conj()*dV), f_m).imag
+                   for dV in dVs]
 
-
-            J_a = [0.5j*np.dot((U.conj()*dU - U*dU.conj()),f_p) for dU in dUs] # in U.conj()*dU, the column is the us[i].conj() * dus[i], 
-            J_b = [0.5j*np.dot((V.conj()*dV - V*dV.conj()),f_m) for dV in dVs] # so we need to sum up over the rows
-
-            
-            return np.array([n_a, n_b, tau_a, tau_b, nu.real, nu.imag, *J_a, *J_b])
+            return np.array([n_a, n_b, tau_a, tau_b, nu.real, nu.imag, *j_a, *j_b])
             
         if np.isinf(N_twist):
             if self.dim == 1:
@@ -303,9 +298,10 @@ class BCS(object):
         dV = np.prod(self.dxyz)
 
         n_a, n_b, tau_a, tau_b, nu_real, nu_imag = (dens[0:6] / dV)
-        J_a, J_b = (dens[6:] / dV).reshape((2, len(self.Nxyz)) + tuple(self.Nxyz))
+        j_a, j_b = (dens[6:] / dV).reshape((2, len(self.Nxyz)) + tuple(self.Nxyz))
         Densities = namedtuple('Densities',
-                               ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu', 'J_a', 'J_b'])
+                               ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu', 'j_a', 'j_b'])
         return Densities(n_a=n_a, n_b=n_b,
                          tau_a=tau_a, tau_b=tau_b,
-                         nu=nu_real + 1j*nu_imag, J_a=J_a, J_b=J_b)
+                         nu=nu_real + 1j*nu_imag,
+                         j_a=j_a, j_b=j_b)
