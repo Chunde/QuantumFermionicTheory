@@ -3,6 +3,8 @@ import numpy as np
 from mmf_hfb import tf_completion as tf
 from scipy.optimize import brentq
 from multiprocessing import Pool
+import json
+from json import dumps
 
 tf.set_max_iteration(200)
 
@@ -157,6 +159,4 @@ def simple_test():
     tf.compute_C(mu_a = mu + dmu, mu_b = mu - dmu, delta=delta, m_a=m_a, m_b=m_b, d=d, k_c=k_c, T=T, q = q)
 
 if __name__ == "__main__":
-    # compute_ff_delta_ns_2d()
-    # simple_test()
-    compute_delta_ns(5, d=2)
+    compute_ff_delta_ns_2d()
