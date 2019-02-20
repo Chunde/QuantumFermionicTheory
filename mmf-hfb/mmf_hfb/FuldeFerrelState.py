@@ -159,4 +159,6 @@ def simple_test():
     tf.compute_C(mu_a = mu + dmu, mu_b = mu - dmu, delta=delta, m_a=m_a, m_b=m_b, d=d, k_c=k_c, T=T, q = q)
 
 if __name__ == "__main__":
-    compute_ff_delta_ns_2d()
+    # compute_ff_delta_ns_2d() #generate 2d data
+    # compute_delta_ns(5, d=2) #produce division by zero error
+    compute_delta_ns(0.1, d=2) #produce warnings
