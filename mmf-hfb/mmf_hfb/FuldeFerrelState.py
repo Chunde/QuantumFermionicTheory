@@ -108,8 +108,8 @@ def min_index(fs):
     return min_index,min_value
 
 def compute_delta_ns(r, d ,mu=10, dmu=0.4):
-    ff = FFState(dmu=dmu, mu=mu, d=d)
-    ds = np.linspace(0,1.5,10)
+    ff = FFState(dmu=dmu, mu=mu, d=d, fix_g=False)
+    ds = np.linspace(0.1,1.5,10)
     fs = [ff.f(delta=delta, r=r, mu_a=mu+dmu, mu_b=mu-dmu) for delta in ds]
     index, value = min_index(fs)
     delta = 0
@@ -147,6 +147,7 @@ def compute_ff_delta_ns_2d():
         with open("delta_ns.txt",'w',encoding ='utf-8') as wf:
             json.dump(outputs,wf, ensure_ascii=False)
 
+
 def simple_test():
     mu=10
     dmu=0.4
@@ -159,6 +160,6 @@ def simple_test():
     tf.compute_C(mu_a = mu + dmu, mu_b = mu - dmu, delta=delta, m_a=m_a, m_b=m_b, d=d, k_c=k_c, T=T, q = q)
 
 if __name__ == "__main__":
-    # compute_ff_delta_ns_2d() #generate 2d data
+    compute_ff_delta_ns_2d() #generate 2d data
     # compute_delta_ns(5, d=2) #produce division by zero error
-    compute_delta_ns(0.1, d=2) #produce warnings
+    #compute_delta_ns(0.1, d=2) #produce warnings

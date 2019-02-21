@@ -12,6 +12,7 @@ from scipy.integrate import dblquad
 import scipy as sp
 
 from uncertainties import ufloat
+from mmf_hfb.integrates import dquad_q, dquad_kF
 from .integrate import quad, dquad
 
 
@@ -278,11 +279,13 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
             return f(k2_a, k2_b, *args) / np.pi
     elif d == 2:
         def integrand(kz, kp):
+            #print(kz,kp)
             k2_a = (kz+q)**2 + kp**2
             k2_b = (kz-q)**2 + kp**2
             return f(k2_a, k2_b, *args) / (2*np.pi**2)
     elif d == 3:
         def integrand(kz, kp):
+            #print(kz,kp)
             k2_a = (kz+q)**2 + kp**2
             k2_b = (kz-q)**2 + kp**2
             assert(kp>=0)
@@ -296,6 +299,7 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
     mu_q = mu - q**2/2*minv
     assert m_a == m_b   # Need to re-derive for different masses
     m = 1./minv
+    kF = math.sqrt(2*mu/minv)/hbar
 
     p_x_special = np.ma.divide(m*(dmu - np.array([delta, -delta])),
                                q).filled(np.nan).tolist()
@@ -332,10 +336,21 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
         A = 2*m*mu_q - pz**2
         return (cmath.sqrt(A + cmath.sqrt(D)).real/hbar,
                 cmath.sqrt(A - cmath.sqrt(D)).real/hbar)
-        
-    return dquad(func=integrand,
-                 x0=-k_inf, x1=k_inf,
-                 y0_x=kp0, y1_x=kp1,
-                 points_x=points,
-                 points_y_x=kp_special,
-                 limit=limit)
+    def func(kp,kz):
+        return integrand(kz,kp)
+
+    v0 = dquad_kF(f=func,mu_a=mu_a, mu_b=mu_b, delta=delta, 
+                    q=q, hbar=hbar, m_a=m_a, m_b=m_b, kF=kF, k_0=k_0, k_inf=k_inf, limit=limit)/2
+    # [clean up]
+    #v1 = dquad_q(func=integrand, mu_a=mu_a, mu_b=mu_b, delta=delta, 
+    #                q=q, hbar=hbar, m_a=m_a, m_b=m_b, k_0=k_0, k_inf=k_inf, limit=limit)/2    
+ 
+    #v2 = dquad(func=integrand,
+    #             x0=-k_inf, x1=k_inf,
+    #             y0_x=kp0, y1_x=kp1,
+    #             points_x=points,
+    #             points_y_x=kp_special,
+    #             limit=limit)
+    #print(v0, v1, v2)
+
+    return v0
