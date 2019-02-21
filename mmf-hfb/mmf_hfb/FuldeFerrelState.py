@@ -18,9 +18,11 @@ class FFState(object):
     
         Arguments
         ---------
-        fix_g: Boolean
-        if fix_g is False, the class will fix C_tilde when compute the detal
-        for given configuration. To use a fixing g, set fix_g to True
+        fix_g : bool
+           If fix_g is False, the class will fix C_tilde when
+           performing the non-linear iterations, otherwise the
+           coupling constant g_c will be fixed.  Note: this g_c will
+           depend on the cutoff k_c.
         """
         self.fix_g = fix_g
         self.d = d
@@ -30,22 +32,30 @@ class FFState(object):
         self.dmu = dmu
         self.delta = delta
         self.hbar = hbar
+        self.k_c = k_c
         self._tf_args = dict(m_a=1, m_b=1, d=d, hbar=hbar, T=T, k_c=k_c)
-        self.C = tf.compute_C(mu_a=mu, mu_b=mu, delta=delta, q=0, **self._tf_args).n
-        self.g = self.get_g(mu_a=mu, mu_b=mu, delta=delta, r=np.inf) 
+
+        if fix_g:
+            self._g = self.get_g(mu_a=mu, mu_b=mu, delta=delta, r=np.inf)
+        else:
+            self._C = tf.compute_C(mu_a=mu, mu_b=mu, delta=delta, q=0,
+                                   **self._tf_args).n
+            
         self._tf_args.update(mu_a=mu + dmu, mu_b=mu - dmu)
         
     def f(self, delta, r, **kw):
         args = dict(self._tf_args)
         args.update(kw)
         q = 1/r
-        return tf.compute_C(delta=delta, q=q, **args).n - self.C
+        return tf.compute_C(delta=delta, q=q, **args).n - self._C
 
-    def get_g(self, mu_a, mu_b, delta, r):
+    def get_g(self, r, delta, mu_a=None, mu_b=None):
         q = 1/r
-        args = dict(self._tf_args, delta=delta, q=q, mu_a=mu_a, mu_b=mu_b)
-        nu = tf.integrate_q(tf.nu_integrand, **args)
-        g = delta/nu.n
+        args = dict(self._tf_args, q=q, delta=delta)
+        if mu_a is not None:
+            args.update(mu_a=mu_a, mu_b=mu_b)
+        nu_delta = tf.integrate_q(tf.nu_delta_integrand, **args)
+        g = 1./nu_delta.n
         return g
 
     def get_densities(self, mu_a, mu_b, r, delta=None):
@@ -67,7 +77,7 @@ class FFState(object):
         if n_a is None:
             n_a, n_b = self.get_densities(mu_a=mu_a, mu_b=mu_b, delta=delta, r=r)
         kappa = tf.integrate_q(tf.kappa_integrand, **args)
-        g_c = 1/self.C
+        g_c = 1/self._C
         return kappa #  - 0*g_c * n_a * n_b 
     
     def get_pressure(self, mu_a, mu_b, r, delta=None):
@@ -83,16 +93,18 @@ class FFState(object):
         pressure = mu_a * n_a + mu_b * n_b - energy_density
         return pressure
 
-    def solve(self, mu_a, mu_b, r, a=0.8, b=1.2):
+    def solve(self, r, mu_a=None, mu_b=None, a=0.8, b=1.2):
         q = 1/r
-        args = dict(self._tf_args, mu_a=mu_a, mu_b=mu_b, q=q)
+        args = dict(self._tf_args, q=q)
+        if mu_a is not None:
+            args.update(mu_a=mu_a, mu_b=mu_b)
         
         def f(delta):
             if self.fix_g:
-                return self.g - self.get_g(mu_a=mu_a, mu_b=mu_b, delta=delta, r = r)
-            return self.C - tf.compute_C(delta=delta, **args).n
+                return self._g - self.get_g(r=r, delta=delta, mu_a=mu_a, mu_b=mu_b)
+            return self._C - tf.compute_C(delta=delta, **args).n
         try:
-            delta = brentq(f,a,b)
+            delta = brentq(f, a, b)
         except:
             delta = 0
         return delta
