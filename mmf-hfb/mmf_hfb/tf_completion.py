@@ -12,6 +12,9 @@ from scipy.integrate import dblquad
 import scipy as sp
 
 from uncertainties import ufloat
+
+from mmfutils.testing import allclose
+
 from mmf_hfb.integrates import dquad_q, dquad_kF
 from .integrate import quad, dquad
 
@@ -334,23 +337,29 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
         pz = hbar*kz
         D = (q*pz/m - dmu)**2 - delta**2
         A = 2*m*mu_q - pz**2
-        return (cmath.sqrt(A + cmath.sqrt(D)).real/hbar,
-                cmath.sqrt(A - cmath.sqrt(D)).real/hbar)
-    def func(kp,kz):
-        return integrand(kz,kp)
+        return (cmath.sqrt(A + 2*m*cmath.sqrt(D)).real/hbar,
+                cmath.sqrt(A - 2*m*cmath.sqrt(D)).real/hbar)
 
-    v0 = dquad_kF(f=func,mu_a=mu_a, mu_b=mu_b, delta=delta, 
-                    q=q, hbar=hbar, m_a=m_a, m_b=m_b, kF=kF, k_0=k_0, k_inf=k_inf, limit=limit)/2
+    def func(kp, kz):
+        return integrand(kz, kp)
+
+    #v0 = dquad_kF(f=func,mu_a=mu_a, mu_b=mu_b, delta=delta, 
+    #              q=q, hbar=hbar, m_a=m_a, m_b=m_b, kF=kF,
+    #              k_0=k_0, k_inf=k_inf, limit=limit)/2
+    #return v0
     # [clean up]
     #v1 = dquad_q(func=integrand, mu_a=mu_a, mu_b=mu_b, delta=delta, 
-    #                q=q, hbar=hbar, m_a=m_a, m_b=m_b, k_0=k_0, k_inf=k_inf, limit=limit)/2    
- 
-    #v2 = dquad(func=integrand,
-    #             x0=-k_inf, x1=k_inf,
-    #             y0_x=kp0, y1_x=kp1,
-    #             points_x=points,
-    #             points_y_x=kp_special,
-    #             limit=limit)
+    #             q=q, hbar=hbar, m_a=m_a, m_b=m_b,
+    #             k_0=k_0, k_inf=k_inf, limit=limit)/2    
+    #return v1
+    v2 = dquad(func=integrand,
+               x0=-k_inf, x1=k_inf,
+               y0_x=kp0, y1_x=kp1,
+               points_x=points,
+               points_y_x=kp_special,
+               limit=limit)
+    #assert allclose(v0, v2)
+    
     #print(v0, v1, v2)
 
-    return v0
+    return v2
