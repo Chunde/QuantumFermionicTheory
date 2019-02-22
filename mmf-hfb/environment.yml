@@ -5,7 +5,7 @@ channels:
   - ioam
   - bokeh
 dependencies:
-  - ipykernel
+  - python=2
 
   # Core
   - scipy
@@ -17,11 +17,14 @@ dependencies:
   - numexpr
 
   # Documentation
+  - ipython
+  - notebook
   - nbstripout
 
   # Plotting
   - matplotlib
   - holoviews
+  - datashader
   - paramnb
 
   # Testing
@@ -35,11 +38,12 @@ dependencies:
   - memory_profiler
   
   - pip:
-    # Core
-    - mmfutils
-    - pytimeode
     - mmf_setup
     - scikits.bvp1lg
-
-    # Performance
+    #- mmfutils
+    - hg+ssh://hg@bitbucket.org/mforbes/mmfutils-fork@0.4.12
+    #- pytimeode
+    - hg+ssh://hg@bitbucket.org/mforbes/pytimeode@0.9
+    - hg+ssh://hg@bitbucket.org/mforbes/gpe/
+    
     - pyfftw
