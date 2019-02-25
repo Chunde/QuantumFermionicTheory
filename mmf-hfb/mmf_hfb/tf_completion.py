@@ -317,6 +317,21 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
         integrand = sp.LowLevelCallable(integrand.ctypes)
         return quad(func=integrand, a=k_0, b=k_inf, points=points, limit=limit)
 
+    
+
+    #def func(kp, kz):
+    #    return integrand(kz, kp)
+
+    #v0 = dquad_kF(f=func,mu_a=mu_a, mu_b=mu_b, delta=delta, 
+    #              q=q, hbar=hbar, m_a=m_a, m_b=m_b, kF=kF,
+    #              k_0=k_0, k_inf=k_inf, limit=limit)/2
+    #return v0
+    # [clean up]
+    #v1 = dquad_q(func=integrand, mu_a=mu_a, mu_b=mu_b, delta=delta, 
+    #             q=q, hbar=hbar, m_a=m_a, m_b=m_b,
+    #             k_0=k_0, k_inf=k_inf, limit=limit)/2    
+    #return v1
+    
     def kp0(kz):
         # k**2 = kz**2 + kp**2 > k_0**2
         # kp**2 > k_0**2 - kz**2
@@ -339,19 +354,6 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
         A = 2*m*mu_q - pz**2
         return (cmath.sqrt(A + 2*m*cmath.sqrt(D)).real/hbar,
                 cmath.sqrt(A - 2*m*cmath.sqrt(D)).real/hbar)
-
-    def func(kp, kz):
-        return integrand(kz, kp)
-
-    #v0 = dquad_kF(f=func,mu_a=mu_a, mu_b=mu_b, delta=delta, 
-    #              q=q, hbar=hbar, m_a=m_a, m_b=m_b, kF=kF,
-    #              k_0=k_0, k_inf=k_inf, limit=limit)/2
-    #return v0
-    # [clean up]
-    #v1 = dquad_q(func=integrand, mu_a=mu_a, mu_b=mu_b, delta=delta, 
-    #             q=q, hbar=hbar, m_a=m_a, m_b=m_b,
-    #             k_0=k_0, k_inf=k_inf, limit=limit)/2    
-    #return v1
     v2 = dquad(func=integrand,
                x0=-k_inf, x1=k_inf,
                y0_x=kp0, y1_x=kp1,

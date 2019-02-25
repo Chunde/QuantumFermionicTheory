@@ -166,4 +166,4 @@ def dquad_q(func, mu_a, mu_b, delta, q, hbar=1,
     args=(mu, dmu, m_a, m_b, delta, hbar, q)
     res = ufloat(*quad(_infunc_q, k_0, k_inf, 
                        (func, k_0, k_inf, args, limit), limit=limit))
-    return res * 4
+    return res * 2 # factor of 2 account for -k_inf to k_0

@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>d96035f2-d7ba-4540-adc5-a336a7b7a91f</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>tests\test_FF_state.py</StartupFile>
+    <StartupFile>mmf_hfb\FuldeFerrelState.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -41,10 +41,14 @@
     <Compile Include="mmf_hfb\homogeneous.py" />
     <Compile Include="mmf_hfb\homogeneous_mmf.py" />
     <Compile Include="mmf_hfb\integrate.py" />
+    <Compile Include="mmf_hfb\integrates.py" />
     <Compile Include="mmf_hfb\scratch.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="mmf_hfb\tf_completion.py" />
+    <Compile Include="mmf_hfb\VortexState.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="mmf_hfb\vortex_1d_aslda.py" />
     <Compile Include="tests\test_bcs.py" />
     <Compile Include="tests\test_FF_state.py">

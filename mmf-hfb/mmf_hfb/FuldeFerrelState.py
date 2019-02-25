@@ -5,12 +5,12 @@ from scipy.optimize import brentq
 from multiprocessing import Pool
 import json
 from json import dumps
-
+from functools import partial
 tf.set_max_iteration(200)
 
 class FFState(object):
     def __init__(self, mu=10, dmu=0.4, delta=1,
-                 m=1, T=0, hbar=1, k_c=100, d=2,fix_g=False):
+                 m=1, T=0, hbar=1, k_c=100, d=2, fix_g=False):
         """Compute a double integral.
 
         Note: The order of arguments is not the same as dblquad.  They are
@@ -47,9 +47,12 @@ class FFState(object):
         args = dict(self._tf_args)
         args.update(kw)
         q = 1/r
+        if self.fix_g:
+            return self.get_g(r=r, delta=delta, **args) - self._g
+
         return tf.compute_C(delta=delta, q=q, **args).n - self._C
 
-    def get_g(self, r, delta, mu_a=None, mu_b=None):
+    def get_g(self, r, delta, mu_a=None, mu_b=None, **kw):
         q = 1/r
         args = dict(self._tf_args, q=q, delta=delta)
         if mu_a is not None:
@@ -119,14 +122,15 @@ def min_index(fs):
             min_index = i
     return min_index,min_value
 
-def compute_delta_ns(r, d ,mu=10, dmu=0.4):
-    ff = FFState(dmu=dmu, mu=mu, d=d, fix_g=False)
-    ds = np.linspace(0.1,1.5,10)
+def compute_delta_ns(r, d ,mu=10, dmu=2, delta=1):
+    ff = FFState(dmu=dmu, mu=mu, d=d, delta=delta, fix_g=False)
+    b = 2*delta
+    ds = np.linspace(0.011,2*delta,10)
     fs = [ff.f(delta=delta, r=r, mu_a=mu+dmu, mu_b=mu-dmu) for delta in ds]
     index, value = min_index(fs)
     delta = 0
     if value < 0:
-        delta = ff.solve(r=r,a= ds[index], mu_a=mu+dmu, mu_b=mu-dmu)
+        delta = ff.solve(r=r, a=ds[index], b=b, mu_a=mu+dmu, mu_b=mu-dmu)
         if fs[0] > 0:
             smaller_delta = ff.solve(r=r,a=ds[0],b=ds[index], mu_a=mu+dmu, mu_b=mu-dmu)
             print(f"a smaller delta={smaller_delta} is found for r={r}")
@@ -137,19 +141,31 @@ def compute_delta_ns(r, d ,mu=10, dmu=0.4):
     na,nb = ff.get_densities(delta=delta, r=r, mu_a=mu+dmu, mu_b=mu-dmu)
     return (delta, na, nb)
 
-def worker_thread(r):
-    return compute_delta_ns(r, d=2)
+def worker_thread(r, delta):
+    return compute_delta_ns(r, d=2, delta=delta)
 
-def compute_ff_delta_ns_2d():
+def compute_ff_delta_ns_2d(delta):
     """Compute 2d FF State Delta, densities"""
     deltas2 = []
     na2 = []
     nb2 = []
-    rs2 = np.linspace(0.1,10,100).tolist() #np.append(np.linspace(0.1,1,10),[np.linspace(2,4,20),np.linspace(4.1,8,20)]).tolist()#
+    rs2 = np.linspace(0.001, 10, 100).tolist()#np.append(np.linspace(0.1,1,10),[np.linspace(2,4,20),np.linspace(4.1,8,20)]).tolist()#
+    #for r in rs2:
+    #    delta,na,nb = compute_delta_ns(r=r, d=2, mu=10, dmu=2)
+    #    deltas2.append(delta)
+    #    na2.append(na.n)
+    #    nb2.append(nb.n)
+    #outputs = [deltas2, na2, nb2]
+    #print(outputs)
+    #with open("delta_ns.txt",'w',encoding ='utf-8') as wf:
+    #    json.dump(outputs,wf, ensure_ascii=False)
+
+
     logic_cpu_count = os.cpu_count() - 1
     logic_cpu_count = 1 if logic_cpu_count < 1 else logic_cpu_count
     with Pool(logic_cpu_count) as Pools:
-        rets = Pools.map(worker_thread,rs2)
+        worker_thread_partial = partial(worker_thread, delta=delta)
+        rets = Pools.map(worker_thread_partial,rs2)
         for ret in rets:
             deltas2.append(ret[0])
             na2.append(ret[1].n)
@@ -172,6 +188,7 @@ def simple_test():
     tf.compute_C(mu_a = mu + dmu, mu_b = mu - dmu, delta=delta, m_a=m_a, m_b=m_b, d=d, k_c=k_c, T=T, q = q)
 
 if __name__ == "__main__":
-    compute_ff_delta_ns_2d() #generate 2d data
+    #compute_delta_ns(r=3, d=2 ,mu=10, dmu=2, delta=5)
+    compute_ff_delta_ns_2d(delta=5) #generate 2d data
     # compute_delta_ns(5, d=2) #produce division by zero error
     #compute_delta_ns(0.1, d=2) #produce warnings
