@@ -1,29 +1,16 @@
 """Numba functions for fast integration of homogeneous matter."""
-import sys
-sys.path.append(".")
-
 import math
 import cmath
 
 import numpy as np
 import numba
 
-from scipy.integrate import dblquad
 import scipy as sp
 
-from uncertainties import ufloat
-
-from mmfutils.testing import allclose
-
-from mmf_hfb.integrates import dquad_q, dquad_kF
 from .integrate import quad, dquad
 
 
-global MAX_ITERATION
-MAX_ITERATION=50
-def set_max_iteration(n):
-    global MAX_ITERATION
-    MAX_ITERATION = 200
+MAX_ITERATION = 65
 
 
 @numba.jit(nopython=True)
@@ -191,25 +178,28 @@ def Lambda(m, mu, hbar, d, E_c=None, k_c=None):
             1 - k_0/2/k_c*np.log((k_c+k_0)/(k_c-k_0)))
     else:
         raise ValueError(f"Only d=1, 2, or 3 supported (got d={d})")
-    #assert np.allclose(res.imag, 0) # [Check] this will go false at some point when q is large
+    # assert np.allclose(res.imag, 0)
+    # [Check] this will go false at some point when q is large
     return res.real
 
 
-def compute_C(mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0, q=0,
-              k_c=None, debug=False):
+def compute_C(mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0,
+              dq=0, k_c=None, debug=False):
     # Note: code only works for m_a == m_b
+    # ERROR: Check with new q and dq relations...
+    
     args = dict(mu_a=mu_a, mu_b=mu_b, delta=delta, m_a=m_a, m_b=m_b,
                 d=d, hbar=hbar, T=T)
 
     m = 2*m_a*m_b/(m_a+m_b)
     mu = (mu_a + mu_b)/2
-    mu_q = mu - (hbar*q)**2/2/m 
+    mu_q = mu - (hbar*dq)**2/2/m
     if k_c is None:
         k_F = np.sqrt(2*m*mu)/hbar
         k_c = 100*k_F
     
     Lambda_c = Lambda(m=m, mu=mu_q, hbar=hbar, d=d, k_c=k_c)
-    nu_c_delta = integrate_q(f=nu_delta_integrand, k_c=k_c, q=q, **args)
+    nu_c_delta = integrate_q(f=nu_delta_integrand, k_c=k_c, dq=dq, **args)
     C_corr = integrate_q(f=C_integrand, k_0=k_c, **args)
     C_c = nu_c_delta + Lambda_c
     C = C_c + C_corr
@@ -253,7 +243,7 @@ def integrate(f, mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0,
 
 
 def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
-                q=0.0, hbar=1.0, T=0.0, k_0=0, k_c=None, limit=None):
+                q=0, dq=0.0, hbar=1.0, T=0.0, k_0=0, k_c=None, limit=None):
     """Return the integral of f() over d-dimensional momentum space.
  
     Arguments
@@ -264,7 +254,7 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
     """
     k_inf = np.inf if k_c is None else k_c
     
-    if False and q == 0:
+    if False and q == 0 and dq == 0:
         return integrate(f, d=d, k_0=k_0, k_c=k_inf,
                          mu_a=mu_a, mu_b=mu_b, delta=delta,
                          m_a=m_a, m_b=m_b, hbar=hbar, T=T)
@@ -277,20 +267,21 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
     
     if d == 1:
         def integrand(k):
-            k2_a = (k+q)**2
-            k2_b = (k-q)**2
+            k2_a = (k + q + dq)**2
+            k2_b = (k + q - dq)**2
             return f(k2_a, k2_b, *args) / np.pi
     elif d == 2:
-        def integrand(kz, kp):
-            #print(kz,kp)
-            k2_a = (kz+q)**2 + kp**2
-            k2_b = (kz-q)**2 + kp**2
+        def integrand(kx, kp):
+            # print(kx, kp)
+            k2_a = (kx + q + dq)**2 + kp**2
+            k2_b = (kx + q - dq)**2 + kp**2
+            assert(kp>=0)
             return f(k2_a, k2_b, *args) / (2*np.pi**2)
     elif d == 3:
-        def integrand(kz, kp):
-            #print(kz,kp)
-            k2_a = (kz+q)**2 + kp**2
-            k2_b = (kz-q)**2 + kp**2
+        def integrand(kx, kp):
+            # print(kx, kp)
+            k2_a = (kx + q + dq)**2 + kp**2
+            k2_b = (kx + q - dq)**2 + kp**2
             assert(kp>=0)
             return f(k2_a, k2_b, *args) * (kp/4/np.pi**2)
     else:
@@ -299,59 +290,66 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
     mu = (mu_a + mu_b)/2
     dmu = (mu_a - mu_b)/2
     minv = (1/m_a + 1/m_b)/2
-    mu_q = mu - q**2/2*minv
+    mu_q = mu - dq**2/2*minv
     assert m_a == m_b   # Need to re-derive for different masses
     m = 1./minv
     kF = math.sqrt(2*mu/minv)/hbar
 
-    p_x_special = np.ma.divide(m*(dmu - np.array([delta, -delta])),
-                               q).filled(np.nan).tolist()
+    # The following conditions were derived from w(kx, kp) = 0 and
+    # similar conditions which are now w(kx+q, kp) = 0.  If the old
+    # solutions were kp(kx) and kx, then new solutions should be
+    # kp(kx+q) and kx - q.
+    p_x_special = (np.ma.divide(m*(dmu - np.array([delta, -delta])),
+                                dq).filled(np.nan)
+                   - q).tolist()
 
     # Quartic polynomial for special points.  See Docs/Integrate.ipynb
-    P = [1, 0, -4*(m*mu_q + q**2),
-         8*m*q*dmu, 4*m**2*(delta**2 + mu_q**2 - dmu**2)]
-    p_x_special.extend([p.real  for p in np.roots(P)])
-    points = sorted(set([x/hbar for x in p_x_special  if not math.isnan(x)]))
+    P = [1, 0, -4*(m*mu_q + dq**2),
+         8*m*dq*dmu, 4*m**2*(delta**2 + mu_q**2 - dmu**2)]
+    p_x_special.extend([p.real - q for p in np.roots(P)])
+    points = sorted(set([x/hbar for x in p_x_special if not math.isnan(x)]))
     if d == 1:
         integrand = numba.cfunc(numba.float64(numba.float64))(integrand)
         integrand = sp.LowLevelCallable(integrand.ctypes)
         return quad(func=integrand, a=k_0, b=k_inf, points=points, limit=limit)
 
-    
+    if False:
+        def func(kp, kx):
+            return integrand(kx, kp)
 
-    #def func(kp, kz):
-    #    return integrand(kz, kp)
+        from mmf_hfb.integrates import dquad_q, dquad_kF
+        v0 = dquad_kF(f=func, mu_a=mu_a, mu_b=mu_b, delta=delta,
+                      dq=dq, hbar=hbar, m_a=m_a, m_b=m_b, kF=kF,
+                      k_0=k_0, k_inf=k_inf, limit=limit)/2
+        return v0
 
-    #v0 = dquad_kF(f=func,mu_a=mu_a, mu_b=mu_b, delta=delta, 
-    #              q=q, hbar=hbar, m_a=m_a, m_b=m_b, kF=kF,
-    #              k_0=k_0, k_inf=k_inf, limit=limit)/2
-    #return v0
-    # [clean up]
-    #v1 = dquad_q(func=integrand, mu_a=mu_a, mu_b=mu_b, delta=delta, 
-    #             q=q, hbar=hbar, m_a=m_a, m_b=m_b,
-    #             k_0=k_0, k_inf=k_inf, limit=limit)/2    
-    #return v1
+    if False:
+        # [clean up]
+        v1 = dquad_q(func=integrand, mu_a=mu_a, mu_b=mu_b, delta=delta,
+                     dq=dq, hbar=hbar, m_a=m_a, m_b=m_b,
+                     k_0=k_0, k_inf=k_inf, limit=limit)/2
+        return v1
     
-    def kp0(kz):
-        # k**2 = kz**2 + kp**2 > k_0**2
-        # kp**2 > k_0**2 - kz**2
-        kz2 = kz**2
+    def kp0(kx):
+        # k**2 = kx**2 + kp**2 > k_0**2
+        # kp**2 > k_0**2 - kx**2
+        kx2 = kx**2
         k_02 = k_0**2
-        if kz2 < k_02:
-            return math.sqrt(k_02 - kz2)
+        if kx2 < k_02:
+            return math.sqrt(k_02 - kx2)
         else:
             return 0.0
 
-    def kp1(kz):
-        # k**2 = kz**2 + kp**2 < k_inf**2
-        # kp**2 < k_inf**2 - kz**2
-        # This will always work because kz < k_inf
-        return math.sqrt(k_inf**2 - kz**2)
+    def kp1(kx):
+        # k**2 = kx**2 + kp**2 < k_inf**2
+        # kp**2 < k_inf**2 - kx**2
+        # This will always work because kx < k_inf
+        return math.sqrt(k_inf**2 - kx**2)
 
-    def kp_special(kz):
-        pz = hbar*kz
-        D = (q*pz/m - dmu)**2 - delta**2
-        A = 2*m*mu_q - pz**2
+    def kp_special(kx):
+        px = hbar*(kx + q)
+        D = (dq*px/m - dmu)**2 - delta**2
+        A = 2*m*mu_q - px**2
         return (cmath.sqrt(A + 2*m*cmath.sqrt(D)).real/hbar,
                 cmath.sqrt(A - 2*m*cmath.sqrt(D)).real/hbar)
     v2 = dquad(func=integrand,
@@ -360,8 +358,9 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
                points_x=points,
                points_y_x=kp_special,
                limit=limit)
-    #assert allclose(v0, v2)
+    # from mmfutils.testing import allclose
+    # assert allclose(v0, v2)
     
-    #print(v0, v1, v2)
+    # print(v0, v1, v2)
 
     return v2

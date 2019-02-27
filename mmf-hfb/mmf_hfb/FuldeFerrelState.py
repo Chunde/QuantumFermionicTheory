@@ -6,7 +6,8 @@ from multiprocessing import Pool
 import json
 from json import dumps
 from functools import partial
-tf.set_max_iteration(200)
+# tf.MAX_ITERATION = 200
+
 
 class FFState(object):
     def __init__(self, mu=10, dmu=0.4, delta=1,
@@ -36,7 +37,7 @@ class FFState(object):
         self._tf_args = dict(m_a=1, m_b=1, d=d, hbar=hbar, T=T, k_c=k_c)
 
         if fix_g:
-            self._g = self.get_g(mu_a=mu, mu_b=mu, delta=delta, r=np.inf)
+            self._g = self.get_g(mu=mu, dmu=0, delta=delta, r=np.inf)
         else:
             self._C = tf.compute_C(mu_a=mu, mu_b=mu, delta=delta, q=0,
                                    **self._tf_args).n
@@ -46,70 +47,73 @@ class FFState(object):
     def f(self, delta, r, **kw):
         args = dict(self._tf_args)
         args.update(kw)
-        q = 1/r
+        q = 1/r                 # ERROR: Use new q and dq relations...
+
         if self.fix_g:
             return self.get_g(r=r, delta=delta, **args) - self._g
 
         return tf.compute_C(delta=delta, q=q, **args).n - self._C
 
-    def get_g(self, r, delta, mu_a=None, mu_b=None, **kw):
-        q = 1/r
-        args = dict(self._tf_args, q=q, delta=delta)
-        if mu_a is not None:
-            args.update(mu_a=mu_a, mu_b=mu_b)
+    def get_g(self, delta, mu=None, dmu=None, q=0, dq=0, **kw):
+        args = dict(self._tf_args, q=q, dq=dq, delta=delta)
+        if mu is not None:
+            args.update(mu_a=mu+dmu, mu_b=mu-dmu)
         nu_delta = tf.integrate_q(tf.nu_delta_integrand, **args)
         g = 1./nu_delta.n
         return g
 
-    def get_densities(self, mu_a, mu_b, r, delta=None):
-        q = 1/r
+    def get_densities(self, mu, dmu, q=0, dq=0, delta=None, k_c=None):
         if delta is None:
-            delta = self.solve(r=r, mu_a=mu_a, mu_b=mu_b)
-        args = dict(self._tf_args, mu_a=mu_a, mu_b=mu_b, delta=delta, q=q)
+            delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq)
+        args = dict(self._tf_args, mu_a=mu + dmu, mu_b=mu - dmu, delta=delta,
+                    q=q, dq=dq)
+        if k_c is not None:
+            args['k_c'] = k_c
+            
         n_p = tf.integrate_q(tf.n_p_integrand, **args)
         n_m = tf.integrate_q(tf.n_m_integrand, **args)
         n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
         return n_a, n_b
     
-    def get_energy_density(self, mu_a, mu_b, r,delta=None,  n_a=None, n_b=None):
-        q = 1/r
+    def get_energy_density(self, mu, dmu, q=0, dq=0, delta=None,
+                           n_a=None, n_b=None):
         if delta is None:
-            delta = self.solve(r=r, mu_a=mu_a, mu_b=mu_b)
-        mu_p, mu_m = (mu_a + mu_b)/2, (mu_a - mu_b)/2
-        args = dict(self._tf_args, mu_a=mu_a, mu_b=mu_b, delta=delta, q=q)
+            delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq)
         if n_a is None:
-            n_a, n_b = self.get_densities(mu_a=mu_a, mu_b=mu_b, delta=delta, r=r)
-        kappa = tf.integrate_q(tf.kappa_integrand, **args)
-        g_c = 1/self._C
-        return kappa #  - 0*g_c * n_a * n_b 
-    
-    def get_pressure(self, mu_a, mu_b, r, delta=None):
-        q = 1/r
-        
-        if delta is None:
-            delta = self.solve(r=r, mu_a=mu_a, mu_b=mu_b)
+            n_a, n_b = self.get_densities(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
+
+        args = dict(self._tf_args, mu_a=mu + dmu, mu_b=mu - dmu, delta=delta,
+                    q=q, dq=dq)
             
-        args = dict(self._tf_args, mu_a=mu_a, mu_b=mu_b, delta=delta, q=q)
-        n_a, n_b = self.get_densities(mu_a=mu_a, mu_b=mu_b, delta=delta, r=r)
+        kappa = tf.integrate_q(tf.kappa_integrand, **args)
+        # g_c = 1./self._C
+        return kappa  # - 0*g_c * n_a * n_b
+    
+    def get_pressure(self, mu, dmu, q=0, dq=0, delta=None):
+        if delta is None:
+            delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq)
+            
+        n_a, n_b = self.get_densities(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
+        print(n_a, n_b)
         energy_density = self.get_energy_density(
-            n_a=n_a, n_b=n_b, mu_a=mu_a, mu_b=mu_b, delta=delta, r=r)
+            mu=mu, dmu=dmu, delta=delta, q=q, dq=dq,
+            n_a=n_a, n_b=n_b)
+        mu_a, mu_b = mu + dmu, mu - mu
         pressure = mu_a * n_a + mu_b * n_b - energy_density
         return pressure
 
-    def solve(self, r, mu_a=None, mu_b=None, a=0.8, b=1.2):
-        q = 1/r
-        args = dict(self._tf_args, q=q)
-        if mu_a is not None:
-            args.update(mu_a=mu_a, mu_b=mu_b)
+    def solve(self, mu=None, dmu=None, q=0, dq=0, a=0.8, b=1.2):
+        args = dict(self._tf_args, q=q, dq=dq)
+        if mu is not None:
+            args.update(mu=mu, dmu=dmu)
         
         def f(delta):
             if self.fix_g:
-                return self._g - self.get_g(r=r, delta=delta, mu_a=mu_a, mu_b=mu_b)
+                return self._g - self.get_g(delta=delta,
+                                            mu=mu, dmu=dmu,
+                                            q=q, dq=dq)
             return self._C - tf.compute_C(delta=delta, **args).n
-        try:
-            delta = brentq(f, a, b)
-        except:
-            delta = 0
+        delta = brentq(f, a, b)
         return delta
 
 
