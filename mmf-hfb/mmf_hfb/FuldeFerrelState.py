@@ -6,7 +6,7 @@ from multiprocessing import Pool
 import json
 from json import dumps
 from functools import partial
-# tf.MAX_ITERATION = 200
+tf.MAX_ITERATION = 200
 
 
 class FFState(object):
@@ -64,7 +64,7 @@ class FFState(object):
 
     def get_densities(self, mu, dmu, q=0, dq=0, delta=None, k_c=None):
         if delta is None:
-            delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq)
+            delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, a=0.001, b = 2 * self.delta)
         args = dict(self._tf_args, mu_a=mu + dmu, mu_b=mu - dmu, delta=delta,
                     q=q, dq=dq)
         if k_c is not None:
@@ -72,13 +72,15 @@ class FFState(object):
             
         n_p = tf.integrate_q(tf.n_p_integrand, **args)
         n_m = tf.integrate_q(tf.n_m_integrand, **args)
+        print(args)
+        print(f"n_p={n_p}\tn_m={n_m}")
         n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
         return n_a, n_b
     
     def get_energy_density(self, mu, dmu, q=0, dq=0, delta=None,
                            n_a=None, n_b=None):
         if delta is None:
-            delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq)
+            delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, a=0.001, b = 2 * self.delta)
         if n_a is None:
             n_a, n_b = self.get_densities(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
 
@@ -86,19 +88,21 @@ class FFState(object):
                     q=q, dq=dq)
             
         kappa = tf.integrate_q(tf.kappa_integrand, **args)
-        # g_c = 1./self._C
-        return kappa  # - 0*g_c * n_a * n_b
+        if self.fix_g:
+            g_c = self._g
+        else:
+            g_c = 1./self._C
+        return kappa #  - g_c * n_a * n_b /2
     
     def get_pressure(self, mu, dmu, q=0, dq=0, delta=None):
         if delta is None:
-            delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq)
+            delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, a=0.001, b = 2 * self.delta)
             
         n_a, n_b = self.get_densities(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
-        print(n_a, n_b)
         energy_density = self.get_energy_density(
             mu=mu, dmu=dmu, delta=delta, q=q, dq=dq,
             n_a=n_a, n_b=n_b)
-        mu_a, mu_b = mu + dmu, mu - mu
+        mu_a, mu_b = mu + dmu, mu - dmu
         pressure = mu_a * n_a + mu_b * n_b - energy_density
         return pressure
 
@@ -113,7 +117,10 @@ class FFState(object):
                                             mu=mu, dmu=dmu,
                                             q=q, dq=dq)
             return self._C - tf.compute_C(delta=delta, **args).n
-        delta = brentq(f, a, b)
+        try:
+            delta = brentq(f, a, b)
+        except:
+            delta = 0
         return delta
 
 
@@ -180,16 +187,6 @@ def compute_ff_delta_ns_2d(delta):
             json.dump(outputs,wf, ensure_ascii=False)
 
 
-def simple_test():
-    mu=10
-    dmu=0.4
-    delta= 0
-    m_a=m_b=1
-    T=0
-    q=0.2222222222222222
-    d=2
-    k_c=100
-    tf.compute_C(mu_a = mu + dmu, mu_b = mu - dmu, delta=delta, m_a=m_a, m_b=m_b, d=d, k_c=k_c, T=T, q = q)
 
 if __name__ == "__main__":
     #compute_delta_ns(r=3, d=2 ,mu=10, dmu=2, delta=5)

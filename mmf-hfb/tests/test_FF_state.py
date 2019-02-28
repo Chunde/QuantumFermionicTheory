@@ -3,7 +3,7 @@ import pytest
 from mmf_hfb import tf_completion as tf
 
 from mmf_hfb.FuldeFerrelState import FFState as FF
-# tf.MAX_ITERATION = 200
+tf.MAX_ITERATION = 200
 
 
 @pytest.fixture(params=[1, 2])
@@ -21,12 +21,12 @@ def dq(request):
     return request.param
 
 
-@pytest.fixture(params=[10])
+@pytest.fixture(params=[5, 10])
 def mu(request):
     return request.param
 
 
-@pytest.fixture(params=[0.4])
+@pytest.fixture(params=[0.4, 0.64])
 def dmu(request):
     return request.param
 
@@ -45,8 +45,6 @@ def test_Thermodynamic(mu, dmu, d, k_c, q, dq):
     
     def get_P(mu, dmu):
         delta = ff.solve(mu=mu, dmu=dmu, q=q, dq=dq)
-        print(delta)
-        # print(delta)
         return ff.get_pressure(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
 
     def get_E_n(mu, dmu):
@@ -77,22 +75,28 @@ def test_Thermodynamic(mu, dmu, d, k_c, q, dq):
 
 
 @pytest.mark.bench()
-def test_thermodynamic_relations(d, q, dq, k_c=100):
+def test_thermodynamic_relations(d, q, dq, k_c=500):
     mus = [5, 10]
     dmus = [0.4, 0.64]
     for mu in mus:
         for dmu in dmus:
             test_Thermodynamic(mu=mu, dmu=dmu, d=d, k_c=k_c, q=q, dq=dq)
 
+def debug():
+    # Need to figure out what the delta will jump
+    # the thermodyanmic relations should be satified
+    #  when delta changes smoothly
+    args1 = {'m_a': 1, 'm_b': 1, 'd': 1, 'hbar': 1, 'T': 0, 'k_c': 500, 'mu_a': 15.5022, 'mu_b': 14.499799999999999, 'delta': 0, 'q': 0.0, 'dq': 0}
+    n_m1 = tf.integrate_q(tf.n_m_integrand, **args1)
+    args2 = {'m_a': 1, 'm_b': 1, 'd': 1, 'hbar': 1, 'T': 0, 'k_c': 500, 'mu_a': 15.5022, 'mu_b': 14.499799999999999, 'delta': 0.9999078648867892, 'q': 0.0, 'dq': 0}
+    n_m2 = tf.integrate_q(tf.n_m_integrand, **args2)
+    print(n_m1,n_m2)
 
 if __name__ == "__main__":
     """Failure case:
     1) mu=10   dmu=0.64    d=2    kc=100
     """
-    test_Thermodynamic(mu=10, dmu=0.64, d= 2, q=0.1, dq=0.1, k_c=500)  # will fail
-    # ks = [500]
-    # d = 2
-    # r = 10.0
-    # print(f"Performing {d}-dimension, r={r} test...")
-    # for kc in ks:
-    #     test_thermodynamic_relations(d=d, r=r, k_c=kc)
+    test_Thermodynamic(mu=15, dmu=0.5012, d=1, q=0.0, dq=0, k_c=500)  # will fail as the solution of delta will jump from zero to 1
+    test_Thermodynamic(mu=15, dmu=0.5011, d=1, q=0.0, dq=0, k_c=500)  # will pass as the delta is continuous around 1
+    
+
