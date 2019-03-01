@@ -68,7 +68,7 @@ def test_Thermodynamic(mu, dmu, d, k_c, q, dq):
     print(f"n_a={n_a.n}\tNumerical  n_a={n_a_.n}")
     print(f"n_b={n_b.n}\tNumerical  n_b={n_b_.n}")
     print(f"n_p={n_a.n+n_b.n}\tNumerical  n_p={n_p.n}")
-       
+    assert np.allclose(mu,((E1-E0)/(n1-n0)).n)
     assert np.allclose(n_p.n, (n_a+n_b).n)
     assert np.allclose(n_a.n, n_a_.n)
     assert np.allclose(n_b.n, n_b_.n)
