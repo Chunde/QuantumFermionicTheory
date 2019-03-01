@@ -41,18 +41,15 @@ class FFState(object):
         else:
             self._C = tf.compute_C(mu_a=mu, mu_b=mu, delta=delta, q=0,
                                    **self._tf_args).n
-            
-        self._tf_args.update(mu_a=mu + dmu, mu_b=mu - dmu)
         
-    def f(self, delta, r, **kw):
+    def f(self, delta, q=0, dq=0, **kw):
         args = dict(self._tf_args)
         args.update(kw)
-        q = 1/r                 # ERROR: Use new q and dq relations...
 
         if self.fix_g:
-            return self.get_g(r=r, delta=delta, **args) - self._g
+            return self.get_g(q=q, dq=dq, delta=delta, **args) - self._g
 
-        return tf.compute_C(delta=delta, q=q, **args).n - self._C
+        return tf.compute_C(delta=delta, q=q, dq=dq **args).n - self._C
 
     def get_g(self, delta, mu=None, dmu=None, q=0, dq=0, **kw):
         args = dict(self._tf_args, q=q, dq=dq, delta=delta)
@@ -64,7 +61,8 @@ class FFState(object):
 
     def get_densities(self, mu, dmu, q=0, dq=0, delta=None, k_c=None):
         if delta is None:
-            delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, a=0.001, b = 2 * self.delta)
+            delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
+                               a=self.delta * 0.8, b=self.delta * 1.2)
         args = dict(self._tf_args, mu_a=mu + dmu, mu_b=mu - dmu, delta=delta,
                     q=q, dq=dq)
         if k_c is not None:
@@ -72,15 +70,14 @@ class FFState(object):
             
         n_p = tf.integrate_q(tf.n_p_integrand, **args)
         n_m = tf.integrate_q(tf.n_m_integrand, **args)
-        print(args)
-        print(f"n_p={n_p}\tn_m={n_m}")
         n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
         return n_a, n_b
     
     def get_energy_density(self, mu, dmu, q=0, dq=0, delta=None,
                            n_a=None, n_b=None):
         if delta is None:
-            delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, a=0.001, b = 2 * self.delta)
+            delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
+                               a=self.delta * 0.8, b=self.delta * 1.2)
         if n_a is None:
             n_a, n_b = self.get_densities(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
 
@@ -96,7 +93,8 @@ class FFState(object):
     
     def get_pressure(self, mu, dmu, q=0, dq=0, delta=None):
         if delta is None:
-            delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, a=0.001, b = 2 * self.delta)
+            delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
+                               a=self.delta * 0.8, b=self.delta * 1.2)
             
         n_a, n_b = self.get_densities(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
         energy_density = self.get_energy_density(
@@ -109,13 +107,11 @@ class FFState(object):
     def solve(self, mu=None, dmu=None, q=0, dq=0, a=0.8, b=1.2):
         args = dict(self._tf_args, q=q, dq=dq)
         if mu is not None:
-            args.update(mu=mu, dmu=dmu)
-        
+            args.update(mu=mu, dmu=dmu, mu_a=mu+dmu, mu_b=mu-dmu)
         def f(delta):
             if self.fix_g:
-                return self._g - self.get_g(delta=delta,
-                                            mu=mu, dmu=dmu,
-                                            q=q, dq=dq)
+                g =  self.get_g(delta=delta, mu=mu, dmu=dmu, q=q, dq=dq)
+                return self._g - g
             return self._C - tf.compute_C(delta=delta, **args).n
         try:
             delta = brentq(f, a, b)
@@ -160,16 +156,7 @@ def compute_ff_delta_ns_2d(delta):
     deltas2 = []
     na2 = []
     nb2 = []
-    rs2 = np.linspace(0.001, 10, 100).tolist()#np.append(np.linspace(0.1,1,10),[np.linspace(2,4,20),np.linspace(4.1,8,20)]).tolist()#
-    #for r in rs2:
-    #    delta,na,nb = compute_delta_ns(r=r, d=2, mu=10, dmu=2)
-    #    deltas2.append(delta)
-    #    na2.append(na.n)
-    #    nb2.append(nb.n)
-    #outputs = [deltas2, na2, nb2]
-    #print(outputs)
-    #with open("delta_ns.txt",'w',encoding ='utf-8') as wf:
-    #    json.dump(outputs,wf, ensure_ascii=False)
+    rs2 = np.linspace(0.001, 10, 100).tolist()
 
 
     logic_cpu_count = os.cpu_count() - 1

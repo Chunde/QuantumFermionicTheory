@@ -82,21 +82,9 @@ def test_thermodynamic_relations(d, q, dq, k_c=500):
         for dmu in dmus:
             test_Thermodynamic(mu=mu, dmu=dmu, d=d, k_c=k_c, q=q, dq=dq)
 
-def debug():
-    # Need to figure out what the delta will jump
-    # the thermodyanmic relations should be satified
-    #  when delta changes smoothly
-    args1 = {'m_a': 1, 'm_b': 1, 'd': 1, 'hbar': 1, 'T': 0, 'k_c': 500, 'mu_a': 15.5022, 'mu_b': 14.499799999999999, 'delta': 0, 'q': 0.0, 'dq': 0}
-    n_m1 = tf.integrate_q(tf.n_m_integrand, **args1)
-    args2 = {'m_a': 1, 'm_b': 1, 'd': 1, 'hbar': 1, 'T': 0, 'k_c': 500, 'mu_a': 15.5022, 'mu_b': 14.499799999999999, 'delta': 0.9999078648867892, 'q': 0.0, 'dq': 0}
-    n_m2 = tf.integrate_q(tf.n_m_integrand, **args2)
-    print(n_m1,n_m2)
 
 if __name__ == "__main__":
-    """Failure case:
-    1) mu=10   dmu=0.64    d=2    kc=100
-    """
-    test_Thermodynamic(mu=15, dmu=0.5012, d=1, q=0.0, dq=0, k_c=500)  # will fail as the solution of delta will jump from zero to 1
-    test_Thermodynamic(mu=15, dmu=0.5011, d=1, q=0.0, dq=0, k_c=500)  # will pass as the delta is continuous around 1
+    #test_Thermodynamic(mu=15, dmu=0.5012, d=1, q=0.0, dq=0, k_c=500)
+    #test_Thermodynamic(mu=15, dmu=0.5011, d=1, q=0.0, dq=0, k_c=500)
     
 
