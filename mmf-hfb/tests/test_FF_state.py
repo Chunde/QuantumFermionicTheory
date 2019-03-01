@@ -84,7 +84,6 @@ def test_thermodynamic_relations(d, q, dq, k_c=500):
 
 
 if __name__ == "__main__":
-    #test_Thermodynamic(mu=15, dmu=0.5012, d=1, q=0.0, dq=0, k_c=500)
-    #test_Thermodynamic(mu=15, dmu=0.5011, d=1, q=0.0, dq=0, k_c=500)
+    test_Thermodynamic(mu=15, dmu=0.5012, d=1, q=0.0, dq=0, k_c=500)
+    test_Thermodynamic(mu=15, dmu=0.5011, d=1, q=0.0, dq=0, k_c=500)
     
-
