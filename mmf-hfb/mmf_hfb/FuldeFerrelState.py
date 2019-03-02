@@ -124,7 +124,6 @@ class FFStatePhaseMapper(object):
     
     def find_delta_pressure(delta0, mu, dmu, dq):
         """compute detla and pressure"""
-        print(f"delta0={delta0}\tmu={mu}\tdmu={dmu}\tdq={dq}")
         ff = FFState(fix_g=True, mu=mu, dmu=dmu, delta=delta0, d=2, k_c=500, m=0, T=0)
         ds = np.linspace(0.1 * delta0, 2* delta0, 10)
         fs = [ff.f(mu=mu, dmu=dmu, delta=d, dq=dq) for d in ds]
@@ -132,9 +131,9 @@ class FFStatePhaseMapper(object):
             for i in range(len(fs)):
                 if fs[0] * fs[i] < 0: #two solutions
                     d1 = ff.solve(mu=mu, dmu=dmu, dq= dq,a=ds[0],b = ds[i])
-                    p1 = ff.get_pressure(mu=mu, dmu=dmu, dq = dq, delta=d).n
+                    p1 = ff.get_pressure(mu=mu, dmu=dmu, dq = dq, delta=d1).n
                     d2 = ff.solve(mu=mu, dmu=dmu, dq= dq,a=ds[i],b = ds[-1])
-                    p2 = ff.get_pressure(mu=mu, dmu=dmu, dq = dq, delta=d).n
+                    p2 = ff.get_pressure(mu=mu, dmu=dmu, dq = dq, delta=d2).n
                     print(f"p1={p1}\tp2={p2}")
                     if(p2 > p1):
                         return (d2,p2)
@@ -148,15 +147,19 @@ class FFStatePhaseMapper(object):
             return (d,0)
 
     def compute_2d_phase_map(mu_delta):
-        print(f"-------------------------{mu_delta}")
+        print(f"-------------------------{mu_delta}-------------------------")
         mu, delta0 = mu_delta
-        dmus = np.linspace(0, 2*delta0, 20) #range of the dmu from 0 to 2 delta
-        dqs = np.linspace(0, 2*delta0, 20)
+        dmus = np.linspace(0, 2*delta0, 10) #range of the dmu from 0 to 2 delta
+        dqs = np.linspace(0, 2*delta0, 10)
         output = dict(mu=mu, delta=delta0)
         data=[]
         for dmu in dmus:
             for dq in dqs:
                 d,p = FFStatePhaseMapper.find_delta_pressure(delta0=delta0, mu=mu, dmu=dmu, dq=dq)
+                print(f"delta0={delta0}\tmu={mu}\tdmu={dmu}\tdq={dq}:\tdelta={d}\tP={p}")
+
+                if p == 0:
+                    break
                 data.append((dmu, dq, d, p))
         output["data"]=data
         print(output)
@@ -171,8 +174,8 @@ class FFStatePhaseMapper(object):
         mu = 0.5 * eF
         delta0 = np.sqrt(2.0) * eF
 
-        mus = np.linspace(0, 2, 4) * mu
-        deltas = np.linspace(0,2,4) * delta0
+        mus = np.linspace(0, 2, 10) * mu
+        deltas = np.linspace(0.01,2,10) * delta0
         args = list(itertools.product(mus,deltas))
 
         logic_cpu_count = os.cpu_count() - 1
@@ -194,7 +197,7 @@ def min_index(fs):
 def compute_delta_ns(r, d ,mu=10, dmu=2, delta=1):
     ff = FFState(dmu=dmu, mu=mu, d=d, delta=delta, fix_g=False)
     b = 2*delta
-    ds = np.linspace(0.011,2*delta,10)
+    ds = np.linspace(0.01,2*delta,10)
     fs = [ff.f(delta=delta, dq=1.0/r, mu=mu, dmu=dmu) for delta in ds]
     index, value = min_index(fs)
     delta = 0
