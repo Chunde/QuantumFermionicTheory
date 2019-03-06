@@ -41,7 +41,7 @@ class FFState(object):
         if fix_g:
             self._g = self.get_g(mu=mu, dmu=0, delta=delta, r=np.inf)
         else:
-            self._C = tf.compute_C(mu_a=mu, mu_b=mu, delta=delta, q=0,
+            self._C = tf.compute_C(mu_a=mu, mu_b=mu, delta=delta,
                                    **self._tf_args).n
         
     def f(self, mu, dmu, delta, q=0, dq=0, **kw):
@@ -144,20 +144,20 @@ class FFStatePhaseMapper(object):
             for i in range(len(fs)):
                 if fs[0] * fs[i] < 0: #two solutions
                     d1 = ff.solve(mu=mu, dmu=dmu, q=q, dq= dq,a=ds[0], b=ds[i])
-                    p1, na1, nb1 = ff.get_pressure(mu=mu, dmu=dmu, q=q, dq=dq, delta=d1 ,return_ns=True)
+                    p1 = ff.get_pressure(mu=mu, dmu=dmu, q=q, dq=dq, delta=d1)
                     d2 = ff.solve(mu=mu, dmu=dmu, q=q, dq= dq,a=ds[i], b = ds[-1])
-                    p2, na2, nb2 = ff.get_pressure(mu=mu, dmu=dmu, q=q, dq=dq, delta=d2, return_ns=True)
+                    p2= ff.get_pressure(mu=mu, dmu=dmu, q=q, dq=dq, delta=d2)
                     print(f"p1={p1:10.7}\tp2={p2:10.7}")
                     if(p2 > p1):
-                        return (g, d2, p2.n, na2.n, nb2.n)
-                    return (g, d1, p1.n, na1.n, nb1.n)
-            return (g, 0, 0, 0, 0)
+                        return (g, d2, p2.n)
+                    return (g, d1, p1.n)
+            return (g, 0, 0)
         else:
             d = ff.solve(mu=mu, dmu=dmu, q=q, dq=dq, a=ds[0], b=ds[-1])
             if d > 0:
-                p, na, nb = ff.get_pressure(mu=mu, dmu=dmu, q=q, dq=dq, delta=d, return_ns=True)
-                return (g, d, p.n, na.n, nb.n)
-            return (g, d, 0, 0, 0)
+                p = ff.get_pressure(mu=mu, dmu=dmu, q=q, dq=dq, delta=d)
+                return (g, d, p.n)
+            return (g, d, 0)
 
     def compute_2d_phase_map(id_q_mu_delta):
         """compute press, density for given mu and delta"""
@@ -170,12 +170,12 @@ class FFStatePhaseMapper(object):
         for dmu in dmus:
             press0 = -np.inf
             for dq in dqs:
-                g, delta, press, na, nb = FFStatePhaseMapper.find_delta_pressure(delta0=delta0, mu=mu, dmu=dmu, q=q, dq=dq, id=id)
+                g, delta, press = FFStatePhaseMapper.find_delta_pressure(delta0=delta0, mu=mu, dmu=dmu, q=q, dq=dq, id=id)
                 if press == 0:
                     break
                 print(f"{id}\tdelta0={delta0:15.7}\tmu={mu:10.7}\tdmu={dmu:10.7}\tdq={dq:10.7}:\tg={g:10.7}\tdelta={delta:10.7}\tP={press:10.7}")
                 if press > press0:
-                    data.append((dmu, dq, g, delta, press, na, nb))
+                    data.append((dmu, dq, g, delta, press))
                     press0 = press
                 else:
                     break
@@ -260,7 +260,7 @@ class DeltaNSGenerator(object):
 
 def generate_2d_phase_diagram():
     #FFStatePhaseMapper.compute_2d_phase_map(mu=mu, delta0=delta0)
-    FFStatePhaseMapper.compute_2d_phase_diagram(q=1.5)
+    FFStatePhaseMapper.compute_2d_phase_diagram(q=.5)
 
 if __name__ == "__main__":
     # DeltaNSGenerator.compute_ff_delta_ns_2d(delta=5) #generate 2d data
