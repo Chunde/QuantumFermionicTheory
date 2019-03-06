@@ -134,43 +134,43 @@ class FFStatePhaseMapper(object):
         return np.linspace(0, delta0, 5)
 
 
-    def find_delta_pressure(delta0, mu, dmu, dq, id):
+    def find_delta_pressure(delta0, mu, dmu, q, dq, id):
         """compute detla and pressure"""
         ff = FFState(fix_g=True, mu=mu, dmu=dmu, delta=delta0, d=2, k_c=500, m=0, T=0)
         g = ff._g
         ds = np.linspace(0.1 * delta0, 2* delta0, 10)
-        fs = [ff.f(mu=mu, dmu=dmu, delta=d, dq=dq) for d in ds]
+        fs = [ff.f(mu=mu, dmu=dmu, delta=d, q=q, dq=dq) for d in ds]
         if(fs[0] * fs[-1] > 0):
             for i in range(len(fs)):
                 if fs[0] * fs[i] < 0: #two solutions
-                    d1 = ff.solve(mu=mu, dmu=dmu, dq= dq,a=ds[0],b = ds[i])
-                    p1, na1, nb1 = ff.get_pressure(mu=mu, dmu=dmu, dq = dq, delta=d1 ,return_ns = True)
-                    d2 = ff.solve(mu=mu, dmu=dmu, dq= dq,a=ds[i],b = ds[-1])
-                    p2, na2, nb2 = ff.get_pressure(mu=mu, dmu=dmu, dq = dq, delta=d2, return_ns = True)
+                    d1 = ff.solve(mu=mu, dmu=dmu, q=q, dq= dq,a=ds[0], b=ds[i])
+                    p1, na1, nb1 = ff.get_pressure(mu=mu, dmu=dmu, q=q, dq=dq, delta=d1 ,return_ns=True)
+                    d2 = ff.solve(mu=mu, dmu=dmu, q=q, dq= dq,a=ds[i], b = ds[-1])
+                    p2, na2, nb2 = ff.get_pressure(mu=mu, dmu=dmu, q=q, dq=dq, delta=d2, return_ns=True)
                     print(f"p1={p1:10.7}\tp2={p2:10.7}")
                     if(p2 > p1):
                         return (g, d2, p2.n, na2.n, nb2.n)
                     return (g, d1, p1.n, na1.n, nb1.n)
             return (g, 0, 0, 0, 0)
         else:
-            d = ff.solve(mu=mu, dmu=dmu, dq= dq, a=ds[0], b=ds[-1])
+            d = ff.solve(mu=mu, dmu=dmu, q=q, dq=dq, a=ds[0], b=ds[-1])
             if d > 0:
-                p, na, nb = ff.get_pressure(mu=mu, dmu=dmu, dq = dq, delta=d, return_ns = True)
+                p, na, nb = ff.get_pressure(mu=mu, dmu=dmu, q=q, dq=dq, delta=d, return_ns=True)
                 return (g, d, p.n, na.n, nb.n)
             return (g, d, 0, 0, 0)
 
-    def compute_2d_phase_map(mu_delta_id):
+    def compute_2d_phase_map(id_q_mu_delta):
         """compute press, density for given mu and delta"""
-        print(f"-------------------------{mu_delta_id}-------------------------")
-        mu, delta0, id = mu_delta_id
+        print(f"-------------------------{id_q_mu_delta}-------------------------")
+        id, q, mu, delta0 = id_q_mu_delta
         dmus = FFStatePhaseMapper.get_dmus(mu, delta0)
         dqs = FFStatePhaseMapper.get_dqs(mu, delta0)
-        output = dict(mu=mu, delta=delta0)
+        output = dict(mu=mu, delta=delta0, q=q)
         data=[]
         for dmu in dmus:
             press0 = -np.inf
             for dq in dqs:
-                g, delta, press, na, nb = FFStatePhaseMapper.find_delta_pressure(delta0=delta0, mu=mu, dmu=dmu, dq=dq, id=id)
+                g, delta, press, na, nb = FFStatePhaseMapper.find_delta_pressure(delta0=delta0, mu=mu, dmu=dmu, q=q, dq=dq, id=id)
                 if press == 0:
                     break
                 print(f"{id}\tdelta0={delta0:15.7}\tmu={mu:10.7}\tdmu={dmu:10.7}\tdq={dq:10.7}:\tg={g:10.7}\tdelta={delta:10.7}\tP={press:10.7}")
@@ -183,7 +183,7 @@ class FFStatePhaseMapper(object):
         print(output)
         return output
 
-    def compute_2d_phase_diagram():
+    def compute_2d_phase_diagram(q=0.5):
         """using multple pools to compute 2d phase diagram"""
         kF = 1
         m = 1
@@ -191,11 +191,11 @@ class FFStatePhaseMapper(object):
         eF=kF**2/2/m
         mu0 = 0.5 * eF
         delta0 = np.sqrt(2.0) * eF
-        mus = np.linspace(0,1.0,10) * mu0
-        deltas = np.linspace(.0001,2,10) * delta0
+        mus = np.linspace(0,2,10) * mu0
+        deltas = np.linspace(0.001,2, 5) * delta0
         args = list(itertools.product(mus,deltas))
         for i in range(len(args)):
-            args[i]=args[i] + (i,)
+            args[i]=(i, q,) + args[i]
 
         logic_cpu_count = os.cpu_count() - 1
         logic_cpu_count = 1 if logic_cpu_count < 1 else logic_cpu_count
@@ -260,7 +260,7 @@ class DeltaNSGenerator(object):
 
 def generate_2d_phase_diagram():
     #FFStatePhaseMapper.compute_2d_phase_map(mu=mu, delta0=delta0)
-    FFStatePhaseMapper.compute_2d_phase_diagram()
+    FFStatePhaseMapper.compute_2d_phase_diagram(q=1.5)
 
 if __name__ == "__main__":
     # DeltaNSGenerator.compute_ff_delta_ns_2d(delta=5) #generate 2d data
