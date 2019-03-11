@@ -10,7 +10,7 @@ import scipy as sp
 from .integrate import quad, dquad
 
 
-MAX_ITERATION = 65
+MAX_DIVISION = 65
 
 
 @numba.jit(nopython=True)
@@ -260,7 +260,7 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
                          m_a=m_a, m_b=m_b, hbar=hbar, T=T)
 
     if limit is None:
-        limit = MAX_ITERATION
+        limit = MAX_DIVISION
         
     delta = abs(delta)
     args = (mu_a, mu_b, delta, m_a, m_b, hbar, T)
@@ -318,7 +318,7 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
             return integrand(kx, kp)
 
         from mmf_hfb.integrates import dquad_q, dquad_kF
-        v0 = dquad_kF(f=func, mu_a=mu_a, mu_b=mu_b, delta=delta,
+        v0 = dquad_kF(f=func, mu_a=mu_a, mu_b=mu_b, delta=delta, q=q,
                       dq=dq, hbar=hbar, m_a=m_a, m_b=m_b, kF=kF,
                       k_0=k_0, k_inf=k_inf, limit=limit)/2
         return v0

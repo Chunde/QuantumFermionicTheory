@@ -7,8 +7,9 @@ import json
 from json import dumps
 from functools import partial
 import itertools
+import time
 
-tf.MAX_ITERATION = 200
+tf.MAX_DIVISION = 500
 
 
 class FFState(object):
@@ -85,7 +86,7 @@ class FFState(object):
 
         args = dict(self._tf_args, mu_a=mu + dmu, mu_b=mu - dmu, delta=delta,
                     q=q, dq=dq)
-            
+        #print(args)    
         kappa = tf.integrate_q(tf.kappa_integrand, **args)
         if self.fix_g:
             g_c = self._g
@@ -126,17 +127,17 @@ class FFStatePhaseMapper(object):
 
     def get_dmus(mu, delta0):
         """return the sample values for dmu"""
-        dmus = np.linspace(0, 2*mu, 10)
+        dmus = np.linspace(0.5*mu, mu, 5)
         return dmus
 
     def get_dqs(mu, delta0):
         """return sample values for dq"""
-        return np.linspace(0, delta0, 5)
+        return np.linspace(0, 0.1 * delta0, 5)
 
 
-    def find_delta_pressure(delta0, mu, dmu, q, dq, id):
+    def find_delta_pressure(delta0, mu, dmu, q, dq, id, dim=2):
         """compute detla and pressure"""
-        ff = FFState(fix_g=True, mu=mu, dmu=dmu, delta=delta0, d=2, k_c=500, m=0, T=0)
+        ff = FFState(fix_g=True, mu=mu, dmu=dmu, delta=delta0, d=dim, k_c=100, m=0, T=0)
         g = ff._g
         ds = np.linspace(0.1 * delta0, 2* delta0, 10)
         fs = [ff.f(mu=mu, dmu=dmu, delta=d, q=q, dq=dq) for d in ds]
@@ -147,7 +148,7 @@ class FFStatePhaseMapper(object):
                     p1 = ff.get_pressure(mu=mu, dmu=dmu, q=q, dq=dq, delta=d1)
                     d2 = ff.solve(mu=mu, dmu=dmu, q=q, dq= dq,a=ds[i], b = ds[-1])
                     p2= ff.get_pressure(mu=mu, dmu=dmu, q=q, dq=dq, delta=d2)
-                    print(f"p1={p1:10.7}\tp2={p2:10.7}")
+                    print(f"{id}:p1={p1.n:10.7}\tp2={p2.n:10.7}")
                     if(p2 > p1):
                         return (g, d2, p2.n)
                     return (g, d1, p1.n)
@@ -159,51 +160,72 @@ class FFStatePhaseMapper(object):
                 return (g, d, p.n)
             return (g, d, 0)
 
-    def compute_2d_phase_map(id_q_mu_delta):
+    def phase_map_worker_thread(id_q_mu_delta):
         """compute press, density for given mu and delta"""
         print(f"-------------------------{id_q_mu_delta}-------------------------")
-        id, q, mu, delta0 = id_q_mu_delta
+        id, dim, q, mu, delta0 = id_q_mu_delta
         dmus = FFStatePhaseMapper.get_dmus(mu, delta0)
         dqs = FFStatePhaseMapper.get_dqs(mu, delta0)
         output = dict(mu=mu, delta=delta0, q=q)
         data=[]
         for dmu in dmus:
-            press0 = -np.inf
+            max_press = -np.inf
+            max_dq = 0
+            max_g = 0
+            max_delta = 0
+
             for dq in dqs:
-                g, delta, press = FFStatePhaseMapper.find_delta_pressure(delta0=delta0, mu=mu, dmu=dmu, q=q, dq=dq, id=id)
+                g, delta, press = FFStatePhaseMapper.find_delta_pressure(delta0=delta0, mu=mu, dmu=dmu, q=q, dq=dq, id=id, dim=dim)
                 if press == 0:
                     break
-                print(f"{id}\tdelta0={delta0:15.7}\tmu={mu:10.7}\tdmu={dmu:10.7}\tdq={dq:10.7}:\tg={g:10.7}\tdelta={delta:10.7}\tP={press:10.7}")
-                if press > press0:
-                    data.append((dmu, dq, g, delta, press))
-                    press0 = press
+                # print(f"{id}\tdelta0={delta0:15.7}\tmu={mu:10.7}\tdmu={dmu:10.7}\tdq={dq:10.7}:\tg={g:10.7}\tdelta={delta:10.7}\tP={press:10.7}")
+                if press > max_press:
+                    max_press = press
+                    max_dq = dq
+                    max_g = g
+                    max_delta = delta
                 else:
                     break
+            data.append((dmu, max_dq, max_g, max_delta, max_press))
+            if dmu > 0 and max_dq > 0 and max_delta > 0:
+                print(f"{id}:Find one FF State{data[-1]}")
+
         output["data"]=data
-        print(output)
+        #print(output)
         return output
 
-    def compute_2d_phase_diagram(q=0.5):
+    def compute_phase_diagram(q=0.5, dim=2):
         """using multple pools to compute 2d phase diagram"""
-        kF = 1
+        kF = 5.0
         m = 1
         T = 0
         eF=kF**2/2/m
-        mu0 = 0.5 * eF
-        delta0 = np.sqrt(2.0) * eF
-        mus = np.linspace(0,2,10) * mu0
-        deltas = np.linspace(0.001,2, 5) * delta0
+        file_name = f"{dim}d_phase_map_data_" + time.strftime("%Y%m%d%H%M%S_")
+        if dim == 1:
+            mu0 = 0.28223521359741266 * eF
+            delta0 = 0.41172622996179004 * eF
+        elif dim == 2:
+            mu0 = 0.5 * eF
+            delta0 = np.sqrt(2.0) * eF
+        else:
+            mu0 = 0.59060550703283853378393810185221521748413488992993 * eF
+            delta0 = 1.162200561790012570995259741628790656202543181557689 * mu0
+
+        mus = np.linspace(1,2,10) * mu0
+        deltas = np.linspace(0.001,2, 10) * delta0
         args = list(itertools.product(mus,deltas))
         for i in range(len(args)):
-            args[i]=(i, q,) + args[i]
+            args[i]=(i, dim, q,) + args[i]
 
         logic_cpu_count = os.cpu_count() - 1
         logic_cpu_count = 1 if logic_cpu_count < 1 else logic_cpu_count
         with Pool(logic_cpu_count) as Pools:
-            rets = Pools.map(FFStatePhaseMapper.compute_2d_phase_map,args)
-            with open("2d_phase_map_data.txt",'w',encoding ='utf-8') as wf:
+            rets = Pools.map(FFStatePhaseMapper.phase_map_worker_thread,args)
+            file_name = file_name + time.strftime("%Y%m%d%H%M%S.txt")
+            with open(file_name,'w',encoding ='utf-8') as wf:
                 json.dump(rets,wf, ensure_ascii=False)
 
+ 
 class DeltaNSGenerator(object):
     def min_index(fs):
         min_value = fs[0]
@@ -258,9 +280,10 @@ class DeltaNSGenerator(object):
             with open("delta_ns.txt",'w',encoding ='utf-8') as wf:
                 json.dump(outputs,wf, ensure_ascii=False)
 
+
 def generate_2d_phase_diagram():
     #FFStatePhaseMapper.compute_2d_phase_map(mu=mu, delta0=delta0)
-    FFStatePhaseMapper.compute_2d_phase_diagram(q=.5)
+    FFStatePhaseMapper.compute_phase_diagram(q=0, dim=2)
 
 if __name__ == "__main__":
     # DeltaNSGenerator.compute_ff_delta_ns_2d(delta=5) #generate 2d data

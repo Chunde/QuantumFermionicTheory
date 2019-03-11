@@ -13,13 +13,13 @@ def _infunc(x, func, gfun, hfun, more_args, limit=50):
     Integrate func from `a` to `b` (possibly infinite interval) 
     More options can be packed in more_args
     """
-    mu, dmu, m_a, m_b,  delta, hbar, q = more_args
+    mu, dmu, m_a, m_b,  delta, hbar, q, dq = more_args
     minv = (1/m_a + 1/m_b)/2
     m = m_a #1/minv # now only support m_a=m_b
-    px = x #x=kx may need to multiply the hbar [check]
-    mu_q = mu - q**2/2/m
+    px = x #x=kx may need to multiply the hbar [check], q may also need to be taken into account
+    mu_q = mu - dq**2/2/m
     k1 = k2 = 0 
-    sqrt0 = (q*px/m - dmu)**2 - delta**2
+    sqrt0 = (dq*px/m - dmu)**2 - delta**2
     if sqrt0 >=0:
         sqrt1 =np.sqrt(sqrt0)
         sqrt2 = 2*m*(mu_q + sqrt1) - px**2
@@ -78,7 +78,7 @@ def _dquad(func, a, b, gfun, hfun, limit,args=(), epsabs=1.49e-8,
     return quad(_infunc, a, b, (func, gfun, hfun, args, limit), 
                           epsabs=epsabs, epsrel=epsrel, maxp1=maxp1, limit=limit)
 
-def dquad_kF(f,  mu_a, mu_b, delta, q, hbar=1,
+def dquad_kF(f,  mu_a, mu_b, delta, q, dq, hbar=1,
            m_a = 1, m_b=1, kF=None, k_0=0, k_inf=np.inf, limit = 50):
     """Return ufloat(res, err) for 2D integral of f(kz, kp) over the
     entire plane.    
@@ -88,7 +88,7 @@ def dquad_kF(f,  mu_a, mu_b, delta, q, hbar=1,
     """
     mu = (mu_a + mu_b)/2
     dmu = (mu_a - mu_b)/2
-    args=(mu, dmu, m_a, m_b, delta, hbar, q)
+    args=(mu, dmu, m_a, m_b, delta, hbar, q, dq)
     def kp_0(kz):
         D = k_0**2 - kz**2
         if D < 0:

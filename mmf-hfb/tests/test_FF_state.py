@@ -1,17 +1,18 @@
 import numpy as np
 import pytest
 from mmf_hfb import tf_completion as tf
+from mmf_hfb import bcs, homogeneous
 
 from mmf_hfb.FuldeFerrelState import FFState as FF
-tf.MAX_ITERATION = 200
+tf.MAX_DIVISION = 500
 
 
-@pytest.fixture(params=[1,2,3])
+@pytest.fixture(params=[2])
 def d(request):
     return request.param
 
 
-@pytest.fixture(params=[0, 0.5, 1.5])
+@pytest.fixture(params=[0,0.5,1.5,2.5])
 def q(request):
     return request.param
 
@@ -26,18 +27,19 @@ def mu(request):
     return request.param
 
 
-@pytest.fixture(params=[0.4, 0.64])
+@pytest.fixture(params=[0.4, 0.64, 2.5])
 def dmu(request):
     return request.param
 
-
-@pytest.fixture(params=[100])
+# for d = 3, if k_c is too larger
+# e.g.k_c=500, lots of test will fail
+@pytest.fixture(params=[200])
 def k_c(request):
     return request.param
 
 
 #@pytest.mark.bench()
-def test_Thermodynamic(mu, dmu, d, k_c, q, dq):
+def test_Thermodynamic(mu, dmu, d, k_c, q, dq,  dx = 1e-3):
     print(f"mu={mu}\tdmu={dmu}\tkc={k_c}\tq={q}\tdq={dq}\td={d}")
     delta0 = 1
 
@@ -54,36 +56,36 @@ def test_Thermodynamic(mu, dmu, d, k_c, q, dq):
 
     def get_ns(mu, dmu):
         return ff.get_densities(mu=mu, dmu=dmu, q=q, dq=dq)
-    
-    dx = 1e-3
+    #h = homogeneous.Homogeneous(dim = d)
+    #ns = h.get_ns(mus_eff=(mu+dmu, mu-dmu), delta=delta0, N_twist=12)
+    #print(f"Homogeneuous:{ns[0].n, ns[1].n}")
+    #assert np.allclose(sum(ns).n, (n_a+n_b).n, rtol=1e-3)
+   
     E1, n1 = get_E_n(mu=mu+dx, dmu=dmu)
     E0, n0 = get_E_n(mu=mu-dx, dmu=dmu)
+    #mu_a_ = (E1-E0)/(n1-n0)
+    #print(f"mu_a={mu_a_}")
 
     n_p = (get_P(mu+dx, dmu) - get_P(mu-dx, dmu))/2/dx
     n_a, n_b = get_ns(mu, dmu)
-
     n_a_ = (get_P(mu+dx/2, dmu+dx/2) - get_P(mu-dx/2, dmu - dx/2))/2/dx
     n_b_ = (get_P(mu+dx/2, dmu-dx/2) - get_P(mu-dx/2, dmu + dx/2))/2/dx
-    print(f"mu={mu}\tNumerical mu={(E1-E0)/(n1-n0)}")
     print(f"n_a={n_a.n}\tNumerical  n_a={n_a_.n}")
     print(f"n_b={n_b.n}\tNumerical  n_b={n_b_.n}")
     print(f"n_p={n_a.n+n_b.n}\tNumerical  n_p={n_p.n}")
-    #assert np.allclose(mu,((E1-E0)/(n1-n0)).n)
-    assert np.allclose(n_p.n, (n_a+n_b).n)
-    assert np.allclose(n_a.n, n_a_.n)
-    assert np.allclose(n_b.n, n_b_.n)
-
-
-@pytest.mark.bench()
-def test_thermodynamic_relations(d, q, dq, k_c=500):
-    mus = [5, 10]
-    dmus = [0.4, 0.64]
-    for mu in mus:
-        for dmu in dmus:
-            test_Thermodynamic(mu=mu, dmu=dmu, d=d, k_c=k_c, q=q, dq=dq)
+    print(f"mu={mu}\tNumerical mu={(E1-E0)/(n1-n0)}")
+    assert np.allclose(n_a.n, n_a_.n, rtol=1e-4)
+    assert np.allclose(n_b.n, n_b_.n, rtol=1e-4)
+    assert np.allclose(n_p.n, (n_a+n_b).n, rtol=1e-4)
+    assert np.allclose(mu,((E1-E0)/(n1-n0)).n, rtol=1e-2)
 
 
 if __name__ == "__main__":
-    #test_Thermodynamic(mu=15, dmu=0.5012, d=1, q=0.0, dq=0, k_c=500)
-    test_Thermodynamic(mu=15, dmu=0.5011, d=1, q=1., dq=0.5, k_c=500)
+    # this line will give a numerical mu =2.5 not 5, totally wrong
+    # test_Thermodynamic(mu=5, dmu=2.5, k_c=200, q=2.5, dq=1.5, d=1)
+    #test_Thermodynamic(mu=5, dmu=2.5, k_c=100, q=2.5, dq=1.5, d=3)
+    #test_Thermodynamic(mu = 5, dmu = 0.64, d = 3, k_c = 500, q = 2.5, dq = 1.5, dx = 1e-4)
+    test_Thermodynamic(mu = 5, dmu = 0.64, d = 3, k_c = 500, q = 0, dq = 0, dx = 0.001)
+    #test_Thermodynamic(mu=10, dmu=0.64, d=2, q=0, dq=0, k_c=200)
+
     
