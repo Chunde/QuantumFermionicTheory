@@ -14,12 +14,8 @@ tf.MAX_DIVISION = 500
 
 class FFState(object):
     def __init__(self, mu=10, dmu=0.4, delta=1,
-                 m=1, T=0, hbar=1, k_c=100, d=2, fix_g=False):
-        """Compute a double integral.
-
-        Note: The order of arguments is not the same as dblquad.  They are
-        func(x, y) here.
-    
+                 m=1, T=0, hbar=1, k_c=100, dim=2, fix_g=False):
+        """
         Arguments
         ---------
         fix_g : bool
@@ -29,7 +25,7 @@ class FFState(object):
            depend on the cutoff k_c.
         """
         self.fix_g = fix_g
-        self.d = d
+        self.dim = dim
         self.T = T
         self.mu = mu
         self.m = m
@@ -37,7 +33,7 @@ class FFState(object):
         self.delta = delta
         self.hbar = hbar
         self.k_c = k_c
-        self._tf_args = dict(m_a=1, m_b=1, d=d, hbar=hbar, T=T, k_c=k_c)
+        self._tf_args = dict(m_a=1, m_b=1, dim=dim, hbar=hbar, T=T, k_c=k_c)
 
         if fix_g:
             self._g = self.get_g(mu=mu, dmu=0, delta=delta, r=np.inf)
@@ -66,6 +62,7 @@ class FFState(object):
         if delta is None:
             delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
                                a=self.delta * 0.8, b=self.delta * 1.2)
+            print(f"Delta={delta}")
         args = dict(self._tf_args, mu_a=mu + dmu, mu_b=mu - dmu, delta=delta,
                     q=q, dq=dq)
         if k_c is not None:
@@ -81,6 +78,7 @@ class FFState(object):
         if delta is None:
             delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
                                a=self.delta * 0.8, b=self.delta * 1.2)
+            print(f"Delta={delta}")
         if n_a is None:
             n_a, n_b = self.get_densities(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
 
@@ -92,12 +90,13 @@ class FFState(object):
             g_c = self._g
         else:
             g_c = 1./self._C
-        return kappa #  - g_c * n_a * n_b /2
+        return kappa  # - g_c * n_a * n_b /2
     
     def get_pressure(self, mu, dmu, q=0, dq=0, delta=None, return_ns = False):
         if delta is None:
             delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
                                a=self.delta * 0.1, b=self.delta * 2)
+            print(f"Delta={delta}")
         #print(f"dq={dq}\tdelta={delta}")   
         n_a, n_b = self.get_densities(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
         energy_density = self.get_energy_density(
@@ -137,7 +136,7 @@ class FFStatePhaseMapper(object):
 
     def find_delta_pressure(delta0, mu, dmu, q, dq, id, dim=2):
         """compute detla and pressure"""
-        ff = FFState(fix_g=True, mu=mu, dmu=dmu, delta=delta0, d=dim, k_c=100, m=0, T=0)
+        ff = FFState(fix_g=True, mu=mu, dmu=dmu, delta=delta0, dim=dim, k_c=100, m=0, T=0)
         g = ff._g
         ds = np.linspace(0.1 * delta0, 2* delta0, 10)
         fs = [ff.f(mu=mu, dmu=dmu, delta=d, q=q, dq=dq) for d in ds]
@@ -236,8 +235,8 @@ class DeltaNSGenerator(object):
                 min_index = i
         return min_index,min_value
 
-    def compute_delta_ns(r, d ,mu=10, dmu=2, delta=1):
-        ff = FFState(dmu=dmu, mu=mu, d=d, delta=delta, fix_g=False)
+    def compute_delta_ns(r, dim ,mu=10, dmu=2, delta=1):
+        ff = FFState(dmu=dmu, mu=mu, dim=dim, delta=delta, fix_g=False)
         b = 2*delta
         ds = np.linspace(0.01,2*delta,10)
         fs = [ff.f(delta=delta, dq=1.0/r, mu=mu, dmu=dmu) for delta in ds]
@@ -256,7 +255,7 @@ class DeltaNSGenerator(object):
         return (delta, na, nb)
 
     def worker_thread(r, delta):
-        return DeltaNSGenerator.compute_delta_ns(r, d=2, delta=delta)
+        return DeltaNSGenerator.compute_delta_ns(r, dim=2, delta=delta)
 
     def compute_ff_delta_ns_2d(delta):
         """Compute 2d FF State Delta, densities"""

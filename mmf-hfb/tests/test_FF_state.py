@@ -8,7 +8,7 @@ tf.MAX_DIVISION = 500
 
 
 @pytest.fixture(params=[2])
-def d(request):
+def dim(request):
     return request.param
 
 
@@ -31,7 +31,7 @@ def mu(request):
 def dmu(request):
     return request.param
 
-# for d = 3, if k_c is too larger
+# for dim = 3, if k_c is too larger
 # e.g.k_c=500, lots of test will fail
 @pytest.fixture(params=[200])
 def k_c(request):
@@ -39,11 +39,11 @@ def k_c(request):
 
 
 #@pytest.mark.bench()
-def test_Thermodynamic(mu, dmu, d, k_c, q, dq,  dx = 1e-3):
-    print(f"mu={mu}\tdmu={dmu}\tkc={k_c}\tq={q}\tdq={dq}\td={d}")
+def test_Thermodynamic(mu, dmu, dim, k_c, q, dq,  dx = 1e-3):
+    print(f"mu={mu}\tdmu={dmu}\tkc={k_c}\tq={q}\tdq={dq}\td={dim}")
     delta0 = 1
 
-    ff = FF(dmu=dmu, mu=mu, delta=delta0, d=d, k_c=k_c, fix_g=True)
+    ff = FF(dmu=dmu, mu=mu, delta=delta0, dim=dim, k_c=k_c, fix_g=True)
     
     def get_P(mu, dmu):
         delta = ff.solve(mu=mu, dmu=dmu, q=q, dq=dq)
@@ -56,7 +56,7 @@ def test_Thermodynamic(mu, dmu, d, k_c, q, dq,  dx = 1e-3):
 
     def get_ns(mu, dmu):
         return ff.get_densities(mu=mu, dmu=dmu, q=q, dq=dq)
-    #h = homogeneous.Homogeneous(dim = d)
+    #h = homogeneous.Homogeneous(dim = dim)
     #ns = h.get_ns(mus_eff=(mu+dmu, mu-dmu), delta=delta0, N_twist=12)
     #print(f"Homogeneuous:{ns[0].n, ns[1].n}")
     #assert np.allclose(sum(ns).n, (n_a+n_b).n, rtol=1e-3)
@@ -82,10 +82,10 @@ def test_Thermodynamic(mu, dmu, d, k_c, q, dq,  dx = 1e-3):
 
 if __name__ == "__main__":
     # this line will give a numerical mu =2.5 not 5, totally wrong
-    # test_Thermodynamic(mu=5, dmu=2.5, k_c=200, q=2.5, dq=1.5, d=1)
-    #test_Thermodynamic(mu=5, dmu=2.5, k_c=100, q=2.5, dq=1.5, d=3)
-    #test_Thermodynamic(mu = 5, dmu = 0.64, d = 3, k_c = 500, q = 2.5, dq = 1.5, dx = 1e-4)
-    test_Thermodynamic(mu = 5, dmu = 0.64, d = 3, k_c = 500, q = 0, dq = 0, dx = 0.001)
-    #test_Thermodynamic(mu=10, dmu=0.64, d=2, q=0, dq=0, k_c=200)
+    # test_Thermodynamic(mu=5, dmu=2.5, k_c=200, q=2.5, dq=1.5, dim=1)
+    #test_Thermodynamic(mu=5, dmu=2.5, k_c=100, q=2.5, dq=1.5, dim=3)
+    #test_Thermodynamic(mu = 5, dmu = 0.64, dim = 3, k_c = 500, q = 2.5, dq = 1.5, dx = 1e-4)
+    test_Thermodynamic(mu = 5, dmu = 0.64, dim = 3, k_c = 500, q = 0, dq = 0, dx = 0.001)
+    #test_Thermodynamic(mu=10, dmu=0.64, dim=2, q=0, dq=0, k_c=200)
 
     

@@ -148,7 +148,7 @@ class Series(object):
     """Series expansions for T=0 and large enough k_c."""
             
     
-def Lambda(m, mu, hbar, d, E_c=None, k_c=None):
+def Lambda(m, mu, hbar, dim, E_c=None, k_c=None):
     """Return the cutoff function Lambda assuming equal masses.
 
     To include the effects of the Fulde Ferrell q, shift mu -> mu_q as
@@ -169,27 +169,27 @@ def Lambda(m, mu, hbar, d, E_c=None, k_c=None):
     k_0 = np.sqrt(2*m*mu/hbar**2 + 0.j)
     if k_c is None:
         k_c = np.sqrt(2*m*(E_c+mu)/hbar**2)
-    if d == 1:
+    if dim == 1:
         res = m/hbar**2/2/np.pi/k_0*np.log((k_c-k_0)/(k_c+k_0))
-    elif d == 2:
+    elif dim == 2:
         res = m/hbar**2/4/np.pi * np.log((k_c/k_0)**2-1)
-    elif d == 3:
+    elif dim == 3:
         res = m/hbar**2 * k_c/2/np.pi**2 * (
             1 - k_0/2/k_c*np.log((k_c+k_0)/(k_c-k_0)))
     else:
-        raise ValueError(f"Only d=1, 2, or 3 supported (got d={d})")
+        raise ValueError(f"Only dim=1, 2, or 3 supported (got dim={dim})")
     # assert np.allclose(res.imag, 0)
     # [Check] this will go false at some point when q is large
     return res.real
 
 
-def compute_C(mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0,
+def compute_C(mu_a, mu_b, delta, m_a, m_b, dim=3, hbar=1.0, T=0.0,
               dq=0, k_c=None, debug=False):
     # Note: code only works for m_a == m_b
     # ERROR: Check with new q and dq relations...
     
     args = dict(mu_a=mu_a, mu_b=mu_b, delta=delta, m_a=m_a, m_b=m_b,
-                d=d, hbar=hbar, T=T)
+                dim=dim, hbar=hbar, T=T)
 
     m = 2*m_a*m_b/(m_a+m_b)
     mu = (mu_a + mu_b)/2
@@ -198,7 +198,7 @@ def compute_C(mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0,
         k_F = np.sqrt(2*m*mu)/hbar
         k_c = 100*k_F
     
-    Lambda_c = Lambda(m=m, mu=mu_q, hbar=hbar, d=d, k_c=k_c)
+    Lambda_c = Lambda(m=m, mu=mu_q, hbar=hbar, dim=dim, k_c=k_c)
     nu_c_delta = integrate_q(f=nu_delta_integrand, k_c=k_c, dq=dq, **args)
     C_corr = integrate_q(f=C_integrand, k_0=k_c, **args)
     C_c = nu_c_delta + Lambda_c
@@ -206,7 +206,7 @@ def compute_C(mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0,
     return C
     
     
-def integrate(f, mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0,
+def integrate(f, mu_a, mu_b, delta, m_a, m_b, dim=3, hbar=1.0, T=0.0,
               k_0=0.0, k_c=np.inf):
     """Integrate the function f from k=k_0 to k=k_c.
 
@@ -216,20 +216,20 @@ def integrate(f, mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0,
     args = (mu_a, mu_b, delta, m_a, m_b, hbar, T)
 
     # We can do spherical integration
-    if d == 1:
+    if dim == 1:
         def integrand(k):
             k2 = k**2
             return f(k2, k2, *args) / np.pi
-    elif d == 2:
+    elif dim == 2:
         def integrand(k):
             k2 = k**2
             return f(k2, k2, *args) * (k/2/np.pi)
-    elif d == 3:
+    elif dim == 3:
         def integrand(k):
             k2 = k**2
             return f(k2, k2, *args) * (k2/(2*np.pi**2))
     else:
-        raise ValueError(f"Only d=1, 2, or 3 supported (got d={d})")
+        raise ValueError(f"Only dim=1, 2, or 3 supported (got dim={dim})")
 
     integrand = numba.cfunc(numba.float64(numba.float64))(integrand)
     integrand = sp.LowLevelCallable(integrand.ctypes)
@@ -242,9 +242,9 @@ def integrate(f, mu_a, mu_b, delta, m_a, m_b, d=3, hbar=1.0, T=0.0,
     return quad(integrand, a=k_0, b=k_c, points=points)
 
 
-def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
+def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, dim=3,
                 q=0, dq=0.0, hbar=1.0, T=0.0, k_0=0, k_c=None, limit=None):
-    """Return the integral of f() over d-dimensional momentum space.
+    """Return the integral of f() over dim-dimensional momentum space.
  
     Arguments
     ---------
@@ -255,7 +255,7 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
     k_inf = np.inf if k_c is None else k_c
     
     if False and q == 0 and dq == 0:
-        return integrate(f, d=d, k_0=k_0, k_c=k_inf,
+        return integrate(f, dim=dim, k_0=k_0, k_c=k_inf,
                          mu_a=mu_a, mu_b=mu_b, delta=delta,
                          m_a=m_a, m_b=m_b, hbar=hbar, T=T)
 
@@ -265,19 +265,19 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
     delta = abs(delta)
     args = (mu_a, mu_b, delta, m_a, m_b, hbar, T)
     
-    if d == 1:
+    if dim == 1:
         def integrand(k):
             k2_a = (k + q + dq)**2
             k2_b = (k + q - dq)**2
             return f(k2_a, k2_b, *args) / np.pi
-    elif d == 2:
+    elif dim == 2:
         def integrand(kx, kp):
             # print(kx, kp)
             k2_a = (kx + q + dq)**2 + kp**2
             k2_b = (kx + q - dq)**2 + kp**2
             assert(kp>=0)
             return f(k2_a, k2_b, *args) / (2*np.pi**2)
-    elif d == 3:
+    elif dim == 3:
         def integrand(kx, kp):
             # print(kx, kp)
             k2_a = (kx + q + dq)**2 + kp**2
@@ -285,7 +285,7 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
             assert(kp>=0)
             return f(k2_a, k2_b, *args) * (kp/4/np.pi**2)
     else:
-        raise ValueError(f"Only d=1, 2, or 3 supported (got d={d})")
+        raise ValueError(f"Only dim=1, 2, or 3 supported (got dim={dim})")
 
     mu = (mu_a + mu_b)/2
     dmu = (mu_a - mu_b)/2
@@ -308,7 +308,7 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, d=3,
          8*m*dq*dmu, 4*m**2*(delta**2 + mu_q**2 - dmu**2)]
     p_x_special.extend([p.real - q for p in np.roots(P)])
     points = sorted(set([x/hbar for x in p_x_special if not math.isnan(x)]))
-    if d == 1:
+    if dim == 1:
         integrand = numba.cfunc(numba.float64(numba.float64))(integrand)
         integrand = sp.LowLevelCallable(integrand.ctypes)
         return quad(func=integrand, a=k_0, b=k_inf, points=points, limit=limit)
