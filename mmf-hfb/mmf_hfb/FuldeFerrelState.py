@@ -36,7 +36,7 @@ class FFState(object):
         self._tf_args = dict(m_a=1, m_b=1, dim=dim, hbar=hbar, T=T, k_c=k_c)
 
         if fix_g:
-            self._g = self.get_g(mu=mu, dmu=0, delta=delta, r=np.inf)
+            self._g = self.get_g(mu=mu, dmu=0, delta=delta)
         else:
             self._C = tf.compute_C(mu_a=mu, mu_b=mu, delta=delta,
                                    **self._tf_args).n
@@ -44,11 +44,10 @@ class FFState(object):
     def f(self, mu, dmu, delta, q=0, dq=0, **kw):
         args = dict(self._tf_args)
         args.update(kw)
-
         if self.fix_g:
             return self.get_g(mu=mu, dmu=dmu, q=q, dq=dq, delta=delta, **args) - self._g
 
-        return tf.compute_C(delta=delta, q=q, dq=dq **args).n - self._C
+        return tf.compute_C(mu_a=mu+dmu, mu_b=mu-dmu, delta=delta, q=q, dq=dq, **args).n - self._C
 
     def get_g(self, delta, mu=None, dmu=None, q=0, dq=0, **kw):
         args = dict(self._tf_args, q=q, dq=dq, delta=delta)
@@ -72,7 +71,23 @@ class FFState(object):
         n_m = tf.integrate_q(tf.n_m_integrand, **args)
         n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
         return n_a, n_b
-    
+    def get_normal_energy_density(self, mu, dmu, q=0, dq=0):
+        """return energy density when delta=0"""
+        mu_a, mu_b = mu + dmu, mu - dmu
+        if self.dim == 1:
+            energy_density = np.sqrt(2)/np.pi *( mu_a**1.5 + mu_b**1.5)/3.0
+            na, nb=np.sqrt(2 *mu_a)/np.pi,np.sqrt(2 * mu_b)/np.pi
+            n_p = na + nb
+        elif self.dim == 2:
+            energy_density = (mu_a**2 + mu_b**2)/4.0/np.pi
+            na, nb =mu_a/np.pi/2.0,mu_b/np.pi/2.0
+            n_p = mu/np.pi
+        elif self.dim == 3:
+            energy_density = (mu_a**2.5 + mu_b**2.5)*2.0**1.5/10.0/np.pi**2
+            na, nb = ((2.0 *mu_a)**1.5)/6.0/np.pi**2,((2.0 * mu_b)**1.5)/6.0/np.pi**2
+            n_p = ((2.0 *mu_a)**1.5 + (2.0 * mu_b)**1.5)/6.0/np.pi**2
+        return energy_density
+
     def get_energy_density(self, mu, dmu, q=0, dq=0, delta=None,
                            n_a=None, n_b=None):
         if delta is None:
@@ -90,6 +105,8 @@ class FFState(object):
             g_c = self._g
         else:
             g_c = 1./self._C
+        #if delta == 0:
+        #    assert kappa == self.get_normal_energy_density(mu=mu, dmu=dmu, q=q, dq=dq)
         return kappa  # - g_c * n_a * n_b /2
     
     def get_pressure(self, mu, dmu, q=0, dq=0, delta=None, return_ns = False):
@@ -109,16 +126,14 @@ class FFState(object):
         return pressure
 
     def solve(self, mu=None, dmu=None, q=0, dq=0, a=0.8, b=1.2):
-        args = dict(self._tf_args, q=q, dq=dq)
-        if mu is not None:
-            args.update(mu=mu, dmu=dmu, mu_a=mu+dmu, mu_b=mu-dmu)
+        args = dict(self._tf_args, q=q, dq=dq) # put only the max common set of varible in the dict
         def f(delta):
             if self.fix_g:
                 return self._g - self.get_g(delta=delta, mu=mu, dmu=dmu, q=q, dq=dq)
-            return self._C - tf.compute_C(delta=delta, **args).n
+            return self._C - tf.compute_C(delta=delta,mu_a=mu+dmu, mu_b=mu-dmu, **args).n
         try:
             delta = brentq(f, a, b)
-        except:
+        except ValueError: # It's important to deal with specific exception.
             delta = 0
         return delta
 
@@ -175,14 +190,15 @@ class FFStatePhaseMapper(object):
 
             for dq in dqs:
                 g, delta, press = FFStatePhaseMapper.find_delta_pressure(delta0=delta0, mu=mu, dmu=dmu, q=q, dq=dq, id=id, dim=dim)
-                if press == 0:
-                    break
+                #if press == 0:
+                #    break
                 # print(f"{id}\tdelta0={delta0:15.7}\tmu={mu:10.7}\tdmu={dmu:10.7}\tdq={dq:10.7}:\tg={g:10.7}\tdelta={delta:10.7}\tP={press:10.7}")
                 if press > max_press:
                     max_press = press
                     max_dq = dq
                     max_g = g
                     max_delta = delta
+                    print(f"{id}:delta={delta}\tpress={press}")
                 else:
                     break
             data.append((dmu, max_dq, max_g, max_delta, max_press))
@@ -280,10 +296,15 @@ class DeltaNSGenerator(object):
                 json.dump(outputs,wf, ensure_ascii=False)
 
 
-def generate_2d_phase_diagram():
+def generate_phase_diagram():
     #FFStatePhaseMapper.compute_2d_phase_map(mu=mu, delta0=delta0)
-    FFStatePhaseMapper.compute_phase_diagram(q=0, dim=2)
+    qs = np.linspace(0,1,10)
+    for q in qs:
+        FFStatePhaseMapper.compute_phase_diagram(q=q, dim=1)
 
 if __name__ == "__main__":
     # DeltaNSGenerator.compute_ff_delta_ns_2d(delta=5) #generate 2d data
-    generate_2d_phase_diagram()
+    generate_phase_diagram()
+    #         id, dim, q, mu, delta0 = id_q_mu_delta
+
+    #FFStatePhaseMapper.phase_map_worker_thread((0,1,0,3.5279401699676582, 1.1482587080045477))

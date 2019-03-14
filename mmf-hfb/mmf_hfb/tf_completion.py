@@ -184,7 +184,7 @@ def Lambda(m, mu, hbar, dim, E_c=None, k_c=None):
 
 
 def compute_C(mu_a, mu_b, delta, m_a, m_b, dim=3, hbar=1.0, T=0.0,
-              dq=0, k_c=None, debug=False):
+              q=0, dq=0, k_c=None, debug=False):
     # Note: code only works for m_a == m_b
     # ERROR: Check with new q and dq relations...
     
@@ -199,8 +199,8 @@ def compute_C(mu_a, mu_b, delta, m_a, m_b, dim=3, hbar=1.0, T=0.0,
         k_c = 100*k_F
     
     Lambda_c = Lambda(m=m, mu=mu_q, hbar=hbar, dim=dim, k_c=k_c)
-    nu_c_delta = integrate_q(f=nu_delta_integrand, k_c=k_c, dq=dq, **args)
-    C_corr = integrate_q(f=C_integrand, k_0=k_c, **args)
+    nu_c_delta = integrate_q(f=nu_delta_integrand, k_c=k_c, q=q, dq=dq, **args)
+    C_corr = integrate_q(f=C_integrand, k_0=k_c, q=q, dq=dq, **args)
     C_c = nu_c_delta + Lambda_c
     C = C_c + C_corr
     return C
