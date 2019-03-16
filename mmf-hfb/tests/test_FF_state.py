@@ -7,42 +7,50 @@ from mmf_hfb.FuldeFerrelState import FFState as FF
 tf.MAX_DIVISION = 200
 
 
-@pytest.fixture(params=[2])
+@pytest.fixture(params=[1.0, 2.0, 3])
+def delta(request):
+    return request.param
+
+@pytest.fixture(params=[1, 2, 3])
 def dim(request):
     return request.param
 
 
-@pytest.fixture(params=[0,0.5,1.5,2.5])
-def q(request):
+@pytest.fixture(params=[0, 0.2, 0.6])
+def q_delta(request):
     return request.param
 
 
-@pytest.fixture(params=[0, 0.5, 1.5])
-def dq(request):
+@pytest.fixture(params=[0])
+def dq_delta(request):
     return request.param
 
 
-@pytest.fixture(params=[5, 10])
-def mu(request):
+@pytest.fixture(params=[1, 2, 3])
+def mu_delta(request):
     return request.param
 
 
-@pytest.fixture(params=[0.4, 0.64, 2.5])
-def dmu(request):
+@pytest.fixture(params=[0.4])
+def dmu_delta(request):
     return request.param
 
-# for dim = 3, if k_c is too larger
-# e.g.k_c=500, lots of test will fail
 @pytest.fixture(params=[200])
 def k_c(request):
     return request.param
 
+def test_Thermodynamic(delta, mu_delta, dmu_delta, q_delta, dq_delta, dim, k_c=100):
+    mu = mu_delta * delta
+    dmu = dmu_delta * delta
+    q = q_delta * delta
+    dq = dq_delta * delta
+    Thermodynamic(mu=mu, dmu=dmu, k_c=k_c, q=q, dq=dq, dim=dim, delta0=delta)
 
-#@pytest.mark.bench()
-def test_Thermodynamic(mu, dmu,delta0=1, dim=1, k_c=100, q=0, dq=0):
-    print(f"mu={mu}\tdmu={dmu}\tkc={k_c}\tq={q}\tdq={dq}\tdim={dim}")
+
+def Thermodynamic(mu, dmu, delta0=1, dim=1, k_c=100, q=0, dq=0):
+    print(f"Delta={delta0}\tmu={mu}\tdmu={dmu}\tkc={k_c}\tq={q}\tdq={dq}\tdim={dim}")
     dx = 1e-6
-    ff = FF(dmu=dmu, mu=mu, delta=delta0, dim=dim, k_c=k_c, fix_g=False)
+    ff = FF(mu=mu, delta=delta0, dim=dim, k_c=k_c, fix_g=False)
 
     def get_P(mu, dmu):
         delta = ff.solve(mu=mu, dmu=dmu, q=q, dq=dq, a=0.8*delta0, b=1.2*delta0)
@@ -71,7 +79,7 @@ def test_Thermodynamic(mu, dmu,delta0=1, dim=1, k_c=100, q=0, dq=0):
     print(f"{dim}D: E={energy_density}\tn_a={na}\tn_b={nb}\tn_p={total_density}")    
     E1, n1 = get_E_n(mu=mu+dx, dmu=dmu)
     E0, n0 = get_E_n(mu=mu-dx, dmu=dmu)
-    print(f"E1={E1.n}\tE0={E0.n}")
+    print(f"E1={E1.n}\tE0={E0.n}\tn1={n1.n}\tn0={n0.n}")
     n_p = (get_P(mu+dx, dmu) - get_P(mu-dx, dmu))/2/dx
     n_a, n_b = get_ns(mu, dmu)
     n_a_ = (get_P(mu+dx/2, dmu+dx/2) - get_P(mu-dx/2, dmu - dx/2))/2/dx
@@ -87,13 +95,5 @@ def test_Thermodynamic(mu, dmu,delta0=1, dim=1, k_c=100, q=0, dq=0):
 
 
 if __name__ == "__main__":
-    # this line will give a numerical mu =2.5 not 5, totally wrong
-    # this may be due to the effective chemical potential
-    # test_Thermodynamic(mu=5, dmu=2.5, k_c=200, q=2.5, dq=1.5, dim=1)
-    #test_Thermodynamic(mu=5, dmu=2.5, k_c=100, q=2.5, dq=1.5, dim=3)
-    #test_Thermodynamic(mu = 5, dmu = 0.64, dim = 3, k_c = 500, q = 2.5, dq = 1.5, dx = 1e-4)
-    # test_Thermodynamic(mu = 5, dmu = 0.64, dim = 3, k_c = 500, q = 0, dq = 0, dx = 0.001)
-    # test_Thermodynamic(mu=10, dmu=0.64, dim=2, q=0, dq=0, k_c=200)
-    # test_Thermodynamic(mu=5, dmu=2.5, k_c=100, q=0, dq=0, dim=1)
-    # test_Thermodynamic(mu=5, dmu=0.5, k_c=200, q=0.0, dq=0.0, dim=1)
     # test_Thermodynamic(mu=5, dmu=0.0, k_c=200, q=0.0, dq=0.0, dim=1)
+    Thermodynamic(mu=5, dmu=2.5, k_c=200, q=0, dq=.0, dim=1)

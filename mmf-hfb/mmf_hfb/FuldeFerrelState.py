@@ -11,10 +11,13 @@ import time
 
 tf.MAX_DIVISION = 500
 
-
+class LogManager(object):
+    def __init__(self, verbose=1):
+        self.verbose=verbose
+    
 class FFState(object):
-    def __init__(self, mu=10, dmu=0.4, delta=1,
-                 m=1, T=0, hbar=1, k_c=100, dim=2, fix_g=False):
+    def __init__(self, mu=10, delta=1,
+                 m=1, T=0, hbar=1, k_c=100, dim=2, fix_g=False, verbose=1):
         """
         Arguments
         ---------
@@ -29,10 +32,10 @@ class FFState(object):
         self.T = T
         self.mu = mu
         self.m = m
-        self.dmu = dmu
         self.delta = delta
         self.hbar = hbar
         self.k_c = k_c
+        self.verbose = verbose
         self._tf_args = dict(m_a=1, m_b=1, dim=dim, hbar=hbar, T=T, k_c=k_c)
 
         if fix_g:
@@ -61,7 +64,6 @@ class FFState(object):
         if delta is None:
             delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
                                a=self.delta * 0.8, b=self.delta * 1.2)
-            print(f"Delta={delta}")
         args = dict(self._tf_args, mu_a=mu + dmu, mu_b=mu - dmu, delta=delta,
                     q=q, dq=dq)
         if k_c is not None:
@@ -93,28 +95,22 @@ class FFState(object):
         if delta is None:
             delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
                                a=self.delta * 0.8, b=self.delta * 1.2)
-            print(f"Delta={delta}")
         if n_a is None:
             n_a, n_b = self.get_densities(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
 
         args = dict(self._tf_args, mu_a=mu + dmu, mu_b=mu - dmu, delta=delta,
                     q=q, dq=dq)
-        #print(args)    
         kappa = tf.integrate_q(tf.kappa_integrand, **args)
         if self.fix_g:
             g_c = self._g
         else:
             g_c = 1./self._C
-        #if delta == 0:
-        #    assert kappa == self.get_normal_energy_density(mu=mu, dmu=dmu, q=q, dq=dq)
         return kappa  # - g_c * n_a * n_b /2
     
     def get_pressure(self, mu, dmu, q=0, dq=0, delta=None, return_ns = False):
         if delta is None:
             delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
                                a=self.delta * 0.1, b=self.delta * 2)
-            print(f"Delta={delta}")
-        #print(f"dq={dq}\tdelta={delta}")   
         n_a, n_b = self.get_densities(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
         energy_density = self.get_energy_density(
             mu=mu, dmu=dmu, delta=delta, q=q, dq=dq,
@@ -149,10 +145,8 @@ class FFStatePhaseMapper(object):
         return np.linspace(0, 0.1 * delta0, 5)
 
 
-    def find_delta_pressure(delta0, mu, dmu, q, dq, id, dim=2):
+    def find_delta_pressure(ff, delta0, mu, dmu, q, dq, id, dim=2):
         """compute detla and pressure"""
-        ff = FFState(fix_g=True, mu=mu, dmu=dmu, delta=delta0, dim=dim, k_c=100, m=0, T=0)
-        g = ff._g
         ds = np.linspace(0.1 * delta0, 2* delta0, 10)
         fs = [ff.f(mu=mu, dmu=dmu, delta=d, q=q, dq=dq) for d in ds]
         if(fs[0] * fs[-1] > 0):
@@ -162,17 +156,17 @@ class FFStatePhaseMapper(object):
                     p1 = ff.get_pressure(mu=mu, dmu=dmu, q=q, dq=dq, delta=d1)
                     d2 = ff.solve(mu=mu, dmu=dmu, q=q, dq= dq,a=ds[i], b = ds[-1])
                     p2= ff.get_pressure(mu=mu, dmu=dmu, q=q, dq=dq, delta=d2)
-                    print(f"{id}:p1={p1.n:10.7}\tp2={p2.n:10.7}")
+                    #print(f"{id}:p1={p1.n:10.7}\tp2={p2.n:10.7}")
                     if(p2 > p1):
-                        return (g, d2, p2.n)
-                    return (g, d1, p1.n)
-            return (g, 0, 0)
+                        return (d2, p2.n)
+                    return (d1, p1.n)
+            return ( 0, 0)
         else:
             d = ff.solve(mu=mu, dmu=dmu, q=q, dq=dq, a=ds[0], b=ds[-1])
             if d > 0:
                 p = ff.get_pressure(mu=mu, dmu=dmu, q=q, dq=dq, delta=d)
-                return (g, d, p.n)
-            return (g, d, 0)
+                return (d, p.n)
+            return (d, 0)
 
     def phase_map_worker_thread(id_q_mu_delta):
         """compute press, density for given mu and delta"""
@@ -180,28 +174,36 @@ class FFStatePhaseMapper(object):
         id, dim, q, mu, delta0 = id_q_mu_delta
         dmus = FFStatePhaseMapper.get_dmus(mu, delta0)
         dqs = FFStatePhaseMapper.get_dqs(mu, delta0)
-        output = dict(mu=mu, delta=delta0, q=q)
         data=[]
+        ff = FFState(fix_g=True, mu=mu, delta=delta0, dim=dim, k_c=100, m=0, T=0)
+        na, nb = ff.get_densities(mu=mu, dmu=0, delta=delta0)
+        output = dict(mu=mu, delta=delta0, q=q, g=ff._g, na=na.n, nb=nb.n)
         for dmu in dmus:
-            max_press = -np.inf
+
+            delta, press = FFStatePhaseMapper.find_delta_pressure(ff=ff, delta0=delta0, mu=mu, dmu=dmu, q=q, dq=0, id=id, dim=dim)
+            if delta > 0:
+                continue
+            max_press = press
             max_dq = 0
-            max_g = 0
-            max_delta = 0
+            max_delta = delta
 
             for dq in dqs:
-                g, delta, press = FFStatePhaseMapper.find_delta_pressure(delta0=delta0, mu=mu, dmu=dmu, q=q, dq=dq, id=id, dim=dim)
+                if dq == 0:
+                    continue
+                delta, press = FFStatePhaseMapper.find_delta_pressure(ff=ff, delta0=delta0, mu=mu, dmu=dmu, q=q, dq=dq, id=id, dim=dim)
+                if delta == 0:
+                    continue
                 #if press == 0:
                 #    break
                 # print(f"{id}\tdelta0={delta0:15.7}\tmu={mu:10.7}\tdmu={dmu:10.7}\tdq={dq:10.7}:\tg={g:10.7}\tdelta={delta:10.7}\tP={press:10.7}")
                 if press > max_press:
                     max_press = press
                     max_dq = dq
-                    max_g = g
                     max_delta = delta
                     print(f"{id}:delta={delta}\tpress={press}")
-                else:
-                    break
-            data.append((dmu, max_dq, max_g, max_delta, max_press))
+                
+            if max_press > -np.inf and max_delta > 0:
+                data.append((dmu, max_dq, max_delta, max_press))
             if dmu > 0 and max_dq > 0 and max_delta > 0:
                 print(f"{id}:Find one FF State{data[-1]}")
 
