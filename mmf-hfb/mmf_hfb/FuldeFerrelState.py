@@ -13,8 +13,8 @@ tf.MAX_DIVISION = 500
 
     
 class FFState(object):
-    def __init__(self, mu, dmu, delta=1,m=1, T=0,
-                  hbar=1, k_c=100, dim=2, fix_g=False, bStateSentinel=False):
+    def __init__(self, mu, dmu, delta=1,m=1, T=0,hbar=1, k_c=100,
+                   dim=2, fix_g=False, bPolorized=False, bStateSentinel=False):
         """
         Arguments
         ---------
@@ -34,9 +34,10 @@ class FFState(object):
         self.k_c = k_c
         self.bSuperfluidity = None
         self.bStateSentinel = bStateSentinel
+        self.bPolorized = bPolorized
         self._tf_args = dict(m_a=1, m_b=1, dim=dim, hbar=hbar, T=T, k_c=k_c)
         if fix_g:
-            self._g = self.get_g(mu=mu, dmu=0, delta=delta)
+            self._g = self.get_g(mu=mu, dmu=dmu, delta=delta)
         else:
             self._C = tf.compute_C(mu_a=mu, mu_b=mu, delta=delta, **self._tf_args).n
         self.bSuperfluidity = self.check_superfluidity(mu=mu, dmu=dmu)
@@ -69,6 +70,9 @@ class FFState(object):
         n_p = tf.integrate_q(tf.n_p_integrand, **args)
         n_m = tf.integrate_q(tf.n_m_integrand, **args)
         n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
+        if self.bStateSentinel:
+             assert np.allclose(n_a.n, n_b.n) != self.bPolorized
+
         return n_a, n_b
 
     def get_FFG_energy_density(self, mu, dmu, q=0, dq=0):
@@ -121,8 +125,23 @@ class FFState(object):
 
     def check_superfluidity(self, mu=None, dmu=None, q=0, dq=0):
         """Check if a configuration will yidl superfluid state"""
+        oldFlag = self.bStateSentinel
+        self.bStateSentinel = False
         delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq)
-        return delta != 0
+        self.bStateSentinel = oldFlag
+        return delta > 0
+
+    def isFFS(self, mu=None, dmu=None, q=0, dq=0):
+        """Check if a configuration will yidl superfluid state"""
+        oldFlag = self.bStateSentinel
+        self.bStateSentinel = False
+        delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq)
+        bPolorized = False
+        if delta > 0:
+            na, nb = self.get_densities(mu=mu, dmu=dmu, q=q, dq=q, delta=delta)
+            bPolorized = not np.allclose(na.n, nb.n)
+        self.bStateSentinel = oldFlag
+        return delta > 0 and bPolorized
 
     def solve(self, mu=None, dmu=None, q=0, dq=0, a=None, b=None):
         if a is None:
@@ -314,8 +333,13 @@ def generate_phase_diagram():
         FFStatePhaseMapper.compute_phase_diagram(q=q, dim=1)
 
 if __name__ == "__main__":
-    # DeltaNSGenerator.compute_ff_delta_ns_2d(delta=5) #generate 2d data
-    generate_phase_diagram()
-    #         id, dim, q, mu, delta0 = id_q_mu_delta
-
-    #FFStatePhaseMapper.phase_map_worker_thread((0,1,0,3.5279401699676582, 1.1482587080045477))
+    #generate_phase_diagram()
+    mu = 10
+    dmu = 0.4
+    delta = 5
+    k_c = 200
+    dim = 1
+    ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=dim, k_c=k_c,fix_g=True)
+    rs = np.linspace(0.1, 0.5, 20)
+    rs = np.linspace(.25, 0.5, 20)
+    qs = 1.0/rs
