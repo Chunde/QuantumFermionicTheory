@@ -20,12 +20,12 @@ def dim(request):
 
 
 @pytest.fixture(params=[0, 0.2])
-def q_mu(request):
+def q_dmu(request):
     return request.param
 
 
 @pytest.fixture(params=[0, 0.2])
-def dq_mu(request):
+def dq_dmu(request):
     return request.param
 
 
@@ -39,13 +39,13 @@ def dmu_delta(request):
     return request.param
 
 
-def test_Thermodynamic(delta, mu_delta, dmu_delta, q_mu, dq_mu, dim, k_c=200):
+def test_Thermodynamic(delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dim, k_c=200):
     if dim == 3:
         k_c = 50
     mu = mu_delta * delta
     dmu = dmu_delta * delta
-    q = q_mu * mu
-    dq = dq_mu * mu
+    q = q_dmu * mu
+    dq = dq_dmu * mu
     Thermodynamic(mu=mu, dmu=dmu, k_c=k_c, q=q, dq=dq, dim=dim, delta0=delta)
 
 def get_e_n_analytically(mu, dmu, q=0, dq=0, dim=1):
@@ -81,9 +81,9 @@ def get_dE_dn(mu, dmu, dim, q=0, dq=0):
     e2, n2 = get_e_n_analytically(mu=mu - dx, dmu=dmu, dim=dim, q=q, dq=dq)
     return (e1-e2)/(sum(n1)-sum(n2))
 
-def Thermodynamic(mu, dmu,delta0=1, dim=1, k_c=100, q=0, dq=0, T=0.0,a=0.8, b=1.2, dx=1e-3, N=10, bCheckAnalytically=True):
+def Thermodynamic(mu, dmu, delta0=1, dim=1, k_c=100, q=0, dq=0, T=0.0,a=0.8, b=1.2, dx=1e-3, N=10, bCheckAnalytically=True):
     #print(f"mu={mu}\tdmu={dmu}\tkc={k_c}\tq={q}\tdq={dq}\tdim={dim}")    
-    ff = FF(mu=mu, dmu=dmu, delta=delta0, dim=dim, k_c=k_c, T=T, fix_g=True)
+    ff = FF(mu=mu, dmu=dmu, delta=delta0, q=q, dq=dq, dim=dim, k_c=k_c, T=T, fix_g=True, bStateSentinel=True)
     bSuperfluidity = ff.check_superfluidity(mu=mu, dmu=dmu, q=q, dq=dq)
     if not bSuperfluidity:
         print("Not a superfluid state")
@@ -119,13 +119,19 @@ def Thermodynamic(mu, dmu,delta0=1, dim=1, k_c=100, q=0, dq=0, T=0.0,a=0.8, b=1.
         try:
             return brentq(f, a*dmu , b*dmu)
         except:
-            irs = np.linspace(a,b, N) * dmu
+            irs = np.linspace(a, b, N) * dmu
             for i in reversed(range(N)):
-                startPos = f(irs[i])
-                for j in reversed(range(i + 1, N)):
-                    endPos = f(irs[j])
-                    if startPos * endPos < 0: # has solution
-                        return brentq(f, irs[i], irs[j])
+                try:
+                    startPos = f(irs[i])
+                    for j in reversed(range(i + 1, N)):
+                        try:
+                            endPos = f(irs[j])
+                            if startPos * endPos < 0: # has solution
+                                return brentq(f, irs[i], irs[j])
+                        except:
+                            continue
+                except:
+                    continue
             warnings.warn(f"Can't find a solution in that region, use the default value={dmu}")
             return dmu # when no solution is found
         
@@ -208,5 +214,5 @@ def Thermodynamic(mu, dmu,delta0=1, dim=1, k_c=100, q=0, dq=0, T=0.0,a=0.8, b=1.
 
 
 if __name__ == "__main__":
-    test_Thermodynamic(delta = 1.0, mu_delta = 3, dmu_delta = 0.5, q_mu = 0., dq_mu = 0., dim = 1, k_c = 200)
+    test_Thermodynamic(delta = 1.0, mu_delta = 3, dmu_delta = 0.5, q_dmu = 0, dq_dmu = 0.5, dim = 1, k_c = 200)
     #Thermodynamic(mu=5, dmu=.5, k_c=500, q=0, dq=.0, dim=1)
