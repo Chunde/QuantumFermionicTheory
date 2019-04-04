@@ -13,7 +13,7 @@ tf.MAX_DIVISION = 500
 
     
 class FFState(object):
-    def __init__(self, mu, dmu, delta=1, q=0, dq=0, m=1, T=0,hbar=1, k_c=100,
+    def __init__(self, mu, dmu, delta=1, q=0, dq=0, m=1, T=0, hbar=1, k_c=100,
                    dim=2, fix_g=False,  bStateSentinel=False):
         """
         Arguments
@@ -23,6 +23,13 @@ class FFState(object):
            performing the non-linear iterations, otherwise the
            coupling constant g_c will be fixed.  Note: this g_c will
            depend on the cutoff k_c.
+        bStateSentinel: bool
+           if bStateSentinel is True, the solve function will check
+           if the resulted delta is zero or not, if it's different
+           from the initial delta, assert will be failed. It's used
+           to make sure the state is always in superfluid state or
+           normal state when using the instance to compute densities,
+           pressures etc.
         """
         self.fix_g = fix_g
         self.dim = dim
@@ -39,7 +46,7 @@ class FFState(object):
         else:
             self._C = tf.compute_C(mu_a=mu, mu_b=mu, 
                                    delta=delta, q=q, dq=dq, **self._tf_args).n
-        self.bSuperfluidity = self.check_superfluidity(mu=mu, dmu=dmu, q=q, dq=dq)
+        self.bSuperfluidity = delta > 0 #self.check_superfluidity(mu=mu, dmu=dmu, q=q, dq=dq)
         self.bPolorized = self.check_polarization(mu=mu, dmu=dmu, q=q, dq=dq)
         
     def f(self, mu, dmu, delta, q=0, dq=0, **kw):
@@ -76,7 +83,7 @@ class FFState(object):
 
         return n_a, n_b
 
-     def get_current(self, mu, dmu, q=0, dq=0, delta=None, k_c=None):
+    def get_current(self, mu, dmu, q=0, dq=0, delta=None, k_c=None):
         """return oveerall current"""
         n_a, n_b = self.get_densities(mu=mu, dmu=dmu, q=q, dq=dq, delta=delta, k_c=k_c)
         return n_a * (q + dq) + n_b * (q - dq)
@@ -116,6 +123,7 @@ class FFState(object):
         return kappa  # - g_c * n_a * n_b /2
     
     def get_pressure(self, mu, dmu, q=0, dq=0, delta=None, return_ns = False):
+        """return the pressure"""
         if delta is None:
             delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
                                a=self.delta * 0.8, b=self.delta * 1.2)
@@ -130,7 +138,11 @@ class FFState(object):
         return pressure
 
     def check_superfluidity(self, mu=None, dmu=None, q=0, dq=0):
-        """Check if a configuration will yield superfluid state"""
+        """
+        Check if a configuration will yield superfluid state.
+        May yield wrong results since the solve routine not 
+        always works properly
+        """
         oldFlag = self.bStateSentinel
         self.bStateSentinel = False
         delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq,
@@ -146,7 +158,12 @@ class FFState(object):
         self.bStateSentinel = oldFlag
         return not np.allclose(n_a.n, n_b.n)
 
-    def solve(self, mu=None, dmu=None, q=0, dq=0, a=None, b=None):
+    def solve(self, mu=None, dmu=None, q=0, dq=0, a=None, b=None, throwException=False):
+        """
+        On problem with brentq is that is requries very smooth function with a 
+        and b yields different sign of values, this can fail frequently if our
+        integration is not with high accuracy. Should be solved in the future.
+        """
         if a is None:
             a = a=self.delta * 0.1
         if b is None:
@@ -156,10 +173,14 @@ class FFState(object):
             if self.fix_g:
                 return self._g - self.get_g(delta=delta, mu=mu, dmu=dmu, q=q, dq=dq)
             return self._C - tf.compute_C(delta=delta,mu_a=mu+dmu, mu_b=mu-dmu, **args).n
-        try:
-            delta = brentq(f, a, b)
-        except ValueError: # It's important to deal with specific exception.
-            delta = 0
+        if  throwException:
+             delta = brentq(f, a, b)
+        else:
+            try:
+                delta = brentq(f, a, b)
+            except ValueError: # It's important to deal with specific exception.
+                delta = 0
+
         if self.bStateSentinel and self.bSuperfluidity is not None:
                 assert self.bSuperfluidity == (delta > 0)
         return delta
