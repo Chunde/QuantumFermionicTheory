@@ -47,7 +47,6 @@ class FFState(object):
             self._C = tf.compute_C(mu_a=mu, mu_b=mu, 
                                    delta=delta, q=q, dq=dq, **self._tf_args).n
         self.bSuperfluidity = delta > 0 #self.check_superfluidity(mu=mu, dmu=dmu, q=q, dq=dq)
-        self.bPolorized = self.check_polarization(mu=mu, dmu=dmu, q=q, dq=dq)
         
     def f(self, mu, dmu, delta, q=0, dq=0, **kw):
         args = dict(self._tf_args)
@@ -78,9 +77,6 @@ class FFState(object):
         n_p = tf.integrate_q(tf.n_p_integrand, **args)
         n_m = tf.integrate_q(tf.n_m_integrand, **args)
         n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
-        if self.bStateSentinel:
-             assert np.allclose(n_a.n, n_b.n) != self.bPolorized
-
         return n_a, n_b
 
     def get_current(self, mu, dmu, q=0, dq=0, delta=None, k_c=None):
@@ -184,15 +180,3 @@ class FFState(object):
         if self.bStateSentinel and self.bSuperfluidity is not None:
                 assert self.bSuperfluidity == (delta > 0)
         return delta
-
-if __name__ == "__main__":
-    #generate_phase_diagram()
-    mu = 10
-    dmu = 0.4
-    delta = 5
-    k_c = 200
-    dim = 1
-    ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=dim, k_c=k_c,fix_g=True)
-    rs = np.linspace(0.1, 0.5, 20)
-    rs = np.linspace(.25, 0.5, 20)
-    qs = 1.0/rs

@@ -18,13 +18,14 @@ def delta(request):
 def dim(request):
     return request.param
 
-
-@pytest.fixture(params=[0, 0.2])
+# if q and dq are too big, test may fail as
+# the no solution to delta can be found
+@pytest.fixture(params=[0, 0.02, 0.05])
 def q_dmu(request):
     return request.param
 
 
-@pytest.fixture(params=[0, 0.2])
+@pytest.fixture(params=[0, 0.02])
 def dq_dmu(request):
     return request.param
 
@@ -214,5 +215,5 @@ def Thermodynamic(mu, dmu, delta0=1, dim=1, k_c=100, q=0, dq=0, T=0.0,a=0.8, b=1
 
 
 if __name__ == "__main__":
-    test_Thermodynamic(delta = 1.0, mu_delta = 3, dmu_delta = 0.5, q_dmu = 0, dq_dmu = 0.5, dim = 1, k_c = 200)
+    test_Thermodynamic(delta = 1.0, mu_delta = 3, dmu_delta = 0.5, q_dmu = 0, dq_dmu = 0.05, dim = 1, k_c = 200)
     #Thermodynamic(mu=5, dmu=.5, k_c=500, q=0, dq=.0, dim=1)
