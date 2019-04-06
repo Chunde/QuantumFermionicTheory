@@ -252,6 +252,9 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, dim=3,
        One of the base tf_completion functions called as f(k2_a, k2_b, ...).
     
     """
+    if k_0 != 0:
+        warnings.warn(f"""This intergration routine does not assume it's symmtric in k,
+                       since your k_0 is nonzero, result may be wrong""")
     k_inf = np.inf if k_c is None else k_c
     
     if False and q == 0 and dq == 0:
@@ -269,7 +272,7 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, dim=3,
         def integrand(k):
             k2_a = (k + q + dq)**2
             k2_b = (k + q - dq)**2
-            return f(k2_a, k2_b, *args) / np.pi
+            return f(k2_a, k2_b, *args) / 2 / np.pi
     elif dim == 2:
         def integrand(kx, kp):
             # print(kx, kp)
@@ -311,25 +314,9 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, dim=3,
     if dim == 1:
         integrand = numba.cfunc(numba.float64(numba.float64))(integrand)
         integrand = sp.LowLevelCallable(integrand.ctypes)
-        return quad(func=integrand, a=k_0, b=k_inf, points=points, limit=limit)
-
-    if False:
-        def func(kp, kx):
-            return integrand(kx, kp)
-
-        from mmf_hfb.integrates import dquad_q, dquad_kF
-        v0 = dquad_kF(f=func, mu_a=mu_a, mu_b=mu_b, delta=delta, q=q,
-                      dq=dq, hbar=hbar, m_a=m_a, m_b=m_b, kF=kF,
-                      k_0=k_0, k_inf=k_inf, limit=limit)/2
-        return v0
-
-    if False:
-        # [clean up]
-        v1 = dquad_q(func=integrand, mu_a=mu_a, mu_b=mu_b, delta=delta,
-                     dq=dq, hbar=hbar, m_a=m_a, m_b=m_b,
-                     k_0=k_0, k_inf=k_inf, limit=limit)/2
-        return v1
-    
+        return quad(func=integrand, a=-k_inf, b=k_inf, points=points, limit=limit)
+        #return quad(func=integrand, a=k_0, b=k_inf, points=points, limit=limit)
+   
     def kp0(kx):
         # k**2 = kx**2 + kp**2 > k_0**2
         # kp**2 > k_0**2 - kx**2

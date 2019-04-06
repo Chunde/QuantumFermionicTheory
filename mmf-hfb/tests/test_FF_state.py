@@ -39,6 +39,22 @@ def mu_delta(request):
 def dmu_delta(request):
     return request.param
 
+def test_density_with_qs(delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dim, k_c=200):
+    """The density should not depend on q"""
+    if dim == 3:
+        k_c = 50
+    mu = mu_delta * delta
+    dmu = dmu_delta * delta
+    q = q_dmu * mu
+    ff = FF(mu=mu, dmu=dmu, delta=delta, dim=1, k_c=100,fix_g=True)
+    ns = ff.get_densities(mu=mu, dmu=dmu)
+    na0, nb0 = ns[0].n, ns[1].n
+    print(na0, nb0)
+    ns = ff.get_densities(mu=mu, dmu=dmu, q=q)
+    na1, nb1 = ns[0].n, ns[1].n
+    print(na1, nb1)
+    assert np.allclose(na0, na1)
+    assert np.allclose(nb0, nb1)
 
 def test_Thermodynamic(delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dim, k_c=200):
     if dim == 3:
