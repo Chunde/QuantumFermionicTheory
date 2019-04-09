@@ -14,7 +14,7 @@ tf.MAX_DIVISION = 500
     
 class FFState(object):
     def __init__(self, mu, dmu, delta=1, q=0, dq=0, m=1, T=0, hbar=1, k_c=100,
-                   dim=2, fix_g=False,  bStateSentinel=False):
+                 dim=2, fix_g=False,  bStateSentinel=False):
         """
         Arguments
         ---------
@@ -35,6 +35,7 @@ class FFState(object):
         self.dim = dim
         self.T = T
         self.mu = mu
+        self.dmu = dmu
         self.m = m
         self.delta = delta
         self.hbar = hbar
@@ -58,8 +59,11 @@ class FFState(object):
 
     def get_g(self, delta, mu=None, dmu=None, q=0, dq=0, **kw):
         args = dict(self._tf_args, q=q, dq=dq, delta=delta)
-        if mu is not None:
-            args.update(mu_a=mu+dmu, mu_b=mu-dmu)
+        if mu is None:
+            mu = self.mu
+        if dmu is None:
+            dmu = self.dmu
+        args.update(mu_a=mu+dmu, mu_b=mu-dmu)
         nu_delta = tf.integrate_q(tf.nu_delta_integrand, **args)
         g = 1./nu_delta.n
         return g
@@ -118,8 +122,13 @@ class FFState(object):
             g_c = 1./self._C
         return kappa  # - g_c * n_a * n_b /2
     
-    def get_pressure(self, mu, dmu, q=0, dq=0, delta=None, return_ns = False):
+    def get_pressure(self, mu=None, dmu=None, q=0, dq=0, delta=None,
+                     return_ns=False):
         """return the pressure"""
+        if mu is None:
+            mu = self.mu
+        if dmu is None:
+            dmu = self.dmu
         if delta is None:
             delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
                                a=self.delta * 0.8, b=self.delta * 1.2)

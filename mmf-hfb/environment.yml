@@ -15,7 +15,8 @@ dependencies:
   - ipyparallel
   - numba
   - numexpr
-
+  - Cython
+  
   # Documentation
   - ipython
   - notebook
