@@ -4,7 +4,7 @@ import cmath
 
 import numpy as np
 import numba
-
+import warnings
 import scipy as sp
 
 from .integrate import quad, dquad
@@ -253,7 +253,7 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, dim=3,
     
     """
     if k_0 != 0:
-        warnings.warn(f"""This intergration routine does not assume it's symmtric in k,
+        warnings.warn(f"""This integration routine does not assume it's symmetric in k,
                        since your k_0 is nonzero, result may be wrong""")
     k_inf = np.inf if k_c is None else k_c
     

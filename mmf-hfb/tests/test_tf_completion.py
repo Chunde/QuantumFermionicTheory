@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.optimize import brentq
 import py.test
-
+import warnings
 from mmf_hfb import tf_completion, homogeneous
 
 
@@ -16,20 +16,20 @@ def test_3D():
     mu = xi*eF
     delta = 0.68640205206984016444108204356564421137062514068346*eF
     args = dict(mu_a=mu, mu_b=mu, delta=delta, m_a=m, m_b=m, hbar=hbar, T=0.0)
-    n_p = tf_completion.integrate(tf_completion.n_p_integrand, d=3, **args)
+    n_p = tf_completion.integrate(tf_completion.n_p_integrand, dim=3, **args)
     assert np.allclose(n_p.n, nF)
 
-    E = tf_completion.integrate(tf_completion.kappa_integrand, d=3,
+    E = tf_completion.integrate(tf_completion.kappa_integrand, dim=3,
                                 k_c=100.0, **args)
     assert np.allclose(E.n, xi*E_FG, rtol=1e-2)
     
     args_ = dict(mu_a=mu, mu_b=mu, delta=delta, m_a=m, m_b=m, hbar=hbar, T=0.0)
-    C_tilde = tf_completion.compute_C(d=3, **args_)
+    C_tilde = tf_completion.compute_C(dim=3, **args_)
     assert np.allclose(C_tilde.n, 0)
     
-    n_p = tf_completion.integrate_q(tf_completion.n_p_integrand, d=3, dq=0, **args)
+    n_p = tf_completion.integrate_q(tf_completion.n_p_integrand, dim=3, dq=0, **args)
     assert np.allclose(n_p.n, nF, rtol=0.0002)
-    C_tilde = tf_completion.compute_C(d=3, dq=0.00001, **args_)
+    C_tilde = tf_completion.compute_C(dim=3, dq=0.00001, **args_)
     assert np.allclose(C_tilde.n, 0)
 
     
@@ -42,10 +42,10 @@ def test_2D():
     mu = 0.5*eF
     delta = np.sqrt(2)*eF
     args = dict(mu_a=mu, mu_b=mu, delta=delta, m_a=m, m_b=m, hbar=hbar, T=0.0)
-    n_p = tf_completion.integrate(tf_completion.n_p_integrand, d=2, **args)
+    n_p = tf_completion.integrate(tf_completion.n_p_integrand, dim=2, **args)
     assert np.allclose(n_p.n, nF)
 
-    n_p = tf_completion.integrate_q(tf_completion.n_p_integrand, d=2, dq=0, **args)
+    n_p = tf_completion.integrate_q(tf_completion.n_p_integrand, dim=2, dq=0, **args)
     assert np.allclose(n_p.n, nF)
     
 
@@ -65,8 +65,8 @@ def test_1D():
     args = dict(mu_a=mu_eff, mu_b=mu_eff, delta=delta, m_a=m, m_b=m,
                 hbar=hbar, T=0.0)
     
-    n_p = tf_completion.integrate(tf_completion.n_p_integrand, d=1, **args)
-    nu = tf_completion.integrate(tf_completion.nu_integrand, d=1, **args)
+    n_p = tf_completion.integrate(tf_completion.n_p_integrand, dim=1, **args)
+    nu = tf_completion.integrate(tf_completion.nu_integrand, dim=1, **args)
     v_0 = -delta/nu.n
     mu = mu_eff - n_p.n*v_0/2
     lam = m*v_0/n_p.n/hbar**2
@@ -78,8 +78,8 @@ def test_1D():
     assert np.allclose(mu_tilde, 0.0864, atol=0.0005)
     #assert np.allclose(E_N_E_2, -0.3037, atol=0.0005)
 
-    n_p = tf_completion.integrate_q(tf_completion.n_p_integrand, d=1, dq=0, **args)
-    nu = tf_completion.integrate_q(tf_completion.nu_integrand, d=1, dq=0, **args)
+    n_p = tf_completion.integrate_q(tf_completion.n_p_integrand, dim=1, dq=0, **args)
+    nu = tf_completion.integrate_q(tf_completion.nu_integrand, dim=1, dq=0, **args)
     v_0 = -delta/nu.n
     mu = mu_eff - n_p.n*v_0/2
     lam = m*v_0/n_p.n/hbar**2
