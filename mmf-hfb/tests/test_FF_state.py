@@ -102,7 +102,7 @@ def Thermodynamic(mu, dmu, delta0=1, dim=1, k_c=100, q=0, dq=0,
                  T=0.0,a=0.8, b=1.2, dx=1e-3, N=10, bCheckAnalytically=True):
     ff = FF(mu=mu, dmu=dmu, delta=delta0, q=q, dq=dq, dim=dim, k_c=k_c, T=T, 
             fix_g=True, bStateSentinel=True)
-
+    mu, dmu = ff.get_mus_eff(mu=mu, dmu=dmu, q=q, dq=dq, delta=delta0, k_c=k_c)
     def get_P(mu, dmu):
         delta = ff.solve(mu=mu, dmu=dmu, q=q, dq=dq, a=0.8*delta0, b=1.2*delta0)
         return ff.get_pressure(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
@@ -171,6 +171,5 @@ def Thermodynamic(mu, dmu, delta0=1, dim=1, k_c=100, q=0, dq=0,
     assert np.allclose(n_b.n, n_b_.n)
 
 if __name__ == "__main__":
-    test_Thermodynamic(delta = 1.0, mu_delta = 3, dmu_delta = 0.5, q_dmu = 0.05, 
-                       dq_dmu = 0.02, dim = 1, k_c = 200)
-    #Thermodynamic(mu=5, dmu=.5, k_c=500, q=0, dq=.0, dim=1)
+    test_Thermodynamic(delta = 1.0, mu_delta = 3, dmu_delta = .5, q_dmu = 0.05, 
+                       dq_dmu = 0.02, dim = 3, k_c = 2000)

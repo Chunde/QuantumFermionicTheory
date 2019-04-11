@@ -296,7 +296,7 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, dim=3,
     mu_q = mu - dq**2/2*minv
     assert m_a == m_b   # Need to re-derive for different masses
     m = 1./minv
-    kF = math.sqrt(2*mu/minv)/hbar
+    #kF = math.sqrt(2*mu/minv)/hbar
 
     # The following conditions were derived from w(kx, kp) = 0 and
     # similar conditions which are now w(kx+q, kp) = 0.  If the old
