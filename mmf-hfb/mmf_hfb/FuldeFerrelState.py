@@ -73,6 +73,7 @@ class FFState(object):
         if delta is None:
             delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
                                a=self.delta * 0.8, b=self.delta * 1.2)
+
         args = dict(self._tf_args, mu_a=mu + dmu, mu_b=mu - dmu, delta=delta,
                     q=q, dq=dq)
         if k_c is not None:
@@ -83,13 +84,38 @@ class FFState(object):
         n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
         return n_a, n_b
 
-    def get_mus_eff(self, mu, dmu, q=0, dq=0, delta=None, k_c=None, rtol=1e-5):
-        if self.dim != 1:
-            return (mu, dmu)
-        """return the densities of two the components for 1d using iteration"""
+    def get_ns_p_e_mus_1d(self, mu, dmu, mus_eff=None, delta=None,
+                         q=0, dq=0, k_c=None, rtol=1e-5, update_g=False):
+        """
+        return the particle densities, pressure, energy density,
+            effective mus for 1d using self-consistent method
+        Arguments
+        ---------
+        mu: The bare mu (mu_a + mu_b)/2
+        dmu: The bare chemical potential difference (mu_a - mu_b)/2
+        delta: Nonable
+            if delta is None, its value will be solved using mu and dmu
+        mus_eff :(mu, dmu) 
+            Effective mu, dmu that can be used to evaluate
+            the gap equation in the beginning of the iteration if
+            it's not None.
+        update_g: bool
+            Indicate if the g_c should be updated in the iteration
+            By default its value is False, means the g_c will be fixed
+        """
+
+        self.dim = 1
+        self._tf_args.update(dim=1)
+        update_delta = False
         if delta is None:
-            delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
+            if mus_eff is not None:
+                delta = self.solve(mu=mus_eff[0], dmu=mus_eff[1], q=q, dq=dq, 
                                a=self.delta * 0.8, b=self.delta * 1.2)
+            else:
+                delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
+                               a=self.delta * 0.8, b=self.delta * 1.2)
+            update_delta = True
+
         args = dict(self._tf_args, mu_a=mu + dmu, mu_b=mu - dmu, delta=delta,
                     q=q, dq=dq)
         if k_c is not None:
@@ -105,23 +131,39 @@ class FFState(object):
         itr = 0
         while(error > rtol):
             itr = itr + 1
-            mu_a = mu_a0 + self._g * n_b.n
-            mu_b = mu_b0 + self._g * n_a.n
-            args.update(mu_a=mu_a, mu_b=mu_b)
+            mu_a = mu_a0 +  self._g * n_b.n
+            mu_b = mu_b0 +  self._g * n_a.n
+            mu = (mu_a + mu_b) / 2
+            dmu = (mu_a - mu_b) /2 
+            if update_g:
+                self._g = self.get_g(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
+            if update_delta:
+                delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq,
+                                  a=delta * 0.8, b=delta * 1.2)
+                print(f"Delta={delta}")
+
+            args.update(mu_a=mu_a, mu_b=mu_b, delta=delta)
             n_p = tf.integrate_q(tf.n_p_integrand, **args)
             n_m = tf.integrate_q(tf.n_m_integrand, **args)
             n_a_, n_b_ = (n_p + n_m)/2, (n_p - n_m)/2
             error = np.sqrt((n_a.n - n_a_.n)**2 + (n_b.n - n_b_.n)**2)/n_p.n
             n_a = n_a_
             n_b = n_b_
-            print(error, n_a.n, n_b.n)
+            # print(error, n_a.n, n_b.n, self._g)
             if itr > MAX_ITERATION:
                 warnings.warn("""Reach max iteration without converging
                                  to desired accuracy""")
                 break
         mu_a = mu_a0 + self._g * n_b.n
         mu_b = mu_b0 + self._g * n_a.n
-        return ((mu_a + mu_b)/2, (mu_a - mu_b)/2)
+        print(f"mu={(mu_a + mu_b)/2}, dmu={(mu_a - mu_b)/2}, n_a={n_a.n}, n_b={n_b.n}, g_c={self._g}")
+
+        args = dict(self._tf_args, mu_a=mu + dmu, mu_b=mu - dmu, delta=delta,
+                    q=q, dq=dq)
+        kappa = tf.integrate_q(tf.kappa_integrand, **args)
+        e = kappa - self._g * n_a * n_b /2
+        p = mu_a * n_a + mu_b * n_b - e
+        return (n_a.n, n_b.n, e.n, p.n, ((mu_a + mu_b)/2, (mu_a - mu_b)/2))
 
     def get_current(self, mu, dmu, q=0, dq=0, delta=None, k_c=None):
         """return overall current"""
@@ -150,6 +192,7 @@ class FFState(object):
         if delta is None:
             delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
                                a=self.delta * 0.8, b=self.delta * 1.2)
+
         if n_a is None:
             n_a, n_b = self.get_densities(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, k_c=k_c)
 
@@ -161,8 +204,8 @@ class FFState(object):
         else:
             g_c = 1./self._C
          
-        if self.dim == 1: # will fail for 1d if add the [- g_c * n_a * n_b /2] term
-            return kappa - g_c * n_a * n_b /2
+        #if self.dim == 1: # will fail for 1d if add the [- g_c * n_a * n_b /2] term
+        #    return kappa - g_c * n_a * n_b /2
         return kappa
     
     def get_pressure(self, mu=None, dmu=None, q=0, dq=0, delta=None):

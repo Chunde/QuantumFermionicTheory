@@ -98,11 +98,14 @@ def get_dE_dn(mu, dmu, dim, q=0, dq=0):
     e2, n2 = get_e_n_analytically(mu=mu - dx, dmu=dmu, dim=dim, q=q, dq=dq)
     return (e1-e2)/(sum(n1)-sum(n2))
 
-def Thermodynamic(mu, dmu, delta0=1, dim=1, k_c=100, q=0, dq=0,
-                 T=0.0,a=0.8, b=1.2, dx=1e-3, N=10, bCheckAnalytically=True):
+def Thermodynamic(mu, dmu, delta0=1, dim=3, k_c=100, q=0, dq=0,
+                 T=0.0,a=0.8, b=1.2, dx=1e-3, N=10):
+    if dim == 1:
+        return
     ff = FF(mu=mu, dmu=dmu, delta=delta0, q=q, dq=dq, dim=dim, k_c=k_c, T=T, 
             fix_g=True, bStateSentinel=True)
-    mu, dmu = ff.get_mus_eff(mu=mu, dmu=dmu, q=q, dq=dq, delta=delta0, k_c=k_c)
+    #mu0, dmu0 =mu, dmu
+    print(ff.get_densities(mu=mu, dmu=dmu, delta=delta0))
     def get_P(mu, dmu):
         delta = ff.solve(mu=mu, dmu=dmu, q=q, dq=dq, a=0.8*delta0, b=1.2*delta0)
         return ff.get_pressure(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
@@ -170,6 +173,32 @@ def Thermodynamic(mu, dmu, delta0=1, dim=1, k_c=100, q=0, dq=0,
     assert np.allclose(n_a.n, n_a_.n)
     assert np.allclose(n_b.n, n_b_.n)
 
+
+def test_Thermodynamic_1d(mu, dmu, delta0=1, k_c=1000, q=0, dq=0,
+                 T=0.0,a=0.8, b=1.2, dx=1e-3):
+    """test id case"""
+    ff = FF(mu=mu, dmu=dmu, delta=delta0, q=q, dq=dq, dim=1, k_c=k_c, T=T, 
+            fix_g=True, bStateSentinel=True)
+    n_a, n_b, e, p, mus = ff.get_ns_p_e_mus_1d(mu=mu, dmu=dmu, delta=delta0, q=q, dq=dq, k_c=k_c, update_g=True)
+    # fix the g computed from the last line, pass the effective mu to the following routine to have a  
+
+    # Fixed mu_b by changing mu and dmu with same value , as mu_b = mu - dmu
+    # Then dP / dx = n_a
+    n_a_1, n_b_1, e1, p1, mus1 = ff.get_ns_p_e_mus_1d(mu=mu+dx/2, dmu=dmu+dx/2, mus_eff=mus, q=q, dq=dq, k_c=k_c)
+    n_a_2, n_b_2, e2, p2, mus2 = ff.get_ns_p_e_mus_1d(mu=mu-dx/2, dmu=dmu-dx/2, mus_eff=mus, q=q, dq=dq, k_c=k_c)
+    n_a_ = (p1 - p2)/2/dx
+    print(f"Expected n_a={n_a}\tNumerical n_a={n_a_}")
+
+    # Fixed mu_a by changing mu and dmu with opposite values , as mu_a = mu + dmu
+    # Then dP / dx = n_b
+    n_a_3, n_b_3, e3, p3, mus3 = ff.get_ns_p_e_mus_1d(mu=mu+dx/2, dmu=dmu-dx/2, mus_eff=mus, q=q, dq=dq, k_c=k_c)
+    n_a_4, n_b_4, e4, p4, mus4 = ff.get_ns_p_e_mus_1d(mu=mu-dx/2, dmu=dmu+dx/2, mus_eff=mus, q=q, dq=dq, k_c=k_c)
+    n_b_ = (p3 - p4)/2/dx
+
+    print(f"Expected n_b={n_b}\tNumerical n_b={n_b_}")
+    assert np.allclose(n_a, n_a_)
+    assert np.allclose(n_b, n_b_)
+
+
 if __name__ == "__main__":
-    test_Thermodynamic(delta = 1.0, mu_delta = 3, dmu_delta = .5, q_dmu = 0.05, 
-                       dq_dmu = 0.02, dim = 3, k_c = 2000)
+    test_Thermodynamic_1d(mu=3, dmu=0.5, delta0=1, k_c=100, q=0, dq=0, T=0.0,a=0.8, b=1.2, dx=1e-3)
