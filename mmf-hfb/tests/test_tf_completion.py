@@ -72,11 +72,11 @@ def test_1D():
     lam = m*v_0/n_p.n/hbar**2
     
     #v_0, n, mu, e = homogeneous.get_BCS_v_n_e(mu_eff=mu_eff, delta=delta)
-    #E_N_E_2, lam = homogeneous.BCS(mu_eff=mu_eff,  delta=delta)
+    E_N_E_2, lam = homogeneous.BCS(mu_eff=mu_eff,  delta=delta)
     mu_tilde = (hbar**2/m/v_0**2)*mu
     assert np.allclose(lam, 1./lam_inv)
     assert np.allclose(mu_tilde, 0.0864, atol=0.0005)
-    #assert np.allclose(E_N_E_2, -0.3037, atol=0.0005)
+    assert np.allclose(E_N_E_2, -0.3037, atol=0.0005)
 
     n_p = tf_completion.integrate_q(tf_completion.n_p_integrand, dim=1, dq=0, **args)
     nu = tf_completion.integrate_q(tf_completion.nu_integrand, dim=1, dq=0, **args)
