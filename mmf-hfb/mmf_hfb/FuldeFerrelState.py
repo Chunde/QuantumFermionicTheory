@@ -10,7 +10,7 @@ import itertools
 import time
 import warnings
 tf.MAX_DIVISION = 500
-MAX_ITERATION = 20
+MAX_ITERATION = 50
     
 class FFState(object):
     def __init__(self, mu, dmu, delta=1, q=0, dq=0, m=1, T=0, hbar=1, k_c=100,
@@ -85,7 +85,7 @@ class FFState(object):
         return n_a, n_b
 
     def get_ns_p_e_mus_1d(self, mu, dmu, mus_eff=None, delta=None,
-                         q=0, dq=0, k_c=None, rtol=1e-5, update_g=False):
+                         q=0, dq=0, k_c=3000, rtol=1e-6, update_g=False):
         """
         return the particle densities, pressure, energy density,
             effective mus for 1d using self-consistent method
@@ -104,66 +104,68 @@ class FFState(object):
             By default its value is False, means the g_c will be fixed
         """
 
-        self.dim = 1
-        self._tf_args.update(dim=1)
+        assert self.dim == 1
         update_delta = False
         if delta is None:
             if mus_eff is not None:
                 delta = self.solve(mu=mus_eff[0], dmu=mus_eff[1], q=q, dq=dq, 
                                a=self.delta * 0.8, b=self.delta * 1.2)
+                mu_a, mu_b = mus_eff[0] + mus_eff[1], mus_eff[0] - mus_eff[1]
             else:
                 delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
                                a=self.delta * 0.8, b=self.delta * 1.2)
             update_delta = True
-
+        
         args = dict(self._tf_args, mu_a=mu + dmu, mu_b=mu - dmu, delta=delta,
                     q=q, dq=dq)
         if k_c is not None:
             args['k_c'] = k_c
             
-        n_p = tf.integrate_q(tf.n_p_integrand, **args)
-        n_m = tf.integrate_q(tf.n_m_integrand, **args)
+        n_p = tf.integrate_q(tf.n_p_integrand, **args).n
+        n_m = tf.integrate_q(tf.n_m_integrand, **args).n
         n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
         # for 1d case, we need to solve the densities self-consistently
         error = 1.0
         mu_a0 = mu + dmu
         mu_b0 = mu - dmu
         itr = 0
+        g = self._g
+
         while(error > rtol):
             itr = itr + 1
-            mu_a = mu_a0 +  self._g * n_b.n
-            mu_b = mu_b0 +  self._g * n_a.n
-            mu = (mu_a + mu_b) / 2
-            dmu = (mu_a - mu_b) /2 
+            mu_a_eff = mu_a0 -  self._g * n_b
+            mu_b_eff = mu_b0 -  self._g * n_a
+            args.update(mu_a=mu_a_eff, mu_b=mu_b_eff, delta=delta)
             if update_g:
-                self._g = self.get_g(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
+                self._g =delta/tf.integrate_q(tf.nu_integrand, **args).n
+            n_p = tf.integrate_q(tf.n_p_integrand, **args).n
+            n_m = tf.integrate_q(tf.n_m_integrand, **args).n
+            n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
+            mu_a, mu_b = mu_a_eff + self._g * n_b,  mu_b_eff + self._g * n_a
+            mu_ = (mu_a + mu_b) / 2
+            error = np.abs(mu_ - mu)/mu
+            mu_eff = (mu_a_eff + mu_b_eff)/2
+            dmu_eff = (mu_a_eff - mu_b_eff)/2 
+
             if update_delta:
-                delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq,
+                delta = self.solve(mu=mu_eff, dmu=dmu_eff, q=q, dq=dq,
                                   a=delta * 0.8, b=delta * 1.2)
                 print(f"Delta={delta}")
 
-            args.update(mu_a=mu_a, mu_b=mu_b, delta=delta)
-            n_p = tf.integrate_q(tf.n_p_integrand, **args)
-            n_m = tf.integrate_q(tf.n_m_integrand, **args)
-            n_a_, n_b_ = (n_p + n_m)/2, (n_p - n_m)/2
-            error = np.sqrt((n_a.n - n_a_.n)**2 + (n_b.n - n_b_.n)**2)/n_p.n
-            n_a = n_a_
-            n_b = n_b_
-            # print(error, n_a.n, n_b.n, self._g)
             if itr > MAX_ITERATION:
                 warnings.warn("""Reach max iteration without converging
                                  to desired accuracy""")
                 break
-        mu_a = mu_a0 + self._g * n_b.n
-        mu_b = mu_b0 + self._g * n_a.n
-        print(f"mu={(mu_a + mu_b)/2}, dmu={(mu_a - mu_b)/2}, n_a={n_a.n}, n_b={n_b.n}, g_c={self._g}")
 
-        args = dict(self._tf_args, mu_a=mu + dmu, mu_b=mu - dmu, delta=delta,
+        print(f"mu={(mu_a + mu_b)/2}, dmu={(mu_a - mu_b)/2}, n_a={n_a}, n_b={n_b}, g_c={self._g}")
+        mu_a_eff = mu_a - self._g * n_b
+        mu_b_eff = mu_b - self._g * n_a
+        args = dict(self._tf_args, mu_a=mu_a_eff, mu_b=mu_b_eff, delta=delta,
                     q=q, dq=dq)
         kappa = tf.integrate_q(tf.kappa_integrand, **args)
-        e = kappa - self._g * n_a * n_b /2
-        p = mu_a * n_a + mu_b * n_b - e
-        return (n_a.n, n_b.n, e.n, p.n, ((mu_a + mu_b)/2, (mu_a - mu_b)/2))
+        e = kappa + self._g * n_a * n_b
+        p = mu_a_eff * n_a + mu_b_eff * n_b - e
+        return (n_a, n_b, e, p, ((mu_a_eff + mu_b_eff)/2, (mu_a_eff - mu_b_eff)/2))
 
     def get_current(self, mu, dmu, q=0, dq=0, delta=None, k_c=None):
         """return overall current"""
