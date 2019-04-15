@@ -134,7 +134,6 @@ class FFState(object):
             if update_delta:
                 self.delta = self.solve(mu=mu_eff, dmu=dmu_eff, q=q, dq=dq,
                                   a=delta * 0.8, b=delta * 1.2)
-                print(f"Delta={delta}")
 
             if itr > MAX_ITERATION:
                 warnings.warn("""Reach max iteration without converging
@@ -180,7 +179,7 @@ class FFState(object):
         print(f"mu_eff={mu_eff}, dmu_eff={dmu_eff}, n_a={n_a}, n_b={n_b}, g_c={self._g}")
         kappa = tf.integrate_q(tf.kappa_integrand, **args).n
         e = kappa + self._g * n_a * n_b
-        p = mu_a_eff * n_a + mu_b_eff * n_b - e
+        p = (mu+dmu) * n_a + (mu-dmu) * n_b - e
         return (n_a, n_b, e, p, ((mu_a_eff + mu_b_eff)/2, (mu_a_eff - mu_b_eff)/2))
 
     def get_current(self, mu, dmu, q=0, dq=0, delta=None, k_c=None):

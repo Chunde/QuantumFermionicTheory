@@ -231,15 +231,15 @@ def test_Thermodynamic_1d(mu, dmu, delta0=1, k_c=1000, q=0, dq=0,
 
     # Fixed mu_b by changing mu and dmu with same value , as mu_b = mu - dmu
     # Then dP / dx = n_a
-    n_a_1, n_b_1, e1, p1, mus1 = ff.get_ns_p_e_mus_1d(mu=mu+dx/2, dmu=dmu+dx/2, mus_eff=mus_eff, delta=delta0, q=q, dq=dq, k_c=k_c, update_g=False)
-    n_a_2, n_b_2, e2, p2, mus2 = ff.get_ns_p_e_mus_1d(mu=mu-dx/2, dmu=dmu-dx/2, mus_eff=mus_eff, delta=delta0, q=q, dq=dq, k_c=k_c, update_g=False)
+    n_a_1, n_b_1, e1, p1, mus1 = ff.get_ns_p_e_mus_1d(mu=mu+dx/2, dmu=dmu+dx/2, mus_eff=mus_eff, q=q, dq=dq, k_c=k_c, update_g=False)
+    n_a_2, n_b_2, e2, p2, mus2 = ff.get_ns_p_e_mus_1d(mu=mu-dx/2, dmu=dmu-dx/2, mus_eff=mus_eff,  q=q, dq=dq, k_c=k_c, update_g=False)
     n_a_ = (p1 - p2)/2/dx
     print(f"Expected n_a={n_a}\tNumerical n_a={n_a_}")
 
     # Fixed mu_a by changing mu and dmu with opposite values , as mu_a = mu + dmu
     # Then dP / dx = n_b
-    n_a_3, n_b_3, e3, p3, mus3 = ff.get_ns_p_e_mus_1d(mu=mu+dx/2, dmu=dmu-dx/2, mus_eff=mus_eff, delta=delta0, q=q, dq=dq, k_c=k_c, update_g=False)
-    n_a_4, n_b_4, e4, p4, mus4 = ff.get_ns_p_e_mus_1d(mu=mu-dx/2, dmu=dmu+dx/2, mus_eff=mus_eff, delta=delta0, q=q, dq=dq, k_c=k_c, update_g=False)
+    n_a_3, n_b_3, e3, p3, mus3 = ff.get_ns_p_e_mus_1d(mu=mu+dx/2, dmu=dmu-dx/2, mus_eff=mus_eff, q=q, dq=dq, k_c=k_c, update_g=False)
+    n_a_4, n_b_4, e4, p4, mus4 = ff.get_ns_p_e_mus_1d(mu=mu-dx/2, dmu=dmu+dx/2, mus_eff=mus_eff, q=q, dq=dq, k_c=k_c, update_g=False)
     n_b_ = (p3 - p4)/2/dx
 
     print(f"Expected n_b={n_b}\tNumerical n_b={n_b_}")
@@ -248,5 +248,5 @@ def test_Thermodynamic_1d(mu, dmu, delta0=1, k_c=1000, q=0, dq=0,
 
 
 if __name__ == "__main__":
-    test_efftive_mus()
-    #test_Thermodynamic_1d(mu=2, dmu=0, delta0=1, q=0, dq=0, T=0.0,a=0.8, b=1.2, k_c=np.inf, dx=1e-3)
+    #test_efftive_mus()
+    test_Thermodynamic_1d(mu=2, dmu=0, delta0=1, q=0, dq=0, T=0.0,a=0.8, b=1.2, k_c=np.inf, dx=1e-3)
