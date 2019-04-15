@@ -84,27 +84,11 @@ class FFState(object):
         n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
         return n_a, n_b
 
-    def get_ns_p_e_mus_1d(self, mu, dmu, mus_eff=None, delta=None,
-                         q=0, dq=0, k_c=3000, rtol=1e-6, update_g=False):
-        """
-        return the particle densities, pressure, energy density,
-            effective mus for 1d using self-consistent method
-        Arguments
-        ---------
-        mu: The bare mu (mu_a + mu_b)/2
-        dmu: The bare chemical potential difference (mu_a - mu_b)/2
-        delta: Nonable
-            if delta is None, its value will be solved using mu and dmu
-        mus_eff :(mu, dmu) 
-            Effective mu, dmu that can be used to evaluate
-            the gap equation in the beginning of the iteration if
-            it's not None.
-        update_g: bool
-            Indicate if the g_c should be updated in the iteration
-            By default its value is False, means the g_c will be fixed
-        """
-
-        assert self.dim == 1
+    def _get_effetive_mus(self, mu, dmu, mus_eff=None, delta=None, q=0, dq=0, k_c=np.inf
+                          , rtol=1e-8, update_g=False):
+        """return effective mu, dmu"""
+        if self.dim != 1:
+            return (mu, dmu)
         update_delta = False
         if delta is None:
             if mus_eff is not None:
@@ -148,7 +132,7 @@ class FFState(object):
             dmu_eff = (mu_a_eff - mu_b_eff)/2 
 
             if update_delta:
-                delta = self.solve(mu=mu_eff, dmu=dmu_eff, q=q, dq=dq,
+                self.delta = self.solve(mu=mu_eff, dmu=dmu_eff, q=q, dq=dq,
                                   a=delta * 0.8, b=delta * 1.2)
                 print(f"Delta={delta}")
 
@@ -156,13 +140,45 @@ class FFState(object):
                 warnings.warn("""Reach max iteration without converging
                                  to desired accuracy""")
                 break
-
-        print(f"mu={(mu_a + mu_b)/2}, dmu={(mu_a - mu_b)/2}, n_a={n_a}, n_b={n_b}, g_c={self._g}")
         mu_a_eff = mu_a - self._g * n_b
         mu_b_eff = mu_b - self._g * n_a
+        return ((mu_a_eff + mu_b_eff)/2, (mu_a_eff - mu_b_eff)/2)
+
+
+    def get_ns_p_e_mus_1d(self, mu, dmu, mus_eff=None, delta=None,
+                         q=0, dq=0, k_c=3000, update_g=False):
+        """
+        return the particle densities, pressure, energy density,
+            effective mus for 1d using self-consistent method
+        Arguments
+        ---------
+        mu: The bare mu (mu_a + mu_b)/2
+        dmu: The bare chemical potential difference (mu_a - mu_b)/2
+        delta: Nonable
+            if delta is None, its value will be solved using mu and dmu
+        mus_eff :(mu, dmu) 
+            Effective mu, dmu that can be used to evaluate
+            the gap equation in the beginning of the iteration if
+            it's not None.
+        update_g: bool
+            Indicate if the g_c should be updated in the iteration
+            By default its value is False, means the g_c will be fixed
+        """
+
+        assert self.dim == 1
+        mu_eff, dmu_eff = self._get_effetive_mus(mu=mu, dmu=dmu, mus_eff=mus_eff, 
+                                   delta=delta, q=q, dq=dq, k_c=k_c, update_g=update_g)
+        if delta is None:
+            delta = self.delta
+        mu_a_eff = mu_eff + dmu_eff
+        mu_b_eff = mu_eff - dmu_eff
         args = dict(self._tf_args, mu_a=mu_a_eff, mu_b=mu_b_eff, delta=delta,
                     q=q, dq=dq)
-        kappa = tf.integrate_q(tf.kappa_integrand, **args)
+        n_p = tf.integrate_q(tf.n_p_integrand, **args).n
+        n_m = tf.integrate_q(tf.n_m_integrand, **args).n
+        n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
+        print(f"mu_eff={mu_eff}, dmu_eff={dmu_eff}, n_a={n_a}, n_b={n_b}, g_c={self._g}")
+        kappa = tf.integrate_q(tf.kappa_integrand, **args).n
         e = kappa + self._g * n_a * n_b
         p = mu_a_eff * n_a + mu_b_eff * n_b - e
         return (n_a, n_b, e, p, ((mu_a_eff + mu_b_eff)/2, (mu_a_eff - mu_b_eff)/2))
