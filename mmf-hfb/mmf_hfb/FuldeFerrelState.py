@@ -85,7 +85,7 @@ class FFState(object):
         return n_a, n_b
 
     def _get_effetive_mus(self, mu, dmu, mus_eff=None, delta=None, q=0, dq=0, k_c=np.inf
-                          , rtol=1e-8, update_g=False):
+                          , rtol=1e-6, update_g=False):
         """return effective mu, dmu"""
         if self.dim != 1:
             return (mu, dmu)
