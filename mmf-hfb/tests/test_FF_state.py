@@ -14,13 +14,13 @@ tf.MAX_DIVISION = 200
 def delta(request):
     return request.param
 
-@pytest.fixture(params=[2, 3])
+@pytest.fixture(params=[1, 2, 3])
 def dim(request):
     return request.param
 
 # if q and dq are too big, test may fail as
 # the no solution to delta can be found
-@pytest.fixture(params=[0, 0.02, 0.05])
+@pytest.fixture(params=[0, 0.05])
 def q_dmu(request):
     return request.param
 
@@ -97,7 +97,7 @@ def test_density_with_qs(delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dim, k_c=200
     assert np.allclose(na0, na1)
     assert np.allclose(nb0, nb1)
 
-#@pytest.mark.skip(reason="Too Slow")
+# pytest.mark.skip(reason="Too Slow, but pass")
 def test_Thermodynamic(delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dim, k_c=200):
     if dim == 3:
         k_c = 50
@@ -160,11 +160,11 @@ def Thermodynamic(mu, dmu, delta0=1, dim=3, k_c=100, q=0, dq=0,
     def get_ns(mu, dmu):
         return ff.get_densities(mu=mu, dmu=dmu, q=q, dq=dq)
     
+    na, nb = ff.get_densities(mu=mu, dmu=dmu, q=q, dq=dq)
+    dn = (na - nb).n
+    np0 = (na + nb).n
     
     def f_ns_dmu(dx, n):
-        na, nb = ff.get_densities(mu=mu, dmu=dmu, q=q, dq=dq)
-        dn = (na - nb).n
-        np0 = (na + nb).n
         def f(dmu_):
             na_, nb_ = ff.get_densities(mu=mu+dx, dmu=dmu_, q=q, dq=dq)
             if n == 0: # fix n_-
@@ -249,6 +249,55 @@ def test_Thermodynamic_1d(delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dx=1e-3):
         print(f"Expected n_b={n_b}\tNumerical n_b={n_b_}")
         assert np.allclose(n_b, n_b_)
 
+    na, nb = n_a, n_b
+    dn = (na - nb)
+    np0 = (na + nb)
+    a=0.8
+    b=1.2
+    def f_ns_dmu(dx, n):
+        def f(dmu_):
+            na_, nb_, e1, p1, mus1 = ff.get_ns_p_e_mus_1d(mu=mu+dx, dmu=dmu_, mus_eff=mus_eff, q=q, dq=dq, update_g=False)
+            if n == 0: # fix n_-
+                dn_ = (na_ - nb_)
+                return dn - dn_
+            elif n == 1: # fix nb
+                return (nb - nb_)
+            elif n == 2: # fix na
+                return (na - na_)
+            elif n == 3: # fix n_+
+                np_=(na_ + nb_)
+                return np0 - np_
+        try:
+            return brentq(f, a*dmu , b*dmu)
+        except:
+            irs = np.linspace(a, b, N) * dmu
+            for i in reversed(range(N)):
+                try:
+                    startPos = f(irs[i])
+                    for j in reversed(range(i + 1, N)):
+                        try:
+                            endPos = f(irs[j])
+                            if startPos * endPos < 0: # has solution
+                                return brentq(f, irs[i], irs[j])
+                        except:
+                            continue
+                except:
+                    continue
+            warnings.warn(f"Can't find a solution in that region, use the default value={dmu}")
+            return dmu # when no solution is found
+    
+    # Check the mu=dE/dn
+    dmu1 = f_ns_dmu(dx, 0)
+    dmu2 = f_ns_dmu(-dx, 0)
+    na1, nb1, E1, p1, mus1 = ff.get_ns_p_e_mus_1d(mu=mu+dx, dmu=dmu1, mus_eff=mus_eff, q=q, dq=dq, update_g=False)
+    na0, nb0, E0, p0, mus0 = ff.get_ns_p_e_mus_1d(mu=mu-dx, dmu=dmu2, mus_eff=mus_eff, q=q, dq=dq, update_g=False)
+    n1, n0 = (na1 + nb1), (na0 + nb0)
+    mu_ = ((E1-E0)/(n1-n0))
+    print(f"Fix dn:\t[dn1={(na1-nb1)}\tdn0={(na0-nb0)}]")
+    print(f"Expected mu={mu}\tNumerical mu={mu_}")
+    assert np.allclose((na1-nb1), (na0-nb0))
+    assert np.allclose(mu,mu_, rtol=1e-4)
 
 if __name__ == "__main__":
+    #test_density_with_qs(delta = 1.0, mu_delta = 2, dmu_delta = 0.5, q_dmu = 0.05, dq_dmu = 0.02, dim = 1, k_c = 200)
     test_Thermodynamic_1d(delta = 1.0, mu_delta = 3, dmu_delta = 0.5, q_dmu = 0, dq_dmu = 0, dx = 0.001)

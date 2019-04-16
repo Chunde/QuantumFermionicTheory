@@ -48,6 +48,8 @@ class FFState(object):
             self._C = tf.compute_C(mu_a=mu, mu_b=mu, 
                                    delta=delta, q=q, dq=dq, **self._tf_args).n
         self.bSuperfluidity = delta > 0
+        self.mus_eff = self._get_effetive_mus(mu=mu, dmu=dmu, delta=delta, 
+                                            q=q, dq=dq, k_c=k_c, update_g=True)
         
     def f(self, mu, dmu, delta, q=0, dq=0, **kw):
         args = dict(self._tf_args)
@@ -58,18 +60,21 @@ class FFState(object):
         return tf.compute_C(mu_a=mu+dmu, mu_b=mu-dmu, delta=delta, q=q, dq=dq, **args).n - self._C
 
     def get_g(self, delta, mu=None, dmu=None, q=0, dq=0, **kw):
-        args = dict(self._tf_args, q=q, dq=dq, delta=delta)
+        assert (mu is None) == (dmu is None)
         if mu is None:
-            mu = self.mu
-        if dmu is None:
-            dmu = self.dmu
+            mu, dmu = self.mus_eff
+        args = dict(self._tf_args, q=q, dq=dq, delta=delta)
         args.update(kw, mu_a=mu+dmu, mu_b=mu-dmu)
         nu_delta = tf.integrate_q(tf.nu_delta_integrand, **args)
         g = 1./nu_delta.n
         return g
 
-    def get_densities(self, mu, dmu, q=0, dq=0, delta=None, k_c=None):
+    def get_densities(self, mu=None, dmu=None, q=0, dq=0, delta=None, k_c=None):
         """return the densities of two the components"""
+        assert (mu is None) == (dmu is None)
+        if mu is None:
+            mu, dmu = self.mus_eff
+
         if delta is None:
             delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
                                a=self.delta * 0.8, b=self.delta * 1.2)
@@ -84,11 +89,19 @@ class FFState(object):
         n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
         return n_a, n_b
 
-    def _get_effetive_mus(self, mu, dmu, mus_eff=None, delta=None, q=0, dq=0, k_c=np.inf
-                          , rtol=1e-6, update_g=False):
-        """return effective mu, dmu"""
+    def _get_effetive_mus(self, mu, dmu, mus_eff=None, delta=None, q=0, dq=0
+                          , k_c=np.inf, rtol=1e-6, update_g=False):
+        """
+        return effective mu, dmu
+        ---------
+        update_g: bool
+            if it's true, the g_c will be update as the iteration goes
+            this can be done just once time for each instance, but
+            can be multiple times as needed
+        """
         if self.dim != 1:
             return (mu, dmu)
+        k_c = np.inf 
         update_delta = False
         if delta is None:
             if mus_eff is not None:
@@ -182,30 +195,26 @@ class FFState(object):
         p = (mu+dmu) * n_a + (mu-dmu) * n_b - e
         return (n_a, n_b, e, p, ((mu_a_eff + mu_b_eff)/2, (mu_a_eff - mu_b_eff)/2))
 
-    def get_current(self, mu, dmu, q=0, dq=0, delta=None, k_c=None):
-        """return overall current"""
-        n_a, n_b = self.get_densities(mu=mu, dmu=dmu, q=q, dq=dq, delta=delta, k_c=k_c)
-        return n_a * (q + dq) + n_b * (q - dq)
-
     def get_FFG_energy_density(self, mu, dmu, q=0, dq=0):
         """return the Free Fermi Gas(FFG) energy density(delta=0)"""
         mu_a, mu_b = mu + dmu, mu - dmu
         if self.dim == 1:
             energy_density = np.sqrt(2)/np.pi *( mu_a**1.5 + mu_b**1.5)/3.0
             na, nb=np.sqrt(2 *mu_a)/np.pi,np.sqrt(2 * mu_b)/np.pi
-            n_p = na + nb
         elif self.dim == 2:
             energy_density = (mu_a**2 + mu_b**2)/4.0/np.pi
             na, nb =mu_a/np.pi/2.0,mu_b/np.pi/2.0
-            n_p = mu/np.pi
         elif self.dim == 3:
             energy_density = (mu_a**2.5 + mu_b**2.5)*2.0**1.5/10.0/np.pi**2
             na, nb = ((2.0 *mu_a)**1.5)/6.0/np.pi**2,((2.0 * mu_b)**1.5)/6.0/np.pi**2
-            n_p = ((2.0 *mu_a)**1.5 + (2.0 * mu_b)**1.5)/6.0/np.pi**2
         return energy_density
 
-    def get_energy_density(self, mu, dmu, q=0, dq=0, delta=None,
+    def get_energy_density(self, mu=None, dmu=None, q=0, dq=0, delta=None,
                            n_a=None, n_b=None, k_c=None):
+        assert (mu is None) == (dmu is None)
+        if mu is None:
+            mu, dmu = self.mus_eff
+
         if delta is None:
             delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
                                a=self.delta * 0.8, b=self.delta * 1.2)
@@ -227,10 +236,12 @@ class FFState(object):
     
     def get_pressure(self, mu=None, dmu=None, q=0, dq=0, delta=None):
         """return the pressure"""
+        assert (mu is None) == (dmu is None)
+        if mu is not None and dmu is not None:
+            mu, dmu = self._get_effetive_mus(mu=mu, dmu=dmu, q=q, dq=dq)
         if mu is None:
-            mu = self.mu
-        if dmu is None:
-            dmu = self.dmu
+            mu, dmu = self.mus_eff
+
         if delta is None:
             delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
                                a=self.delta * 0.8, b=self.delta * 1.2)
@@ -248,6 +259,12 @@ class FFState(object):
         May yield wrong results as the solve routine not 
         always works properly
         """
+        assert (mu is None) == (dmu is None)
+        if mu is not None and dmu is not None:
+            mu, dmu = self._get_effetive_mus(mu=mu, dmu=dmu, q=q, dq=dq)
+        if mu is None:
+            mu, dmu = self.mus_eff
+
         oldFlag = self.bStateSentinel
         self.bStateSentinel = False
         delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq,
@@ -269,6 +286,10 @@ class FFState(object):
         and b having different sign of values, this can fail frequently if our
         integration is not with high accuracy. Should be solved in the future.
         """
+        assert (mu is None) == (dmu is None)
+        if mu is None:
+            mu, dmu = self.mus_eff
+
         if a is None:
             a = a=self.delta * 0.1
         if b is None:
