@@ -34,8 +34,7 @@ class FFState(object):
         self.fix_g = fix_g
         self.dim = dim
         self.T = T
-        self.mu = mu
-        self.dmu = dmu
+        self.mus = (mu,dmu)
         self.m = m
         self.delta = delta
         self.hbar = hbar
@@ -123,11 +122,8 @@ class FFState(object):
         n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
         # for 1d case, we need to solve the densities self-consistently
         error = 1.0
-        mu_a0 = mu + dmu
-        mu_b0 = mu - dmu
+        mu_a0, mu_b0 = mu + dmu, mu - dmu
         itr = 0
-        g = self._g
-
         while(error > rtol):
             itr = itr + 1
             mu_a_eff = mu_a0 -  self._g * n_b
@@ -147,7 +143,6 @@ class FFState(object):
             if update_delta:
                 self.delta = self.solve(mu=mu_eff, dmu=dmu_eff, q=q, dq=dq,
                                   a=delta * 0.8, b=delta * 1.2)
-
             if itr > MAX_ITERATION:
                 warnings.warn("""Reach max iteration without converging
                                  to desired accuracy""")
@@ -155,7 +150,6 @@ class FFState(object):
         mu_a_eff = mu_a - self._g * n_b
         mu_b_eff = mu_b - self._g * n_a
         return ((mu_a_eff + mu_b_eff)/2, (mu_a_eff - mu_b_eff)/2)
-
 
     def get_ns_p_e_mus_1d(self, mu, dmu, mus_eff=None, delta=None,
                          q=0, dq=0, k_c=3000, update_g=False):
@@ -222,37 +216,36 @@ class FFState(object):
         if n_a is None:
             n_a, n_b = self.get_densities(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, k_c=k_c)
 
-        args = dict(self._tf_args, mu_a=mu + dmu, mu_b=mu - dmu, delta=delta,
-                    q=q, dq=dq)
+        args = dict(self._tf_args, mu_a=mu + dmu, mu_b=mu - dmu, delta=delta, q=q, dq=dq)
         kappa = tf.integrate_q(tf.kappa_integrand, **args)
         if self.fix_g:
             g_c = self._g
         else:
             g_c = 1./self._C
          
-        #if self.dim == 1: # will fail for 1d if add the [- g_c * n_a * n_b /2] term
-        #    return kappa - g_c * n_a * n_b /2
+        if self.dim == 1:
+            return kappa + g_c * n_a * n_b
         return kappa
     
-    def get_pressure(self, mu=None, dmu=None, q=0, dq=0, delta=None):
+    def get_pressure(self, mu=None, dmu=None, mu_eff=None, dmu_eff=None, q=0, dq=0, delta=None):
         """return the pressure"""
         assert (mu is None) == (dmu is None)
-        if mu is not None and dmu is not None:
-            mu, dmu = self._get_effetive_mus(mu=mu, dmu=dmu, q=q, dq=dq)
+        assert (mu_eff is None) == (dmu_eff is None)
         if mu is None:
-            mu, dmu = self.mus_eff
-
+            mu, dmu = self.mus 
+        if mu_eff is None:
+            mu_eff, dmu_eff = self.mus_eff
         if delta is None:
-            delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
+            delta = self.solve(mu=mu_eff, dmu=dmu_eff, q=q, dq=dq, 
                                a=self.delta * 0.8, b=self.delta * 1.2)
-        n_a, n_b = self.get_densities(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
+        n_a, n_b = self.get_densities(mu=mu_eff, dmu=dmu_eff, delta=delta, q=q, dq=dq)
         energy_density = self.get_energy_density(
-            mu=mu, dmu=dmu, delta=delta, q=q, dq=dq,
+            mu=mu_eff, dmu=dmu_eff, delta=delta, q=q, dq=dq,
             n_a=n_a, n_b=n_b)
         mu_a, mu_b = mu + dmu, mu - dmu
         pressure = mu_a * n_a + mu_b * n_b - energy_density
         return pressure
-
+        
     def check_superfluidity(self, mu=None, dmu=None, q=0, dq=0):
         """
         Check if a configuration will yield superfluid state.
@@ -260,8 +253,6 @@ class FFState(object):
         always works properly
         """
         assert (mu is None) == (dmu is None)
-        if mu is not None and dmu is not None:
-            mu, dmu = self._get_effetive_mus(mu=mu, dmu=dmu, q=q, dq=dq)
         if mu is None:
             mu, dmu = self.mus_eff
 
@@ -271,14 +262,6 @@ class FFState(object):
                            a=self.delta * 0.8, b=self.delta * 1.2)
         self.bStateSentinel = oldFlag
         return delta > 0
-
-    def check_polarization(self, mu=None, dmu=None, q=0, dq=0):
-        """Check if a configuration will yield polarized state"""
-        oldFlag = self.bStateSentinel
-        self.bStateSentinel = False
-        n_a, n_b = self.get_densities(mu=mu, dmu=dmu, q=q, dq=dq)
-        self.bStateSentinel = oldFlag
-        return not np.allclose(n_a.n, n_b.n)
 
     def solve(self, mu=None, dmu=None, q=0, dq=0, a=None, b=None, throwException=False):
         """

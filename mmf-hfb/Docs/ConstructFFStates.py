@@ -21,11 +21,148 @@ import mmf_setup;mmf_setup.nbinit()
 from nbimports import * 
 from mmf_hfb import tf_completion as tf
 from mmf_hfb.FuldeFerrelState import FFState
-import itertools
+from scipy.optimize import brentq
 from mmfutils.plot import imcontourf
-tf.MAX_DIVISION = 200
 plt.figure(figsize(10,4))
 clear_output()
+
+# # 1D Phase Diagram
+
+# * Pick $\mu$, $\delta \mu$, then vary $\delta q$ to have maxized pressure
+# * Fix $g_c$ at very beginning, so the system has a constant
+# * For any $\delta q$, make sure there is a solution to the gas equation
+#     * if we change the $\delta q$, we may need to update the effective $\mu$, $\delta \mu$
+
+dim = 1
+delta = 0.1
+mu = 10.0
+dmu = 0.11
+ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=1, k_c=np.inf,fix_g=True, bStateSentinel=True)
+
+mus_eff = ff._get_effetive_mus(mu=mu, dmu=dmu, delta=0.11, dq=0.01, update_g=False)
+ff.get_g(mu=mus_eff[0], dmu=mus_eff[1], delta=0.11, dq=0.01), ff._g
+
+
+def gc(d, dq, update_mus=True):
+    mus_eff = (None, None)
+    if update_mus:
+        mus_eff = ff._get_effetive_mus(mu=mu, dmu=dmu, delta=d, dq=dq, update_g=False)
+    return ff.get_g(mu=mus_eff[0], dmu=mus_eff[1], delta=d, dq=dq) - ff._g
+
+
+def Qfinder(d, lg=None, ug=None, lb=0, ub=0.04, N=40, dx=0.0005, rtol=1e-8):
+    """
+    ------
+    lg: lower value guess
+    ug: upper value guess
+    lb: lower boundary
+    ub: upper boundary
+    N : divisions
+    """
+    def g(dq):
+        return gc(d, dq)
+    
+    def refine(a, b, v):
+        return brentq(g, a, b)
+        
+    rets = []
+    if lg is None or ug is None:
+        dqs = np.linspace(lb, ub, N)
+        gs = [g(dq) for dq in dqs]
+        g0 = gs[0]
+        i0 = 0
+        if np.allclose(gs[0],0, rtol=rtol):
+            rets.append(gs[0])
+            g0 = gs[1]
+            i0 = 1
+        for i in range(len(rets),len(gs)):
+            if g0 * gs[i] < 0:
+                rets.append(refine(dqs[i0], dqs[i], dqs[i0]))
+                g0 = gs[i]
+            else:
+                g0 = gs[i]
+                i0 = i
+    else:
+        dis = min(abs(ub-lb)/2.4, dx)
+        ret1 = brentq(g, lg - dx, lg + dis)
+        print(ret1)
+        ret2 = brentq(g, ug - dis, ug + dx)
+        print(ret2)
+        rets.append(ret1)
+        rets.append(ret2)
+    return rets
+
+
+ret = Qfinder(d=0.001)
+
+print(rets)
+
+ret1 = Qfinder(d=0.002)
+
+print(ret1)
+
+ret2 = Qfinder(d=0.002, lg=ret1[0], ug=ret1[1])
+
+print(ret2)
+
+ret3 = Qfinder(d=0.003, lg=ret2[0], ug=ret2[1])
+
+print(ret3)
+
+import warnings
+warnings.filterwarnings("ignore")
+lg, ug=None, None
+ds = np.linspace(0.001, 0.1001, 100)
+rets = []
+for d in ds:
+    ret = Qfinder(d=d, lg=lg,  ug=ug)
+    lg, ug = ret
+    ret.append(d)
+    rets.append(ret)
+    print(ret)
+
+len(rets)，0.009611501263286663
+
+for d in ds[42:]:
+    ret = Qfinder(d=d, lg=lg,  ug=ug, dx=0.002 )
+    lg, ug = ret
+    ret.append(d)
+    rets.append(ret)
+    print(ret)
+
+import sys
+import os
+import inspect
+from os.path import join
+import json
+from json import dumps
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+def SaveToFile(data, file="deltaq.txt"):
+    file = join(currentdir,file)
+    with open(file,'w') as wf:
+        json.dump(data, wf)
+
+
+SaveToFile(rets)
+
+for d in ds[72:]:
+    ret = Qfinder(d=d, lg=lg,  ug=ug, dx=0.001 )
+    lg, ug = ret
+    ret.append(d)
+    rets.append(ret)
+    print(ret)
+
+
+
+N=40
+dqs = np.linspace(0, .04, N)
+def g(dq):
+    return gc(d=0.002, dq=dq)
+gs = [g(dq) for dq in dqs]
+clear_output()
+plt.plot(dqs, gs)
+plt.axhline(0)
+[plt.axvline(ret) for ret in rets]
 
 # ## Mathematical Relations:
 # \begin{align}
@@ -35,7 +172,6 @@ clear_output()
 # \epsilon_+&= \frac{\hbar^2}{4m}(k_a^2+k_b^2) - \mu_+= \frac{\hbar^2}{2m}\left[(k+q)^2 + dq^2\right] - \mu_+\\
 # \epsilon_-&= \frac{\hbar^2}{4m}(k_a^2-k_b^2) - \mu_-=\frac{\hbar^2}{m}(k +q)dq - \mu_-\tag{1}\\
 # \end{align}
-#
 
 # * For a FF state, the ground state should have zero overall current:
 # $$
@@ -51,6 +187,45 @@ clear_output()
 # $$
 
 # ## Stable conditions for $q$ and $\delta q$:
+# We can start with the regular way to define the gap:
+# $$
+# \Delta(x)=\Delta_0e^{-2i\vec{\delta}.\vec{x}}
+# $$
+#
+# Then:
+#
+# $$
+# H=\begin{pmatrix}
+# \nabla-\mu_a & \Delta_0 e^{2i\delta x}\\
+#  \Delta_0 e^{-2i\delta x} & -\nabla + \mu_b\\
+# \end{pmatrix} \\
+# H
+# \begin{pmatrix}
+# U\\
+# V\\
+# \end{pmatrix}=\omega\begin{pmatrix}
+# U\\
+# V\\
+# \end{pmatrix}
+# $$
+
+# Let
+# $$
+# U=e^{+i\delta x}\tilde{U}\\
+# V=e^{-i\delta x}\tilde{V}
+# $$
+# Then 
+# $$
+# \begin{pmatrix}
+# \nabla-\mu_a & \Delta_0 e^{2i\delta x}\\
+#  \Delta_0 e^{-2i\delta x} & -\nabla + \mu_b\\
+# \end{pmatrix}
+# \begin{pmatrix}
+# e^{+i\delta x}\tilde{U}\\
+# e^{-i\delta x}\tilde{V}
+# \end{pmatrix}
+# $$
+
 # ### A wrong Derivation:
 # $$
 # \newcommand{\E}{\mathcal{E}}
@@ -60,14 +235,14 @@ clear_output()
 # $$
 # \begin{align}
 # \E(n_a,n_b,\q)_{q=0}
-# =\E^0(n_a,n_b) + n_a \frac{(\q)^2}{2m} + n_b\frac{(-\q)^2}{2m}=\E^0(n_a,n_b) + (n_a+n_b) \frac{\q^2}{2m}\\
+# =\E^0(n_a,n_b,\q) + n_a \frac{(\q)^2}{2m} + n_b\frac{(-\q)^2}{2m}=\E^0(n_a,n_b) + (n_a+n_b) \frac{\q^2}{2m}\\
 # \end{align}
 #
 # When boost with $v =q/\hbar$
 #
 # \begin{align}
 # \E(n_a,n_b,q,\q)
-# =\E^0(n_a,n_b) + n_a \frac{(q+\q)^2}{2m}+ n_b \frac{(q-\q)^2}{2m}\\
+# =\E^0(n_a,n_b,\q) + n_a \frac{(q+\q)^2}{2m}+ n_b \frac{(q-\q)^2}{2m}\\
 # \end{align}
 
 # $$
@@ -104,11 +279,12 @@ clear_output()
 
 # #### Fix $q$, $\mu_a$ and $\mu_b$
 # when $\q$ varies, the densities $n_a$, $n_b$ will also changed, then:
-# $$
+# \begin{align}
 # \frac{\d P}{\d \q}|_{q,\mu_a,\mu_b} 
-# = -\frac{q+\q}{m}n_a +  \left[\mu_a - \frac{(q^2+\q^2)}{2m}\right]\frac{\d n_a}{\d \q}  + \frac{q-\q}{m}n_b +  \left[\mu_b - \frac{(q^2+\q^2)}{2m}\right]\frac{\d n_b}{\d \q} - \frac{\d \E^0}{\d n_a}\frac{\d n_a}{\d \q} - \frac{\d \E^0}{\d n_b}\frac{\d n_b}{\d \q}\\
-# = -\frac{q+\q}{m}n_a +  \mu^0_a\frac{\d n_a}{\d \q}  + \frac{q-\q}{m}n_b +  \mu^0_b\frac{\d n_b}{\d \q} - \mu^0_a\frac{\d n_a}{\d \q} - \mu^0_b\frac{\d n_b}{\d \q}=0
-# $$
+# &= -\frac{q+\q}{m}n_a +  \left[\mu_a - \frac{(q^2+\q^2)}{2m}\right]\frac{\d n_a}{\d \q}  + \frac{q-\q}{m}n_b +  \left[\mu_b - \frac{(q^2+\q^2)}{2m}\right]\frac{\d n_b}{\d \q} - \frac{\d \E^0}{\d n_a}\frac{\d n_a}{\d \q} - \frac{\d \E^0}{\d n_b}\frac{\d n_b}{\d \q}+\frac{\d \E^0}{\d \q}\\
+# &= -\frac{q+\q}{m}n_a +  \mu^0_a\frac{\d n_a}{\d \q}  + \frac{q-\q}{m}n_b +  \mu^0_b\frac{\d n_b}{\d \q} - \mu^0_a\frac{\d n_a}{\d \q} - \mu^0_b\frac{\d n_b}{\d \q} + \frac{\d \E^0}{\d \q}\\
+# &=-\frac{q+\q}{m}n_a  + \frac{q-\q}{m}n_b + \frac{\d \E^0}{\d \q}
+# \end{align}
 
 # That means $q=\q=0$?
 
@@ -119,7 +295,7 @@ clear_output()
 # $$
 #
 # $$
-# n_a=n_a(\mu_a, \q) \qquad n_b=n_b(\mu_b, \q)\\
+# n_a=n_a(\mu_a,\mu_b,\q) \qquad n_b=n_b(\mu_a, \mu_b, \q)\\
 # $$
 #
 #
@@ -143,14 +319,59 @@ clear_output()
 # \frac{\d P}{\d q}|_{\q,\mu_a,\mu_b} = -\frac{q}{m}(n_a + n_b)=0
 # $$
 #
-# Means the overall current is zero
+# * Means the overall current is zero( $q=0$)
+#
 # \begin{align}
 # \frac{\d P}{\d \q}|_{q,\mu_a,\mu_b}
 # &=\mu_a^0\frac{\d n_a}{\d \q} + \mu_b^0\frac{\d n_b}{\d \q} - \frac{\d \E^0}{\d n_a}\frac{\d n_a}{\d \q}- \frac{\d \E^0}{\d n_b}\frac{\d n_b}{\d \q} + \frac{\d \E^0}{\d \q}\\
-# &=\mu_a^0\frac{\d n_a}{\d \q} + \mu_b^0\frac{\d n_b}{\d \q} - \mu_a^0 \frac{\d n_a}{\d \q}- \mu_b^0\frac{\d n_b}{\d \q} + \frac{d \E^0}{d \q}\\
-# &=\frac{d \E^0}{d \q} = 0
+# &=\mu_a^0\frac{\d n_a}{\d \q} + \mu_b^0\frac{\d n_b}{\d \q} - \mu_a^0 \frac{\d n_a}{\d \q}- \mu_b^0\frac{\d n_b}{\d \q} + \frac{\d \E^0}{\d \q}\\
+# &=\frac{\d \E^0}{\d \q} = 0
 # \end{align}
-# * If the energy does not depend on the $\q$ explicitly, the condition holds automatically?
+# * If the energy does not depend on the $\q$ explicitly, the condition holds automatically? But this not is true, as $\E^0$ is a function of $\q$
+
+ff = FFState(mu=3, dmu=1, delta=1, dim=3, k_c=1000,fix_g=True, bStateSentinel=False)
+kcs = np.linspace(100, 5000,30)
+gs = [ff.get_g(delta=1, k_c = kc) for kc in kcs]
+plt.plot(kcs, gs)
+
+# ### Numerical Check
+# * Check if the pressuse is independ of $q$
+# * In principle, $q$ has nothing to do with the solution the the gap equation.
+# * Check if the energy depends on $\q$
+# * The extremum of energy should be also the extremum of the pressure.
+
+delta = 1
+mu = 2 * delta
+dmu = 1.2
+ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=1, k_c=1000,fix_g=True, bStateSentinel=False)
+qs = np.linspace(-10,10,20)
+ss = [ff.check_superfluidity(mu=mu, dmu=dmu, q=q) for q in qs]
+ps = [ff.get_pressure(mu=mu, dmu=dmu, q=q).n for q in qs]
+plt.plot(qs, ss)
+plt.plot(qs, ps, '--')
+p0 = ps[0]
+for p in ps:
+    assert np.allclose(p0, p)
+
+delta = 1
+mu = 2 * delta
+dmu = 1.2
+ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=1, k_c=100,fix_g=True, bStateSentinel=False)
+ff.get_energy_density(mu=mu, dmu=dmu, dq=0)
+
+ff.get_energy_density(mu=mu, dmu=dmu,q=20, dq=0)
+
+# * Numerical result seems to support the condition
+
+dqs = np.linspace(-1,1,40) * 0.2
+#ss = [ff.check_superfluidity(mu=mu, dmu=dmu, dq=dq) for dq in dqs]
+ps = [ff.get_pressure(mu=mu, dmu=dmu, dq=dq).n for dq in dqs]
+es = [ff.get_energy_density(mu=mu, dmu=dmu, dq=dq).n for dq in dqs]
+#pn = [ff.get_pressure(mu=mu, dmu=dmu, dq=dq, delta=0).n for dq in dqs]
+#plt.plot(dqs, ss)
+plt.plot(dqs, ps, '--')
+#plt.plot(dqs, pn, '-')
+plt.plot(dqs, es, 'o')
 
 # ## 1D case
 # * $d\mu > \Delta$ to have densities inbalance
@@ -158,10 +379,17 @@ clear_output()
 
 # ### Sarma Phase
 
-delta = 1
-mu = 2 * delta
-dmu = 1.2
-ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=1, k_c=100,fix_g=True, bStateSentinel=True)
+dim = 1
+delta = 0.1
+mu = 10.0
+dmu = 0.11
+ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=1, k_c=np.inf,fix_g=True, bStateSentinel=True)
+
+ff.mus_eff
+
+ff.get_ns_p_e_mus_1d(mu=mu, dmu=dmu, delta=delta, update_g=True)
+
+ff.get_energy_density(), ff.get_pressure()
 
 # * Check for densities
 # * $q$ and $\delta q$ can not be too large as there would be no solution to delta
@@ -172,9 +400,13 @@ ns = ff.get_densities(mu=mu, dmu=dmu)
 na0, nb0 = ns[0].n, ns[1].n
 print(na0, nb0)
 
-ff.get_densities(mu=mu, dmu=dmu, q=0.02)
+ff.get_densities(mu=mu, dmu=dmu, q=4)
 
-ff.get_densities(mu=mu, dmu=dmu, q=0, dq=0.1)
+ff.get_densities(mu=mu, dmu=dmu, q=0, dq=0)
+
+ff.get_pressure(mu=mu, dmu=dmu, q=0, dq=0.1)
+
+ff.get_pressure(mu=mu, dmu=dmu, q=0.2, dq=0.15)
 
 # ### Fix $d\mu$ and $g$
 # * also fix $n_a/n_b$, while changing $\mu$
