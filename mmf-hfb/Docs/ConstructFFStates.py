@@ -43,14 +43,25 @@ mus_eff = ff._get_effetive_mus(mu=mu, dmu=dmu, delta=0.11, dq=0.01, update_g=Fal
 ff.get_g(mu=mus_eff[0], dmu=mus_eff[1], delta=0.11, dq=0.01), ff._g
 
 
+# +
 def gc(d, dq, update_mus=True):
     mus_eff = (None, None)
     if update_mus:
         mus_eff = ff._get_effetive_mus(mu=mu, dmu=dmu, delta=d, dq=dq, update_g=False)
     return ff.get_g(mu=mus_eff[0], dmu=mus_eff[1], delta=d, dq=dq) - ff._g
 
+def get_press(d, dq):
+    mu_eff, dmu_eff = ff._get_effetive_mus(mu=mu, dmu=dmu, delta=d, dq=dq, update_g=False)
+    n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=delta, dq=dq)
+    energy_density = ff.get_energy_density(mu=mu_eff, dmu=dmu_eff, delta=d, dq=dq, n_a=n_a, n_b=n_b)
+    mu_a, mu_b = mu + dmu, mu - dmu
+    pressure = mu_a * n_a + mu_b * n_b - energy_density
+    return pressure.n
 
-def Qfinder(d, lg=None, ug=None, lb=0, ub=0.04, N=40, dx=0.0005, rtol=1e-8):
+
+# -
+
+def Qfinder(d, lg=None, ug=None, lb=0, ub=0.04, N=40, dx=0.0005, rtol=1e-8, raiseExcpetion=True):
     """
     ------
     lg: lower value guess
@@ -66,7 +77,7 @@ def Qfinder(d, lg=None, ug=None, lb=0, ub=0.04, N=40, dx=0.0005, rtol=1e-8):
         return brentq(g, a, b)
         
     rets = []
-    if lg is None or ug is None:
+    if lg is None and ug is None:
         dqs = np.linspace(lb, ub, N)
         gs = [g(dq) for dq in dqs]
         g0 = gs[0]
@@ -83,45 +94,93 @@ def Qfinder(d, lg=None, ug=None, lb=0, ub=0.04, N=40, dx=0.0005, rtol=1e-8):
                 g0 = gs[i]
                 i0 = i
     else:
-        dis = min(abs(ub-lb)/2.4, dx)
-        ret1 = brentq(g, lg - dx, lg + dis)
-        print(ret1)
-        ret2 = brentq(g, ug - dis, ug + dx)
-        print(ret2)
-        rets.append(ret1)
-        rets.append(ret2)
+        bExcept = False
+        if lg is not None:
+            try:
+                ret1 = brentq(g, lg - dx, lg + dx)
+                rets.append(ret1)
+                print(ret1)
+            except:
+                bExcept = True
+                rets.append(None)
+        else:
+            rets.append(None)
+        if ug is not None:
+            try:
+                ret2 = brentq(g, ug - dx, ug + dx)
+                print(ret2)
+                rets.append(ret2)
+            except:
+                bExcept = True
+                rets.append(None)
+        else:
+            rets.append(None)
+        if bExcept and raiseExcpetion:
+            raise ValueError('No solution found.')
+            
+    for _ in range(2-len(rets)):
+        rets.append(None)
     return rets
 
 
-ret = Qfinder(d=0.001)
-
-print(rets)
-
-ret1 = Qfinder(d=0.002)
-
-print(ret1)
-
-ret2 = Qfinder(d=0.002, lg=ret1[0], ug=ret1[1])
-
-print(ret2)
-
-ret3 = Qfinder(d=0.003, lg=ret2[0], ug=ret2[1])
-
-print(ret3)
-
+# +
 import warnings
 warnings.filterwarnings("ignore")
-lg, ug=None, None
-ds = np.linspace(0.001, 0.1001, 100)
-rets = []
-for d in ds:
-    ret = Qfinder(d=d, lg=lg,  ug=ug)
-    lg, ug = ret
-    ret.append(d)
-    rets.append(ret)
-    print(ret)
+import sys
+import os
+import inspect
+from os.path import join
+import json
+from json import dumps
 
-len(rets)，0.009611501263286663
+def SaveToFile(data, file="deltaq.txt"):
+    currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    file = join(currentdir,file)
+    with open(file,'w') as wf:
+        json.dump(data, wf)
+        
+
+
+# -
+
+lg, ug=None, None
+ds = np.linspace(0.0001, 0.1001, 100)
+rets = []
+dx = 0.001
+trails=[1, 2, 5, 0.01, 0.2, 0.5, 10, 20]
+for d in ds:
+    for t in trails:
+        try:
+            ret = Qfinder(d=d, lg=lg, ug=ug, dx= dx*t)
+            lg, ug = ret
+            ret.append(d)
+            rets.append(ret)
+            print(ret)
+            break
+        except:
+            print("No solution, try...")
+            continue
+    if t == trails[-1]:
+        print("Retry without excpetion...")
+        ret =[None, None]
+        for t in trails:
+            ret0 = Qfinder(d=d, lg=lg,ug=ug, dx= dx*t, raiseExcpetion=False)
+            lg, ug = ret0
+            if lg is None and ug is None:
+                continue
+            ret = ret0    
+            ret.append(d)
+            rets.append(ret)
+            print(ret)
+            break
+
+
+class FFStateFinder():
+    def __init__(self, dim=1, delta=0.1, mu=10.0, dmu=0.11) 
+    ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=1, k_c=np.inf,fix_g=True, bStateSentinel=True)
+
+
+len(rets),0.009611501263286663, ds[99]
 
 for d in ds[42:]:
     ret = Qfinder(d=d, lg=lg,  ug=ug, dx=0.002 )
@@ -130,20 +189,7 @@ for d in ds[42:]:
     rets.append(ret)
     print(ret)
 
-import sys
-import os
-import inspect
-from os.path import join
-import json
-from json import dumps
-currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-def SaveToFile(data, file="deltaq.txt"):
-    file = join(currentdir,file)
-    with open(file,'w') as wf:
-        json.dump(data, wf)
-
-
-SaveToFile(rets)
+SaveToFile(rets0, "test.json")
 
 for d in ds[72:]:
     ret = Qfinder(d=d, lg=lg,  ug=ug, dx=0.001 )
@@ -153,16 +199,112 @@ for d in ds[72:]:
     print(ret)
 
 
+def plot_dq(datas):
+    ds = []
+    dqs1 =[]
+    dqs2 = []
+    def add_q(v):
+        if abs(v - dqs1[-1]) > abs(v-dqs2[-1]):
+            dqs2.append(v)
+        else:
+            dqs1.append(v)
+    flag = False        
+    for rets in datas:
+        for ret in rets:
+            ds.append(ret[2])
+            if ret[0] is None:
+                if flag:
+                    add_q(0)
+                else:
+                    dqs1.append(0)
+            else:
+                if flag:
+                    add_q(ret[0])
+                else:
+                    dqs1.append(ret[0])
+                
+            if ret[1] is None:
+                if flag:
+                    add_q(0)
+                else:
+                    dqs2.append(0)
+            else:
+                if flag:
+                    add_q(ret[1])
+                else:
+                    dqs2.append(ret[1])
+        flag = True
+                
+    plt.plot(ds, dqs1, '+')
+    plt.plot(ds, dqs2, '--')
+    plt.ylabel(r"$\delta q$")
+    plt.xlabel(r"$\Delta$")
 
-N=40
-dqs = np.linspace(0, .04, N)
-def g(dq):
-    return gc(d=0.002, dq=dq)
-gs = [g(dq) for dq in dqs]
-clear_output()
+
+plot_dq([rets,rets1])
+plt.axhline(0.0038190680387353757)
+
+ps1=[]
+ps2=[]
+ds=[]
+for ret in rets:
+    p1 = get_press(d=ret[2], dq=ret[0])
+    p2 = get_press(d=ret[2], dq=ret[1])
+    ps1.append(p1)
+    ps2.append(p2)
+    ds.append(ret[2])
+
+plt.plot(ds, ps1)
+plt.plot(ds, ps2)
+
+# ## Try to get $\Delta > 0.1$
+
+lg, ug= None, None
+ds1 = np.linspace(.1001, .2001, 100)
+rets1 = []
+for d in ds1:
+    ret = Qfinder(d=d, lg=lg,  ug=ug, dx=0.0001)
+    lg, ug = ret
+    ret.append(d)
+    rets1.append(ret)
+    print(ret)
+
+for d in ds1[27:]:
+    ret = Qfinder(d=d, lg=lg,  ug=ug, dx=0.002)
+    lg, ug = ret
+    ret.append(d)
+    rets1.append(ret)
+    print(ret)
+
+for d in ds1[38:]:
+    ret = Qfinder(d=d, lg=lg,  ug=ug, dx=0.005)
+    lg, ug = ret
+    ret.append(d)
+    rets1.append(ret)
+    print(ret)
+
+len(rets1),ds1[38]
+
+dqs = np.linspace(0, .005, 20)
+gs = [gc(d=ds[99], dq=dq) for dq in dqs]
 plt.plot(dqs, gs)
 plt.axhline(0)
-[plt.axvline(ret) for ret in rets]
+
+
+def g(dq):
+    return gc(d=ds[99], dq=dq)
+brentq(g, -0.005, -0.003)
+
+brentq(g, -0.005, -0.003)
+
+brentq(g, 0.004, 0.003)
+
+plt.plot(dqs, gs)
+plt.axhline(0)
+plt.axvline(0.0025)
+plt.axvline(0.0035)
+
+gc(d=.101, dq=0)
 
 # ## Mathematical Relations:
 # \begin{align}
