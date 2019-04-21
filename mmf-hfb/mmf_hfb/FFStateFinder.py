@@ -144,10 +144,10 @@ class FFStateFinder():
             self.SaveToFile(rets)
 
 if __name__ == "__main__":
-    ff = FFStateFinder( dmu=0.14)
-    ff.run(dl=0.001, du=0.2001, dn=200)
-    logic_cpu_count = os.cpu_count() - 1
-    logic_cpu_count = 6#1 if logic_cpu_count < 1 else logic_cpu_count
-    dmus = (0.0)
-    with Pool(logic_cpu_count) as Pools:
-        rets = Pools.map(worker_thread_partial,rs2)
+    ff = FFStateFinder( dmu=0.16)
+    ff.run(dl=0.001, du=0.2501, dn=300)
+    #logic_cpu_count = os.cpu_count() - 1
+    #logic_cpu_count = 6#1 if logic_cpu_count < 1 else logic_cpu_count
+    #dmus = (0.0)
+    #with Pool(logic_cpu_count) as Pools:
+    #    rets = Pools.map(worker_thread_partial,rs2)

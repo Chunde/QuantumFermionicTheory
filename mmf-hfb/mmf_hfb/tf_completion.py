@@ -205,7 +205,105 @@ def compute_C(mu_a, mu_b, delta, m_a, m_b, dim=3, hbar=1.0, T=0.0,
     C = C_c + C_corr
     return C
     
-    
+def do_integration(integrand, mu_a, mu_b, delta, m_a, m_b, dim=3,
+                q=0, dq=0.0, hbar=1.0, k_0=0, k_inf=None, limit=None):
+    mu = (mu_a + mu_b)/2
+    dmu = (mu_a - mu_b)/2
+    minv = (1/m_a + 1/m_b)/2
+    mu_q = mu - dq**2/2*minv
+    assert m_a == m_b   # Need to re-derive for different masses
+    m = 1./minv
+    #kF = math.sqrt(2*mu/minv)/hbar
+
+    # The following conditions were derived from w(kx, kp) = 0 and
+    # similar conditions which are now w(kx+q, kp) = 0.  If the old
+    # solutions were kp(kx) and kx, then new solutions should be
+    # kp(kx+q) and kx - q.
+    p_x_special = (np.ma.divide(m*(dmu - np.array([delta, -delta])),
+                                dq).filled(np.nan)
+                    - q).tolist()
+
+    # Quartic polynomial for special points.  See Docs/Integrate.ipynb
+    P = [1, 0, -4*(m*mu_q + dq**2),
+            8*m*dq*dmu, 4*m**2*(delta**2 + mu_q**2 - dmu**2)]
+    p_x_special.extend([p.real - q for p in np.roots(P)])
+    points = sorted(set([x/hbar for x in p_x_special if not math.isnan(x)]))
+    if dim == 1:
+        integrand = numba.cfunc(numba.float64(numba.float64))(integrand)
+        integrand = sp.LowLevelCallable(integrand.ctypes)
+        return quad(func=integrand, a=-k_inf, b=k_inf, points=points, limit=limit)
+        #return quad(func=integrand, a=k_0, b=k_inf, points=points, limit=limit)
+
+    def kp0(kx):
+        # k**2 = kx**2 + kp**2 > k_0**2
+        # kp**2 > k_0**2 - kx**2
+        kx2 = kx**2
+        k_02 = k_0**2
+        if kx2 < k_02:
+            return math.sqrt(k_02 - kx2)
+        else:
+            return 0.0
+
+    def kp1(kx):
+        # k**2 = kx**2 + kp**2 < k_inf**2
+        # kp**2 < k_inf**2 - kx**2
+        # This will always work because kx < k_inf
+        return math.sqrt(k_inf**2 - kx**2)
+
+    def kp_special(kx):
+        px = hbar*(kx + q)
+        D = (dq*px/m - dmu)**2 - delta**2
+        A = 2*m*mu_q - px**2
+        return (cmath.sqrt(A + 2*m*cmath.sqrt(D)).real/hbar,
+                cmath.sqrt(A - 2*m*cmath.sqrt(D)).real/hbar)
+    return dquad(func=integrand,
+                x0=-k_inf, x1=k_inf,
+                y0_x=kp0, y1_x=kp1,
+                points_x=points,
+                points_y_x=kp_special,
+                limit=limit)
+
+def compute_current(mu_a, mu_b, delta, m_a=1, m_b=1, dim=3, hbar=1.0, T=0.0,
+                    q=0, dq=0, k_0=0, k_c=None):
+    """compute the overall current"""
+    k_inf = np.inf if k_c is None else k_c
+    def f(ka2, kb2):
+        e = hbar**2/2
+        e_a, e_b = e*ka2/m_a - mu_a, e*kb2/m_b - mu_b
+        e_m, e_p = (e_a - e_b)/2, (e_a + e_b)/2
+        E = np.sqrt(e_p**2 + abs(delta)**2)
+        w_m, w_p = e_m - E, e_m + E
+        f_nu = (f(w_m, T) - f(w_p, T))
+        f_p = 1 - e_p/E*f_nu
+        f_m = f(w_p, T) - f(-w_m, T)
+        return (f_p,f_m)
+
+    if dim == 1:
+        def integrand(k):
+            k2_a = (k + q + dq)**2
+            k2_b = (k + q - dq)**2
+            f_p, f_m = f(k2_a, k2_b)
+            return (k * f_p + dq * f_m) / 2 / np.pi
+    elif dim == 2:
+        def integrand(kx, kp):
+            # print(kx, kp)
+            k2_a = (kx + q + dq)**2 + kp**2
+            k2_b = (kx + q - dq)**2 + kp**2
+            f_p, f_m = f(k2_a, k2_b)
+            return (k * f_p + dq * f_m) / (2*np.pi**2)
+    elif dim == 3:
+        def integrand(kx, kp):
+            # print(kx, kp)
+            k2_a = (kx + q + dq)**2 + kp**2
+            k2_b = (kx + q - dq)**2 + kp**2
+            f_p, f_m = f(k2_a, k2_b)
+            return (k * f_p + dq * f_m) * (kp/4/np.pi**2)
+    else:
+        raise ValueError(f"Only dim=1, 2, or 3 supported (got dim={dim})")
+        
+    return do_integration(integrand, delta=delta, mu_a=mu_a, mu_b=mu_b, m_a=m_a, m_b=m_b, 
+                   dim=dim, q=q, dq=dq, hbar=hbar, k_0=k_0, k_inf=k_inf, limit=limit)
+
 def integrate(f, mu_a, mu_b, delta, m_a, m_b, dim=3, hbar=1.0, T=0.0,
               k_0=0.0, k_c=np.inf):
     """Integrate the function f from k=k_0 to k=k_c.
@@ -290,64 +388,5 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, dim=3,
     else:
         raise ValueError(f"Only dim=1, 2, or 3 supported (got dim={dim})")
 
-    mu = (mu_a + mu_b)/2
-    dmu = (mu_a - mu_b)/2
-    minv = (1/m_a + 1/m_b)/2
-    mu_q = mu - dq**2/2*minv
-    assert m_a == m_b   # Need to re-derive for different masses
-    m = 1./minv
-    #kF = math.sqrt(2*mu/minv)/hbar
-
-    # The following conditions were derived from w(kx, kp) = 0 and
-    # similar conditions which are now w(kx+q, kp) = 0.  If the old
-    # solutions were kp(kx) and kx, then new solutions should be
-    # kp(kx+q) and kx - q.
-    p_x_special = (np.ma.divide(m*(dmu - np.array([delta, -delta])),
-                                dq).filled(np.nan)
-                   - q).tolist()
-
-    # Quartic polynomial for special points.  See Docs/Integrate.ipynb
-    P = [1, 0, -4*(m*mu_q + dq**2),
-         8*m*dq*dmu, 4*m**2*(delta**2 + mu_q**2 - dmu**2)]
-    p_x_special.extend([p.real - q for p in np.roots(P)])
-    points = sorted(set([x/hbar for x in p_x_special if not math.isnan(x)]))
-    if dim == 1:
-        integrand = numba.cfunc(numba.float64(numba.float64))(integrand)
-        integrand = sp.LowLevelCallable(integrand.ctypes)
-        return quad(func=integrand, a=-k_inf, b=k_inf, points=points, limit=limit)
-        #return quad(func=integrand, a=k_0, b=k_inf, points=points, limit=limit)
-   
-    def kp0(kx):
-        # k**2 = kx**2 + kp**2 > k_0**2
-        # kp**2 > k_0**2 - kx**2
-        kx2 = kx**2
-        k_02 = k_0**2
-        if kx2 < k_02:
-            return math.sqrt(k_02 - kx2)
-        else:
-            return 0.0
-
-    def kp1(kx):
-        # k**2 = kx**2 + kp**2 < k_inf**2
-        # kp**2 < k_inf**2 - kx**2
-        # This will always work because kx < k_inf
-        return math.sqrt(k_inf**2 - kx**2)
-
-    def kp_special(kx):
-        px = hbar*(kx + q)
-        D = (dq*px/m - dmu)**2 - delta**2
-        A = 2*m*mu_q - px**2
-        return (cmath.sqrt(A + 2*m*cmath.sqrt(D)).real/hbar,
-                cmath.sqrt(A - 2*m*cmath.sqrt(D)).real/hbar)
-    v2 = dquad(func=integrand,
-               x0=-k_inf, x1=k_inf,
-               y0_x=kp0, y1_x=kp1,
-               points_x=points,
-               points_y_x=kp_special,
-               limit=limit)
-    # from mmfutils.testing import allclose
-    # assert allclose(v0, v2)
-    
-    # print(v0, v1, v2)
-
-    return v2
+    return do_integration(integrand, delta=delta, mu_a=mu_a, mu_b=mu_b, m_a=m_a, m_b=m_b, 
+                   dim=dim, q=q, dq=dq, hbar=hbar, k_0=k_0, k_inf=k_inf, limit=limit)

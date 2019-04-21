@@ -298,54 +298,6 @@ def test_Thermodynamic_1d(delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dx=1e-3):
     assert np.allclose((na1-nb1), (na0-nb0))
     assert np.allclose(mu,mu_, rtol=1e-4)
 
-
-
-def Qfinder(ff, d, lg=None, ug=None, lb=0, ub=0.5, N=100, rtol=1e-8):
-    """
-    ------
-    lg: lower value guess
-    ug: upper value guess
-    lb: lower boundary
-    ub: upper boundary
-    N : divisions
-    """
-    def g(q):
-        return ff.get_g(delta=d, q=q)
-    
-    def refine(a, b, v):
-        c = (a + b)/2.0
-        ga, gb, gc = g(a),g(b),g(c)
-        print(ga, gb, gc)
-        assert ga * gb < 0
-        if ga * gc < 0:
-            b = c
-        else:
-            a = c
-        if np.allclose(c, v, rtol=rtol):
-            return c
-        return refine(a, b, c)
-            
-        
-    rets = []
-    if lg is None or ug is None:
-        qs = np.linspace(lb, ub, N)
-        gs = [g(q) for q in qs]
-        g0 = gs[0]
-        if np.allclose(gs[0],0, rtol=rtol):
-            rets.append(gs[0])
-            g0 = gs[1]
-        for i in range(len(rets),len(gs)):
-            if g0 * gs[i] < 0:
-                rets.append(refine(g0, gs[i], g0))
-                g0 = gs[i]
-    return rets
-
 if __name__ == "__main__":
     #test_density_with_qs(delta = 1.0, mu_delta = 2, dmu_delta = 0.5, q_dmu = 0.05, dq_dmu = 0.02, dim = 1, k_c = 200)
-    #test_Thermodynamic_1d(delta = 1.0, mu_delta = 3, dmu_delta = 0.5, q_dmu = 0, dq_dmu = 0, dx = 0.001)
-    dim = 1
-    delta = 0.1
-    mu = 10.0
-    dmu = 0.11
-    ff = FF(mu=mu, dmu=dmu, delta=delta, dim=1, k_c=np.inf,fix_g=True, bStateSentinel=True)
-    Qfinder(ff=ff, d=0.001)
+    test_Thermodynamic_1d(delta = 1.0, mu_delta = 3, dmu_delta = 0.5, q_dmu = 0, dq_dmu = 0, dx = 0.001)
