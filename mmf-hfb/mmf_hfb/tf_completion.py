@@ -143,6 +143,17 @@ def C_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     f_nu = (f(w_m, T) - f(w_p, T))
     return 0.5*(1/e_p - f_nu/E)
 
+@numba.jit(nopython=True)
+def f_p_m(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
+        e = hbar**2/2
+        e_a, e_b = e*ka2/m_a - mu_a, e*kb2/m_b - mu_b
+        e_m, e_p = (e_a - e_b)/2, (e_a + e_b)/2
+        E = np.sqrt(e_p**2 + abs(delta)**2)
+        w_m, w_p = e_m - E, e_m + E
+        f_nu = (f(w_m, T) - f(w_p, T))
+        f_p = 1 - e_p/E*f_nu
+        f_m = f(w_p, T) - f(-w_m, T)
+        return (f_p,f_m)
 
 class Series(object):
     """Series expansions for T=0 and large enough k_c."""
@@ -213,6 +224,8 @@ def do_integration(integrand, mu_a, mu_b, delta, m_a, m_b, dim=3,
     mu_q = mu - dq**2/2*minv
     assert m_a == m_b   # Need to re-derive for different masses
     m = 1./minv
+    if limit is None:
+        limit = MAX_DIVISION
     #kF = math.sqrt(2*mu/minv)/hbar
 
     # The following conditions were derived from w(kx, kp) = 0 and
@@ -267,42 +280,33 @@ def compute_current(mu_a, mu_b, delta, m_a=1, m_b=1, dim=3, hbar=1.0, T=0.0,
                     q=0, dq=0, k_0=0, k_c=None):
     """compute the overall current"""
     k_inf = np.inf if k_c is None else k_c
-    def f(ka2, kb2):
-        e = hbar**2/2
-        e_a, e_b = e*ka2/m_a - mu_a, e*kb2/m_b - mu_b
-        e_m, e_p = (e_a - e_b)/2, (e_a + e_b)/2
-        E = np.sqrt(e_p**2 + abs(delta)**2)
-        w_m, w_p = e_m - E, e_m + E
-        f_nu = (f(w_m, T) - f(w_p, T))
-        f_p = 1 - e_p/E*f_nu
-        f_m = f(w_p, T) - f(-w_m, T)
-        return (f_p,f_m)
+    
 
     if dim == 1:
         def integrand(k):
             k2_a = (k + q + dq)**2
             k2_b = (k + q - dq)**2
-            f_p, f_m = f(k2_a, k2_b)
+            f_p, f_m = f_p_m(k2_a, k2_b, mu_a, mu_b, delta, m_a, m_b, hbar, T)
             return (k * f_p + dq * f_m) / 2 / np.pi
     elif dim == 2:
         def integrand(kx, kp):
             # print(kx, kp)
             k2_a = (kx + q + dq)**2 + kp**2
             k2_b = (kx + q - dq)**2 + kp**2
-            f_p, f_m = f(k2_a, k2_b)
-            return (k * f_p + dq * f_m) / (2*np.pi**2)
+            f_p, f_m = f_p_m(k2_a, k2_b, mu_a, mu_b, delta, m_a, m_b, hbar, T)
+            return (kx * f_p + dq * f_m) / (2*np.pi**2)
     elif dim == 3:
         def integrand(kx, kp):
             # print(kx, kp)
             k2_a = (kx + q + dq)**2 + kp**2
             k2_b = (kx + q - dq)**2 + kp**2
-            f_p, f_m = f(k2_a, k2_b)
-            return (k * f_p + dq * f_m) * (kp/4/np.pi**2)
+            f_p, f_m = f_p_m(k2_a, k2_b, mu_a, mu_b, delta, m_a, m_b, hbar, T)
+            return (kx * f_p + dq * f_m) * (kp/4/np.pi**2)
     else:
         raise ValueError(f"Only dim=1, 2, or 3 supported (got dim={dim})")
         
     return do_integration(integrand, delta=delta, mu_a=mu_a, mu_b=mu_b, m_a=m_a, m_b=m_b, 
-                   dim=dim, q=q, dq=dq, hbar=hbar, k_0=k_0, k_inf=k_inf, limit=limit)
+                   dim=dim, q=q, dq=dq, hbar=hbar, k_0=k_0, k_inf=k_inf, limit=None)
 
 def integrate(f, mu_a, mu_b, delta, m_a, m_b, dim=3, hbar=1.0, T=0.0,
               k_0=0.0, k_c=np.inf):
@@ -360,8 +364,6 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, dim=3,
                          mu_a=mu_a, mu_b=mu_b, delta=delta,
                          m_a=m_a, m_b=m_b, hbar=hbar, T=T)
 
-    if limit is None:
-        limit = MAX_DIVISION
         
     delta = abs(delta)
     args = (mu_a, mu_b, delta, m_a, m_b, hbar, T)

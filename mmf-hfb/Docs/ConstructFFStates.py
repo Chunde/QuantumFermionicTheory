@@ -21,6 +21,7 @@ import mmf_setup;mmf_setup.nbinit()
 from nbimports import * 
 from mmf_hfb import tf_completion as tf
 from mmf_hfb.FuldeFerrelState import FFState
+from mmf_hfb.FFStateFinder import FFStateFinder
 from scipy.optimize import brentq
 from mmfutils.plot import imcontourf
 clear_output()
@@ -44,8 +45,8 @@ import json
 import glob
 from json import dumps
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-pattern = join(currentdir,"..","mmf_hfb","FFState*.json")
-files = files=glob.glob(pattern)
+pattern = join(currentdir,"..","mmf_hfb","FFState_[_0-9]*.json")
+files = glob.glob(pattern)
 plt.figure(figsize=(20,7))
 for file in files:
     if os.path.exists(file):
@@ -76,6 +77,77 @@ plt.xlabel(f"$\Delta$")
 plt.ylabel(f"$\delta q$")
 plt.title(f"$\mu=${mu},$\Delta=${delta}. Upper Branch")
 plt.legend()
+
+# ## Compute Current and Pressure
+# $$
+# J=\int dk\left[(k+\delta q) f_a + (k - \delta q) f_b\right]
+# $$
+
+import os
+import inspect
+from os.path import join
+import json
+import glob
+import warnings
+warnings.filterwarnings("ignore")
+from json import dumps
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+pattern = join(currentdir,"..","mmf_hfb","FFState_J_P*.json")
+files=glob.glob(pattern)
+plt.figure(figsize=(20,20))
+for file in files:
+    file = files[2]
+    if os.path.exists(file):
+        with open(file,'r') as rf:
+            ret = json.load(rf)
+            dim, mu, dmu, delta=ret['dim'], ret['mu'], ret['dmu'], ret['delta']
+            ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=dim)
+            p0 = ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu, dmu_eff=dmu,delta=0).n
+            print(p0)
+            data1, data2 = ret['data']
+            dqs1, dqs2, ds1, ds2, j1, j2, P1, P2 = [],[],[],[],[],[],[],[]
+            for data in data1:
+                d, q, p, j = data['d'],data['q'],data['p'],data['j']
+                ds1.append(d)
+                dqs1.append(q)
+                j1.append(j)
+                P1.append(p)
+            for data in data2:
+                d, q, p, j = data['d'],data['q'],data['p'],data['j']
+                ds2.append(d)
+                dqs2.append(q)
+                j2.append(j)
+                P2.append(p)
+                
+            plt.subplot(321)
+            plt.plot(ds1, dqs1, label=f"$d\mu=${dmu}")
+            plt.subplot(322)
+            plt.plot(ds2, dqs2, label=f"$d\mu=${dmu}")
+            plt.subplot(323)
+            plt.plot(ds1, P1, label=f"$d\mu=${dmu}")
+            plt.subplot(324)
+            #plt.axhline(p0)
+            plt.plot(ds2, P2, label=f"$d\mu=${dmu}")
+            plt.subplot(325)
+            plt.plot(ds1, j1, label=f"$d\mu=${dmu}")
+            plt.subplot(326)
+            plt.plot(ds2, j2, label=f"$d\mu=${dmu}")
+            
+    for i in range(1,7):
+        plt.subplot(3,2,i)
+        plt.legend()
+        if i == 1:
+            plt.title(f"Lower Branch: $\Delta$={delta},$\mu=${mu},$d\mu=${dmu}")
+            plt.ylabel("$\delta q$")
+        if i == 2:
+            plt.title(f"Upper Branch Branch: $\Delta$={delta},$\mu=${mu},$d\mu=${dmu}")
+            plt.ylabel("$\delta q$")
+        if i == 3 or i == 4:
+            plt.ylabel("$Pressure$")
+        if i == 5 or i == 6:
+            plt.ylabel("$Current$")
+        plt.xlabel("$\Delta$")
+    break
 
 # ## Mathematical Relations:
 # \begin{align}

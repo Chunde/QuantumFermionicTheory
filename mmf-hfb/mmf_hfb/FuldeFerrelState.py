@@ -47,8 +47,6 @@ class FFState(object):
             self._C = tf.compute_C(mu_a=mu, mu_b=mu, 
                                    delta=delta, q=q, dq=dq, **self._tf_args).n
         self.bSuperfluidity = delta > 0
-        self.mus_eff = self._get_effetive_mus(mu=mu, dmu=dmu, delta=delta, 
-                                            q=q, dq=dq, k_c=k_c, update_g=True)
         
     def f(self, mu, dmu, delta, q=0, dq=0, **kw):
         args = dict(self._tf_args)
@@ -61,18 +59,30 @@ class FFState(object):
     def get_g(self, delta, mu=None, dmu=None, q=0, dq=0, **kw):
         assert (mu is None) == (dmu is None)
         if mu is None:
-            mu, dmu = self.mus_eff
+            mu, dmu = self.mus
         args = dict(self._tf_args, q=q, dq=dq, delta=delta)
         args.update(kw, mu_a=mu+dmu, mu_b=mu-dmu)
         nu_delta = tf.integrate_q(tf.nu_delta_integrand, **args)
         g = 1./nu_delta.n
         return g
+    def get_current(self, mu=None, dmu=None, q=0, dq=0, delta=None, k_c=None):
+        """return the densities of two the components"""
+        assert (mu is None) == (dmu is None)
+        if mu is None:
+            mu, dmu = self.mus
 
+        if delta is None:
+            delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
+                               a=self.delta * 0.8, b=self.delta * 1.2)
+        mu_a, mu_b = mu + dmu, mu - dmu
+        args = dict(self._tf_args)
+        return tf.compute_current(mu_a=mu_a, mu_b=mu_b, delta=delta, **args)
+        
     def get_densities(self, mu=None, dmu=None, q=0, dq=0, delta=None, k_c=None):
         """return the densities of two the components"""
         assert (mu is None) == (dmu is None)
         if mu is None:
-            mu, dmu = self.mus_eff
+            mu, dmu = self.mus
 
         if delta is None:
             delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
@@ -207,7 +217,7 @@ class FFState(object):
                            n_a=None, n_b=None, k_c=None):
         assert (mu is None) == (dmu is None)
         if mu is None:
-            mu, dmu = self.mus_eff
+            mu, dmu = self.mus
 
         if delta is None:
             delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
@@ -234,7 +244,7 @@ class FFState(object):
         if mu is None:
             mu, dmu = self.mus 
         if mu_eff is None:
-            mu_eff, dmu_eff = self.mus_eff
+            mu_eff, dmu_eff = self._get_effetive_mus(mu=mu, dmu=dmu, q=q, dq=dq)
         if delta is None:
             delta = self.solve(mu=mu_eff, dmu=dmu_eff, q=q, dq=dq, 
                                a=self.delta * 0.8, b=self.delta * 1.2)
@@ -254,7 +264,7 @@ class FFState(object):
         """
         assert (mu is None) == (dmu is None)
         if mu is None:
-            mu, dmu = self.mus_eff
+            mu, dmu = self.mus
 
         oldFlag = self.bStateSentinel
         self.bStateSentinel = False
@@ -271,7 +281,7 @@ class FFState(object):
         """
         assert (mu is None) == (dmu is None)
         if mu is None:
-            mu, dmu = self.mus_eff
+            mu, dmu = self.mus
 
         if a is None:
             a = a=self.delta * 0.1

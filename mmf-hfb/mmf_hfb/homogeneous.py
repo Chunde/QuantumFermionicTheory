@@ -3,8 +3,7 @@ import warnings
 import numpy as np
 import scipy.integrate
 import scipy as sp
-import math
-from .integrate import quad, dquad
+
 from uncertainties import ufloat
 
 _QUAD_ARGS = dict(
@@ -12,7 +11,7 @@ _QUAD_ARGS = dict(
     epsrel=1.49e-08)
 
 
-def quad_k(f, kF=None, k_0=0, k_inf=np.inf, dim=1, points=None, limit=1000, **kw):
+def quad_k(f, kF=None, k_0=0, k_inf=np.inf, dim=1, limit=1000, **kw):
     """Integrate from k_0 to k_inf in dim-dimensions including factors
     of 1/(2*pi)**dim and spherical area."""
     args = dict(_QUAD_ARGS, **kw)
@@ -34,20 +33,14 @@ def quad_k(f, kF=None, k_0=0, k_inf=np.inf, dim=1, points=None, limit=1000, **kw
     else:
         raise NotImplementedError(f"Only dim=1,2,3 supported (got {dim}).")
 
-    if points is not None:
-        if kF is not None:
-            points.append(kF)
-        res= quad(func=integrand, a=k_0, b=k_inf, points=points, limit=limit) 
+    if kF is None:
+        res = ufloat(*sp.integrate.quad(integrand, k_0, k_inf, **args))
     else:
-        if kF is None:
-            res = ufloat(*sp.integrate.quad(integrand, k_0, k_inf, **args))
-        else:
-            # One might think that `points=[kF]` could be used here, but
-            # this does not work with infinite limits.
-
-            res = (ufloat(*sp.integrate.quad(integrand, k_0, kF, **args))
-                   + ufloat(*sp.integrate.quad(
-                       integrand, kF, k_inf, limit=limit, **args)))
+        # One might think that `points=[kF]` could be used here, but
+        # this does not work with infinite limits.
+        res = (ufloat(*sp.integrate.quad(integrand, k_0, kF, **args))
+               + ufloat(*sp.integrate.quad(
+                   integrand, kF, k_inf, limit=limit, **args)))
 
     if abs(res.s) > 1e-6 and abs(res.s/res.n) > 1e-6:
         warnings.warn(f"Integral did not converge: {res}")
@@ -228,72 +221,14 @@ class Homogeneous(object):
         
         return namedtuple('Densities', ['n_a', 'n_b', 'nu'])(
             n_a, n_b, nu)
-
-    def get_ns(self, mus_eff, delta, N_twist=1):
-        """Return density n_a, n_b only for speed"""
-        kF = np.sqrt(2*max(0, max(mus_eff)))
-        
-        if self.Nxyz is None:
-            def quad(f):
-                # the special points here does get rid of warnings
-                mu = (mus_eff[0] + mus_eff[0])/2
-                dmu = (mus_eff[0] - mus_eff[0])/2
-                m = minv = hbar= 1
-                dq = q= 0
-                mu_q = mu - dq**2/2*minv
-                p_x_special = (np.ma.divide(m*(dmu - np.array([delta, -delta])),
-                                dq).filled(np.nan) -q).tolist()
-
-                P = [1, 0, -4*(m*mu_q + dq**2),
-                     8*m*dq*dmu, 4*m**2*(delta**2 + mu_q**2 - dmu**2)]
-                p_x_special.extend([p.real - q for p in np.roots(P)])
-                points = sorted(set([x/hbar for x in p_x_special if not math.isnan(x)]))
-                return quad_k(f, dim=self.dim, kF=kF, points = points)
-        else:
-            def quad(f):
-                return quad_l(f, Nxyz=self.Nxyz, Lxyz=self.Lxyz,
-                              N_twist=N_twist)
-
-
-        def np_integrand(k):
-            """Density"""
-            res = self.get_res(k=k, mus_eff=mus_eff, delta=delta)
-            f_nu = self.f(res.w_m) - self.f(res.w_p)
-            n_p = 1 - res.e_p/res.E*f_nu
-            return n_p
-
-        def nm_integrand(k):
-            """Density"""
-            res = self.get_res(k=k, mus_eff=mus_eff, delta=delta)
-            n_m = self.f(res.w_p) - self.f(-res.w_m)
-            return n_m
-
-        n_m = quad(nm_integrand)
-        n_p = quad(np_integrand)
-        n_a = (n_p + n_m)/2.0
-        n_b = (n_p - n_m)/2.0
-        return (n_a, n_b)
-
+    
     def get_BCS_v_n_e(self, mus_eff, delta, N_twist=1):
         """Return `(v_0, n, mu, e)` for the 1D BCS solution at T=0."""
         kF = np.sqrt(2*max(0, max(mus_eff)))
         
         if self.Nxyz is None:
             def quad(f):
-                mu = (mus_eff[0] + mus_eff[0])/2
-                dmu = (mus_eff[0] - mus_eff[0])/2
-                m = minv = hbar= 1
-                dq = q= 0
-                mu_q = mu - dq**2/2*minv
-                p_x_special = (np.ma.divide(m*(dmu - np.array([delta, -delta])),
-                                dq).filled(np.nan) -q).tolist()
-
-    # Quartic polynomial for special points.  See Docs/Integrate.ipynb
-                P = [1, 0, -4*(m*mu_q + dq**2),
-                     8*m*dq*dmu, 4*m**2*(delta**2 + mu_q**2 - dmu**2)]
-                p_x_special.extend([p.real - q for p in np.roots(P)])
-                points = sorted(set([x/hbar for x in p_x_special if not math.isnan(x)]))
-                return quad_k(f, dim=self.dim, kF=kF, points = points)
+                return quad_k(f, dim=self.dim, kF=kF)
         else:
             def quad(f):
                 return quad_l(f, Nxyz=self.Nxyz, Lxyz=self.Lxyz,

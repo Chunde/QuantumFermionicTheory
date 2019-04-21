@@ -300,4 +300,5 @@ def test_Thermodynamic_1d(delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dx=1e-3):
 
 if __name__ == "__main__":
     #test_density_with_qs(delta = 1.0, mu_delta = 2, dmu_delta = 0.5, q_dmu = 0.05, dq_dmu = 0.02, dim = 1, k_c = 200)
-    test_Thermodynamic_1d(delta = 1.0, mu_delta = 3, dmu_delta = 0.5, q_dmu = 0, dq_dmu = 0, dx = 0.001)
+    #test_Thermodynamic_1d(delta = 1.0, mu_delta = 3, dmu_delta = 0.5, q_dmu = 0, dq_dmu = 0, dx = 0.001)
+    test_Thermodynamic(delta = 1.0, mu_delta = 3, dmu_delta = 0.5, q_dmu = 0.05, dq_dmu = 0.02, dim = 2, k_c = 200)
