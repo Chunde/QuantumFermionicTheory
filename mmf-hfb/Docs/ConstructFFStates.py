@@ -45,10 +45,10 @@ import json
 import glob
 from json import dumps
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-pattern = join(currentdir,"..","mmf_hfb","FFState_[_0-9]*.json")
+pattern = join(currentdir,"..","mmf_hfb","data","3d","FFState_[_0-9]*.json")
 files = glob.glob(pattern)
 plt.figure(figsize=(20,7))
-for file in files:
+for file in files[:-1]:
     if os.path.exists(file):
         with open(file,'r') as rf:
             ret = json.load(rf)
@@ -67,6 +67,7 @@ for file in files:
             plt.plot(ds1, dqs1, label=f"$d\mu=${dmu}")
             plt.subplot(122)
             plt.plot(ds2, dqs2, label=f"$d\mu=${dmu}")
+       # break
 plt.subplot(121)
 plt.xlabel(f"$\Delta$")
 plt.ylabel(f"$\delta q$")
@@ -92,18 +93,18 @@ import warnings
 warnings.filterwarnings("ignore")
 from json import dumps
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-pattern = join(currentdir,"..","mmf_hfb","FFState_J_P*.json")
+pattern = join(currentdir,"..","mmf_hfb","data","1d","FFState_J_P*.json")
 files=glob.glob(pattern)
 plt.figure(figsize=(20,20))
 for file in files:
-    file = files[2]
+    file = files[5]
     if os.path.exists(file):
         with open(file,'r') as rf:
             ret = json.load(rf)
             dim, mu, dmu, delta=ret['dim'], ret['mu'], ret['dmu'], ret['delta']
-            ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=dim)
-            p0 = ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu, dmu_eff=dmu,delta=0).n
-            print(p0)
+            ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=dim, fix_g=True)
+            p0 = ff.get_pressure(mu=mu, dmu=dmu, delta=0).n
+            print(f"Normal Pressure={p0}")
             data1, data2 = ret['data']
             dqs1, dqs2, ds1, ds2, j1, j2, P1, P2 = [],[],[],[],[],[],[],[]
             for data in data1:
@@ -124,10 +125,9 @@ for file in files:
             plt.subplot(322)
             plt.plot(ds2, dqs2, label=f"$d\mu=${dmu}")
             plt.subplot(323)
-            plt.plot(ds1, P1, label=f"$d\mu=${dmu}")
+            plt.plot(ds1, P1, label=f"$d\mu=${dmu},$P_m=${np.array(P1).max()}")
             plt.subplot(324)
-            #plt.axhline(p0)
-            plt.plot(ds2, P2, label=f"$d\mu=${dmu}")
+            plt.plot(ds2, P2, label=f"$d\mu=${dmu},$P_m=${np.array(P2).max()}")
             plt.subplot(325)
             plt.plot(ds1, j1, label=f"$d\mu=${dmu}")
             plt.subplot(326)
@@ -148,6 +148,16 @@ for file in files:
             plt.ylabel("$Current$")
         plt.xlabel("$\Delta$")
     break
+
+# ## Check range of $\Delta$
+
+ff = FFStateFinder(delta=2, dim=1, mu=10, dmu=2.4)
+dqs = np.linspace(0., 1, 20)
+gs = [ff._gc(delta=0.85, dq=dq) for dq in dqs]
+plt.plot(dqs, gs)
+plt.axhline(0)
+
+ff._gc(delta=.55, dq=0.0001)
 
 # ## Mathematical Relations:
 # \begin{align}

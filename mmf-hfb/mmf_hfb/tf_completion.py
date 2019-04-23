@@ -1,17 +1,12 @@
 """Numba functions for fast integration of homogeneous matter."""
 import math
 import cmath
-
 import numpy as np
 import numba
 import warnings
 import scipy as sp
-
 from .integrate import quad, dquad
-
-
 MAX_DIVISION = 65
-
 
 @numba.jit(nopython=True)
 def step(t, t1):
@@ -26,7 +21,6 @@ def step(t, t1):
     else:
         return 1.0
 
-
 @numba.jit(nopython=True)
 def f(E, T):
     """Fermi distribution function."""
@@ -34,7 +28,6 @@ def f(E, T):
         return (1 - np.sign(E))/2
     else:
         return 1./(1+np.exp(E/T))
-
 
 ######################################################################
 # These *_integrand functions do not have the integration measure
@@ -52,7 +45,6 @@ def n_p_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     f_p = 1 - e_p/E*f_nu
     return f_p
 
-
 @numba.jit(nopython=True)
 def n_m_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     e = hbar**2/2
@@ -62,7 +54,6 @@ def n_m_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     w_m, w_p = e_m - E, e_m + E
     f_m = f(w_p, T) - f(-w_m, T)
     return f_m
-
 
 @numba.jit(nopython=True)
 def tau_p_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
@@ -78,7 +69,6 @@ def tau_p_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     f_b = (f_p - f_m)/2
     return ka2*f_a + kb2*f_b
 
-
 @numba.jit(nopython=True)
 def tau_m_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     e = hbar**2/2
@@ -93,7 +83,6 @@ def tau_m_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     f_b = (f_p - f_m)/2
     return ka2*f_a - kb2*f_b
 
-
 @numba.jit(nopython=True)
 def nu_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     e = hbar**2/2
@@ -103,7 +92,6 @@ def nu_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     w_m, w_p = e_m - E, e_m + E
     f_nu = (f(w_m, T) - f(w_p, T))
     return -0.5*delta/E*f_nu
-
 
 @numba.jit(nopython=True)
 def nu_delta_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
@@ -115,14 +103,12 @@ def nu_delta_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     f_nu = (f(w_m, T) - f(w_p, T))
     return -0.5/E*f_nu
 
-
 @numba.jit(nopython=True)
 def kappa_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     m_p_inv = (1/m_a + 1/m_b)/2
     tau_p = tau_p_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T)
     nu_delta = nu_delta_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T)
     return (tau_p * m_p_inv * hbar**2 / 2 + abs(delta)**2 * nu_delta)
-
 
 @numba.jit(nopython=True)
 def pressure_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
@@ -131,7 +117,6 @@ def pressure_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     n_m = n_m_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T)
     kappa = kappa_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T)
     return mu_p*n_p + mu_m*n_m - kappa
-
 
 @numba.jit(nopython=True)
 def C_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
@@ -156,8 +141,7 @@ def f_p_m(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
         return (f_p,f_m)
 
 class Series(object):
-    """Series expansions for T=0 and large enough k_c."""
-            
+    """Series expansions for T=0 and large enough k_c."""         
     
 def Lambda(m, mu, hbar, dim, E_c=None, k_c=None):
     """Return the cutoff function Lambda assuming equal masses.
@@ -192,7 +176,6 @@ def Lambda(m, mu, hbar, dim, E_c=None, k_c=None):
     # assert np.allclose(res.imag, 0)
     # [Check] this will go false at some point when q is large
     return res.real
-
 
 def compute_C(mu_a, mu_b, delta, m_a, m_b, dim=3, hbar=1.0, T=0.0,
               q=0, dq=0, k_c=None, debug=False):
@@ -340,9 +323,7 @@ def integrate(f, mu_a, mu_b, delta, m_a, m_b, dim=3, hbar=1.0, T=0.0,
     minv = (1/m_a + 1/m_b)/2
     kF = math.sqrt(2*mu/minv)/hbar
     points = [kF]
-
     return quad(integrand, a=k_0, b=k_c, points=points)
-
 
 def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, dim=3,
                 q=0, dq=0.0, hbar=1.0, T=0.0, k_0=0, k_c=None, limit=None):
@@ -363,7 +344,6 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, dim=3,
         return integrate(f, dim=dim, k_0=k_0, k_c=k_inf,
                          mu_a=mu_a, mu_b=mu_b, delta=delta,
                          m_a=m_a, m_b=m_b, hbar=hbar, T=T)
-
         
     delta = abs(delta)
     args = (mu_a, mu_b, delta, m_a, m_b, hbar, T)

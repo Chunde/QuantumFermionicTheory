@@ -14,7 +14,7 @@ MAX_ITERATION = 50
     
 class FFState(object):
     def __init__(self, mu, dmu, delta=1, q=0, dq=0, m=1, T=0, hbar=1, k_c=100,
-                 dim=2, fix_g=False,  bStateSentinel=False):
+                 dim=2, fix_g=True,  bStateSentinel=False):
         """
         Arguments
         ---------
@@ -83,7 +83,6 @@ class FFState(object):
         assert (mu is None) == (dmu is None)
         if mu is None:
             mu, dmu = self.mus
-
         if delta is None:
             delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
                                a=self.delta * 0.8, b=self.delta * 1.2)
@@ -91,8 +90,7 @@ class FFState(object):
         args = dict(self._tf_args, mu_a=mu + dmu, mu_b=mu - dmu, delta=delta,
                     q=q, dq=dq)
         if k_c is not None:
-            args['k_c'] = k_c
-            
+            args['k_c'] = k_c         
         n_p = tf.integrate_q(tf.n_p_integrand, **args)
         n_m = tf.integrate_q(tf.n_m_integrand, **args)
         n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
@@ -120,8 +118,7 @@ class FFState(object):
             else:
                 delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
                                a=self.delta * 0.8, b=self.delta * 1.2)
-            update_delta = True
-        
+            update_delta = True     
         args = dict(self._tf_args, mu_a=mu + dmu, mu_b=mu - dmu, delta=delta,
                     q=q, dq=dq)
         if k_c is not None:
@@ -149,7 +146,6 @@ class FFState(object):
             error = np.abs(mu_ - mu)/mu
             mu_eff = (mu_a_eff + mu_b_eff)/2
             dmu_eff = (mu_a_eff - mu_b_eff)/2 
-
             if update_delta:
                 self.delta = self.solve(mu=mu_eff, dmu=dmu_eff, q=q, dq=dq,
                                   a=delta * 0.8, b=delta * 1.2)
@@ -180,7 +176,6 @@ class FFState(object):
             Indicate if the g_c should be updated in the iteration
             By default its value is False, means the g_c will be fixed
         """
-
         assert self.dim == 1
         mu_eff, dmu_eff = self._get_effetive_mus(mu=mu, dmu=dmu, mus_eff=mus_eff, 
                                    delta=delta, q=q, dq=dq, k_c=k_c, update_g=update_g)
@@ -218,11 +213,9 @@ class FFState(object):
         assert (mu is None) == (dmu is None)
         if mu is None:
             mu, dmu = self.mus
-
         if delta is None:
             delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
                                a=self.delta * 0.8, b=self.delta * 1.2)
-
         if n_a is None:
             n_a, n_b = self.get_densities(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, k_c=k_c)
 
@@ -231,8 +224,7 @@ class FFState(object):
         if self.fix_g:
             g_c = self._g
         else:
-            g_c = 1./self._C
-         
+            g_c = 1./self._C         
         if self.dim == 1:
             return kappa + g_c * n_a * n_b
         return kappa
@@ -265,7 +257,6 @@ class FFState(object):
         assert (mu is None) == (dmu is None)
         if mu is None:
             mu, dmu = self.mus
-
         oldFlag = self.bStateSentinel
         self.bStateSentinel = False
         delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq,
@@ -299,7 +290,6 @@ class FFState(object):
                 delta = brentq(f, a, b)
             except ValueError: # It's important to deal with specific exception.
                 delta = 0
-
         if self.bStateSentinel:
                 assert self.bSuperfluidity == (delta > 0)
         return delta
