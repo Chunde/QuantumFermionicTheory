@@ -38,6 +38,7 @@ clear_output()
 # * here were found and plot all FF States
 # * to determine if any of the state is a ground state, we need to find a max pressure.
 
+# +
 import os
 import inspect
 from os.path import join
@@ -45,14 +46,18 @@ import json
 import glob
 from json import dumps
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-pattern = join(currentdir,"..","mmf_hfb","data","3d","FFState_[_0-9]*.json")
+pattern = join(currentdir,"..","mmf_hfb","data","..","FFState_[_0-9]*.json")
 files = glob.glob(pattern)
-plt.figure(figsize=(20,7))
-for file in files[:-1]:
+plt.figure(figsize=(20,20))
+for file in files:
     if os.path.exists(file):
         with open(file,'r') as rf:
             ret = json.load(rf)
             mu, dmu, delta=ret['mu'], ret['dmu'], ret['delta']
+            #if mu != 5:
+            #    continue
+            if dmu !=0.26:
+                continue
             datas = ret['data']
             dqs1, dqs2, ds1, ds2 = [],[],[],[]
             for data in datas:
@@ -63,21 +68,24 @@ for file in files[:-1]:
                 if dq2 is not None:
                     dqs2.append(dq2)
                     ds2.append(d)
-            plt.subplot(121)
-            plt.plot(ds1, dqs1, label=f"$d\mu=${dmu}")
-            plt.subplot(122)
-            plt.plot(ds2, dqs2, label=f"$d\mu=${dmu}")
-       # break
-plt.subplot(121)
+            plt.subplot(211)
+            if len(ds1) > 0:
+                plt.plot(ds1, dqs1, '+',label=f"$\Delta=${delta}, $\mu$={mu}, $d\mu=${dmu}")
+            plt.subplot(212)
+            if len(ds2):
+                plt.plot(ds2, dqs2, '--',label=f"$\Delta=${delta}, $\mu$={mu}, $d\mu=${dmu}")
+        
+plt.subplot(211)
 plt.xlabel(f"$\Delta$")
 plt.ylabel(f"$\delta q$")
-plt.title(f"$\mu=${mu},$\Delta=${delta}. Lower Branch")
+plt.title(f"Lower Branch")
 plt.legend()
-plt.subplot(122)
+plt.subplot(212)
 plt.xlabel(f"$\Delta$")
 plt.ylabel(f"$\delta q$")
-plt.title(f"$\mu=${mu},$\Delta=${delta}. Upper Branch")
+plt.title(f"Upper Branch")
 plt.legend()
+# -
 
 # ## Compute Current and Pressure
 # $$
@@ -93,17 +101,19 @@ import warnings
 warnings.filterwarnings("ignore")
 from json import dumps
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-pattern = join(currentdir,"..","mmf_hfb","data","1d","FFState_J_P*.json")
+pattern = join(currentdir,"..","mmf_hfb","data","1d","FFState_J_P*")
 files=glob.glob(pattern)
 plt.figure(figsize=(20,20))
 for file in files:
-    file = files[5]
+    #file = files[5]
     if os.path.exists(file):
         with open(file,'r') as rf:
             ret = json.load(rf)
             dim, mu, dmu, delta=ret['dim'], ret['mu'], ret['dmu'], ret['delta']
+            if mu != 5:
+                continue
             ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=dim, fix_g=True)
-            p0 = ff.get_pressure(mu=mu, dmu=dmu, delta=0).n
+            p0 = ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu, dmu_eff=dmu,delta=0).n
             print(f"Normal Pressure={p0}")
             data1, data2 = ret['data']
             dqs1, dqs2, ds1, ds2, j1, j2, P1, P2 = [],[],[],[],[],[],[],[]
@@ -121,21 +131,25 @@ for file in files:
                 P2.append(p)
                 
             plt.subplot(321)
-            plt.plot(ds1, dqs1, label=f"$d\mu=${dmu}")
+            plt.plot(ds1, dqs1, label=f"$\mu=${mu},$d\mu=${dmu}")
             plt.subplot(322)
-            plt.plot(ds2, dqs2, label=f"$d\mu=${dmu}")
+            plt.plot(ds2, dqs2, label=f"$\mu=${mu},$d\mu=${dmu}")
             plt.subplot(323)
-            plt.plot(ds1, P1, label=f"$d\mu=${dmu},$P_m=${np.array(P1).max()}")
+            #P1 = np.array(P1)
+            #P1 = P1- P1.min()
+            plt.plot(ds1, P1, label=f"$\mu=${mu},$d\mu=${dmu},$P_m=${np.array(P1).max()}")
             plt.subplot(324)
-            plt.plot(ds2, P2, label=f"$d\mu=${dmu},$P_m=${np.array(P2).max()}")
+            P2 = np.array(P2)
+            P2 = P2- P2.min()
+            plt.plot(ds2, P2, label=f"$\mu=${mu},$d\mu=${dmu},$P_m=${np.array(P2).max()}")
             plt.subplot(325)
-            plt.plot(ds1, j1, label=f"$d\mu=${dmu}")
+            plt.plot(ds1, j1, label=f"$\mu=${mu},$d\mu=${dmu}")
             plt.subplot(326)
-            plt.plot(ds2, j2, label=f"$d\mu=${dmu}")
+            plt.plot(ds2, j2, label=f"$\mu=${mu},$d\mu=${dmu}")
             
     for i in range(1,7):
         plt.subplot(3,2,i)
-        plt.legend()
+        #plt.legend()
         if i == 1:
             plt.title(f"Lower Branch: $\Delta$={delta},$\mu=${mu},$d\mu=${dmu}")
             plt.ylabel("$\delta q$")
@@ -151,9 +165,9 @@ for file in files:
 
 # ## Check range of $\Delta$
 
-ff = FFStateFinder(delta=2, dim=1, mu=10, dmu=2.4)
-dqs = np.linspace(0., 1, 20)
-gs = [ff._gc(delta=0.85, dq=dq) for dq in dqs]
+ff = FFStateFinder(delta=0.24, dim=1, mu=10, dmu=0.23)
+dqs = np.linspace(0, 0.5, 50)
+gs = [ff._gc(delta=0.03153061224489796, dq=dq) for dq in dqs]
 plt.plot(dqs, gs)
 plt.axhline(0)
 
