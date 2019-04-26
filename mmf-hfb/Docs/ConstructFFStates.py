@@ -46,18 +46,27 @@ import json
 import glob
 from json import dumps
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-pattern = join(currentdir,"..","mmf_hfb","data","..","FFState_[_0-9]*.json")
+pattern = join(currentdir,"..","mmf_hfb","data","..","FFState_[()_0-9]*.json")
 files = glob.glob(pattern)
 plt.figure(figsize=(20,20))
+delta_set = set()
+mu_set = set()
+dmu_set = set()
 for file in files:
     if os.path.exists(file):
         with open(file,'r') as rf:
             ret = json.load(rf)
             mu, dmu, delta=ret['mu'], ret['dmu'], ret['delta']
-            #if mu != 5:
+            delta_set.add(delta)
+            mu_set.add(mu)
+            dmu_set.add(dmu)
+            #if mu == 5:
             #    continue
-            if dmu !=0.26:
-                continue
+            #if dmu !=0.26:
+            #    continue
+            #if delta != 0.2:
+            #    continue
+            
             datas = ret['data']
             dqs1, dqs2, ds1, ds2 = [],[],[],[]
             for data in datas:
@@ -85,6 +94,9 @@ plt.xlabel(f"$\Delta$")
 plt.ylabel(f"$\delta q$")
 plt.title(f"Upper Branch")
 plt.legend()
+#print(delta_set)
+#print(mu_set)
+#print(dmu_set)
 # -
 
 # ## Compute Current and Pressure
@@ -97,77 +109,94 @@ import inspect
 from os.path import join
 import json
 import glob
+import operator
 import warnings
 warnings.filterwarnings("ignore")
 from json import dumps
-currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-pattern = join(currentdir,"..","mmf_hfb","data","1d","FFState_J_P*")
-files=glob.glob(pattern)
-plt.figure(figsize=(20,20))
-for file in files:
-    #file = files[5]
-    if os.path.exists(file):
-        with open(file,'r') as rf:
-            ret = json.load(rf)
-            dim, mu, dmu, delta=ret['dim'], ret['mu'], ret['dmu'], ret['delta']
-            if mu != 5:
-                continue
-            ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=dim, fix_g=True)
-            p0 = ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu, dmu_eff=dmu,delta=0).n
-            print(f"Normal Pressure={p0}")
-            data1, data2 = ret['data']
-            dqs1, dqs2, ds1, ds2, j1, j2, P1, P2 = [],[],[],[],[],[],[],[]
-            for data in data1:
-                d, q, p, j = data['d'],data['q'],data['p'],data['j']
-                ds1.append(d)
-                dqs1.append(q)
-                j1.append(j)
-                P1.append(p)
-            for data in data2:
-                d, q, p, j = data['d'],data['q'],data['p'],data['j']
-                ds2.append(d)
-                dqs2.append(q)
-                j2.append(j)
-                P2.append(p)
-                
-            plt.subplot(321)
-            plt.plot(ds1, dqs1, label=f"$\mu=${mu},$d\mu=${dmu}")
-            plt.subplot(322)
-            plt.plot(ds2, dqs2, label=f"$\mu=${mu},$d\mu=${dmu}")
-            plt.subplot(323)
-            #P1 = np.array(P1)
-            #P1 = P1- P1.min()
-            plt.plot(ds1, P1, label=f"$\mu=${mu},$d\mu=${dmu},$P_m=${np.array(P1).max()}")
-            plt.subplot(324)
-            P2 = np.array(P2)
-            P2 = P2- P2.min()
-            plt.plot(ds2, P2, label=f"$\mu=${mu},$d\mu=${dmu},$P_m=${np.array(P2).max()}")
-            plt.subplot(325)
-            plt.plot(ds1, j1, label=f"$\mu=${mu},$d\mu=${dmu}")
-            plt.subplot(326)
-            plt.plot(ds2, j2, label=f"$\mu=${mu},$d\mu=${dmu}")
-            
+def PlotCurrentPressure(alignLowerBranches=True, alignUpperBranches=True, showLegend=False):
+    currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    pattern = join(currentdir,"..","mmf_hfb","data","..","FFState_J_P*")
+    files=glob.glob(pattern)
+    plt.figure(figsize=(20,20))
+    for file in files:
+        if os.path.exists(file):
+            with open(file,'r') as rf:
+                ret = json.load(rf)
+                dim, mu, dmu, delta=ret['dim'], ret['mu'], ret['dmu'], ret['delta']
+                #if mu == 5:
+                #    continue
+                ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=dim, fix_g=True)
+                mu_eff, dmu_eff = ff._get_effetive_mus(mu=mu, dmu=dmu)
+                n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff)
+                print(f"n_a={n_a}, n_b={n_b}")
+                p0 = ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu, dmu_eff=dmu,delta=0).n
+                print(f"Normal Pressure={p0}")
+                print(ff.get_ns_p_e_mus_1d(mu=mu, dmu=dmu, delta=delta))
+                data1, data2 = ret['data']
+                dqs1, dqs2, ds1, ds2, j1, j2, P1, P2 = [],[],[],[],[],[],[],[]
+                for data in data1:
+                    d, q, p, j = data['d'],data['q'],data['p'],data['j']
+                    ds1.append(d)
+                    dqs1.append(q)
+                    j1.append(j)
+                    P1.append(p)
+                for data in data2:
+                    d, q, p, j = data['d'],data['q'],data['p'],data['j']
+                    ds2.append(d)
+                    dqs2.append(q)
+                    j2.append(j)
+                    P2.append(p)
+
+                plt.subplot(321)
+                plt.plot(ds1, dqs1, label=f"$\Delta=${delta},$\mu=${mu},$d\mu=${dmu}")
+                plt.subplot(322)
+                plt.plot(ds2, dqs2, label=f"$\Delta=${delta},$\mu=${mu},$d\mu=${dmu}")
+                plt.subplot(323)
+                if alignLowerBranches:
+                    P1 = np.array(P1)
+                    P1_ = P1- P1.min()
+                else:
+                    P1_=P1    
+                plt.plot(ds1, P1_, label=f"$\Delta=${delta},$\mu=${mu},$d\mu=${dmu},$P_m=${np.array(P1).max()}")
+                plt.subplot(324)
+                if alignUpperBranches:
+                    P2 = np.array(P2)
+                    P2_ = P2- P2.min()
+                else:
+                    P2_ = P2
+                index, value = max(enumerate(P2), key=operator.itemgetter(1))
+                plt.plot(ds2, P2_, label=f"$\Delta=${delta},$\mu=${mu},$d\mu=${dmu},$P_m=${value}")
+                #plt.axvline(ds2[index])
+                plt.subplot(325)
+                plt.plot(ds1, j1, label=f"$\Delta=${delta},$\mu=${mu},$d\mu=${dmu}")
+                plt.subplot(326)
+                plt.plot(ds2, j2, label=f"$\Delta=${delta},$\mu=${mu},$d\mu=${dmu}")
+        
     for i in range(1,7):
         plt.subplot(3,2,i)
-        #plt.legend()
+        if showLegend:
+                plt.legend()
         if i == 1:
-            plt.title(f"Lower Branch: $\Delta$={delta},$\mu=${mu},$d\mu=${dmu}")
+            
+            plt.title(f"Lower Branch")
             plt.ylabel("$\delta q$")
         if i == 2:
-            plt.title(f"Upper Branch Branch: $\Delta$={delta},$\mu=${mu},$d\mu=${dmu}")
+            plt.title(f"Upper Branch Branch")
             plt.ylabel("$\delta q$")
         if i == 3 or i == 4:
             plt.ylabel("$Pressure$")
         if i == 5 or i == 6:
             plt.ylabel("$Current$")
         plt.xlabel("$\Delta$")
-    break
+
+
+PlotCurrentPressure(alignLowerBranches=True, alignUpperBranches=True, showLegend=True)
 
 # ## Check range of $\Delta$
 
-ff = FFStateFinder(delta=0.24, dim=1, mu=10, dmu=0.23)
+ff = FFStateFinder(delta=0.2, dim=1, mu=10, dmu=1)
 dqs = np.linspace(0, 0.5, 50)
-gs = [ff._gc(delta=0.03153061224489796, dq=dq) for dq in dqs]
+gs = [ff._gc(delta=.16871993983564874, dq=dq) for dq in dqs]
 plt.plot(dqs, gs)
 plt.axhline(0)
 

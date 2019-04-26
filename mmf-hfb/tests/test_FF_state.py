@@ -224,7 +224,7 @@ def test_Thermodynamic_1d(delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dx=1e-3):
     q = q_dmu * mu
     dq = dq_dmu * mu
     ff = FF(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, dim=1, fix_g=True, bStateSentinel=True)
-    n_a, n_b, e, p, mus_eff = ff.get_ns_p_e_mus_1d(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, update_g=True)
+    n_a, n_b, e, p, mus_eff = ff.get_ns_p_e_mus_1d(mu=mu, dmu=dmu, q=q, dq=dq, update_g=True)
 
     n_a_1, n_b_1, e1, p1, mus1 = ff.get_ns_p_e_mus_1d(mu=mu+dx, dmu=dmu, mus_eff=mus_eff, q=q, dq=dq, update_g=False)
     n_a_2, n_b_2, e2, p2, mus2 = ff.get_ns_p_e_mus_1d(mu=mu-dx, dmu=dmu, mus_eff=mus_eff, q=q, dq=dq, update_g=False)

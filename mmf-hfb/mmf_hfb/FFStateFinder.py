@@ -23,7 +23,8 @@ class FFStateFinder():
         self.mu = mu
         self.dmu = dmu
         if timeStamp:
-            self.fileName = prefix +  time.strftime("%Y_%m_%d_%H_%M_%S.json")
+            ts = time.strftime("%Y_%m_%d_%H_%M_%S.json")
+            self.fileName = prefix + f"({dim}_{delta}_{mu}_{dmu})" + ts
         else:
             self.fileName = prefix
 
@@ -71,6 +72,12 @@ class FFStateFinder():
 
         mu_a, mu_b = self.mu + self.dmu, self.mu - self.dmu
         pressure = mu_a * n_a + mu_b * n_b - energy_density
+        if False:
+            """Check if pressure is consistent"""
+            rets = self.ff.get_ns_p_e_mus_1d(mu=self.mu, dmu=self.dmu, delta=delta, dq=dq, update_g=False)
+            print(rets[3], pressure.n)
+            assert np.allclose(rets[2], energy_density.n)
+            assert np.allclose(rets[3], pressure.n)
         return pressure.n
 
     def get_current(self, delta=None, dq=0, mus_eff=None):
@@ -227,7 +234,8 @@ def compute_pressure_current_worker(jsonData_file):
     ff = FFStateFinder(mu=mu, dmu=dmu, delta=delta, 
                        dim=dim, prefix=f"{fileName}", timeStamp=False)
     if os.path.exists(ff._get_fileName()):
-        print(f"Skip file:{ff.fileName}...")
+        print(f"Skip file:{ff._get_fileName()}...")
+        return None
     output1 = []
     output2 = []
     try:
@@ -278,29 +286,6 @@ def compute_pressure_current(root=None):
     with Pool(logic_cpu_count) as Pools:
         Pools.map(compute_pressure_current_worker,jsonObjects)
 
-def augment_data_worker(data_args):
-    """search for more data"""
-    data, args = data_args
-    # To be continue
-
-def augment_data(root=None):
-    """Load saved data, and append more data if possible"""
-    currentdir = root
-    if currentdir is None:
-        currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-    pattern = join(currentdir, "FFState*.json")
-    files = files=glob.glob(pattern)
-
-    data_args = []
-    for file in files:
-        if os.path.exists(file):
-            with open(file,'r') as rf:
-                data_args.append((json.load(rf), os.path.splitext(os.path.basename(file))[0]))
-    logic_cpu_count = os.cpu_count() - 1
-    logic_cpu_count = 1 if logic_cpu_count < 1 else logic_cpu_count
-    with Pool(logic_cpu_count) as Pools:
-        Pools.map(augment_data_worker,data_args)
-
 
 def search_FFState_worker(dim_delta_mus):
     """worker thread"""
@@ -320,11 +305,11 @@ def SearchFFState(delta=0.1, mu=10, dmus=None, dim=1):
 
 def SearchWithSingleConfiguration():
     dim = 1
-    mu = 5
-    delta = 0.25
-    dmu = 0.26
+    mu = 10
+    delta = 0.2
+    dmu = 1
     ff = FFStateFinder(delta=delta, dim=dim, mu=mu, dmu=dmu)
-    ff.run(dl=0.001, du=.05, dn=100, ql=0, qu=0.2)
+    ff.run(dl=0.3, du=.4, dn=100, ql=0, qu=0.2)
 
 if __name__ == "__main__":
     

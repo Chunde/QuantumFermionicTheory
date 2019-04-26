@@ -10,7 +10,7 @@ import itertools
 import time
 import warnings
 tf.MAX_DIVISION = 500
-MAX_ITERATION = 50
+MAX_ITERATION = 100
     
 class FFState(object):
     def __init__(self, mu, dmu, delta=1, q=0, dq=0, m=1, T=0, hbar=1, k_c=100,
@@ -150,8 +150,8 @@ class FFState(object):
                 self.delta = self.solve(mu=mu_eff, dmu=dmu_eff, q=q, dq=dq,
                                   a=delta * 0.8, b=delta * 1.2)
             if itr > MAX_ITERATION:
-                warnings.warn("""Reach max iteration without converging
-                                 to desired accuracy""")
+                warnings.warn(f"""Reach max iteration without converging
+                                 to desired accuracy:{error}""")
                 break
         mu_a_eff = mu_a - self._g * n_b
         mu_b_eff = mu_b - self._g * n_a
@@ -181,6 +181,7 @@ class FFState(object):
                                    delta=delta, q=q, dq=dq, k_c=k_c, update_g=update_g)
         if delta is None:
             delta = self.delta
+            print(delta)
         mu_a_eff = mu_eff + dmu_eff
         mu_b_eff = mu_eff - dmu_eff
         args = dict(self._tf_args, mu_a=mu_a_eff, mu_b=mu_b_eff, delta=delta,
