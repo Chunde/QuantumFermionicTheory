@@ -30,20 +30,21 @@ def dq_dmu(request):
     return request.param
 
 
-@pytest.fixture(params=[1, 2, 3])
+@pytest.fixture(params=[10, 20])
 def mu_delta(request):
     return request.param
 
 
-@pytest.fixture(params=[0.1, 0.5])
+@pytest.fixture(params=[0.1, 0.5, 1.2])
 def dmu_delta(request):
     return request.param
 
+
 def test_efftive_mus():
     """Test a few values from Table I of Quick:1993."""
-    lam_invs = [0.5]#,  1.5
-    mu_tilde_s = [0.0864]#,  2.0259
-    E_N_E_2_s =  [-0.3037]#,  4.4021
+    lam_invs = [0.5]  # 1.5
+    mu_tilde_s = [0.0864]  #,  2.0259
+    E_N_E_2_s = [-0.3037] #,  4.4021
     np.random.seed(1)
     for i in range(len(lam_invs)):
         lam_inv = lam_invs[i]
@@ -67,14 +68,14 @@ def test_efftive_mus():
         nu = tf.integrate(tf.nu_integrand, dim=1, **args)
         v_0 = -delta/nu.n
         mu = mu_eff - n_p.n*v_0/2
-        E_N_E_2, lam = homogeneous.BCS(mu_eff=mu_eff,  delta=delta)
+        E_N_E_2, lam = homogeneous.BCS(mu_eff=mu_eff, delta=delta)
         mu_tilde = (hbar**2/m/v_0**2)*mu
         assert np.allclose(lam, 1./lam_inv)
-        assert np.allclose(mu_tilde,mu_tilde_, atol=0.0005)
+        assert np.allclose(mu_tilde, mu_tilde_, atol=0.0005)
         assert np.allclose(E_N_E_2, E_N_E_2_, atol=0.0005)
         ff = FF(mu=mu, dmu=0, delta=delta, dim=1, k_c=np.inf, fix_g=True)
         mus_eff = ff._get_effetive_mus(mu=mu, dmu=0, delta=delta, update_g=True)
-        ns = ff.get_densities(mu=mus_eff[0], dmu = mus_eff[1],delta=delta)
+        ns = ff.get_densities(mu=mus_eff[0], dmu=mus_eff[1], delta=delta)
         assert np.allclose(n_p.n, (ns[0] + ns[1]).n)
         assert np.allclose(mus_eff[0], mu_eff)
         assert np.allclose(v_0, -ff._g)
@@ -97,6 +98,7 @@ def test_density_with_qs(delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dim, k_c=200
     assert np.allclose(na0, na1)
     assert np.allclose(nb0, nb1)
 
+
 # pytest.mark.skip(reason="Too Slow, but pass")
 def test_Thermodynamic(delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dim, k_c=200):
     if dim == 3:
@@ -106,6 +108,7 @@ def test_Thermodynamic(delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dim, k_c=200):
     q = q_dmu * mu
     dq = dq_dmu * mu
     Thermodynamic(mu=mu, dmu=dmu, k_c=k_c, q=q, dq=dq, dim=dim, delta0=delta)
+
 
 def get_e_n_analytically(mu, dmu, q=0, dq=0, dim=1):
     """"return the analytical energy and particle density"""
@@ -131,7 +134,8 @@ def get_e_n_analytically(mu, dmu, q=0, dq=0, dim=1):
     n_a, n_b = g(mu_a2) - g(mu_a1), g(mu_b2) - g(mu_b1)
     energy_density = E_a + E_b
     return namedtuple('analytical', ['e','n_a', 'n_b'])(energy_density,n_a, n_b)
-    #return energy_density, (n_a, n_b)
+    # return energy_density, (n_a, n_b)
+
 
 def get_dE_dn(mu, dmu, dim, q=0, dq=0):
     """compute the dE/dn for free Fermi Gas"""
@@ -140,8 +144,9 @@ def get_dE_dn(mu, dmu, dim, q=0, dq=0):
     e2, n2 = get_e_n_analytically(mu=mu - dx, dmu=dmu, dim=dim, q=q, dq=dq)
     return (e1-e2)/(sum(n1)-sum(n2))
 
+
 def Thermodynamic(mu, dmu, delta0=1, dim=3, k_c=100, q=0, dq=0,
-                 T=0.0,a=0.8, b=1.2, dx=1e-3, N=10):
+                 T=0.0, a=0.8, b=1.2, dx=1e-3, N=10):
     if dim == 1: # Because 1d case does not pass yet
         return 
     ff = FF(mu=mu, dmu=dmu, delta=delta0, q=q, dq=dq, dim=dim, k_c=k_c, T=T, 
@@ -167,18 +172,18 @@ def Thermodynamic(mu, dmu, delta0=1, dim=3, k_c=100, q=0, dq=0,
     def f_ns_dmu(dx, n):
         def f(dmu_):
             na_, nb_ = ff.get_densities(mu=mu+dx, dmu=dmu_, q=q, dq=dq)
-            if n == 0: # fix n_-
+            if n == 0:  # fix n_-
                 dn_ = (na_ - nb_).n
                 return dn - dn_
-            elif n == 1: # fix nb
+            elif n == 1:  # fix nb
                 return (nb - nb_).n
-            elif n == 2: # fix na
+            elif n == 2:  # fix na
                 return (na - na_).n
-            elif n == 3: # fix n_+
+            elif n == 3:  # fix n_+
                 np_=(na_ + nb_).n
                 return np0 - np_
         try:
-            return brentq(f, a*dmu , b*dmu)
+            return brentq(f, a*dmu, b*dmu)
         except:
             irs = np.linspace(a, b, N) * dmu
             for i in reversed(range(N)):
@@ -187,14 +192,14 @@ def Thermodynamic(mu, dmu, delta0=1, dim=3, k_c=100, q=0, dq=0,
                     for j in reversed(range(i + 1, N)):
                         try:
                             endPos = f(irs[j])
-                            if startPos * endPos < 0: # has solution
+                            if startPos * endPos < 0:  # has solution
                                 return brentq(f, irs[i], irs[j])
                         except:
                             continue
                 except:
                     continue
             warnings.warn(f"Can't find a solution in that region, use the default value={dmu}")
-            return dmu # when no solution is found
+            return dmu  # when no solution is found
     
     # Check the mu=dE/dn
     dmu1 = f_ns_dmu(dx, 0)
@@ -216,36 +221,51 @@ def Thermodynamic(mu, dmu, delta0=1, dim=3, k_c=100, q=0, dq=0,
     assert np.allclose(n_b.n, n_b_.n)
 
 
-#@pytest.mark.skip(reason="Too Slow")
-def test_Thermodynamic_1d(delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dx=1e-3):
+# @pytest.mark.skip(reason="Too Slow")
+def test_Thermodynamic_1d(
+    delta, mu_delta, dmu_delta,
+    q_dmu, dq_dmu, N=20, dx=1e-3):
     """test id case"""
     mu = mu_delta * delta
     dmu = dmu_delta * delta
     q = q_dmu * mu
     dq = dq_dmu * mu
-    ff = FF(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, dim=1, fix_g=True, bStateSentinel=True)
-    n_a, n_b, e, p, mus_eff = ff.get_ns_p_e_mus_1d(mu=mu, dmu=dmu, q=q, dq=dq, update_g=True)
+    ff = FF(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, dim=1, fix_g=True,
+            bStateSentinel=True)
+    n_a, n_b, e, p, mus_eff = ff.get_ns_p_e_mus_1d(
+        mu=mu, dmu=dmu, q=q,
+        dq=dq, update_g=True)
 
-    n_a_1, n_b_1, e1, p1, mus1 = ff.get_ns_p_e_mus_1d(mu=mu+dx, dmu=dmu, mus_eff=mus_eff, q=q, dq=dq, update_g=False)
-    n_a_2, n_b_2, e2, p2, mus2 = ff.get_ns_p_e_mus_1d(mu=mu-dx, dmu=dmu, mus_eff=mus_eff, q=q, dq=dq, update_g=False)
+    n_a_1, n_b_1, e1, p1, mus1 = ff.get_ns_p_e_mus_1d(
+        mu=mu+dx, dmu=dmu, 
+        mus_eff=mus_eff, q=q, dq=dq, update_g=False)
+    n_a_2, n_b_2, e2, p2, mus2 = ff.get_ns_p_e_mus_1d(mu=mu-dx, dmu=dmu, 
+        mus_eff=mus_eff, q=q, dq=dq, update_g=False)
     n_p_ = (p1 - p2)/2/dx
     print(f"Expected n_p={n_a + n_b}\tNumerical n_p={n_p_}")
     assert np.allclose(n_a + n_b, n_p_, rtol=1e-2)
 
-    if False: # skip for speed
+    if False:#  skip for speed
         # Fixed mu_b by changing mu and dmu with same value , as mu_b = mu - dmu
         # Then dP / dx = n_a
-        n_a_1, n_b_1, e1, p1, mus1 = ff.get_ns_p_e_mus_1d(mu=mu+dx/2, dmu=dmu+dx/2, mus_eff=mus_eff, q=q, dq=dq, update_g=False)
-        n_a_2, n_b_2, e2, p2, mus2 = ff.get_ns_p_e_mus_1d(mu=mu-dx/2, dmu=dmu-dx/2, mus_eff=mus_eff,  q=q, dq=dq, update_g=False)
+        n_a_1, n_b_1, e1, p1, mus1 = ff.get_ns_p_e_mus_1d(
+            mu=mu+dx/2, dmu=dmu+dx/2,
+            mus_eff=mus_eff, q=q, dq=dq, update_g=False)
+        n_a_2, n_b_2, e2, p2, mus2 = ff.get_ns_p_e_mus_1d(
+            mu=mu-dx/2, dmu=dmu-dx/2, 
+            mus_eff=mus_eff, q=q, dq=dq, update_g=False)
         n_a_ = (p1 - p2)/2/dx
         print(f"Expected n_a={n_a}\tNumerical n_a={n_a_}")
         assert np.allclose(n_a, n_a_)
         # Fixed mu_a by changing mu and dmu with opposite values , as mu_a = mu + dmu
         # Then dP / dx = n_b
-        n_a_3, n_b_3, e3, p3, mus3 = ff.get_ns_p_e_mus_1d(mu=mu+dx/2, dmu=dmu-dx/2, mus_eff=mus_eff, q=q, dq=dq, update_g=False)
-        n_a_4, n_b_4, e4, p4, mus4 = ff.get_ns_p_e_mus_1d(mu=mu-dx/2, dmu=dmu+dx/2, mus_eff=mus_eff, q=q, dq=dq, update_g=False)
+        n_a_3, n_b_3, e3, p3, mus3 = ff.get_ns_p_e_mus_1d(
+            mu=mu+dx/2, dmu=dmu-dx/2, 
+            mus_eff=mus_eff, q=q, dq=dq, update_g=False)
+        n_a_4, n_b_4, e4, p4, mus4 = ff.get_ns_p_e_mus_1d(
+            mu=mu-dx/2, dmu=dmu+dx/2,
+            mus_eff=mus_eff, q=q, dq=dq, update_g=False)
         n_b_ = (p3 - p4)/2/dx
-
         print(f"Expected n_b={n_b}\tNumerical n_b={n_b_}")
         assert np.allclose(n_b, n_b_)
 
@@ -254,21 +274,24 @@ def test_Thermodynamic_1d(delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dx=1e-3):
     np0 = (na + nb)
     a=0.8
     b=1.2
+
     def f_ns_dmu(dx, n):
         def f(dmu_):
-            na_, nb_, e1, p1, mus1 = ff.get_ns_p_e_mus_1d(mu=mu+dx, dmu=dmu_, mus_eff=mus_eff, q=q, dq=dq, update_g=False)
-            if n == 0: # fix n_-
+            na_, nb_, e1, p1, mus1 = ff.get_ns_p_e_mus_1d(
+                mu=mu+dx, dmu=dmu_, 
+                mus_eff=mus_eff, q=q, dq=dq, update_g=False)
+            if n == 0:  # fix n_-
                 dn_ = (na_ - nb_)
                 return dn - dn_
-            elif n == 1: # fix nb
+            elif n == 1:  # fix nb
                 return (nb - nb_)
-            elif n == 2: # fix na
+            elif n == 2:  # fix na
                 return (na - na_)
-            elif n == 3: # fix n_+
+            elif n == 3:  # fix n_+
                 np_=(na_ + nb_)
                 return np0 - np_
         try:
-            return brentq(f, a*dmu , b*dmu)
+            return brentq(f, a*dmu, b*dmu)
         except:
             irs = np.linspace(a, b, N) * dmu
             for i in reversed(range(N)):
@@ -284,13 +307,17 @@ def test_Thermodynamic_1d(delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dx=1e-3):
                 except:
                     continue
             warnings.warn(f"Can't find a solution in that region, use the default value={dmu}")
-            return dmu # when no solution is found
+            return dmu  # when no solution is found
     
     # Check the mu=dE/dn
     dmu1 = f_ns_dmu(dx, 0)
     dmu2 = f_ns_dmu(-dx, 0)
-    na1, nb1, E1, p1, mus1 = ff.get_ns_p_e_mus_1d(mu=mu+dx, dmu=dmu1, mus_eff=mus_eff, q=q, dq=dq, update_g=False)
-    na0, nb0, E0, p0, mus0 = ff.get_ns_p_e_mus_1d(mu=mu-dx, dmu=dmu2, mus_eff=mus_eff, q=q, dq=dq, update_g=False)
+    na1, nb1, E1, p1, mus1 = ff.get_ns_p_e_mus_1d(
+        mu=mu+dx, dmu=dmu1,
+        mus_eff=mus_eff, q=q, dq=dq, update_g=False)
+    na0, nb0, E0, p0, mus0 = ff.get_ns_p_e_mus_1d(
+        mu=mu-dx, dmu=dmu2,
+        mus_eff=mus_eff, q=q, dq=dq, update_g=False)
     n1, n0 = (na1 + nb1), (na0 + nb0)
     mu_ = ((E1-E0)/(n1-n0))
     print(f"Fix dn:\t[dn1={(na1-nb1)}\tdn0={(na0-nb0)}]")
@@ -298,7 +325,8 @@ def test_Thermodynamic_1d(delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dx=1e-3):
     assert np.allclose((na1-nb1), (na0-nb0))
     assert np.allclose(mu,mu_, rtol=1e-4)
 
+
 if __name__ == "__main__":
-    #test_density_with_qs(delta = 1.0, mu_delta = 2, dmu_delta = 0.5, q_dmu = 0.05, dq_dmu = 0.02, dim = 1, k_c = 200)
-    #test_Thermodynamic_1d(delta = 1.0, mu_delta = 3, dmu_delta = 0.5, q_dmu = 0, dq_dmu = 0, dx = 0.001)
-    test_Thermodynamic(delta = 1.0, mu_delta = 3, dmu_delta = 0.5, q_dmu = 0.05, dq_dmu = 0.02, dim = 2, k_c = 200)
+    test_Thermodynamic_1d(
+        delta=0.2, mu_delta=10,
+        dmu_delta=.22, q_dmu=0, dq_dmu=0, dx=0.001)

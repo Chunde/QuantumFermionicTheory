@@ -38,6 +38,18 @@ clear_output()
 # * here were found and plot all FF States
 # * to determine if any of the state is a ground state, we need to find a max pressure.
 
+# ### On FF State
+
+mu=5
+dmu= 0.25
+delta=0.2
+q=0
+dq=0
+ff = FFState(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, dim=1, fix_g=True, bStateSentinel=True)
+n_a, n_b, e, p, mus_eff = ff.get_ns_p_e_mus_1d(mu=mu, dmu=dmu, q=q, dq=dq, update_g=True)
+mu_eff, dmu_eff = ff._get_effetive_mus(mu=mu, dmu=dmu, delta=delta, update_g=False)
+print(ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=delta))
+
 # +
 import os
 import inspect
@@ -123,15 +135,15 @@ def PlotCurrentPressure(alignLowerBranches=True, alignUpperBranches=True, showLe
             with open(file,'r') as rf:
                 ret = json.load(rf)
                 dim, mu, dmu, delta=ret['dim'], ret['mu'], ret['dmu'], ret['delta']
-                #if mu == 5:
-                #    continue
+                if dmu != 0.27:
+                    continue
                 ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=dim, fix_g=True)
                 mu_eff, dmu_eff = ff._get_effetive_mus(mu=mu, dmu=dmu)
                 n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff)
                 print(f"n_a={n_a}, n_b={n_b}")
-                p0 = ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu, dmu_eff=dmu,delta=0).n
+                p0 = ff.get_pressure(mu=mu, dmu=dmu, delta=0).n
                 print(f"Normal Pressure={p0}")
-                print(ff.get_ns_p_e_mus_1d(mu=mu, dmu=dmu, delta=delta))
+                #print(ff.get_ns_p_e_mus_1d(mu=mu, dmu=dmu, delta=delta))
                 data1, data2 = ret['data']
                 dqs1, dqs2, ds1, ds2, j1, j2, P1, P2 = [],[],[],[],[],[],[],[]
                 for data in data1:
@@ -161,7 +173,7 @@ def PlotCurrentPressure(alignLowerBranches=True, alignUpperBranches=True, showLe
                 plt.subplot(324)
                 if alignUpperBranches:
                     P2 = np.array(P2)
-                    P2_ = P2- P2.min()
+                    P2_ = P2-P2.min()
                 else:
                     P2_ = P2
                 index, value = max(enumerate(P2), key=operator.itemgetter(1))
@@ -194,7 +206,7 @@ PlotCurrentPressure(alignLowerBranches=True, alignUpperBranches=True, showLegend
 
 # ## Check range of $\Delta$
 
-ff = FFStateFinder(delta=0.2, dim=1, mu=10, dmu=1)
+ff = FFStateFinder(delta=0.2, dim=1, mu=10, dmu=0.27)
 dqs = np.linspace(0, 0.5, 50)
 gs = [ff._gc(delta=.16871993983564874, dq=dq) for dq in dqs]
 plt.plot(dqs, gs)

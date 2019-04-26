@@ -132,11 +132,11 @@ class FFStateFinder():
         if lg is None and ug is None:
             dqs = np.linspace(ql, qu, dn)
             gs = [g(dq) for dq in dqs]
-            g0, i0 = gs[0],0
-            if np.allclose(gs[0],0, rtol=rtol):
+            g0, i0 = gs[0], 0
+            if np.allclose(gs[0], 0, rtol=rtol):
                 rets.append(gs[0])
                 g0, i0= gs[1], 1
-            for i in range(len(rets),len(gs)):
+            for i in range(len(rets), len(gs)):
                 if g0 * gs[i] < 0:
                     rets.append(refine(dqs[i0], dqs[i], dqs[i0]))
                 g0, i0 = gs[i], i
@@ -202,14 +202,14 @@ class FFStateFinder():
                 print("Retry without exception...")
                 ret =[None, None]
                 for t in trails:
-                    ret0 = self.SearchFFStates(delta=d, lg=lg,ug=ug, 
-                                               ql=ql, qu=qu, 
+                    ret0 = self.SearchFFStates(delta=d, lg=lg, ug=ug, 
+                                               ql=ql, qu=qu,
                                                dn=40, dx=dx*t,
                                               raiseExcpetion=False)
                     lg, ug = ret0
                     if lg is None and ug is None:
                         continue
-                    ret = ret0    
+                    ret = ret0
                     ret.append(d)
                     rets.append(ret)
                     print(ret)
