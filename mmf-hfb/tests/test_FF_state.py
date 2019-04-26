@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 from mmf_hfb import tf_completion as tf
-from mmf_hfb import bcs, homogeneous
 from scipy.optimize import brentq
 from collections import namedtuple
 import warnings
@@ -43,8 +42,8 @@ def dmu_delta(request):
 def test_efftive_mus():
     """Test a few values from Table I of Quick:1993."""
     lam_invs = [0.5]  # 1.5
-    mu_tilde_s = [0.0864]  #,  2.0259
-    E_N_E_2_s = [-0.3037] #,  4.4021
+    mu_tilde_s = [0.0864]  #  2.0259
+    E_N_E_2_s = [-0.3037]  #  4.4021
     np.random.seed(1)
     for i in range(len(lam_invs)):
         lam_inv = lam_invs[i]
@@ -223,8 +222,8 @@ def Thermodynamic(mu, dmu, delta0=1, dim=3, k_c=100, q=0, dq=0,
 
 # @pytest.mark.skip(reason="Too Slow")
 def test_Thermodynamic_1d(
-    delta, mu_delta, dmu_delta,
-    q_dmu, dq_dmu, N=20, dx=1e-3):
+        delta, mu_delta, dmu_delta,
+        q_dmu, dq_dmu, N=20, dx=1e-3):
     """test id case"""
     mu = mu_delta * delta
     dmu = dmu_delta * delta
@@ -239,13 +238,14 @@ def test_Thermodynamic_1d(
     n_a_1, n_b_1, e1, p1, mus1 = ff.get_ns_p_e_mus_1d(
         mu=mu+dx, dmu=dmu, 
         mus_eff=mus_eff, q=q, dq=dq, update_g=False)
-    n_a_2, n_b_2, e2, p2, mus2 = ff.get_ns_p_e_mus_1d(mu=mu-dx, dmu=dmu, 
+    n_a_2, n_b_2, e2, p2, mus2 = ff.get_ns_p_e_mus_1d(
+        mu=mu-dx, dmu=dmu,
         mus_eff=mus_eff, q=q, dq=dq, update_g=False)
     n_p_ = (p1 - p2)/2/dx
     print(f"Expected n_p={n_a + n_b}\tNumerical n_p={n_p_}")
     assert np.allclose(n_a + n_b, n_p_, rtol=1e-2)
 
-    if False:#  skip for speed
+    if False: #  skip for speed
         # Fixed mu_b by changing mu and dmu with same value , as mu_b = mu - dmu
         # Then dP / dx = n_a
         n_a_1, n_b_1, e1, p1, mus1 = ff.get_ns_p_e_mus_1d(

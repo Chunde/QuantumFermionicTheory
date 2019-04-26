@@ -61,8 +61,12 @@ class FFState(object):
         nu_delta = tf.integrate_q(tf.nu_delta_integrand, **args)
         g = 1./nu_delta.n
         return g
+
     def get_current(self, mu=None, dmu=None, q=0, dq=0, delta=None, k_c=None):
-        """return the densities of two the components"""
+        """
+        return the currents of two the components
+        return value: (j_a, j_b, j_p, j_m)
+        """
         assert (mu is None) == (dmu is None)
         if mu is None:
             mu, dmu = self.mus
@@ -219,7 +223,8 @@ class FFState(object):
             delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
                                a=self.delta * 0.8, b=self.delta * 1.2)
         if n_a is None:
-            n_a, n_b = self.get_densities(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, k_c=k_c)
+            n_a, n_b = self.get_densities(
+                mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, k_c=k_c)
 
         args = dict(self._tf_args, mu_a=mu + dmu, mu_b=mu - dmu, delta=delta, q=q, dq=dq)
         kappa = tf.integrate_q(tf.kappa_integrand, **args)
@@ -231,7 +236,9 @@ class FFState(object):
             return kappa + g_c * n_a * n_b
         return kappa
     
-    def get_pressure(self, mu=None, dmu=None, mu_eff=None, dmu_eff=None, q=0, dq=0, delta=None):
+    def get_pressure(
+        self, mu=None, dmu=None, mu_eff=None,
+        dmu_eff=None, q=0, dq=0, delta=None):
         """return the pressure"""
         assert (mu is None) == (dmu is None)
         assert (mu_eff is None) == (dmu_eff is None)
@@ -266,7 +273,8 @@ class FFState(object):
         self.bStateSentinel = oldFlag
         return delta > 0
 
-    def solve(self, mu=None, dmu=None, q=0, dq=0, a=None, b=None, throwException=False):
+    def solve(self, mu=None, dmu=None, q=0, dq=0, 
+                a=None, b=None, throwException=False):
         """
         On problem with brentq is that it requires very smooth function with a 
         and b having different sign of values, this can fail frequently if our

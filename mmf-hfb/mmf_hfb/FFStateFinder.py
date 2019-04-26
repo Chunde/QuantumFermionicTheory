@@ -14,6 +14,7 @@ import numpy as np
 import time
 import glob
 
+
 class FFStateFinder():
     def __init__(self, dim=1, delta=0.1, mu=10.0, dmu=0.11,
                 prefix="FFState_", timeStamp=True):
@@ -37,17 +38,17 @@ class FFStateFinder():
         mus_eff = (None, None)
         if update_mus:
             mus_eff = self.ff._get_effetive_mus(mu=self.mu,
-                                               dmu=self.dmu, 
-                                               delta=delta,
-                                               dq=dq, 
-                                               update_g=False)
+                                                dmu=self.dmu,
+                                                delta=delta,
+                                                dq=dq,
+                                                update_g=False)
         return self.ff.get_g(mu=mus_eff[0], dmu=mus_eff[1], 
                              delta=delta, dq=dq) - self.ff._g
 
     def get_mus_eff(self, delta, dq, mus_eff=None):
         """return effective mus"""
         return self.ff._get_effetive_mus(mu=self.mu, dmu=self.dmu,
-                                        delta=delta, dq=dq, update_g=False)
+                                         delta=delta, dq=dq, update_g=False)
 
     def get_pressure(self, delta=None, dq=0, mus_eff=None):
         """return the pressure"""
@@ -74,7 +75,8 @@ class FFStateFinder():
         pressure = mu_a * n_a + mu_b * n_b - energy_density
         if False:
             """Check if pressure is consistent"""
-            rets = self.ff.get_ns_p_e_mus_1d(mu=self.mu, dmu=self.dmu, delta=delta, dq=dq, update_g=False)
+            rets = self.ff.get_ns_p_e_mus_1d(mu=self.mu, dmu=self.dmu,
+                                                delta=delta, dq=dq, update_g=False)
             print(rets[3], pressure.n)
             assert np.allclose(rets[2], energy_density.n)
             assert np.allclose(rets[3], pressure.n)
@@ -86,17 +88,17 @@ class FFStateFinder():
             delta = self.delta
         if mus_eff is None:
             mu_eff, dmu_eff = self.ff._get_effetive_mus(mu=self.mu,
-                                                       dmu=self.dmu,
-                                                       delta=delta, 
-                                                       dq=dq, 
-                                                       update_g=False)
+                                                        dmu=self.dmu,
+                                                        delta=delta,
+                                                        dq=dq,
+                                                        update_g=False)
         else:
             mu_eff, dmu_eff = mus_eff
         return self.ff.get_current(mu=mu_eff, dmu=dmu_eff, delta=delta, dq=dq).n
 
     def _get_fileName(self):
         currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-        return join(currentdir,self.fileName)
+        return join(currentdir, self.fileName)
 
     def SaveToFile(self, data):
         """Save states to persistent storage"""
@@ -205,7 +207,7 @@ class FFStateFinder():
                     ret0 = self.SearchFFStates(delta=d, lg=lg, ug=ug, 
                                                ql=ql, qu=qu,
                                                dn=40, dx=dx*t,
-                                              raiseExcpetion=False)
+                                               raiseExcpetion=False)
                     lg, ug = ret0
                     if lg is None and ug is None:
                         continue
@@ -244,21 +246,25 @@ def compute_pressure_current_worker(jsonData_file):
             if dq1 is not None:
                 dic = {}
                 p1 = ff.get_pressure(delta=d, dq=dq1)
-                j1 = ff.get_current(delta=d, dq=dq1)
+                ja, jb, jp, jm = ff.get_current(delta=d, dq=dq1)
                 dic['d']=d
                 dic['q']=dq1
-                dic['p']=p1
-                dic['j']=j1
+                dic['p']=p
+                dic['j']=jp
+                dic['ja']=ja
+                dic['jb']=jb
                 output1.append(dic)
                 print(dic)
-            if dq2 is not None:    
+            if dq2 is not None:
                 dic = {}
                 p2 = ff.get_pressure(delta=d, dq=dq2)
-                j2 = ff.get_current(delta=d, dq=dq2)
+                ja, jb, jp, jm = ff.get_current(delta=d, dq=dq2)
                 dic['d']=d
                 dic['q']=dq2
                 dic['p']=p2
-                dic['j']=j2
+                dic['j']=jp
+                dic['ja']=ja
+                dic['jb']=jb
                 output2.append(dic)
                 print(dic)
         output =[output1, output2]
@@ -267,7 +273,8 @@ def compute_pressure_current_worker(jsonData_file):
         print(f"Parsing file: {fileName}. Error:{e}")
     except:
         print(f"Unknown error when parsing file: {fileName}")
-    
+
+
 def compute_pressure_current(root=None):
     """compute current and pressure"""
     currentdir = root
@@ -279,12 +286,12 @@ def compute_pressure_current(root=None):
     jsonObjects = []
     for file in files:
         if os.path.exists(file):
-            with open(file,'r') as rf:
+            with open(file, 'r') as rf:
                 jsonObjects.append((json.load(rf), os.path.splitext(os.path.basename(file))[0]))
     logic_cpu_count = os.cpu_count() - 1
     logic_cpu_count = 1 if logic_cpu_count < 1 else logic_cpu_count
     with Pool(logic_cpu_count) as Pools:
-        Pools.map(compute_pressure_current_worker,jsonObjects)
+        Pools.map(compute_pressure_current_worker, jsonObjects)
 
 
 def search_FFState_worker(dim_delta_mus):
@@ -293,15 +300,17 @@ def search_FFState_worker(dim_delta_mus):
     ff = FFStateFinder(delta=delta, dim=dim, dmu=dmu)
     ff.run(dl=0.001, du=0.2501, dn=40, ql=0, qu=1)
     
+
 def SearchFFState(delta=0.1, mu=10, dmus=None, dim=1):
     """Search FF State"""
     if dmus is None:
         dmus = [0.11, 0.12, 0.13, 0.14, 0.15, 0.16]
     logic_cpu_count = os.cpu_count() - 1
     logic_cpu_count = 1 if logic_cpu_count < 1 else logic_cpu_count
-    dim_delta_mus_list = [(dim, delta,mu, dmu) for dmu in dmus]
+    dim_delta_mus_list = [(dim, delta, mu, dmu) for dmu in dmus]
     with Pool(logic_cpu_count) as Pools:
-        Pools.map(search_FFState_worker,dim_delta_mus_list)
+        Pools.map(search_FFState_worker, dim_delta_mus_list)
+
 
 def SearchWithSingleConfiguration():
     dim = 1

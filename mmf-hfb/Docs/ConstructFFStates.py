@@ -38,19 +38,39 @@ clear_output()
 # * here were found and plot all FF States
 # * to determine if any of the state is a ground state, we need to find a max pressure.
 
-# ### On FF State
-
-mu=5
-dmu= 0.25
-delta=0.2
-q=0
-dq=0
-ff = FFState(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, dim=1, fix_g=True, bStateSentinel=True)
-n_a, n_b, e, p, mus_eff = ff.get_ns_p_e_mus_1d(mu=mu, dmu=dmu, q=q, dq=dq, update_g=True)
-mu_eff, dmu_eff = ff._get_effetive_mus(mu=mu, dmu=dmu, delta=delta, update_g=False)
-print(ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=delta))
+# ### One FF State
+# * Here is a ground FF state in 1d, these numbers are from the plot in this section.
+# * It's meta-state because it's slightly smaller than a nomral state pressure with the same $\mu$, $\delta \mu$
+# * Normal Pressure=26.800450217524567
+# * FFState Pressue=26.801008398851206
 
 # +
+mu=10
+dmu= 0.27
+delta=0.2
+q=0
+dq=0.042377468400988445
+
+ff = FFState(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, dim=1, fix_g=True, bStateSentinel=True)
+# compute n_a, n_b, energy density and pressure in single function
+n_a, n_b, e, p, mus_eff = ff.get_ns_p_e_mus_1d(mu=mu, dmu=dmu, q=q, dq=dq, update_g=True)
+
+# or compute effective mus first
+mu_eff, dmu_eff = ff._get_effetive_mus(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, update_g=False)
+n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=delta)
+j_a, j_b, j_p, j_m = ff.get_current(mu=mu_eff, dmu=dmu_eff, delta=delta)
+print(f"n_a={n_a.n}, n_b={n_b.n}, j_a={j_a.n}, j_b={j_b.n}, j_p={j_p.n}, j_m={j_m.n}")
+
+# re-compute the effective mus as for normal state, delta=dq=0
+mu_eff, dmu_eff = ff._get_effetive_mus(mu=mu, dmu=dmu, delta=0, mus_eff=(mu_eff, dmu_eff), q=q, update_g=False)
+p0 = ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=0).n
+print(f"FF State Pressure={p}, Normal State Pressue={p0}")
+if p0 < p:
+    print("The ground state is a FF State")
+# -
+
+# ### Plots from external data
+
 import os
 import inspect
 from os.path import join
@@ -95,7 +115,7 @@ for file in files:
             plt.subplot(212)
             if len(ds2):
                 plt.plot(ds2, dqs2, '--',label=f"$\Delta=${delta}, $\mu$={mu}, $d\mu=${dmu}")
-        
+            break
 plt.subplot(211)
 plt.xlabel(f"$\Delta$")
 plt.ylabel(f"$\delta q$")
@@ -109,7 +129,6 @@ plt.legend()
 #print(delta_set)
 #print(mu_set)
 #print(dmu_set)
-# -
 
 # ## Compute Current and Pressure
 # $$
@@ -178,7 +197,8 @@ def PlotCurrentPressure(alignLowerBranches=True, alignUpperBranches=True, showLe
                     P2_ = P2
                 index, value = max(enumerate(P2), key=operator.itemgetter(1))
                 plt.plot(ds2, P2_, label=f"$\Delta=${delta},$\mu=${mu},$d\mu=${dmu},$P_m=${value}")
-                #plt.axvline(ds2[index])
+                plt.axvline(ds2[index])
+                print(data2[index])
                 plt.subplot(325)
                 plt.plot(ds1, j1, label=f"$\Delta=${delta},$\mu=${mu},$d\mu=${dmu}")
                 plt.subplot(326)

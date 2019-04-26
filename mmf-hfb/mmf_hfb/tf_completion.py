@@ -138,11 +138,9 @@ def f_p_m(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
         f_nu = (f(w_m, T) - f(w_p, T))
         f_p = 1 - e_p/E*f_nu
         f_m = f(w_p, T) - f(-w_m, T)
-        return (f_p,f_m)
+        return (f_p, f_m)
+        
 
-class Series(object):
-    """Series expansions for T=0 and large enough k_c."""         
-    
 def Lambda(m, mu, hbar, dim, E_c=None, k_c=None):
     """Return the cutoff function Lambda assuming equal masses.
 
@@ -177,6 +175,7 @@ def Lambda(m, mu, hbar, dim, E_c=None, k_c=None):
     # [Check] this will go false at some point when q is large
     return res.real
 
+
 def compute_C(mu_a, mu_b, delta, m_a, m_b, dim=3, hbar=1.0, T=0.0,
               q=0, dq=0, k_c=None, debug=False):
     # Note: code only works for m_a == m_b
@@ -198,7 +197,8 @@ def compute_C(mu_a, mu_b, delta, m_a, m_b, dim=3, hbar=1.0, T=0.0,
     C_c = nu_c_delta + Lambda_c
     C = C_c + C_corr
     return C
-    
+
+
 def do_integration(integrand, mu_a, mu_b, delta, m_a, m_b, dim=3,
                 q=0, dq=0.0, hbar=1.0, k_0=0, k_inf=None, limit=None):
     mu = (mu_a + mu_b)/2
@@ -252,12 +252,14 @@ def do_integration(integrand, mu_a, mu_b, delta, m_a, m_b, dim=3,
         A = 2*m*mu_q - px**2
         return (cmath.sqrt(A + 2*m*cmath.sqrt(D)).real/hbar,
                 cmath.sqrt(A - 2*m*cmath.sqrt(D)).real/hbar)
-    return dquad(func=integrand,
+    return dquad(
+                func=integrand,
                 x0=-k_inf, x1=k_inf,
                 y0_x=kp0, y1_x=kp1,
                 points_x=points,
                 points_y_x=kp_special,
                 limit=limit)
+
 
 def compute_current(mu_a, mu_b, delta, m_a=1, m_b=1, dim=3, hbar=1.0, T=0.0,
                     q=0, dq=0, k_0=0, k_c=None):
@@ -271,13 +273,41 @@ def compute_current(mu_a, mu_b, delta, m_a=1, m_b=1, dim=3, hbar=1.0, T=0.0,
             k2_b = (k + q - dq)**2
             f_p, f_m = f_p_m(k2_a, k2_b, mu_a, mu_b, delta, m_a, m_b, hbar, T)
             return (k * f_p + dq * f_m) / 2 / np.pi
+
+        def ja_integrand(k):
+            k2_a = (k + q + dq)**2
+            k2_b = (k + q - dq)**2
+            f_p, f_m = f_p_m(k2_a, k2_b, mu_a, mu_b, delta, m_a, m_b, hbar, T)
+            f_a = (f_p + f_m)/2
+            return (k + dq) * f_a / 2 / np.pi
+
+        def jb_integrand(k):
+            k2_a = (k + q + dq)**2
+            k2_b = (k + q - dq)**2
+            f_p, f_m = f_p_m(k2_a, k2_b, mu_a, mu_b, delta, m_a, m_b, hbar, T)
+            f_b = (f_p - f_m)/2
+            return (k - dq) * f_b / 2 / np.pi
     elif dim == 2:
         def integrand(kx, kp):
-            # print(kx, kp)
             k2_a = (kx + q + dq)**2 + kp**2
             k2_b = (kx + q - dq)**2 + kp**2
             f_p, f_m = f_p_m(k2_a, k2_b, mu_a, mu_b, delta, m_a, m_b, hbar, T)
             return (kx * f_p + dq * f_m) / (2*np.pi**2)
+
+        def ja_integrand(kx, kp):
+            k2_a = (kx + q + dq)**2 + kp**2
+            k2_b = (kx + q - dq)**2 + kp**2
+            f_p, f_m = f_p_m(k2_a, k2_b, mu_a, mu_b, delta, m_a, m_b, hbar, T)
+            f_a = (f_p + f_m)/2
+            return (kx + dq) * f_a / (2*np.pi**2)
+
+        def jb_integrand(kx, kp):
+            k2_a = (kx + q + dq)**2 + kp**2
+            k2_b = (kx + q - dq)**2 + kp**2
+            f_p, f_m = f_p_m(k2_a, k2_b, mu_a, mu_b, delta, m_a, m_b, hbar, T)
+            f_b = (f_p - f_m)/2
+            return (kx - dq) * f_b / (2*np.pi**2)
+
     elif dim == 3:
         def integrand(kx, kp):
             # print(kx, kp)
@@ -285,11 +315,31 @@ def compute_current(mu_a, mu_b, delta, m_a=1, m_b=1, dim=3, hbar=1.0, T=0.0,
             k2_b = (kx + q - dq)**2 + kp**2
             f_p, f_m = f_p_m(k2_a, k2_b, mu_a, mu_b, delta, m_a, m_b, hbar, T)
             return (kx * f_p + dq * f_m) * (kp/4/np.pi**2)
+
+        def ja_integrand(kx, kp):
+            k2_a = (kx + q + dq)**2 + kp**2
+            k2_b = (kx + q - dq)**2 + kp**2
+            f_p, f_m = f_p_m(k2_a, k2_b, mu_a, mu_b, delta, m_a, m_b, hbar, T)
+            f_a = (f_p + f_m)/2
+            return (kx + dq) * f_a * (kp/4/np.pi**2)
+
+        def jb_integrand(kx, kp):
+            k2_a = (kx + q + dq)**2 + kp**2
+            k2_b = (kx + q - dq)**2 + kp**2
+            f_p, f_m = f_p_m(k2_a, k2_b, mu_a, mu_b, delta, m_a, m_b, hbar, T)
+            f_b = (f_p - f_m)/2
+            return (kx - dq) * f_b * (kp/4/np.pi**2)
     else:
         raise ValueError(f"Only dim=1, 2, or 3 supported (got dim={dim})")
         
-    return do_integration(integrand, delta=delta, mu_a=mu_a, mu_b=mu_b, m_a=m_a, m_b=m_b, 
-                   dim=dim, q=q, dq=dq, hbar=hbar, k_0=k_0, k_inf=k_inf, limit=None)
+    j_a = do_integration(
+        ja_integrand, delta=delta, mu_a=mu_a, mu_b=mu_b, m_a=m_a, m_b=m_b,
+        dim=dim, q=q, dq=dq, hbar=hbar, k_0=k_0, k_inf=k_inf, limit=None)
+    j_b = do_integration(
+        jb_integrand, delta=delta, mu_a=mu_a, mu_b=mu_b, m_a=m_a, m_b=m_b,
+        dim=dim, q=q, dq=dq, hbar=hbar, k_0=k_0, k_inf=k_inf, limit=None)
+    return (j_a, j_b, j_a + j_b, j_a - j_b)
+
 
 def integrate(f, mu_a, mu_b, delta, m_a, m_b, dim=3, hbar=1.0, T=0.0,
               k_0=0.0, k_c=np.inf):
