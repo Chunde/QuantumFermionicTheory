@@ -38,9 +38,13 @@ clear_output()
 # * here were found and plot all FF States
 # * to determine if any of the state is a ground state, we need to find a max pressure.
 
-# ### One FF State
+# ### One FF Ground State
 # * Here is a ground FF state in 1d, these numbers are from the plot in this section.
 # * It's meta-state because it's slightly smaller than a nomral state pressure with the same $\mu$, $\delta \mu$
+# * it's interesting to find that to fix g in different way will change the result a lot,
+#     * if fix the g with dq, we get g=-3.077012439639267
+#     * However, if fix g without dq(g=-2.7137980772945562), we get something else that will not be a ground FF State.
+#     * So, it's better to fix g instead of picking a $\Delta$
 # * Normal Pressure=26.800450217524567
 # * FFState Pressue=26.801008398851206
 
@@ -48,21 +52,19 @@ clear_output()
 mu=10
 dmu= 0.27
 delta=0.2
-q=0
 dq=0.042377468400988445
 
-ff = FFState(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, dim=1, fix_g=True, bStateSentinel=True)
+ff = FFState(mu=mu, dmu=dmu, delta=delta,  dim=1, dq=dq, fix_g=True, bStateSentinel=True)
 # compute n_a, n_b, energy density and pressure in single function
-n_a, n_b, e, p, mus_eff = ff.get_ns_p_e_mus_1d(mu=mu, dmu=dmu, q=q, dq=dq, update_g=True)
-
+n_a, n_b, e, p, mus_eff = ff.get_ns_p_e_mus_1d(mu=mu, dmu=dmu, dq=dq, update_g=True)
 # or compute effective mus first
-mu_eff, dmu_eff = ff._get_effetive_mus(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, update_g=False)
+mu_eff, dmu_eff = ff._get_effetive_mus(mu=mu, dmu=dmu, delta=delta, dq=dq, update_g=False)
 n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=delta)
 j_a, j_b, j_p, j_m = ff.get_current(mu=mu_eff, dmu=dmu_eff, delta=delta)
 print(f"n_a={n_a.n}, n_b={n_b.n}, j_a={j_a.n}, j_b={j_b.n}, j_p={j_p.n}, j_m={j_m.n}")
 
 # re-compute the effective mus as for normal state, delta=dq=0
-mu_eff, dmu_eff = ff._get_effetive_mus(mu=mu, dmu=dmu, delta=0, mus_eff=(mu_eff, dmu_eff), q=q, update_g=False)
+mu_eff, dmu_eff = ff._get_effetive_mus(mu=mu, dmu=dmu, delta=0, mus_eff=(mu_eff, dmu_eff), update_g=False)
 p0 = ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=0).n
 print(f"FF State Pressure={p}, Normal State Pressue={p0}")
 if p0 < p:
@@ -81,9 +83,6 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 pattern = join(currentdir,"..","mmf_hfb","data","..","FFState_[()_0-9]*.json")
 files = glob.glob(pattern)
 plt.figure(figsize=(20,20))
-delta_set = set()
-mu_set = set()
-dmu_set = set()
 for file in files:
     if os.path.exists(file):
         with open(file,'r') as rf:
@@ -126,9 +125,6 @@ plt.xlabel(f"$\Delta$")
 plt.ylabel(f"$\delta q$")
 plt.title(f"Upper Branch")
 plt.legend()
-#print(delta_set)
-#print(mu_set)
-#print(dmu_set)
 
 # ## Compute Current and Pressure
 # $$

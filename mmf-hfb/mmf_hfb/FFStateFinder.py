@@ -32,7 +32,8 @@ class FFStateFinder():
 
         self.ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=1,
                          k_c=np.inf, fix_g=True, bStateSentinel=True)
-
+        #
+        #self.ff._g =-3.077012439639267
     def _gc(self, delta, dq, update_mus=True):
         """compute the difference of a g_c[ using delta, dq] and fixed g_c"""
         mus_eff = (None, None)
@@ -52,6 +53,7 @@ class FFStateFinder():
 
     def get_pressure(self, delta=None, dq=0, mus_eff=None):
         """return the pressure"""
+        
         if delta is None:
             delta = self.delta
         if mus_eff is None:
@@ -94,7 +96,7 @@ class FFStateFinder():
                                                         update_g=False)
         else:
             mu_eff, dmu_eff = mus_eff
-        return self.ff.get_current(mu=mu_eff, dmu=dmu_eff, delta=delta, dq=dq).n
+        return self.ff.get_current(mu=mu_eff, dmu=dmu_eff, delta=delta, dq=dq)
 
     def _get_fileName(self):
         currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -227,14 +229,14 @@ def compute_pressure_current_worker(jsonData_file):
     """Use the FF State file to compute their current and pressure"""
     jsonData, fileName = jsonData_file
     filetokens = fileName.split("_")
-    fileName = "FFState_J_P_" + "_".join(filetokens[1:]) + ".json"
+    output_fileName = "FFState_J_P_" + "_".join(filetokens[1:]) + ".json"
     dim = jsonData['dim']
     delta = jsonData['delta']
     mu = jsonData['mu']
     dmu = jsonData['dmu']
     data = jsonData['data']
     ff = FFStateFinder(mu=mu, dmu=dmu, delta=delta, 
-                       dim=dim, prefix=f"{fileName}", timeStamp=False)
+                       dim=dim, prefix=f"{output_fileName}", timeStamp=False)
     if os.path.exists(ff._get_fileName()):
         print(f"Skip file:{ff._get_fileName()}...")
         return None
@@ -243,16 +245,19 @@ def compute_pressure_current_worker(jsonData_file):
     try:
         for item in data:
             dq1, dq2, d = item
+            #if not (np.allclose(dq1, 0.042377468400988445) or np.allclose(dq2, 0.042377468400988445)):
+            #    continue
             if dq1 is not None:
                 dic = {}
                 p1 = ff.get_pressure(delta=d, dq=dq1)
                 ja, jb, jp, jm = ff.get_current(delta=d, dq=dq1)
+
                 dic['d']=d
                 dic['q']=dq1
-                dic['p']=p
-                dic['j']=jp
-                dic['ja']=ja
-                dic['jb']=jb
+                dic['p']=p1
+                dic['j']=jp.n
+                dic['ja']=ja.n
+                dic['jb']=jb.n
                 output1.append(dic)
                 print(dic)
             if dq2 is not None:
@@ -262,9 +267,9 @@ def compute_pressure_current_worker(jsonData_file):
                 dic['d']=d
                 dic['q']=dq2
                 dic['p']=p2
-                dic['j']=jp
-                dic['ja']=ja
-                dic['jb']=jb
+                dic['j']=jp.n
+                dic['ja']=ja.n
+                dic['jb']=jb.n
                 output2.append(dic)
                 print(dic)
         output =[output1, output2]
@@ -280,7 +285,7 @@ def compute_pressure_current(root=None):
     currentdir = root
     if currentdir is None:
         currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-    pattern = join(currentdir, "FFState*.json")
+    pattern = join(currentdir, "FFState_[()_0-9]*.json")
     files = files=glob.glob(pattern)
 
     jsonObjects = []
@@ -290,6 +295,9 @@ def compute_pressure_current(root=None):
                 jsonObjects.append((json.load(rf), os.path.splitext(os.path.basename(file))[0]))
     logic_cpu_count = os.cpu_count() - 1
     logic_cpu_count = 1 if logic_cpu_count < 1 else logic_cpu_count
+    if False:  # Debugging
+        for item in jsonObjects:
+            compute_pressure_current_worker(item)
     with Pool(logic_cpu_count) as Pools:
         Pools.map(compute_pressure_current_worker, jsonObjects)
 
@@ -320,13 +328,36 @@ def SearchWithSingleConfiguration():
     ff = FFStateFinder(delta=delta, dim=dim, mu=mu, dmu=dmu)
     ff.run(dl=0.3, du=.4, dn=100, ql=0, qu=0.2)
 
+
+def Scratch():
+    mu=10
+    dmu= 0.27
+    delta=0.2
+    dq=0.042377468400988445
+
+    ff = FFState(mu=mu, dmu=dmu, delta=delta,  dim=1, fix_g=True, bStateSentinel=True)
+    # compute n_a, n_b, energy density and pressure in single function
+    n_a, n_b, e, p, mus_eff = ff.get_ns_p_e_mus_1d(mu=mu, dmu=dmu, dq=dq, update_g=True)
+    # or compute effective mus first
+    mu_eff, dmu_eff = ff._get_effetive_mus(mu=mu, dmu=dmu, delta=delta, dq=dq, update_g=False)
+    n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=delta)
+    j_a, j_b, j_p, j_m = ff.get_current(mu=mu_eff, dmu=dmu_eff, delta=delta)
+    print(f"n_a={n_a.n}, n_b={n_b.n}, j_a={j_a.n}, j_b={j_b.n}, j_p={j_p.n}, j_m={j_m.n}")
+
+    # re-compute the effective mus as for normal state, delta=dq=0
+    mu_eff, dmu_eff = ff._get_effetive_mus(mu=mu, dmu=dmu, delta=0, mus_eff=(mu_eff, dmu_eff), update_g=False)
+    p0 = ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=0).n
+    print(f"FF State Pressure={p}, Normal State Pressue={p0}")
+    if p0 < p:
+        print("The ground state is a FF State")
 if __name__ == "__main__":
     
+    Scratch()
     ## Method: change parameters manually
     #SearchWithSingleConfiguration()
     ## Method 2: Thread pool
     #dmus = np.array([0.11, 0.12, 0.13, 0.14, 0.15, 0.16]) * 2 + 2
     #SearchFFState(delta=2.1, mu=10, dmus=dmus, dim=1)
     ## Compute the pressure and current
-    compute_pressure_current()
+    #compute_pressure_current()
     

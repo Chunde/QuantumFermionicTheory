@@ -300,7 +300,11 @@ class FFState(object):
             try:
                 delta = brentq(f, a, b)
             except ValueError:  # It's important to deal with specific exception.
-                ds = np.linspace(a, b, 10)
+                
+                if dq != 0:
+                    ds = ds = np.linspace(0, max(a,b) * 2, 20)
+                else:
+                    ds = np.linspace(a, b, 10)
                 f0 = f(ds[-1])
                 index0 = 0
                 delta = 0
