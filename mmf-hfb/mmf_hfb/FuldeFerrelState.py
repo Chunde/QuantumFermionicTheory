@@ -2,7 +2,7 @@ import numpy as np
 from mmf_hfb import tf_completion as tf
 from scipy.optimize import brentq
 import warnings
-tf.MAX_DIVISION = 500
+tf.MAX_DIVISION = 50
 MAX_ITERATION = 100
 
 
@@ -32,6 +32,8 @@ class FFState(object):
         self.m = m
         self.delta = delta
         self.hbar = hbar
+        if dim==1:
+            k_c=np.inf
         self.k_c = k_c
         self.bStateSentinel = bStateSentinel
         self._tf_args = dict(m_a=1, m_b=1, dim=dim, hbar=hbar, T=T, k_c=k_c)
@@ -186,7 +188,6 @@ class FFState(object):
             delta=delta, q=q, dq=dq, k_c=k_c, update_g=update_g)
         if delta is None:
             delta = self.delta
-            print(delta)
         mu_a_eff = mu_eff + dmu_eff
         mu_b_eff = mu_eff - dmu_eff
         args = dict(self._tf_args, mu_a=mu_a_eff, mu_b=mu_b_eff, delta=delta,
@@ -285,9 +286,9 @@ class FFState(object):
             mu, dmu = self.mus
 
         if a is None:
-            a = a=self.delta * 0.1
+            a = self.delta * 0.1
         if b is None:
-            b = b=self.delta * 2
+            b = self.delta * 2
         args = dict(self._tf_args, q=q, dq=dq) 
 
         def f(delta):
@@ -300,11 +301,7 @@ class FFState(object):
             try:
                 delta = brentq(f, a, b)
             except ValueError:  # It's important to deal with specific exception.
-                
-                if dq != 0:
-                    ds = ds = np.linspace(0, max(a,b) * 2, 20)
-                else:
-                    ds = np.linspace(a, b, 10)
+                ds = np.linspace(0, max(a,b) * (2 + dq/dmu), int((2 + dq/dmu) * 10))
                 f0 = f(ds[-1])
                 index0 = 0
                 delta = 0
@@ -316,7 +313,8 @@ class FFState(object):
                     else:
                         f0 = f_
                         index0 = i
-              
+                if delta == 0 and  (f(0.999 * self.delta ) * f(1.001 * self.delta ) < 0):
+                    delta = brentq(f, 0.999 *self.delta, 1.001 *self.delta)
         if self.bStateSentinel:
             assert self.bSuperfluidity == (delta > 0)
         return delta
