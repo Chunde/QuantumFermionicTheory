@@ -2,13 +2,13 @@ import numpy as np
 from mmf_hfb import tf_completion as tf
 from scipy.optimize import brentq
 import warnings
-tf.MAX_DIVISION = 50
+tf.MAX_DIVISION = 500
 MAX_ITERATION = 100
 
 
 class FFState(object):
-    def __init__(self, mu, dmu, delta=1, q=0, dq=0, m=1, T=0, hbar=1, k_c=1000,
-                 dim=2, fix_g=True, bStateSentinel=False):
+    def __init__(self, mu, dmu, delta=1, q=0, dq=0, m=1, T=0, hbar=1, g=None, 
+                 k_c=1000, dim=2, fix_g=True, bStateSentinel=False):
         """
         Arguments
         ---------
@@ -25,6 +25,9 @@ class FFState(object):
            normal state when using the instance to compute densities,
            pressures etc.
         """
+        if g is not None:
+            fix_g = True
+            
         self.fix_g = fix_g
         self.dim = dim
         self.T = T
@@ -38,12 +41,22 @@ class FFState(object):
         self.bStateSentinel = bStateSentinel
         self._tf_args = dict(m_a=1, m_b=1, dim=dim, hbar=hbar, T=T, k_c=k_c)
         if fix_g:
-            self._g = self.get_g(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
+            self._g = self.get_g(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq) if g is None else g
+            self.lock_g = False if g is None else True
         else:
             self._C = tf.compute_C(mu_a=mu, mu_b=mu, 
                                    delta=delta, q=q, dq=dq, **self._tf_args).n
         self.bSuperfluidity = delta > 0
-        
+
+    @property
+    def g(self):
+        return self._g
+
+    @g.setter
+    def g(self, val):
+        if self.lock_g is False:
+            self._g = val
+
     def f(self, mu, dmu, delta, q=0, dq=0, **kw):
         args = dict(self._tf_args)
         args.update(kw)
@@ -98,8 +111,28 @@ class FFState(object):
         n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
         return n_a, n_b
 
-    def _get_effetive_mus(self, mu, dmu, mus_eff=None, delta=None, q=0, dq=0
-                        , k_c=np.inf, rtol=1e-6, update_g=False):
+    def _get_effective_delta(self, mu, dmu, g=None, q=0, dq=0, k_c=np.inf, a=0.8, b=1.2):
+        if g is None:
+            g = self._g
+        def f(delta):
+            return self.get_g(delta=delta, mu=mu, dmu=dmu, q=q, dq=dq)
+        return brentq(f, a * self.delta, b * self.delta)
+
+    def _get_bare_mus(self, mu_eff, dmu_eff, delta=None):
+        if self.dim != 1:
+            return (mu_eff, dmu_eff)
+        if delta is None:
+            delta = self.delta
+        mu_a_eff, mu_b_eff = mu_eff + dmu_eff, mu_eff - dmu_eff
+        args = dict(self._tf_args, mu_a=mu_a_eff, mu_b=mu_b_eff, delta=delta)
+        n_p = tf.integrate_q(tf.n_p_integrand, **args).n
+        n_m = tf.integrate_q(tf.n_m_integrand, **args).n
+        n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
+        mu_a, mu_b = mu_a_eff + self._g * n_b, mu_b_eff + self._g * n_a
+        return (mu_a + mu_b)/2, (mu_a - mu_b)/2
+
+    def _get_effective_mus(self, mu, dmu, mus_eff=None, delta=None, q=0, dq=0,
+                         k_c=np.inf, rtol=1e-6, update_g=False):
         """
         return effective mu, dmu
         ---------
@@ -110,6 +143,7 @@ class FFState(object):
         """
         if self.dim != 1:
             return (mu, dmu)
+
         self._tf_args.update(k_c=k_c)
         update_delta = False
         if delta is None:
@@ -137,15 +171,15 @@ class FFState(object):
         itr = 0
         while(error > rtol):
             itr = itr + 1
-            mu_a_eff = mu_a0 - self._g * n_b
-            mu_b_eff = mu_b0 - self._g * n_a
+            mu_a_eff = mu_a0 - self.g * n_b
+            mu_b_eff = mu_b0 - self.g * n_a
             args.update(mu_a=mu_a_eff, mu_b=mu_b_eff, delta=delta)
             if update_g:
-                self._g =delta/tf.integrate_q(tf.nu_integrand, **args).n
+                self.g =delta/tf.integrate_q(tf.nu_integrand, **args).n
             n_p = tf.integrate_q(tf.n_p_integrand, **args).n
             n_m = tf.integrate_q(tf.n_m_integrand, **args).n
             n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
-            mu_a, mu_b = mu_a_eff + self._g * n_b, mu_b_eff + self._g * n_a
+            mu_a, mu_b = mu_a_eff + self.g * n_b, mu_b_eff + self.g * n_a
             mu_ = (mu_a + mu_b) / 2
             error = np.abs(mu_ - mu)/mu
             mu_eff = (mu_a_eff + mu_b_eff)/2
@@ -155,8 +189,7 @@ class FFState(object):
                     mu=mu_eff, dmu=dmu_eff, q=q, dq=dq,
                     a=delta * 0.8, b=delta * 1.2)
             if itr > MAX_ITERATION:
-                warnings.warn(f"""Reach max iteration without converging
-                                 to desired accuracy:{error}""")
+                warnings.warn(f"""Reach max iteration without converging to the desired accuracy:{error}""")
                 break
         mu_a_eff = mu_a - self._g * n_b
         mu_b_eff = mu_b - self._g * n_a
@@ -183,7 +216,7 @@ class FFState(object):
             By default its value is False, means the g_c will be fixed
         """
         assert self.dim == 1
-        mu_eff, dmu_eff = self._get_effetive_mus(
+        mu_eff, dmu_eff = self._get_effective_mus(
             mu=mu, dmu=dmu, mus_eff=mus_eff,
             delta=delta, q=q, dq=dq, k_c=k_c, update_g=update_g)
         if delta is None:
@@ -246,7 +279,7 @@ class FFState(object):
         if mu is None:
             mu, dmu = self.mus
         if mu_eff is None:
-            mu_eff, dmu_eff = self._get_effetive_mus(mu=mu, dmu=dmu, q=q, dq=dq)
+            mu_eff, dmu_eff = self._get_effective_mus(mu=mu, dmu=dmu, q=q, dq=dq)
         if delta is None:
             delta = self.solve(mu=mu_eff, dmu=dmu_eff, q=q, dq=dq, 
                                a=self.delta * 0.8, b=self.delta * 1.2)

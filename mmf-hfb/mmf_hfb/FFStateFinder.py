@@ -16,7 +16,7 @@ import glob
 
 
 class FFStateFinder():
-    def __init__(self, dim=1, delta=0.1, mu=10.0, dmu=0.11,
+    def __init__(self, dim=1, delta=0.1, mu=10.0, dmu=0.11, g=None,
                 prefix="FFState_", timeStamp=True):
         print(f"dim={dim}\tdelta={delta}\tmu={mu}\tdmu={dmu}")
         self.dim = dim
@@ -29,16 +29,19 @@ class FFStateFinder():
         else:
             self.fileName = prefix
 
-
-        self.ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=1,
-                         k_c=np.inf, fix_g=True, bStateSentinel=True)
-        #
-        #self.ff._g =-3.077012439639267
+        if dim ==1:
+            k_c = np.inf
+        elif dim == 2:
+            k_c = 2000
+        else:
+             k_c = 50
+        self.ff = FFState(mu=mu, dmu=dmu, delta=delta, g=g, dim=dim,
+                         k_c=50, fix_g=True, bStateSentinel=True)
     def _gc(self, delta, dq, update_mus=True):
         """compute the difference of a g_c[ using delta, dq] and fixed g_c"""
         mus_eff = (None, None)
         if update_mus:
-            mus_eff = self.ff._get_effetive_mus(mu=self.mu,
+            mus_eff = self.ff._get_effective_mus(mu=self.mu,
                                                 dmu=self.dmu,
                                                 delta=delta,
                                                 dq=dq,
@@ -48,7 +51,7 @@ class FFStateFinder():
 
     def get_mus_eff(self, delta, dq, mus_eff=None):
         """return effective mus"""
-        return self.ff._get_effetive_mus(mu=self.mu, dmu=self.dmu,
+        return self.ff._get_effective_mus(mu=self.mu, dmu=self.dmu,
                                          delta=delta, dq=dq, update_g=False)
 
     def get_pressure(self, delta=None, dq=0, mus_eff=None):
@@ -57,7 +60,7 @@ class FFStateFinder():
         if delta is None:
             delta = self.delta
         if mus_eff is None:
-            mu_eff, dmu_eff = self.ff._get_effetive_mus(mu=self.mu, 
+            mu_eff, dmu_eff = self.ff._get_effective_mus(mu=self.mu, 
                                                         dmu=self.dmu, 
                                                         delta=delta, 
                                                         dq=dq, 
@@ -89,7 +92,7 @@ class FFStateFinder():
         if delta is None:
             delta = self.delta
         if mus_eff is None:
-            mu_eff, dmu_eff = self.ff._get_effetive_mus(mu=self.mu,
+            mu_eff, dmu_eff = self.ff._get_effective_mus(mu=self.mu,
                                                         dmu=self.dmu,
                                                         delta=delta,
                                                         dq=dq,
@@ -235,7 +238,7 @@ def compute_pressure_current_worker(jsonData_file):
     mu = jsonData['mu']
     dmu = jsonData['dmu']
     data = jsonData['data']
-    ff = FFStateFinder(mu=mu, dmu=dmu, delta=delta, 
+    ff = FFStateFinder(mu=mu, dmu=dmu, delta=delta, g=jsonData['g'],
                        dim=dim, prefix=f"{output_fileName}", timeStamp=False)
     if os.path.exists(ff._get_fileName()):
         print(f"Skip file:{ff._get_fileName()}...")
@@ -321,43 +324,22 @@ def SearchFFState(delta=0.1, mu=10, dmus=None, dim=1):
 
 
 def SearchWithSingleConfiguration():
-    dim = 1
+    dim = 3
     mu = 10
     delta = 0.2
-    dmu = 1
-    ff = FFStateFinder(delta=delta, dim=dim, mu=mu, dmu=dmu)
-    ff.run(dl=0.3, du=.4, dn=100, ql=0, qu=0.2)
+    dmu = 0.21
+    g =  None# -3.077012439639267
+    ff = FFStateFinder(delta=delta, dim=dim, mu=mu, dmu=dmu, g=g)
+    ff.run(dl=0.2, du=.7, dn=100, ql=0, qu=0.2)
 
 
-def Scratch():
-    mu=10
-    dmu= 0.27
-    delta=0.2
-    dq=0.042377468400988445
-
-    ff = FFState(mu=mu, dmu=dmu, delta=delta,  dim=1, fix_g=True, bStateSentinel=True)
-    # compute n_a, n_b, energy density and pressure in single function
-    n_a, n_b, e, p, mus_eff = ff.get_ns_p_e_mus_1d(mu=mu, dmu=dmu, dq=dq, update_g=True)
-    # or compute effective mus first
-    mu_eff, dmu_eff = ff._get_effetive_mus(mu=mu, dmu=dmu, delta=delta, dq=dq, update_g=False)
-    n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=delta)
-    j_a, j_b, j_p, j_m = ff.get_current(mu=mu_eff, dmu=dmu_eff, delta=delta)
-    print(f"n_a={n_a.n}, n_b={n_b.n}, j_a={j_a.n}, j_b={j_b.n}, j_p={j_p.n}, j_m={j_m.n}")
-
-    # re-compute the effective mus as for normal state, delta=dq=0
-    mu_eff, dmu_eff = ff._get_effetive_mus(mu=mu, dmu=dmu, delta=0, mus_eff=(mu_eff, dmu_eff), update_g=False)
-    p0 = ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=0).n
-    print(f"FF State Pressure={p}, Normal State Pressue={p0}")
-    if p0 < p:
-        print("The ground state is a FF State")
 if __name__ == "__main__":
     
-    Scratch()
     ## Method: change parameters manually
-    #SearchWithSingleConfiguration()
+    SearchWithSingleConfiguration()
     ## Method 2: Thread pool
     #dmus = np.array([0.11, 0.12, 0.13, 0.14, 0.15, 0.16]) * 2 + 2
     #SearchFFState(delta=2.1, mu=10, dmus=dmus, dim=1)
     ## Compute the pressure and current
-    #compute_pressure_current()
+    # compute_pressure_current()
     

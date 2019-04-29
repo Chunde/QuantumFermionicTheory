@@ -78,6 +78,7 @@ def get_dE_dn(mu, dmu, dim, q=0, dq=0):
 def Thermodynamic(mu, dmu, delta0=1, dim=3, k_c=100, q=0, dq=0,
                  T=0.0, a=0.8, b=1.2, dx=1e-3, N=10):
     if dim == 1: # Because 1d case does not pass yet
+        print("This method does nothing for 1d case")
         return 
     ff = FF(mu=mu, dmu=dmu, delta=delta0, q=q, dq=dq, dim=dim, k_c=k_c, T=T, 
             fix_g=True, bStateSentinel=True)
@@ -330,4 +331,4 @@ def test_Thermodynamic_1d(
 
 if __name__ == "__main__":
     #test_Thermodynamic_1d(delta = 1.0, mu_delta = 10, dmu_delta = 1.2, q_dmu = 0.05, dq_dmu = 0.02, N = 20, dx = 0.001)
-    test_Thermodynamic(delta = 1.0, mu_delta = 5, dmu_delta = 1.2, q_dmu = 0, dq_dmu = 0.02, dim = 3, k_c = 50)
+    test_Thermodynamic(delta = 1.0, mu_delta = 5, dmu_delta = 1.2, q_dmu = 0, dq_dmu = 0.02, dim = 2, k_c = 50)

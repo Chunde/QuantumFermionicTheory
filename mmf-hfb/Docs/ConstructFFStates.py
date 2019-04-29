@@ -52,20 +52,42 @@ clear_output()
 mu=10
 dmu= 0.27
 delta=0.2
-dq=0.042377468400988445
-
-ff = FFState(mu=mu, dmu=dmu, delta=delta,  dim=1, dq=dq, fix_g=True, bStateSentinel=True)
+dq=0.02630155299196228
+dim = 1
+ff = FFState(mu=mu, dmu=dmu, delta=delta,  dim=dim, fix_g=True, bStateSentinel=True)
 # compute n_a, n_b, energy density and pressure in single function
 n_a, n_b, e, p, mus_eff = ff.get_ns_p_e_mus_1d(mu=mu, dmu=dmu, dq=dq, update_g=True)
 # or compute effective mus first
-mu_eff, dmu_eff = ff._get_effetive_mus(mu=mu, dmu=dmu, delta=delta, dq=dq, update_g=False)
+mu_eff, dmu_eff = ff._get_effective_mus(mu=mu, dmu=dmu, delta=delta, dq=dq, update_g=False)
 n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=delta)
 j_a, j_b, j_p, j_m = ff.get_current(mu=mu_eff, dmu=dmu_eff, delta=delta)
 print(f"n_a={n_a.n}, n_b={n_b.n}, j_a={j_a.n}, j_b={j_b.n}, j_p={j_p.n}, j_m={j_m.n}")
 
 # re-compute the effective mus as for normal state, delta=dq=0
-mu_eff, dmu_eff = ff._get_effetive_mus(mu=mu, dmu=dmu, delta=0, mus_eff=(mu_eff, dmu_eff), update_g=False)
+mu_eff, dmu_eff = ff._get_effective_mus(mu=mu, dmu=dmu, delta=0, mus_eff=(mu_eff, dmu_eff), update_g=False)
 p0 = ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=0).n
+print(f"FF State Pressure={p}, Normal State Pressue={p0}")
+if p0 < p:
+    print("The ground state is a FF State")
+# -
+
+# ### 3D case
+
+# +
+mu=10
+dmu= 0.12
+delta=0.1
+dq=0.02630155299196228
+dim = 3
+ff = FFState(mu=mu, dmu=dmu, delta=delta,  dim=dim,  fix_g=True, bStateSentinel=True)
+# or compute effective mus first
+n_a, n_b = ff.get_densities(mu=mu, dmu=dmu, delta=delta)
+j_a, j_b, j_p, j_m = ff.get_current(mu=mu, dmu=dmu, delta=delta)
+print(f"n_a={n_a.n}, n_b={n_b.n}, j_a={j_a.n}, j_b={j_b.n}, j_p={j_p.n}, j_m={j_m.n}")
+p = ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu, dmu_eff=dmu, delta=delta, dq=dq).n
+
+# re-compute the effective mus as for normal state, delta=dq=0
+p0 = ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu, dmu_eff=dmu, delta=0).n
 print(f"FF State Pressure={p}, Normal State Pressue={p0}")
 if p0 < p:
     print("The ground state is a FF State")
@@ -73,6 +95,7 @@ if p0 < p:
 
 # ### Plots from external data
 
+# +
 import os
 import inspect
 from os.path import join
@@ -83,14 +106,14 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 pattern = join(currentdir,"..","mmf_hfb","data","..","FFState_[()_0-9]*.json")
 files = glob.glob(pattern)
 plt.figure(figsize=(20,20))
+style =['o','+','--']
 for file in files:
+    print(file)
     if os.path.exists(file):
         with open(file,'r') as rf:
             ret = json.load(rf)
-            mu, dmu, delta=ret['mu'], ret['dmu'], ret['delta']
-            delta_set.add(delta)
-            mu_set.add(mu)
-            dmu_set.add(dmu)
+            dim, mu, dmu, delta=ret['dim'], ret['mu'], ret['dmu'], ret['delta']
+            
             #if mu == 5:
             #    continue
             #if dmu !=0.26:
@@ -110,11 +133,11 @@ for file in files:
                     ds2.append(d)
             plt.subplot(211)
             if len(ds1) > 0:
-                plt.plot(ds1, dqs1, '+',label=f"$\Delta=${delta}, $\mu$={mu}, $d\mu=${dmu}")
+                plt.plot(ds1, dqs1, style[dim-1], label=f"$\Delta=${delta}, $\mu$={mu}, $d\mu=${dmu}")
             plt.subplot(212)
             if len(ds2):
-                plt.plot(ds2, dqs2, '--',label=f"$\Delta=${delta}, $\mu$={mu}, $d\mu=${dmu}")
-            break
+                plt.plot(ds2, dqs2, style[dim-1], label=f"$\Delta=${delta}, $\mu$={mu}, $d\mu=${dmu}")
+            
 plt.subplot(211)
 plt.xlabel(f"$\Delta$")
 plt.ylabel(f"$\delta q$")
@@ -125,6 +148,7 @@ plt.xlabel(f"$\Delta$")
 plt.ylabel(f"$\delta q$")
 plt.title(f"Upper Branch")
 plt.legend()
+# -
 
 # ## Compute Current and Pressure
 # $$
@@ -150,13 +174,15 @@ def PlotCurrentPressure(alignLowerBranches=True, alignUpperBranches=True, showLe
             with open(file,'r') as rf:
                 ret = json.load(rf)
                 dim, mu, dmu, delta=ret['dim'], ret['mu'], ret['dmu'], ret['delta']
-                if dmu != 0.27:
-                    continue
-                ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=dim, fix_g=True)
-                mu_eff, dmu_eff = ff._get_effetive_mus(mu=mu, dmu=dmu)
+                #if dmu != 0.27:
+                #    continue
+                ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=dim, g=ret['g'], fix_g=True)
+                mu_eff, dmu_eff = ff._get_effective_mus(mu=mu, dmu=dmu)
                 n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff)
                 print(f"n_a={n_a}, n_b={n_b}")
-                p0 = ff.get_pressure(mu=mu, dmu=dmu, delta=0).n
+                mu_eff, dmu_eff = ff._get_effective_mus(mu=mu, dmu=dmu, delta=0, mus_eff=(mu_eff, dmu_eff), update_g=False)
+                p0 = ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=0).n
+
                 print(f"Normal Pressure={p0}")
                 #print(ff.get_ns_p_e_mus_1d(mu=mu, dmu=dmu, delta=delta))
                 data1, data2 = ret['data']
@@ -199,13 +225,13 @@ def PlotCurrentPressure(alignLowerBranches=True, alignUpperBranches=True, showLe
                 plt.plot(ds1, j1, label=f"$\Delta=${delta},$\mu=${mu},$d\mu=${dmu}")
                 plt.subplot(326)
                 plt.plot(ds2, j2, label=f"$\Delta=${delta},$\mu=${mu},$d\mu=${dmu}")
+                break
         
     for i in range(1,7):
         plt.subplot(3,2,i)
         if showLegend:
                 plt.legend()
         if i == 1:
-            
             plt.title(f"Lower Branch")
             plt.ylabel("$\delta q$")
         if i == 2:
@@ -222,9 +248,9 @@ PlotCurrentPressure(alignLowerBranches=True, alignUpperBranches=True, showLegend
 
 # ## Check range of $\Delta$
 
-ff = FFStateFinder(delta=0.2, dim=1, mu=10, dmu=0.27)
+ff = FFStateFinder(delta=0.2, dim=3, mu=10, dmu=0.21)
 dqs = np.linspace(0, 0.5, 50)
-gs = [ff._gc(delta=.16871993983564874, dq=dq) for dq in dqs]
+gs = [ff._gc(delta=.18, dq=dq) for dq in dqs]
 plt.plot(dqs, gs)
 plt.axhline(0)
 
@@ -592,24 +618,6 @@ plt.plot(ks, dns)
 plt.plot(ks, js)
 plt.axvline(0)
 
-# ## Use Minimize Routine
-# * Issue: different initial guess would yield different results
-
-import scipy.optimize as optimize
-ff = FFState(mu=mu, dmu=dmu, delta=delta,dim=1, k_c=200,fix_g=True)
-def fun(para):
-    q, dq=para
-    return -ff.get_pressure(mu=mu, dmu=dmu, q=q, dq=dq).n
-
-
-initial_guess = (0.5,.8)
-result = optimize.minimize(fun, initial_guess)
-if result.success:
-    fitted_params = result.x
-    print(fitted_params)
-else:
-    raise ValueError(result.message)
-
 # ## Plots of $f_a$, $f_b$, $f_\nu$
 
 # +
@@ -629,7 +637,7 @@ def f(E, T):
           dq=(-0.4, 0.4, 0.01),
           T=(0, 0.1, 0.01))
 def go(delta=0.1, mu_eF=1.0, dmu=0.0, q=0, dq=0, T=0.02):
-    k = np.linspace(-2, 2, 100)
+    k = np.linspace(0, 2, 100)
     hbar = m = kF = 1.0
     eF = (hbar*kF)**2/2/m
     mu = mu_eF*eF
@@ -648,43 +656,13 @@ def go(delta=0.1, mu_eF=1.0, dmu=0.0, q=0, dq=0, T=0.02):
     plt.subplot(211);plt.grid()
     plt.plot(k/kF, f_a, label='a')
     plt.plot(k/kF, f_b, label='b')
-    plt.plot(k/kF, f_nu, label=r'$\nu$');plt.legend()
+    #plt.plot(k/kF, f_nu, label=r'$\nu$');plt.legend()
     plt.ylabel('n')
     plt.subplot(212);plt.grid()
     plt.plot(k/kF, w_p/eF, k/kF, w_m/eF)
     plt.xlabel('$k/k_F$')
     plt.ylabel(r'$\omega_{\pm}/\epsilon_F$')
     plt.axhline(0, c='y')
-
-
 # -
-
-# ## Brutal Method
-
-def case_1d(mu_delta=5, dmu_delta=3, q_delta = 0.5, dq_q=1, dq1_q=-3, dq2_q=3, delta=1, dim = 1, k_c=200):
-    plt.figure(figsize(10,5))
-    mu = mu_delta * delta
-    dmu = dmu_delta * delta
-    q = q_delta * delta
-    dqs = np.linspace(dq1_q, dq2_q, 40) * q
-    ff = FFState(mu=mu, dmu=dmu, delta=delta,q=q, dq=dq_q * q, dim=dim, k_c=k_c,fix_g=True)
-    states =[ff.check_superfluidity(mu=mu, dmu=dmu, q=q, dq=dq) for dq in dqs]
-    ps =[ff.get_pressure(mu=mu, dmu=dmu, q=q, dq=dq).n for dq in dqs]
-    plt.subplot(211)
-    plt.plot(dqs, states,'-', label='States')
-    plt.legend()
-    plt.title(f'$\mu=${mu},d$\mu$={dmu}, $\Delta$={delta}, q={q}', fontsize=16)
-    plt.subplot(212)
-    plt.plot(dqs, ps, 'o', label='SF Pressure')
-    ps =[ff.get_pressure(mu=mu, dmu=dmu, q=q, delta=0, dq=dq).n for dq in dqs] # normal states
-    plt.plot(dqs, ps,'--', label='NS Pressure')
-    plt.axvline(q)  
-    plt.xlabel(f'$\delta q$', fontsize=16)
-    plt.legend()
-    na, nb = ff.get_densities(mu=mu, dmu=dmu, q=q, dq=1.4)
-    return (na.n, nb.n)
-
-
-na,nb=case_1d(mu_delta=2, dmu_delta=0.8, q_delta = .55, dq_q=1)
 
 
