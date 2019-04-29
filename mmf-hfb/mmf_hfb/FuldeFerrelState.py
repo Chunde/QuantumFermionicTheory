@@ -336,7 +336,7 @@ class FFState(object):
             except ValueError:  # It's important to deal with specific exception.
                 ds = np.linspace(0, max(a,b) * (2 + dq/dmu), int((2 + dq/dmu) * 10))
                 f0 = f(ds[-1])
-                index0 = 0
+                index0 = -1
                 delta = 0
                 for i in reversed(range(0, len(ds)-1)):
                     f_ = f(ds[i])
