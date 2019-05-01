@@ -18,14 +18,13 @@ import glob
 class FFStateFinder():
     def __init__(self, dim=1, delta=0.1, mu=10.0, dmu=0.11, g=None,
                 prefix="FFState_", timeStamp=True):
-        print(f"dim={dim}\tdelta={delta}\tmu={mu}\tdmu={dmu}")
         self.dim = dim
         self.delta = delta
         self.mu = mu
         self.dmu = dmu
         if timeStamp:
             ts = time.strftime("%Y_%m_%d_%H_%M_%S.json")
-            self.fileName = prefix + f"({dim}_{delta}_{mu}_{dmu})" + ts
+            self.fileName = prefix + f"({dim}d_{delta}_{mu}_{dmu})" + ts
         else:
             self.fileName = prefix
 
@@ -37,6 +36,8 @@ class FFStateFinder():
              k_c = 50
         self.ff = FFState(mu=mu, dmu=dmu, delta=delta, g=g, dim=dim,
                          k_c=50, fix_g=True, bStateSentinel=True)
+        print(f"dim={dim}\tdelta={delta}\tmu={mu}\tdmu={dmu}\tg={self.ff.g}")
+
     def _gc(self, delta, dq, update_mus=True):
         """compute the difference of a g_c[ using delta, dq] and fixed g_c"""
         mus_eff = (None, None)
@@ -103,7 +104,7 @@ class FFStateFinder():
 
     def _get_fileName(self):
         currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-        return join(currentdir, self.fileName)
+        return join(currentdir, "data", self.fileName)
 
     def SaveToFile(self, data):
         """Save states to persistent storage"""
@@ -187,15 +188,16 @@ class FFStateFinder():
         lg, ug=None, None
         ds = np.linspace(dl, du, dn)
         rets = []
-        dx = 0.001
+        dx0 = 0.001
         trails=[1, 2, 5, 0.01, 0.2, 0.5, 10, 20]
         for d in ds:
             for t in trails:
+                dx = dx0 * t
                 try:
                     ret = self.SearchFFStates(delta=d, lg=lg, 
                                               ug=ug, ql=ql, 
                                               qu=qu, dn=40,
-                                              dx=dx*t)
+                                              dx=dx)
                     lg, ug = ret
                     ret.append(d)
                     rets.append(ret)
@@ -209,9 +211,10 @@ class FFStateFinder():
                 print("Retry without exception...")
                 ret =[None, None]
                 for t in trails:
+                    dx = dx0 * t
                     ret0 = self.SearchFFStates(delta=d, lg=lg, ug=ug, 
                                                ql=ql, qu=qu,
-                                               dn=40, dx=dx*t,
+                                               dn=40, dx=dx,
                                                raiseExcpetion=False)
                     lg, ug = ret0
                     if lg is None and ug is None:
@@ -288,7 +291,7 @@ def compute_pressure_current(root=None):
     currentdir = root
     if currentdir is None:
         currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-    pattern = join(currentdir, "FFState_[()_0-9]*.json")
+    pattern = join(currentdir, "data","FFState_[()_0-9]*.json")
     files = files=glob.glob(pattern)
 
     jsonObjects = []
@@ -323,23 +326,30 @@ def SearchFFState(delta=0.1, mu=10, dmus=None, dim=1):
         Pools.map(search_FFState_worker, dim_delta_mus_list)
 
 
-def SearchWithSingleConfiguration():
-    dim = 3
+def search_single_configuration_1d():
+    dim = 1
     mu = 10
     delta = 0.2
-    dmu = 0.21
-    g =  None# -3.077012439639267
+    dmu = 0.2
+    g =  -2.6
     ff = FFStateFinder(delta=delta, dim=dim, mu=mu, dmu=dmu, g=g)
-    ff.run(dl=0.2, du=.7, dn=100, ql=0, qu=0.2)
+    ff.run(dl=0.001, du=.2, dn=100, ql=0, qu=0.2)
 
-
+def search_single_configuration_3d():
+    dim = 3
+    mu = 10
+    delta = 2.4
+    dmu = delta * 1.2
+    ff = FFStateFinder(delta=delta, dim=dim, mu=mu, dmu=dmu)
+    ff.run(dl=0.001, du=5, dn=200, ql=0, qu=2.0)
 if __name__ == "__main__":
     
     ## Method: change parameters manually
-    SearchWithSingleConfiguration()
+    #search_single_configuration_1d()
+    #search_single_configuration_3d()
     ## Method 2: Thread pool
     #dmus = np.array([0.11, 0.12, 0.13, 0.14, 0.15, 0.16]) * 2 + 2
     #SearchFFState(delta=2.1, mu=10, dmus=dmus, dim=1)
     ## Compute the pressure and current
-    # compute_pressure_current()
+    compute_pressure_current()
     

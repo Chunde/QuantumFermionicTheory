@@ -91,6 +91,7 @@ class FFState(object):
                                a=self.delta * 0.8, b=self.delta * 1.2)
         mu_a, mu_b = mu + dmu, mu - dmu
         args = dict(self._tf_args)
+        args.update(q=q, dq=dq)
         return tf.compute_current(mu_a=mu_a, mu_b=mu_b, delta=delta, **args)
         
     def get_densities(self, mu=None, dmu=None, q=0, dq=0, delta=None, k_c=None):
