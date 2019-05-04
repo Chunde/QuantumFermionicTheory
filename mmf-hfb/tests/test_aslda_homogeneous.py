@@ -41,7 +41,7 @@ class ASLDA_(vortex_1d_aslda.ASLDA):
 def test_aslda_homogenous():
     L = 0.46
     N = 32
-    N_twist = 1
+    N_twist = 32
     delta = 1.0
     mu_eff = 1.0
     v_0, n, mu, e_0 = homogeneous.Homogeneous1D().get_BCS_v_n_e(delta=delta, mus_eff=(mu_eff,mu_eff))

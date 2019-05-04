@@ -154,10 +154,10 @@ class ASLDA(Functionals):
     def get_effective_g(self, ns, Vs, mus, alpha_p, dim=1):
         """get the effective g"""
         V_a, V_b = Vs
-        mu_p = (np.sum(mus) - V_a + V_b) / 2
+        mu_p = (sum(mus) - V_a + V_b) / 2
         k0 = (2*self.m/self.hbar**2*mu_p/alpha_p)**0.5
         kc = (2*self.m/self.hbar**2 * (self.E_c + mu_p)/alpha_p)**0.5
-        C = alpha_p * (np.sum(ns)**(1.0/3))/self.gamma
+        C = alpha_p * (sum(ns)**(1.0/3))/self.gamma
         Lambda = self.get_Lambda(k0=k0, kc=kc, dim=dim)
         g = alpha_p/(C - Lambda)
         return g
@@ -225,7 +225,7 @@ class ASLDA(Functionals):
         us, vs = psi.reshape(2, N, N*2)
         us,vs = us.T,vs.T
         j_a,j_b =None,None
-        n_a, n_b = np.sum(np.abs(us[i])**2*self.f(Es[i])  for i in range(len(us)))/self.dx, np.sum(np.abs(vs[i])**2*self.f(-Es[i]) for i in range(len(vs)))/self.dx
+        n_a, n_b = sum(np.abs(us[i])**2*self.f(Es[i])  for i in range(len(us)))/self.dx, sum(np.abs(vs[i])**2*self.f(-Es[i]) for i in range(len(vs)))/self.dx
 
         assert not np.allclose(n_a,0) and not np.allclose(n_b,0)
         nabla = self.get_Del() # should be careful, can be wrong!
@@ -235,9 +235,9 @@ class ASLDA(Functionals):
         #tau_b = (6*np.pi**2*n_b)**(5/3)/10/np.pi**2
 
 
-        tau_a = np.sum(np.abs(nabla.dot(us[i]))**2*self.f(Es[i]) for i in range(len(us)))/self.dx
-        tau_b = np.sum(np.abs(nabla.dot(vs[i]))**2*self.f(-Es[i]) for i in range(len(vs)))/self.dx
-        kappa = 0.5 * np.sum(us[i]*vs[i].conj()*(self.f(Es[i]) - self.f(-Es[i])) for i in range(len(us)))/self.dx
+        tau_a = sum(np.abs(nabla.dot(us[i]))**2*self.f(Es[i]) for i in range(len(us)))/self.dx
+        tau_b = sum(np.abs(nabla.dot(vs[i]))**2*self.f(-Es[i]) for i in range(len(vs)))/self.dx
+        kappa = 0.5 * sum(us[i]*vs[i].conj()*(self.f(Es[i]) - self.f(-Es[i])) for i in range(len(us)))/self.dx
         if compute_current_flag:
             j_a = 0.5*sum( (us[i].conj()*nabla.dot(us[i]) - us[i]*nabla.dot(us[i].conj()))*self.f(Es[i]) for i in range(len(us)))
             j_b = 0.5*sum( (vs[i].conj()*nabla.dot(vs[i]) - vs[i]*nabla.dot(vs[i].conj()))*self.f(Es[i]) for i in range(len(vs)))

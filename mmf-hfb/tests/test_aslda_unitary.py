@@ -1,15 +1,10 @@
 import numpy as np
-from scipy.optimize import brentq
-from scipy.integrate import quad
-from uncertainties import ufloat
 from importlib import reload  # Python 3.4+
 import numpy as np
 from mmf_hfb import homogeneous;reload(homogeneous)
 from mmf_hfb import bcs;reload(bcs)
 from mmf_hfb.bcs import BCS
 from mmf_hfb import vortex_1d_aslda;reload(vortex_1d_aslda)
-import itertools  
-import matplotlib.pyplot as plt
 import time
 hbar = 1
 m = 1
@@ -48,7 +43,7 @@ def test_aslda_unitary():
     """"test the unitary case, but seems not close"""
     L = 0.46
     N = 32
-    N_twist = 64
+    N_twist = 32
     b = ASLDA_(T=0, Nx=N, Lx=L)
     k_c = abs(b.kx).max()
     E_c = (b.hbar*k_c)**2/2/b.m 

@@ -186,7 +186,7 @@ def test_efftive_mus():
         assert np.allclose(mu_tilde, mu_tilde_, atol=0.0005)
         assert np.allclose(E_N_E_2, E_N_E_2_, atol=0.0005)
         ff = FF(mu=mu, dmu=0, delta=delta, dim=1, k_c=np.inf, fix_g=True)
-        mus_eff = ff._get_effetive_mus(mu=mu, dmu=0, delta=delta, update_g=True)
+        mus_eff = ff._get_effective_mus(mu=mu, dmu=0, delta=delta, update_g=True)
         ns = ff.get_densities(mu=mus_eff[0], dmu=mus_eff[1], delta=delta)
         assert np.allclose(n_p.n, (ns[0] + ns[1]).n)
         assert np.allclose(mus_eff[0], mu_eff)
