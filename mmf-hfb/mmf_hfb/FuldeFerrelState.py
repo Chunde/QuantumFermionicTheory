@@ -8,7 +8,7 @@ MAX_ITERATION = 100
 
 class FFState(object):
     def __init__(self, mu, dmu, delta=1, q=0, dq=0, m=1, T=0, hbar=1, g=None, 
-                 k_c=1000, dim=2, fix_g=True, bStateSentinel=False):
+                 k_c=None, dim=1, fix_g=True, bStateSentinel=False):
         """
         Arguments
         ---------
@@ -27,7 +27,8 @@ class FFState(object):
         """
         if g is not None:
             fix_g = True
-            
+        if k_c is None:
+            k_c = 1000
         self.fix_g = fix_g
         self.dim = dim
         self.T = T
@@ -87,10 +88,12 @@ class FFState(object):
             mu, dmu = self.mus
 
         if delta is None:
-            delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
+            delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq,
                                a=self.delta * 0.8, b=self.delta * 1.2)
         mu_a, mu_b = mu + dmu, mu - dmu
         args = dict(self._tf_args)
+        if k_c is not None:
+            args.update(k_c=k_c)
         args.update(q=q, dq=dq)
         return tf.compute_current(mu_a=mu_a, mu_b=mu_b, delta=delta, **args)
         
@@ -115,6 +118,7 @@ class FFState(object):
     def _get_effective_delta(self, mu, dmu, g=None, q=0, dq=0, k_c=np.inf, a=0.8, b=1.2):
         if g is None:
             g = self._g
+
         def f(delta):
             return self.get_g(delta=delta, mu=mu, dmu=dmu, q=q, dq=dq)
         return brentq(f, a * self.delta, b * self.delta)
@@ -133,7 +137,7 @@ class FFState(object):
         return (mu_a + mu_b)/2, (mu_a - mu_b)/2
 
     def _get_effective_mus(self, mu, dmu, mus_eff=None, delta=None, q=0, dq=0,
-                         k_c=np.inf, rtol=1e-6, update_g=False):
+                            k_c=np.inf, rtol=1e-6, update_g=False):
         """
         return effective mu, dmu
         ---------
@@ -190,7 +194,7 @@ class FFState(object):
                     mu=mu_eff, dmu=dmu_eff, q=q, dq=dq,
                     a=delta * 0.8, b=delta * 1.2)
             if itr > MAX_ITERATION:
-                warnings.warn(f"""Reach max iteration without converging to the desired accuracy:{error}""")
+                warnings.warn(f"Reach max iteration without converging to the desired accuracy:{error}")
                 break
         mu_a_eff = mu_a - self._g * n_b
         mu_b_eff = mu_b - self._g * n_a
@@ -229,7 +233,7 @@ class FFState(object):
         n_p = tf.integrate_q(tf.n_p_integrand, **args).n
         n_m = tf.integrate_q(tf.n_m_integrand, **args).n
         n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
-        print(f"mu_eff={mu_eff}, dmu_eff={dmu_eff}, n_a={n_a}, n_b={n_b}, g_c={self._g}")
+        print(f"mu_eff={mu_eff}, dmu_eff={dmu_eff}, delta={self.delta}, n_a={n_a}, n_b={n_b}, g_c={self._g}")
         kappa = tf.integrate_q(tf.kappa_integrand, **args).n
         e = kappa + self._g * n_a * n_b
         p = (mu+dmu) * n_a + (mu-dmu) * n_b - e
@@ -240,13 +244,13 @@ class FFState(object):
         mu_a, mu_b = mu + dmu, mu - dmu
         if self.dim == 1:
             energy_density = np.sqrt(2)/np.pi *(mu_a**1.5 + mu_b**1.5)/3.0
-            na, nb=np.sqrt(2 *mu_a)/np.pi, np.sqrt(2 * mu_b)/np.pi
+            # na, nb=np.sqrt(2 *mu_a)/np.pi, np.sqrt(2 * mu_b)/np.pi
         elif self.dim == 2:
             energy_density = (mu_a**2 + mu_b**2)/4.0/np.pi
-            na, nb =mu_a/np.pi/2.0, mu_b/np.pi/2.0
+            # na, nb =mu_a/np.pi/2.0, mu_b/np.pi/2.0
         elif self.dim == 3:
             energy_density = (mu_a**2.5 + mu_b**2.5)*2.0**1.5/10.0/np.pi**2
-            na, nb = ((2.0 *mu_a)**1.5)/6.0/np.pi**2, ((2.0 * mu_b)**1.5)/6.0/np.pi**2
+            #  na, nb = ((2.0 *mu_a)**1.5)/6.0/np.pi**2, ((2.0 * mu_b)**1.5)/6.0/np.pi**2
         return energy_density
 
     def get_energy_density(self, mu=None, dmu=None, q=0, dq=0, delta=None,
@@ -272,8 +276,8 @@ class FFState(object):
         return kappa
     
     def get_pressure(
-        self, mu=None, dmu=None, mu_eff=None,
-        dmu_eff=None, q=0, dq=0, delta=None):
+            self, mu=None, dmu=None, mu_eff=None,
+            dmu_eff=None, q=0, dq=0, delta=None):
         """return the pressure"""
         assert (mu is None) == (dmu is None)
         assert (mu_eff is None) == (dmu_eff is None)
@@ -309,7 +313,7 @@ class FFState(object):
         return delta > 0
 
     def solve(self, mu=None, dmu=None, q=0, dq=0, 
-                a=None, b=None, throwException=False):
+            a=None, b=None, throwException=False):
         """
         On problem with brentq is that it requires very smooth function with a 
         and b having different sign of values, this can fail frequently if our
@@ -347,7 +351,7 @@ class FFState(object):
                     else:
                         f0 = f_
                         index0 = i
-                if delta == 0 and  (f(0.999 * self.delta ) * f(1.001 * self.delta ) < 0):
+                if delta == 0 and (f(0.999 * self.delta) * f(1.001 * self.delta) < 0):
                     delta = brentq(f, 0.999 *self.delta, 1.001 *self.delta)
         if self.bStateSentinel:
             assert self.bSuperfluidity == (delta > 0)

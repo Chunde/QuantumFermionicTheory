@@ -16,8 +16,8 @@ import glob
 
 
 class FFStateFinder():
-    def __init__(self, dim=1, delta=0.1, mu=10.0, dmu=0.11, g=None,
-                prefix="FFState_", timeStamp=True):
+    def __init__(self, dim=1, delta=0.1, mu=10.0, dmu=0, g=None, k_c=None,
+                    prefix="FFState_", timeStamp=True):
         self.dim = dim
         self.delta = delta
         self.mu = mu
@@ -27,33 +27,33 @@ class FFStateFinder():
             self.fileName = prefix + f"({dim}d_{delta}_{mu}_{dmu})" + ts
         else:
             self.fileName = prefix
-
-        if dim ==1:
-            k_c = np.inf
-        elif dim == 2:
-            k_c = 2000
-        else:
-             k_c = 50
+        if k_c is None:
+            if dim ==1:
+                k_c = np.inf
+            elif dim == 2:
+                k_c = 2000
+            else:
+                 k_c = 50
+        self.k_c = k_c
         self.ff = FFState(mu=mu, dmu=dmu, delta=delta, g=g, dim=dim,
-                         k_c=50, fix_g=True, bStateSentinel=True)
-        print(f"dim={dim}\tdelta={delta}\tmu={mu}\tdmu={dmu}\tg={self.ff.g}")
+                         k_c=k_c, fix_g=True, bStateSentinel=True)
+        print(f"dim={dim}\tdelta={delta}\tmu={mu}\tdmu={dmu}\tg={self.ff.g}\tk_c={k_c}")
 
-    def _gc(self, delta, dq, update_mus=True):
+    def _gc(self, delta, mu=None, dmu=None, dq=0, update_mus=True):
         """compute the difference of a g_c[ using delta, dq] and fixed g_c"""
-        mus_eff = (None, None)
         if update_mus:
-            mus_eff = self.ff._get_effective_mus(mu=self.mu,
+            mu, dmu = self.ff._get_effective_mus(mu=self.mu,
                                                 dmu=self.dmu,
                                                 delta=delta,
                                                 dq=dq,
                                                 update_g=False)
-        return self.ff.get_g(mu=mus_eff[0], dmu=mus_eff[1], 
+        return self.ff.get_g(mu=mu, dmu=dmu,
                              delta=delta, dq=dq) - self.ff._g
 
     def get_mus_eff(self, delta, dq, mus_eff=None):
         """return effective mus"""
         return self.ff._get_effective_mus(mu=self.mu, dmu=self.dmu,
-                                         delta=delta, dq=dq, update_g=False)
+                                          delta=delta, dq=dq, update_g=False)
 
     def get_pressure(self, delta=None, dq=0, mus_eff=None):
         """return the pressure"""
@@ -115,6 +115,7 @@ class FFStateFinder():
         output["mu"] = self.mu
         output["dmu"] = self.dmu
         output["g"] = self.ff._g
+        output["k_c"] = self.k_c
         output["data"] = data
         with open(file,'w') as wf:
             json.dump(output, wf)
@@ -329,27 +330,54 @@ def SearchFFState(delta=0.1, mu=10, dmus=None, dim=1):
 def search_single_configuration_1d():
     dim = 1
     mu = 10
-    delta = 0.2
-    dmu = 0.2
-    g =  -2.6
+    delta = 0.2 # when set g, delta is useless
+    dmu = 0.6
+    g =  -10
     ff = FFStateFinder(delta=delta, dim=dim, mu=mu, dmu=dmu, g=g)
-    ff.run(dl=0.001, du=.2, dn=100, ql=0, qu=0.2)
+    ff.run(dl=0.001, du=15, dn=200, ql=0, qu=2)
 
 def search_single_configuration_3d():
     dim = 3
     mu = 10
     delta = 2.4
-    dmu = delta * 1.2
+    dmu = 2.85
     ff = FFStateFinder(delta=delta, dim=dim, mu=mu, dmu=dmu)
-    ff.run(dl=0.001, du=5, dn=200, ql=0, qu=2.0)
-if __name__ == "__main__":
+    ff.run(dl=0.001, du=5, dn=100, ql=0, qu=1.5)
+
+def merge_files():
+    files = ["FFState_(3d_2.4_10_2.85)2019_05_03_05_36_47.json", "FFState_(3d_2.4_10_2.85)2019_05_03_13_01_40.json"]
+    if len(files) < 1:
+        print("At least two files input")
+        return
+    currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), "data")
+    ts = time.strftime("%Y_%m_%d_%H_%M_%S.json")
     
+    datas = []
+    for file in files:
+        file = join(currentdir, file)
+        if os.path.exists(file):
+            with open(file, 'r') as rf:
+                datas.append(json.load(rf))
+    if len(datas) < 1:
+        return
+    filetokens = files[0].split(")")
+    output_fileName = "_".join([filetokens[0] + ")", ts])
+
+    output = datas[0]
+    for i in range(1, len(datas)):
+        output["data"].extend(datas[i]["data"])
+    with open(join(currentdir, output_fileName),'w') as wf:
+            json.dump(output, wf)
+
+if __name__ == "__main__":
+    ## Merge files with the same configuration
+    #merge_files()
     ## Method: change parameters manually
     #search_single_configuration_1d()
-    #search_single_configuration_3d()
+    search_single_configuration_3d()
     ## Method 2: Thread pool
     #dmus = np.array([0.11, 0.12, 0.13, 0.14, 0.15, 0.16]) * 2 + 2
     #SearchFFState(delta=2.1, mu=10, dmus=dmus, dim=1)
     ## Compute the pressure and current
-    compute_pressure_current()
+    #compute_pressure_current()
     
