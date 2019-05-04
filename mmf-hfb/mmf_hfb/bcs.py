@@ -67,6 +67,9 @@ class BCS(object):
     @property
     def dim(self):
         return len(self.Nxyz)
+    @property
+    def dV(self):
+        return np.prod(self.dxyz)
 
     def get_Ks(self, twists):
         """Return the kinetic energy matrix."""
@@ -185,6 +188,9 @@ class BCS(object):
             Rp_Rm /= N_
 
         # Factor of dV here to convert to physical densities.
+        # this may cause problem when compute densities:
+        # as    na = np.diag(R)[:N]
+        # while nb = (1 - np.diag(R)[N:]* dV)/dV
         dV = np.prod(self.dxyz)
         return Rp_Rm / dV
 
@@ -203,9 +209,10 @@ class BCS(object):
     def get_1d_currents(self, mus_eff, delta, N_twist=1):
         """return current for 1d only"""
         twistss = itertools.product(*(np.arange(0, N_twist)*2*np.pi/N_twist,)*self.dim)
-        J_a = 0
-        J_b = 0
+        j_a = 0
+        j_b = 0
         # np.fft.ifft(1j*k*np.fft.fft(f))
+        
         def df(k, f):
             return np.fft.ifft(1j*k*np.fft.fft(f))
 
@@ -217,14 +224,12 @@ class BCS(object):
             N =self.Nxyz[0]
             d, psi = np.linalg.eigh(H) 
             us, vs = psi.reshape(2, N, N*2)
-            us, vs = us.T,vs.T
-            j_a = -0.5j * sum( (us[i].conj()*df(k,us[i])-us[i]*df(k,us[i]).conj()) * self.f(d[i]) for i in range(len(us)))
-            j_b = -0.5j * sum( (vs[i]*df(k,vs[i]).conj()-vs[i].conj()*df(k,vs[i])) * self.f(-d[i]) for i in range(len(vs)))
-            J_a = J_a + j_a
-            J_b = J_b + j_b
-
-
-        return (J_a/N_twist/np.prod(self.dxyz), J_b/N_twist/np.prod(self.dxyz))
+            us, vs = us.T, vs.T
+            j_a_ = -0.5j*sum((us[i].conj()*df(k, us[i]) - us[i]*df(k, us[i]).conj())*self.f(d[i]) for i in range(len(us)))
+            j_b_ = -0.5j*sum((vs[i]*df(k, vs[i]).conj() - vs[i].conj()*df(k, vs[i]))*self.f(-d[i]) for i in range(len(vs)))
+            j_a = j_a + j_a_
+            j_b = j_b + j_b_
+        return (j_a/N_twist/np.prod(self.dxyz), j_b/N_twist/np.prod(self.dxyz))
 
     def get_densities(self, mus_eff, delta, N_twist=1, abs_tol=1e-12):
         """Return the densities.
