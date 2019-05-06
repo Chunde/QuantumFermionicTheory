@@ -1,15 +1,9 @@
 import numpy as np
-from importlib import reload  # Python 3.4+
-import numpy as np
-from mmf_hfb import homogeneous;reload(homogeneous)
-from mmf_hfb import vortex_2d_aslda;reload(vortex_2d_aslda)
+from mmf_hfb.Functionals import Functionals
 import itertools  
-hbar = 1
-m = 1
-
 
 def test_derivative():
-    a = vortex_2d_aslda.ASLDA()
+    a = Functionals()
     dx = 1e-6
     nas = np.linspace(0.1,1,10)
     nbs = np.linspace(0.1,1,10)

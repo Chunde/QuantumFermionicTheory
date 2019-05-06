@@ -137,3 +137,13 @@ class Functionals(object):
         n2 = n*n
         dp_n_a, dp_n_b= 2*nb/n2,-2*na/n2
         return (dp_n_a, dp_n_b)
+
+    def _get_Lambda(self, k0, kc, dim=1):
+        """return the renormalization condition parameter Lambda"""
+        if dim ==3:
+            Lambda = self.m / self.hbar**2/2/np.pi**2 *(1.0 - k0/kc/2*np.log((kc+k0)/(kc-k0)))
+        elif dim == 2:
+            Lambda = self.m /self.hbar**2/4/np.pi *np.log((kc/k0)**2 - 1)
+        elif dim == 1:
+            Lambda = self.m/self.hbar**2/2/np.pi * np.log((kc-k0)/(kc+k0))/k0
+        return Lambda

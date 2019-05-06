@@ -340,12 +340,12 @@ def search_single_configuration_3d():
     dim = 3
     mu = 10
     delta = 2.4
-    dmu = 2.85
+    dmu = 3.01
     ff = FFStateFinder(delta=delta, dim=dim, mu=mu, dmu=dmu)
-    ff.run(dl=0.001, du=5, dn=100, ql=0, qu=1.5)
+    ff.run(dl=0.0001, du=5, dn=100, ql=0, qu=1.5)
 
 def merge_files():
-    files = ["FFState_(3d_2.4_10_2.85)2019_05_03_05_36_47.json", "FFState_(3d_2.4_10_2.85)2019_05_03_13_01_40.json"]
+    files = ["FFState_(3d_2.4_10_2.85)2019_05_04_23_22_48.json", "FFState_(3d_2.4_10_2.85)2019_05_04_23_23_01.json"]
     if len(files) < 1:
         print("At least two files input")
         return
@@ -373,11 +373,11 @@ if __name__ == "__main__":
     ## Merge files with the same configuration
     #merge_files()
     ## Method: change parameters manually
-    #search_single_configuration_1d()
-    search_single_configuration_3d()
+    # search_single_configuration_1d()
+    #search_single_configuration_3d()
     ## Method 2: Thread pool
     #dmus = np.array([0.11, 0.12, 0.13, 0.14, 0.15, 0.16]) * 2 + 2
     #SearchFFState(delta=2.1, mu=10, dmus=dmus, dim=1)
     ## Compute the pressure and current
-    #compute_pressure_current()
+    compute_pressure_current()
     

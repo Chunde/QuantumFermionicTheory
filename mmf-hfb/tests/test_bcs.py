@@ -1,12 +1,8 @@
 """Test the bcs code."""
 import numpy as np
-
 from scipy.optimize import brentq
-
 import pytest
-
 from mmfutils.testing import allclose
-
 from mmf_hfb import bcs, homogeneous
 
 @pytest.fixture(params=[1, 2, 3])
@@ -154,3 +150,5 @@ def test_BCS_get_currents_1d(dim, NLx, T, N_twist):
     assert np.allclose(res.j_a[0], j_a)
     assert np.allclose(res.j_b[0], j_b)  
 
+if __name__ == "__main__":
+    test_BCS_get_densities(dim=1, NLx=(4, 10.0, None), T=0, N_twist=8)

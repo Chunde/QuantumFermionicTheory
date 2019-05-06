@@ -5,9 +5,6 @@ from mmf_hfb import homogeneous; reload(homogeneous)
 from mmf_hfb import bcs; reload(bcs)
 from mmf_hfb.bcs import BCS
 from mmf_hfb import vortex_1d_aslda;reload(vortex_1d_aslda)
-hbar = 1
-m = 1
-innerTest = False
 
 
 class ASLDA_(vortex_1d_aslda.ASLDA):

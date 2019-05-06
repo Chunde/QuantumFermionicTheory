@@ -1,11 +1,8 @@
 import numpy as np
-from importlib import reload  # Python 3.4+
-import numpy as np
-from mmf_hfb import homogeneous;reload(homogeneous)
-from mmf_hfb import bcs;reload(bcs)
+from mmf_hfb import homogeneous
+from mmf_hfb import bcs
 from mmf_hfb.bcs import BCS
-from mmf_hfb import vortex_1d_aslda;reload(vortex_1d_aslda)
-
+from mmf_hfb import vortex_1d_aslda;
 import time
 hbar = 1
 m = 1
@@ -41,7 +38,7 @@ class ASLDA_(vortex_1d_aslda.ASLDA):
 def test_aslda_homogenous():
     L = 0.46
     N = 32
-    N_twist = 32
+    N_twist = 8
     delta = 1.0
     mu_eff = 1.0
     v_0, n, mu, e_0 = homogeneous.Homogeneous1D().get_BCS_v_n_e(delta=delta, mus_eff=(mu_eff,mu_eff))
