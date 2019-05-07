@@ -4,6 +4,7 @@ import numpy as np
 class Functionals(object):
     m = 1
     hbar = 1
+    
     def __init__(self):
         self.gamma = -11.11
 
@@ -144,7 +145,7 @@ class Functionals(object):
     def _get_Lambda(self, k0, k_c, dim=1):
         """return the renormalization condition parameter Lambda"""
         if dim ==3:
-            Lambda = self.m/self.hbar**2/2/np.pi**2 *(1.0 - k0/kc/2*np.log((k_c+k0)/(k_c-k0)))
+            Lambda = self.m/self.hbar**2/2/np.pi**2 *(1.0 - k0/k_c/2*np.log((k_c+k0)/(k_c-k0)))
         elif dim == 2:
             Lambda = self.m /self.hbar**2/4/np.pi *np.log((k_c/k0)**2 - 1)
         elif dim == 1:

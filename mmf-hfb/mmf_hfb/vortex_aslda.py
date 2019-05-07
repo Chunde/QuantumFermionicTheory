@@ -14,11 +14,10 @@ class ASLDA(Functionals, BCS):
     
     def __init__(self, Nxyz, Lxyz, dx=None, T=0, E_c=100):
         BCS.__init__(self, Nxyz=Nxyz, Lxyz=Lxyz, dx=dx, T=T, E_c=E_c)
-        Functionals.hbar = BCS.hbar
-        Functionals.m = BCS.m
+        Functionals.hbar, Functionals.m = BCS.hbar, BCS.m
         self.E_c = E_c
-        self.g_eff = 1.0
-        self._D2 = self._get_K()  # a second order derivative operator without twisting
+        # Second order derivative operator without twisting
+        self._D2 = self._get_K()
   
     def _get_modified_K(self, D2, alpha):
         """"
@@ -77,7 +76,8 @@ class ASLDA(Functionals, BCS):
         tau_a, tau_b = self._get_modified_taus(taus=(tau_a, tau_b), js=js)
         return ((n_a, n_b), (tau_a, tau_b), js, kappa_)
 
-    def _get_Ks_Vs(self, delta, mus_eff=(0, 0), ns=None, taus=None, kappa=0, ky=0, kz=0, twists=None):
+    def _get_Ks_Vs(self, delta, mus_eff=(0, 0), ns=None,
+                  taus=None, kappa=0, ky=0, kz=0, twists=None):
         """
             Return the kinetic energy and modified potential matrices.
         """
@@ -99,7 +99,7 @@ class ASLDA(Functionals, BCS):
             return the modified kinetic density  matrix
         Arguments
         ---------
-        k_p: kinetic energy offset added to the diagnal elements
+        k_p: kinetic energy offset added to the diagonal elements
         """
         K = self._get_K(twists)  # the K already has factor of hbar^2/2m
         k_p = np.diag(np.ones_like(sum(self.xyz)) * k_p)
@@ -174,7 +174,7 @@ class ASLDA(Functionals, BCS):
                                     ns=None, taus=None, kappa=None,
                                     N_twist=8, abs_tol=1e-12):
         """
-        average over multiple twists
+            average over multiple twists
         """
         twistss = self._get_twistss(N_twist)
         dens = 0

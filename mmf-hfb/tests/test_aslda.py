@@ -1,11 +1,11 @@
 from mmf_hfb import vortex_aslda
 import numpy as np
 from mmf_hfb import homogeneous
-from mmf_hfb.bcs import BCS
 
 
 class ASLDA_(vortex_aslda.ASLDA):
-    # a modified class from ASLDA with different alphas which are constant, so their derivatives are zero
+    # a modified class from ASLDA with different alphas which 
+    # are constant, so their derivatives are zero
     def _get_alphas(self, ns=None):
         dim = sum(self.xyz)
         alpha_a, alpha_b, alpha_p =np.ones_like(dim), np.ones_like(dim), np.ones_like(dim)
@@ -40,6 +40,7 @@ def test_aslda_homogenous():
     print((sum(n).n, na[0].real + nb[0].real), (delta, -v_0.n*kappa[0].real))
     print("Test 1d lattice plus 1d integral over y with homogeneous system")
     return
+
     ns, taus, js, kappa = b.get_dens_integral(
         mus_eff=(mu_eff, mu_eff), delta=delta, N_twist=N_twist)
     na, nb = ns
@@ -50,6 +51,3 @@ def test_aslda_homogenous():
     
 if __name__ == "__main__":
     test_aslda_homogenous()
-    # a = vortex_aslda.ASLDA(Nxyz=(32,), Lxyz=(1,))
-    # a.get_densities()
-    # print(a.dxyz)
