@@ -72,7 +72,13 @@ class BCS(object):
     def dV(self):
         return np.prod(self.dxyz)
 
-    def _get_K(self, twists):
+    def _get_twistss(self, N_twist):
+        """return twistss for given twisting Number"""
+        twistss = itertools.product(
+                *(np.arange(0, N_twist) * 2 * np.pi / N_twist,) * self.dim)
+        return list(twistss)
+
+    def _get_K(self, twists=0):
         """Return the kinetic energy matrix."""
         ks_bloch = np.divide(twists, self.Lxyz)
         ks = [_k + _kb for _k, _kb in zip(self.kxyz, ks_bloch)]
@@ -148,6 +154,20 @@ class BCS(object):
                       [Delta.conj(), -(K_b - Mu_b)]])
         return H
 
+    def get_R(self, mus_eff, delta, N_twist=1, twists=None):
+        """Return the density matrix R."""
+        Rs = []
+        if twists is None:
+            twists = np.arange(0, N_twist)*2*np.pi/N_twist
+
+        for twist in twists:
+            H = self.get_H(mus_eff=mus_eff, delta=delta, twists=twist)
+            d, UV = np.linalg.eigh(H)
+            R = UV.dot(self.f(d)[:, None]*UV.conj().T)
+            Rs.append(R)
+        R = sum(Rs)/len(Rs)
+        return R
+
     def get_Rs(self, mus_eff, delta, N_twist=1, abs_tol=1e-12):
         """Return the density matrices (R, Rm).
 
@@ -167,6 +187,14 @@ class BCS(object):
         Rm : array
            This is (eye - R) = f(-M).  This can be used to extract n_b
            from the lower-right block.
+        Note on return value scaling problem changed:
+                # Factor of dV here to convert to physical densities.
+                # this may cause problem when compute densities:
+                # as    na = np.diag(R)[:N]
+                # while nb = (1 - np.diag(R)[N:]* dV)/dV
+                # dV = np.prod(self.dxyz)
+                #return Rp_Rm / dV
+
         """
         # Here we use the notation Rp = R = f(M) and Rm = f(-M) = 1-R
         def get_Rs(twists):
@@ -175,7 +203,6 @@ class BCS(object):
             d, UV = np.linalg.eigh(H)
             Rp = UV.dot(self.f(d)[:, None] * UV.conj().T)
             Rm = UV.dot(self.f(-d)[:, None] * UV.conj().T)
-
             return np.array([Rp, Rm])
 
         if np.isinf(N_twist):
@@ -184,25 +211,18 @@ class BCS(object):
             else:
                 raise NotImplementedError("N_twist=inf only works for dim=1")
         else:
-            twistss = itertools.product(
-                *(np.arange(0, N_twist) * 2 * np.pi / N_twist,) * self.dim)
+            twistss = self._get_twistss(N_twist)
             Rp_Rm = 0
             N_ = 0
             for twists in twistss:
                 Rp_Rm += get_Rs(twists=twists)
                 N_ += 1
             Rp_Rm /= N_
-
-        # Factor of dV here to convert to physical densities.
-        # this may cause problem when compute densities:
-        # as    na = np.diag(R)[:N]
-        # while nb = (1 - np.diag(R)[N:]* dV)/dV
-        dV = np.prod(self.dxyz)
-        return Rp_Rm / dV
+        return Rp_Rm
 
     def get_densities_R(self, mus_eff, delta, N_twist=1):
         """Get the densities from R."""
-        R, Rm = self.get_Rs(mus_eff=mus_eff, delta=delta, N_twist=N_twist)
+        R, Rm = self.get_Rs(mus_eff=mus_eff, delta=delta, N_twist=N_twist)/self.dV
         _N = R.shape[0] // 2
         r_a = R[:_N, :_N]
         r_b = Rm[_N:, _N:].conj()
@@ -256,9 +276,7 @@ class BCS(object):
 
         # Here we compute the derivatives and pack them so that
         # the first component is the derivative in x, y, z, etc.
-        dU_Vs = np.array([
-            self.ifft(1j * _k[None, ..., None] * U_V_t, axes=axes)
-            for _k in ks])
+        dU_Vs = np.array([self.ifft(1j * _k[None, ..., None] * U_V_t, axes=axes) for _k in ks])
         dUs, dVs = dU_Vs[:, 0, ...], dU_Vs[:, 1, ...]
         f_p = self.f(d)
         f_m = self.f(-d)
