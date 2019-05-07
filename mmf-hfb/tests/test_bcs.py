@@ -151,4 +151,4 @@ def test_BCS_get_currents_1d(dim, NLx, T, N_twist):
     assert np.allclose(res.j_b[0], j_b)  
 
 if __name__ == "__main__":
-    test_BCS_get_densities(dim=1, NLx=(4, 10.0, None), T=0, N_twist=8)
+    test_BCS_get_densities(dim = 3, NLx = (4, None, 1.1), T = 0.1, N_twist = 2)

@@ -9,7 +9,7 @@ from mmf_hfb import vortex_1d_aslda;reload(vortex_1d_aslda)
 
 class ASLDA_(vortex_1d_aslda.ASLDA):
     # a modified class from ASLDA with different alphas which are constant, so their derivatives are zero
-    def get_alphas(self, ns=None):
+    def _get_alphas(self, ns=None):
         alpha_a, alpha_b, alpha_p =np.ones(self.Nx), np.ones(self.Nx), np.ones(self.Nx)
         return (alpha_a, alpha_b, alpha_p)       
     
