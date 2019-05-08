@@ -2,13 +2,13 @@
 This module provides a ASLDA method for solving the polarized
 two-species Fermi gas with short-range interaction.
 """
-from mmf_hfb.Functionals import Functionals
+from mmf_hfb.Functionals import Functional
 from mmfutils.math.integrate import mquad
 from mmf_hfb.bcs import BCS
 import numpy as np
 
 
-class ASLDA(Functionals, BCS):
+class ASLDA(Functional, BCS):
     hbar = 1.0
     m = 1.0
     
@@ -17,7 +17,7 @@ class ASLDA(Functionals, BCS):
         Functionals.hbar, Functionals.m = BCS.hbar, BCS.m
         self.E_c = E_c
         # Second order derivative operator without twisting
-        self._D2 = self._get_K()
+        self._D2 = BCS._get_K(self)
   
     def _get_modified_K(self, D2, alpha):
         """"
@@ -101,7 +101,7 @@ class ASLDA(Functionals, BCS):
         ---------
         k_p: kinetic energy offset added to the diagonal elements
         """
-        K = self._get_K(twists)  # the K already has factor of hbar^2/2m
+        K = BCS._get_K(self, twists)  # the K already has factor of hbar^2/2m
         k_p = np.diag(np.ones_like(sum(self.xyz)) * k_p)
         K = K + k_p
         alpha_a, alpha_b, alpha_p = self._get_alphas(ns)

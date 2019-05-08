@@ -101,7 +101,7 @@ class BCS(object):
                        self.fft(K))).reshape(mat_shape)
         return K
 
-    def get_Ks(self, twists):
+    def get_Ks(self, twists, **kw):
         K = self._get_K(twists)
         return (K, K)
 
@@ -115,7 +115,7 @@ class BCS(object):
             axes = range(self.dim)
         return np.fft.ifftn(y, axes=axes)
 
-    def get_v_ext(self):
+    def get_v_ext(self, **kw):
         """Return the external potential."""
         return (0, 0)
 
@@ -129,7 +129,7 @@ class BCS(object):
             f = (1 - np.sign(E))/2
         return f
 
-    def get_H(self, mus_eff, delta, twists=0):
+    def get_H(self, mus_eff, delta, twists=0, **kw):
         """Return the single-particle Hamiltonian with pairing.
 
         Arguments
@@ -144,8 +144,8 @@ class BCS(object):
         """
         zero = np.zeros_like(sum(self.xyz))
         Delta = np.diag((delta + zero).ravel())
-        K_a, K_b = self.get_Ks(twists=twists)
-        v_a, v_b = self.v_ext
+        K_a, K_b = self.get_Ks(twists=twists, **kw)
+        v_a, v_b = self.get_v_ext(**kw)
         mu_a, mu_b = mus_eff
         mu_a += zero
         mu_b += zero
