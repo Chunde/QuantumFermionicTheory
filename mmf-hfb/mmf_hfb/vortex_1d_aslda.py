@@ -367,7 +367,7 @@ class ASLDA(Functionals):
     def get_abnormal_energy_density(self, ns, taus, kappa):
         na,nb=ns
         ta,tb = taus
-        N1 = self.hbar**2/self.m *(self._alpha_a(na,nb)*ta/2 + self._alpha_b(na, nb) * tb/2)
+        N1 = self.hbar**2/self.m *(self._alpha_a(ns)*ta/2 + self._alpha_b(ns) * tb/2)
         N2 = -(6*np.pi**2*self.hbar**2*(na+nb))**(5/3)/20/self.m/np.pi**2
         p = self._get_p(ns)
         N3 = self._alpha(p) * ((1 + p)/2)**(5/3) + self._alpha(-p)*((1-p)/2)**(5/3)

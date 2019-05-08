@@ -9,23 +9,14 @@ import numpy as np
 
 
 class ASLDA(Functional, BCS):
-    hbar = 1.0
-    m = 1.0
     
     def __init__(self, Nxyz, Lxyz, dx=None, T=0, E_c=100):
         BCS.__init__(self, Nxyz=Nxyz, Lxyz=Lxyz, dx=dx, T=T, E_c=E_c)
-        Functionals.hbar, Functionals.m = BCS.hbar, BCS.m
+        Functional.hbar, Functional.m = BCS.hbar, BCS.m
         self.E_c = E_c
         # Second order derivative operator without twisting
         self._D2 = BCS._get_K(self)
   
-    def _get_modified_K(self, D2, alpha):
-        """"
-            return a modified kinetic density matrix
-        """
-        A = np.diag(alpha)
-        K = (D2.dot(A) - np.diag(self._D2.dot(alpha)) + A.dot(D2)) / 2
-        return K
 
     def _g_eff(self, ns, Vs, mus_eff, alpha_p, dim=1):
         """
@@ -40,68 +31,23 @@ class ASLDA(Functional, BCS):
         g = alpha_p/(C - Lambda)
         return g
 
-    def _get_H(self, mus_eff, delta, ns=None,
-                taus=None, kappa=0, ky=0, kz=0, twists=0):
+    def _get_modified_K(self, D2, alpha,  twists=0, **args):
+        """"
+            return a modified kinetic density matrix
         """
-            Return the single-particle Hamiltonian with pairing. 
-        """
-        zero = np.zeros_like(sum(self.xyz))
-        Delta = np.diag((delta + zero).ravel())
-        mu_a, mu_b = mus_eff
-        mu_a += zero
-        mu_b += zero
-        (K_a, K_b), (V_a, V_b) = self._get_Ks_Vs(
-            delta=delta, mus_eff=mus_eff, kappa=kappa,
-            taus=taus, ns=ns, ky=ky, kz=kz, twists=twists)
-        Mu_a, Mu_b = np.diag((mu_a - V_a).ravel()), np.diag((mu_b - V_b).ravel())
-        H = np.block([[K_a - Mu_a, Delta],
-                     [Delta.conj(), -(K_b - Mu_b)]])
-        assert np.allclose(H.real, H.conj().T.real)
-        return H
+        A = np.diag(alpha)
+        K = (D2.dot(A) - np.diag(self._D2.dot(alpha)) + A.dot(D2)) / 2
+        return K
 
-    def _get_modified_taus(self, taus, js):
-        """
-            return the modified taus with 
-            currents in it, not implement
-        """
-        return taus
-
-    def _unpack_densities(self, dens, N_twist=1):
-        """
-            unpack the densities into proper items
-        """
-        n_a, n_b, tau_a, tau_b, nu_real, nu_imag = (dens[0:6] /N_twist/ self.dV)
-        kappa_ = (nu_real+ 1j*nu_imag)
-        js = (dens[6:] /N_twist / self.dV).reshape((2, len(self.Nxyz)) + tuple(self.Nxyz))
-        tau_a, tau_b = self._get_modified_taus(taus=(tau_a, tau_b), js=js)
-        return ((n_a, n_b), (tau_a, tau_b), js, kappa_)
-
-    def _get_Ks_Vs(self, delta, mus_eff=(0, 0), ns=None,
-                  taus=None, kappa=0, ky=0, kz=0, twists=None):
-        """
-            Return the kinetic energy and modified potential matrices.
-        """
-        k_p = self.hbar**2/2/self.m *(kz**2 + ky**2)
-        K_a, K_b = self.get_modified_Ks(ns=ns, k_p=k_p, twists=twists)
-        V_a, V_b = self.get_modified_Vs(delta=delta, ns=ns, taus=taus, kappa=kappa)
-        # self.g_eff = self._g_eff(ns=ns, Vs=(V_a, V_b), mus_eff=mus_eff, alpha_p=alpha_p)
-        return ((K_a , K_b), (V_a, V_b))
-             
-    def _get_ns_taus_js_kappa(self, H, twists):
-        """
-            Return densities
-        """
-        dens = self._get_densities_H(H, twists=twists)
-        return self._unpack_densities(dens)
-
-    def get_modified_Ks(self, ns=None, k_p=0, twists=0):
+    def get_Ks(self, twists=0, ns=None, k_p=0, **args):
         """
             return the modified kinetic density  matrix
         Arguments
         ---------
         k_p: kinetic energy offset added to the diagonal elements
         """
-        K = BCS._get_K(self, twists)  # the K already has factor of hbar^2/2m
+        K = BCS._get_K(self, twists)
+
         k_p = np.diag(np.ones_like(sum(self.xyz)) * k_p)
         K = K + k_p
         alpha_a, alpha_b, alpha_p = self._get_alphas(ns)
@@ -113,13 +59,13 @@ class ASLDA(Functional, BCS):
         assert np.allclose(K_b, K_b.conj().T)
         return (K_a, K_b)
 
-    def get_modified_Vs(self, delta, ns=None, taus=None, kappa=0):
+    def get_v_ext(self, delta=0, ns=None, taus=None, kappa=0, **args):
         """
             get the modified V functional terms
         """
         if ns is None or taus is None:
-            return self.v_ext
-        U_a, U_b = self.v_ext
+            return BCS.get_v_ext(self)
+        U_a, U_b = self.v_ext # external trap
         tau_a, tau_b = taus
         tau_p, tau_m = tau_a + tau_b, tau_a - tau_b
         alpha_a, alpha_b, alpha_p = self._get_alphas(ns)
@@ -138,6 +84,23 @@ class ASLDA(Functional, BCS):
         V_b = dalpha_m_dn_b*tau_m*C1 + dalpha_p_dn_b*C2 + dC_dn_b + C0*dD_dn_b + U_b
         return (V_a, V_b)
 
+    def _get_modified_taus(self, taus, js):
+        """
+            return the modified taus with 
+            currents in it, not implement
+        """
+        return taus
+
+    def _unpack_densities(self, dens, N_twist=1):
+        """
+            unpack the densities into proper items
+        """
+        n_a, n_b, tau_a, tau_b, nu_real, nu_imag = (dens[0:6] /N_twist/ self.dV)
+        kappa_ = (nu_real+ 1j*nu_imag)
+        js = (dens[6:] /N_twist / self.dV).reshape((2, len(self.Nxyz)) + tuple(self.Nxyz))
+        tau_a, tau_b = self._get_modified_taus(taus=(tau_a, tau_b), js=js)
+        return ((n_a, n_b), (tau_a, tau_b), js, kappa_)
+
     def get_dens_integral(self, mus_eff, delta,
                                         ns=None, taus=None, kappa=None,
                                         k_c=None, N_twist=8, abs_tol=1e-6):
@@ -148,22 +111,15 @@ class ASLDA(Functional, BCS):
         """
         if k_c is None:
             k_c = np.sqrt(2*self.m*self.E_c)/self.hbar
+
         twistss = self._get_twistss(N_twist)
-        zero = np.zeros_like(sum(self.xyz))
-        Delta = np.diag((delta + zero).ravel()) 
-        mu_a, mu_b = mus_eff
-        V_a, V_b = self.get_modified_Vs(delta=delta, ns=ns, taus=taus, kappa=kappa)
-        mu_a, mu_b= zero + mu_a - V_a, zero + mu_b - V_b
-        mu_a, mu_b = np.diag(mu_a.ravel()), np.diag(mu_b.ravel())
+        vs = self.get_v_ext(delta=delta, ns=ns, taus=taus, kappa=kappa)
         dens = 0
+        args = dict(mus_eff=mus_eff,  delta=delta,ns=ns, taus=taus, kappa=kappa)
         for twists in twistss:
             def f(k=0):
                 k_p = self.hbar**2/2/self.m*k**2
-                K_a, K_b = self.get_modified_Ks(ns=ns, k_p=k_p, twists=twists)
-                K_a, K_b = K_a + k_p, K_b + k_p
-                H = np.block([[K_a - mu_a, Delta],
-                    [Delta.conj(), -(K_b - mu_b)]])
-                assert np.allclose(H.real, H.conj().T.real)
+                H = self.get_H(vs=vs, k_p=k_p, twists=twists, **args)
                 den = self._get_densities_H(H, twists=twists)
                 return den
             dens = dens + mquad(f, -k_c, k_c, abs_tol=abs_tol)/2/k_c
@@ -174,14 +130,13 @@ class ASLDA(Functional, BCS):
                                     ns=None, taus=None, kappa=None,
                                     N_twist=8, abs_tol=1e-12):
         """
-            average over multiple twists
+            average with twisting
         """
         twistss = self._get_twistss(N_twist)
         dens = 0
+        args = dict(mus_eff=mus_eff, delta=delta,ns=ns, taus=taus, kappa=kappa)
         for twists in twistss:
-            H = self._get_H(
-                mus_eff=mus_eff, delta=delta, ns=ns,
-                taus=taus, kappa=kappa, twists=twists)
+            H = self.get_H(twists=twists, **args)
             den = self._get_densities_H(H, twists=twists)
             dens = dens + den
         return self._unpack_densities(dens, N_twist=N_twist)

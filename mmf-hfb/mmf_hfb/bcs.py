@@ -78,7 +78,7 @@ class BCS(object):
                 *(np.arange(0, N_twist) * 2 * np.pi / N_twist,) * self.dim)
         return list(twistss)
 
-    def _get_K(self, twists=0):
+    def _get_K(self, twists=0, **kw):
         """Return the kinetic energy matrix."""
         ks_bloch = np.divide(twists, self.Lxyz)
         ks = [_k + _kb for _k, _kb in zip(self.kxyz, ks_bloch)]
@@ -101,8 +101,8 @@ class BCS(object):
                        self.fft(K))).reshape(mat_shape)
         return K
 
-    def get_Ks(self, twists, **kw):
-        K = self._get_K(twists)
+    def get_Ks(self, twists, **args):
+        K = self._get_K(twists, **args)
         return (K, K)
 
     def fft(self, y, axes=None):
@@ -129,7 +129,7 @@ class BCS(object):
             f = (1 - np.sign(E))/2
         return f
 
-    def get_H(self, mus_eff, delta, twists=0, **kw):
+    def get_H(self, mus_eff, delta, twists=0,  vs=None, **kw):
         """Return the single-particle Hamiltonian with pairing.
 
         Arguments
@@ -145,7 +145,10 @@ class BCS(object):
         zero = np.zeros_like(sum(self.xyz))
         Delta = np.diag((delta + zero).ravel())
         K_a, K_b = self.get_Ks(twists=twists, **kw)
-        v_a, v_b = self.get_v_ext(**kw)
+        if vs is None:
+            v_a, v_b = self.get_v_ext(**kw)
+        else:
+            v_a, v_b = vs
         mu_a, mu_b = mus_eff
         mu_a += zero
         mu_b += zero
