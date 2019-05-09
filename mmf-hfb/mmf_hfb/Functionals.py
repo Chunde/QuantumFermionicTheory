@@ -121,7 +121,7 @@ class Functional(FuncionalBase):
         #dD_p = 1.284*p + 0.62345*p_m - 0.7127*p**2*p_m - 0.51741*p**3*p_m + 0.9987*p**4*p_m + 0.26962*p**5*p_m - 0.42823*p**6*p_m + 0.20411*p*p_p - 0.62345*p_p + 0.7127*p**2*p_p - 0.51741*p**3*p_p - 0.9987*p**4*p_p + 0.26962*p**5*p_p + 0.42823*p**6*p_p + 0.20411*p*p_m
         #dD_p = 1.284*p + (0.62345 + 0.20411*p - 0.7127*p**2 - 0.51741*p**3 + 0.9987*p**4 + 0.26962*p**5 - 0.42823*p**6)*p_m + (0.20411*p - 0.62345 + 0.7127*p**2 - 0.51741*p**3 - 0.9987*p**4 + 0.26962*p**5 + 0.42823*p**6)*p_p
         #dD_p = 1.284*p - 0.62345 * pm + 0.20411*p * pp + 0.7127*p**2 * pm - 0.51741*p**3 * pp - 0.9987*p**4 * pm + 0.26962*p**5 * pp + 0.42823*p**6 * pm
-        dD_p = 1.284*p  +(- 0.62345 + 0.7127*p2- 0.9987*p4 + 0.42823*p6) * pm + (0.20411*p  - 0.51741*p3  + 0.26962*p5)*pp 
+        dD_p = 1.284*p  +(- 0.62345 + 0.7127*p2- 0.9987*p4 + 0.42823*p6) * pm + (0.20411*p - 0.51741*p3 + 0.26962*p5)*pp 
         return dD_p
 
     def _dD_dn(self, ns):
@@ -152,8 +152,8 @@ class Functional(FuncionalBase):
         n = sum(ns)
         p = self._get_p(ns)
         dp_n_a, dp_n_b = self._dp_dn(ns)
-        dC_dn_a = self._alpha_p(p) * n **(-2/3)/3 + n**(1/3)*self._dalpha_p_dp(p) * dp_n_a
-        dC_dn_b = self._alpha_p(p) * n **(-2/3)/3 + n**(1/3)*self._dalpha_p_dp(p) * dp_n_b
+        dC_dn_a = self._alpha_p(p)*n**(-2/3)/3 + n**(1/3)*self._dalpha_p_dp(p)*dp_n_a
+        dC_dn_b = self._alpha_p(p)*n**(-2/3)/3 + n**(1/3)*self._dalpha_p_dp(p)*dp_n_b
         gamma = self.gamma  # do not forget the gamma in the denominator
         return (dC_dn_a/gamma, dC_dn_b/gamma)
 
@@ -167,11 +167,10 @@ class Functional(FuncionalBase):
     def _get_Lambda(self, k0, k_c, dim=1):
         """return the renormalization condition parameter Lambda"""
         if dim ==3:
-            Lambda = self.m/self.hbar**2/2/np.pi**2 *(1.0 - k0/k_c/2*np.log((k_c+k0)/(k_c-k0)))
+            Lambda = self.m/self.hbar**2/2/np.pi**2*(1.0 - k0/k_c/2*np.log((k_c+k0)/(k_c-k0)))
         elif dim == 2:
-            Lambda = self.m /self.hbar**2/4/np.pi *np.log((k_c/k0)**2 - 1)
+            Lambda = self.m /self.hbar**2/4/np.pi*np.log((k_c/k0)**2 - 1)
         elif dim == 1:
-            Lambda = self.m/self.hbar**2/2/np.pi * np.log((k_c-k0)/(k_c+k0))/k0
+            Lambda = self.m/self.hbar**2/2/np.pi*np.log((k_c-k0)/(k_c+k0))/k0
         return Lambda
-
 
