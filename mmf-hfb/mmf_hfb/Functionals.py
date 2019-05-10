@@ -1,5 +1,10 @@
 import numpy as np
+from enum import Enum
 
+class FunctionalType(Enum):
+    BDG = 1
+    SLDA = 2
+    ASLDA = 3
 
 class FuncionalBase(object):
     m = 1
@@ -99,14 +104,14 @@ class Functional(FuncionalBase):
         "[Numerical Test Status:Pass]"
         N1 = (6*np.pi**2*(sum(ns)))**(5.0/3)/20/np.pi**2
         p = self._get_p(ns)
-        N2 = self._Dp(p)
-        return N1*N2
+        N2 = self._Beta(p)
+        return N1*N2 * 2**(-2.0/3)
 
-    def _Dp(self, p):
+    def _Beta(self, p):
         "[Numerical Test Status:Pass]"
-        return self._G(p) - self._alpha(p)*((1+p)/2.0)**(5.0/3) - self._alpha(-p)*((1-p)/2.0)**(5/3)
+        return self._G(p) - self._alpha(p)*((1+p)/2.0)**(5.0/3) - self._alpha(-p)*((1-p)/2.0)**(5.0/3)
 
-    def _dD_dp(self, p):
+    def _dBeta_dp(self, p):
         """return the derivative 'dD(p)/dp' """
         "[Numerical Test Status:Pass]"
         p_p, p_m = (1+p)**(2.0/3), (1-p)**(2.0/3)
@@ -121,8 +126,7 @@ class Functional(FuncionalBase):
         #dD_p = 1.284*p + 0.62345*p_m - 0.7127*p**2*p_m - 0.51741*p**3*p_m + 0.9987*p**4*p_m + 0.26962*p**5*p_m - 0.42823*p**6*p_m + 0.20411*p*p_p - 0.62345*p_p + 0.7127*p**2*p_p - 0.51741*p**3*p_p - 0.9987*p**4*p_p + 0.26962*p**5*p_p + 0.42823*p**6*p_p + 0.20411*p*p_m
         #dD_p = 1.284*p + (0.62345 + 0.20411*p - 0.7127*p**2 - 0.51741*p**3 + 0.9987*p**4 + 0.26962*p**5 - 0.42823*p**6)*p_m + (0.20411*p - 0.62345 + 0.7127*p**2 - 0.51741*p**3 - 0.9987*p**4 + 0.26962*p**5 + 0.42823*p**6)*p_p
         #dD_p = 1.284*p - 0.62345 * pm + 0.20411*p * pp + 0.7127*p**2 * pm - 0.51741*p**3 * pp - 0.9987*p**4 * pm + 0.26962*p**5 * pp + 0.42823*p**6 * pm
-        dD_p = 1.284*p  +(- 0.62345 + 0.7127*p2- 0.9987*p4 + 0.42823*p6) * pm + (0.20411*p - 0.51741*p3 + 0.26962*p5)*pp 
-        return dD_p
+        return 1.284*p  +(-0.62345 + 0.7127*p2 - 0.9987*p4 + 0.42823*p6)*pm + (0.20411*p - 0.51741*p3 + 0.26962*p5)*pp 
 
     def _dD_dn(self, ns):
         """Return the derivative `dD(n_a,n_b)/d n_a and d n_b` """
@@ -138,13 +142,13 @@ class Functional(FuncionalBase):
 
         p = self._get_p(ns)
         dp_n_a, dp_n_b = self._dp_dn(ns)
-        dD_p = self._dD_dp(p=p)
+        dBeta_p = self._dBeta_dp(p=p)
         N0 = (6*np.pi**2)**(5.0/3)/20/np.pi**2
         N1 = self._D(ns)/0.6/ n
-        N2 = N0*n**(5/3)*dD_p
-        dD_n_a = N1 + N2*dp_n_a
-        dD_n_b = N1 + N2*dp_n_b
-        return (dD_n_a, dD_n_b)
+        N2 = N0*n**(5/3)*dBeta_p
+        dD_n_a = N1 + N2*dp_n_a*2**(-2.0/3)
+        dD_n_b = N1 + N2*dp_n_b*2**(-2.0/3)
+        return (dD_n_a, dD_n_b) 
 
     def _dC_dn(self, ns):
         """return dC / dn"""

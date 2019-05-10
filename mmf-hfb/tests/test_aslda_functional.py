@@ -21,10 +21,10 @@ def test_derivative():
 
         assert np.allclose(dalpha_p, dalpha_p_, atol=0.0005)
 
-        # test _get_dD_dp
-        dD_p =   (a._Dp(p + dx) - a._Dp(p-dx))/2/dx
-        dD_p_ = a._dD_dp(p=p)
-        assert np.allclose(dD_p, dD_p_, atol=0.0005)
+        # test _Beta
+        dBeta_p =   (a._Beta(p + dx) - a._Beta(p-dx))/2/dx
+        dBeta_p_ = a._dBeta_dp(p=p)
+        assert np.allclose(dBeta_p, dBeta_p_, atol=0.0005)
 
         # test get_dD_dn
         dD_n_a = (a._D((na + dx,nb))-a._D((na-dx,nb)))/2/dx
