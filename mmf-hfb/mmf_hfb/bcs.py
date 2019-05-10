@@ -78,6 +78,34 @@ class BCS(object):
                 *(np.arange(0, N_twist) * 2 * np.pi / N_twist,) * self.dim)
         return list(twistss)
 
+    def _unpack_densities(self, dens, N_twist=1, struct=False):
+        """
+            unpack the densities into proper items
+        ---------
+        struct: bool
+            if True, return a struct-like package
+            if False, return  bare arrays
+        N_twist: int
+            the number of actual twisings used to
+            average out the result
+        """
+        dens = dens/N_twist/self.dV
+        if struct:
+            n_a, n_b, tau_a, tau_b, nu_real, nu_imag = (dens[0:6])
+            j_a, j_b = (dens[6:] ).reshape((2, len(self.Nxyz)) + tuple(self.Nxyz))
+            Densities = namedtuple('Densities',
+                                ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu', 'j_a', 'j_b'])
+            return Densities(n_a=n_a, n_b=n_b,
+                            tau_a=tau_a, tau_b=tau_b,
+                            nu=nu_real + 1j * nu_imag,
+                            j_a=j_a, j_b=j_b)
+
+        n_a, n_b, tau_a, tau_b, nu_real, nu_imag = (dens[0:6])
+        kappa_ = (nu_real+ 1j*nu_imag)
+        js = (dens[6:]).reshape((2, len(self.Nxyz)) + tuple(self.Nxyz))
+        tau_a, tau_b = self._get_modified_taus(taus=(tau_a, tau_b), js=js)
+        return ((n_a, n_b), (tau_a, tau_b), js, kappa_)
+
     def _get_K(self, twists=0, **kw):
         """Return the kinetic energy matrix."""
         ks_bloch = np.divide(twists, self.Lxyz)
@@ -129,7 +157,7 @@ class BCS(object):
             f = (1 - np.sign(E))/2
         return f
 
-    def get_H(self, mus_eff, delta, twists=0,  vs=None, **kw):
+    def get_H(self, mus_eff, delta, twists=0, vs=None, **kw):
         """Return the single-particle Hamiltonian with pairing.
 
         Arguments
@@ -262,45 +290,48 @@ class BCS(object):
             j_a = j_a + j_a_
             j_b = j_b + j_b_
         return (j_a / N_twist / np.prod(self.dxyz), j_b / N_twist / np.prod(self.dxyz))
+    
+    def _Del(self, aplha, twists=0):
+        """
+        Apply the Del, or nabla operation on a fucntion alpha
+        -------
+        Note:
+            Here we compute the first derivatives and pack them so that
+            the first component is the derivative in x, y, z, etc.
+        """
+        ks_bloch = np.divide(twists, self.Lxyz)
+        ks = [_k + _kb for _k, _kb in zip(self.kxyz, ks_bloch)]
+        axes = range(1, self.dim + 1)
+        aplha_t = self.fft(aplha, axes=axes)
+        d_aplha = np.array([self.ifft(1j*_k[None, ..., None]*aplha_t, axes=axes) for _k in ks])
+        return d_aplha  # a vector
 
     def _get_densities_H(self, H, twists):
         """return densities for a given H"""
         d, UV = np.linalg.eigh(H)
-
         U_V_shape = (2,) + tuple(self.Nxyz) + UV.shape[1:]
         U, V = U_V = UV.reshape(U_V_shape)  # U = us.T, V=vs.T
-
-        # Compute derivatives for currents etc.
-        ks_bloch = np.divide(twists, self.Lxyz)
-        ks = [_k + _kb for _k, _kb in zip(self.kxyz, ks_bloch)]
-
-        axes = range(1, self.dim + 1)
-        U_V_t = self.fft(U_V, axes=axes)
-
-        # Here we compute the derivatives and pack them so that
-        # the first component is the derivative in x, y, z, etc.
-        dU_Vs = np.array([self.ifft(1j * _k[None, ..., None] * U_V_t, axes=axes) for _k in ks])
+        dU_Vs = self._Del(U_V, twists=twists)
         dUs, dVs = dU_Vs[:, 0, ...], dU_Vs[:, 1, ...]
         f_p = self.f(d)
         f_m = self.f(-d)
-        n_a = np.dot(U * U.conj(), f_p).real
-        n_b = np.dot(V * V.conj(), f_m).real
-        nu = np.dot(U * V.conj(), f_p - f_m) / 2
-        tau_a = np.dot(sum(dU.conj() * dU for dU in dUs), f_p).real
-        tau_b = np.dot(sum(dV.conj() * dV for dV in dVs), f_m).real
-
-        j_a = [0.5 * np.dot((U.conj() * dU - U * dU.conj()), f_p).imag
+        n_a = np.dot(U*U.conj(), f_p).real
+        n_b = np.dot(V*V.conj(), f_m).real
+        nu = np.dot(U*V.conj(), f_p - f_m) / 2
+        tau_a = np.dot(sum(dU.conj()*dU for dU in dUs), f_p).real
+        tau_b = np.dot(sum(dV.conj()*dV for dV in dVs), f_m).real
+        j_a = [0.5*np.dot((U.conj()*dU - U*dU.conj()), f_p).imag
                for dU in dUs]
-        j_b = [0.5 * np.dot((V * dV.conj() - V.conj() * dV), f_m).imag
+        j_b = [0.5*np.dot((V*dV.conj() - V.conj()*dV), f_m).imag
                for dV in dVs]
         return np.array([n_a, n_b, tau_a, tau_b, nu.real, nu.imag, *j_a, *j_b])
 
-    def _get_densities(self, mus_eff, delta, twists):
+    def _get_densities(self, mus_eff, delta, twists, **args):
         """Return (R, Rm) with the specified twist."""
-        H = self.get_H(mus_eff=mus_eff, delta=delta, twists=twists)
+        H = self.get_H(mus_eff=mus_eff, delta=delta, twists=twists, **args)
         return self._get_densities_H(H, twists=twists)
 
-    def get_densities(self, mus_eff, delta, N_twist=1, abs_tol=1e-12):
+    def get_densities(self, mus_eff, delta, N_twist=1, abs_tol=1e-12, struct=True, **args):
         """Return the densities.
 
         Arguments
@@ -314,7 +345,7 @@ class BCS(object):
         # Here we use the notation Rp = R = f(M) and Rm = f(-M) = 1-R
         def get_dens(twists):
             """Return (R, Rm) with the specified twist."""
-            return self._get_densities(mus_eff=mus_eff, delta=delta, twists=twists)
+            return self._get_densities(mus_eff=mus_eff, delta=delta, twists=twists, **args)
 
         if np.isinf(N_twist):
             if self.dim == 1:
@@ -322,23 +353,23 @@ class BCS(object):
             else:
                 raise NotImplementedError("N_twist=inf only works for dim=1")
         else:
-            twistss = itertools.product(
-                *(np.arange(0, N_twist) * 2 * np.pi / N_twist,) * self.dim)
+            twistss = self._get_twistss(N_twist=N_twist)
+            N_=0
             dens = 0
-            N_ = 0
             for twists in twistss:
                 dens += get_dens(twists=twists)
-                N_ += 1
-            dens /= N_
-
-        # Factor of dV here to convert to physical densities.
-        dV = np.prod(self.dxyz)
-
-        n_a, n_b, tau_a, tau_b, nu_real, nu_imag = (dens[0:6] / dV)
-        j_a, j_b = (dens[6:] / dV).reshape((2, len(self.Nxyz)) + tuple(self.Nxyz))
-        Densities = namedtuple('Densities',
-                               ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu', 'j_a', 'j_b'])
-        return Densities(n_a=n_a, n_b=n_b,
-                         tau_a=tau_a, tau_b=tau_b,
-                         nu=nu_real + 1j * nu_imag,
-                         j_a=j_a, j_b=j_b)
+                N_=N_+1
+            dens = dens/N_
+        return self._unpack_densities(dens, struct=struct)
+       
+    def get_ns_e_p(self, mus_eff, delta, **args):
+        """
+            compute then energy density
+            Note:
+                the return value also include the pressure and densities
+        """
+        ns, taus, _, kappa = self.get_densities(mus_eff=mus_eff, delta=delta, struct=False, **args)
+        g_eff = -delta/kappa
+        energy_density = (taus[0] + taus[1])*self.hbar**2/2/self.m - g_eff * kappa.T.conj()*kappa
+        pressure = ns[0] * mus_eff[0] + ns[1]*mus_eff[1] - energy_density
+        return (ns, energy_density, pressure)
