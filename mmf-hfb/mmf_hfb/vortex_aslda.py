@@ -2,7 +2,7 @@
 This module provides a ASLDA method for solving the polarized
 two-species Fermi gas with short-range interaction.
 """
-from mmf_hfb.Functionals import Functional, FunctionalType
+from mmf_hfb.Functionals import FuncionalBase as Functional, FunctionalType
 from mmfutils.math.integrate import mquad
 from mmf_hfb.bcs import BCS
 import numpy as np
@@ -13,11 +13,24 @@ class ASLDA(Functional, BCS):
     def __init__(self, Nxyz, Lxyz, dx=None, T=0, E_c=100):
         BCS.__init__(self, Nxyz=Nxyz, Lxyz=Lxyz, dx=dx, T=T, E_c=E_c)
         Functional.__init__(self)
-        Functional.hbar, Functional.m = BCS.hbar, BCS.m
         self.E_c = E_c
-        # Second order derivative operator without twisting
         self._D2 = BCS._get_K(self)
-  
+    
+    @property
+    def dim(self):
+        """Need to override this property in BCS"""
+        return len(self.Nxyz)
+
+    def _get_Lambda(self, k0, k_c, dim=1):
+        """return the renormalization condition parameter Lambda"""
+        if dim ==3:
+            Lambda = self.m/self.hbar**2/2/np.pi**2*(1.0 - k0/k_c/2*np.log((k_c+k0)/(k_c-k0)))
+        elif dim == 2:
+            Lambda = self.m /self.hbar**2/4/np.pi*np.log((k_c/k0)**2 - 1)
+        elif dim == 1:
+            Lambda = self.m/self.hbar**2/2/np.pi*np.log((k_c-k0)/(k_c+k0))/k0
+        return Lambda
+
     def _g_eff(self, mus_eff, ns, Vs, alpha_p, **args):
         """
             get the effective g
@@ -78,11 +91,11 @@ class ASLDA(Functional, BCS):
         dalpha_m_dn_a, dalpha_m_dn_b = dalpha_m*dp_n_a, dalpha_m*dp_n_b
         dC_dn_a, dC_dn_b = self._dC_dn(ns)
         dD_dn_a, dD_dn_b = self._dD_dn(ns=ns)
-        C0 = self.hbar**2 /self.m
-        C1 = C0/2
-        C2 = tau_p*C1 - np.conj(delta).T*kappa/alpha_p
-        V_a = dalpha_m_dn_a*tau_m*C1 + dalpha_p_dn_a*C2 + dC_dn_a + C0*dD_dn_a + U_a
-        V_b = dalpha_m_dn_b*tau_m*C1 + dalpha_p_dn_b*C2 + dC_dn_b + C0*dD_dn_b + U_b
+        C0_ = self.hbar**2/self.m
+        C1_ = C0_/2
+        C2_ = tau_p*C1_ - np.conj(delta).T*kappa/alpha_p
+        V_a = dalpha_m_dn_a*tau_m*C1_ + dalpha_p_dn_a*C2_ + dC_dn_a + C0_*dD_dn_a + U_a
+        V_b = dalpha_m_dn_b*tau_m*C1_ + dalpha_p_dn_b*C2_ + dC_dn_b + C0_*dD_dn_b + U_b
         return (V_a, V_b)
 
     def _get_modified_taus(self, taus, js):
@@ -117,34 +130,33 @@ class ASLDA(Functional, BCS):
 
         return self._unpack_densities(dens, N_twist=N_twist, struct=False)
 
-    #def get_ns_e_p(self, mus_eff, delta, type=FunctionalType.BDG,
-    #        ns=None, taus=None, kappa=None, N_twist=32, **args):
-    #    """
-    #        compute then energy density for ASLDA, equation(78) in page 39
-    #        Note:
-    #            the return value also include the pressure and densities
-    #    """
-    #    args = dict(args, ns=ns, taus=taus, kappa=kappa, N_twist=N_twist)
-    #    Vs = self.get_v_ext(delta=delta, ns=ns, taus=taus, kappa=kappa)
-    #    ns, taus, js, kappa = self.get_densities(mus_eff=mus_eff, delta=delta, struct=False, **args)
-    #    alpha_a, alpha_b, alpha_p = self._get_alphas(ns)
-    #    g_eff = self._g_eff(ns=ns, Vs=Vs, mus_eff=mus_eff, alpha_p=alpha_p)
+    def get_ns_e_p(self, mus_eff, delta,
+            ns=None, taus=None, kappa=None, N_twist=32, **args):
+        """
+            compute then energy density for ASLDA, equation(78) in page 39
+            Note:
+                the return value also include the pressure and densities
+        """
+        args = dict(args, ns=ns, taus=taus, kappa=kappa, N_twist=N_twist)
+        Vs = self.get_v_ext(**args)
+        ns, taus, js, kappa = self.get_densities(mus_eff=mus_eff, delta=delta, struct=False, **args)
+        alpha_a, alpha_b, alpha_p = self._get_alphas(ns)
+        g_eff = self._g_eff(ns=ns, Vs=Vs, mus_eff=mus_eff, alpha_p=alpha_p)
+        g_eff_ = -delta/kappa
+        if self.FunctionalType == FunctionalType.BDG:
+            assert np.allclose(alpha_a, alpha_b)
+            energy_density = (taus[0] + taus[1])*self.hbar**2/2/self.m
+        elif self.FunctionalType == FunctionalType.SLDA:
+            assert np.allclose(alpha_a, alpha_b)
+            energy_density = alpha_a*(taus[0] + taus[1])/2.0  + self._Beta(ns)*(3*np.pi**2.0)**(2.0/3)*(ns[0] + ns[1])**(5.0/3)*3.0/10
+            energy_density = energy_density *self.hbar**2/self.m
+        elif self.FunctionalType == FunctionalType.ASLDA:
+            D = self._D(ns)
+            energy_density = (alpha_a*taus[0]/2.0 + alpha_b*taus[1]/2.0 + D)*self.hbar**2/self.m
+        else:
+            raise ValueError('Unsupported functional type')
 
-    #    if type == FunctionalType.BDG:
-    #        assert np.allclose(alpha_a, alpha_b)
-    #        energy_density = (taus[0] + taus[1])*self.hbar**2/2/self.m
-    #    elif type == FunctionalType.SLDA:
-    #        assert alpha_a == alpha_b
-    #        energy_density = alpha_a*(taus[0] + taus[1])/2.0  + self._Beta(ns)*(3*np.pi**2.0)**(2.0/3)*(ns[0] + ns[1])**(5.0/3)*3.0/10
-    #        energy_density = energy_density *self.hbar**2/self.m
-    #    elif type == FunctionalType.ASLDA:
-
-    #        D = self._D(ns)
-    #        energy_density = (alpha_a*taus[0]/2.0 + alpha_b*taus[1]/2.0 + D)*self.hbar**2/self.m
-    #    else:
-    #        raise ValueError('Unsupported functional type')
-
-    #    energy_density = energy_density + + g_eff * kappa.T.conj()*kappa
-    #    pressure = ns[0] * mus_eff[0] + ns[1]*mus_eff[1] - energy_density
-    #    return (ns, energy_density, pressure)
+        energy_density = energy_density + g_eff * kappa.T.conj()*kappa
+        pressure = ns[0] * mus_eff[0] + ns[1]*mus_eff[1] - energy_density
+        return (ns, energy_density, pressure)
     

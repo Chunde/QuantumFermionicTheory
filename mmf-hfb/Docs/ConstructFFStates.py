@@ -59,7 +59,7 @@ n_a, n_b, e, p, mus_eff = ff.get_ns_p_e_mus_1d(mu=mu, dmu=dmu, dq=dq, update_g=T
 # or compute effective mus first
 mu_eff, dmu_eff = ff._get_effective_mus(mu=mu, dmu=dmu, dq=dq, update_g=False)
 n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff,  dq=dq)
-j_a, j_b, j_p, j_m = ff.get_current(mu=mu_eff, dmu=dmu_eff, delta=delta, dq=dq)
+j_a, j_b, j_p, j_m = ff.get_current(mu=mu_eff, dmu=dmu_eff, delta=0, dq=dq)
 print(f"n_a={n_a.n}, n_b={n_b.n}, j_a={j_a.n}, j_b={j_b.n}, j_p={j_p.n}, j_m={j_m.n}")
 # re-compute the effective mus as for normal state, delta=dq=0
 mu_eff, dmu_eff = ff._get_effective_mus(mu=mu, dmu=dmu, delta=0, mus_eff=(mu_eff, dmu_eff), update_g=False)
@@ -80,11 +80,12 @@ def filter(mu, dmu, delta, g, dim):
     #return False
     #if g !=-2.6:
     #    return True
-    if delta != 2.5:
+    if delta != 2.4:
         return True
-    if dmu != 3.11:
+    if dmu != 2.45:
         return True
     return False
+currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","mmf_hfb","data")
 
 
 import os
@@ -93,8 +94,7 @@ from os.path import join
 import json
 import glob
 from json import dumps
-currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-pattern = join(currentdir,"..","mmf_hfb","data","FFState_[()d_0-9]*.json")
+pattern = join(currentdir,"FFState_[()d_0-9]*.json")
 files = glob.glob(pattern)
 plt.figure(figsize=(20,20))
 style =['o','+','+']
@@ -160,8 +160,7 @@ import warnings
 warnings.filterwarnings("ignore")
 from json import dumps
 def PlotCurrentPressure(alignLowerBranches=True, alignUpperBranches=True, showLegend=False):
-    currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-    pattern = join(currentdir,"..","mmf_hfb","data","FFState_J_P[()d_0-9]*")
+    pattern = join(currentdir, "FFState_J_P[()d_0-9]*")
     files=glob.glob(pattern)
     plt.figure(figsize=(20,20))
     gs = set()
@@ -172,6 +171,7 @@ def PlotCurrentPressure(alignLowerBranches=True, alignUpperBranches=True, showLe
                 dim, mu, dmu, delta, g=ret['dim'], ret['mu'], ret['dmu'], ret['delta'],ret['g']
                 if filter(mu=mu, dmu=dmu, delta=delta, g=g, dim=dim):
                     continue                
+                print(f"g={g}")
                 k_c = None
                 if 'k_c' in ret:
                     k_c = ret['k_c']
@@ -185,6 +185,8 @@ def PlotCurrentPressure(alignLowerBranches=True, alignUpperBranches=True, showLe
                 mu_eff, dmu_eff = ff._get_effective_mus(mu=mu, dmu=dmu, delta=0, mus_eff=(mu_eff, dmu_eff), update_g=False)
                 p0 = ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=0).n
                 data1, data2 = ret['data']
+                del data2[-1]
+
                 dqs1, dqs2, ds1, ds2, j1, j2, ja1, ja2, jb1, jb2, P1, P2 = [],[],[],[],[],[],[],[],[],[],[],[]
                 for data in data1:
                     d, q, p, j, j_a, j_b = data['d'],data['q'],data['p'],data['j'],data['ja'],data['jb']
@@ -219,7 +221,7 @@ def PlotCurrentPressure(alignLowerBranches=True, alignUpperBranches=True, showLe
                     plt.plot(ds1, P1_, label=f"$\Delta=${delta},$\mu=${mu},$d\mu=${dmu},State:{state}")
                     plt.axvline(ds1[index1])
                     print(f"Normal Pressure={p0}，FFState Pressue={value}")
-
+                    print(data1[index1])
                 plt.subplot(324)
                 if len(P2) > 0:
                     if alignUpperBranches:
@@ -242,8 +244,9 @@ def PlotCurrentPressure(alignLowerBranches=True, alignUpperBranches=True, showLe
                 #plt.plot(ds2, j2, label=f"$j_p, \Delta=${delta},$\mu=${mu},$d\mu=${dmu}")
                 plt.plot(ds2, ja2, "+",label=f"j_a")
                 plt.plot(ds2, jb2, "+",label=f"j_b")
-                plt.axvline(ds2[index2])
-                plt.axhline(0)
+                if len(ds2) > 0:
+                    plt.axvline(ds2[index2])
+                    plt.axhline(0)
                 #break
         
     for i in range(1,7):
@@ -265,6 +268,24 @@ def PlotCurrentPressure(alignLowerBranches=True, alignUpperBranches=True, showLe
 
 PlotCurrentPressure(alignLowerBranches=True, alignUpperBranches=True, showLegend=True)
 
+mu=10
+dmu=0
+delta=2
+g= None#-0.3526852951505492
+k_c=50
+dq = 0.04810320463378813
+ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=3, g=g, k_c=k_c, fix_g=True)
+print(f"g={ff._g}")
+mu_eff, dmu_eff = mu, dmu
+n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=delta)
+print(f"n_a={n_a.n}, n_b={n_b.n}, P={(n_a - n_b).n/(n_a + n_b).n}")
+ds = np.linspace(0.001,2, 40)
+ps = [ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=d, dq=dq).n for d in ds]
+delta_max = ff.solve(mu=mu, dmu=dmu, dq=dq)
+print(f"Delta={delta_max}")
+plt.plot(ds,ps)
+plt.axvline(delta_max)
+
 # ## Check range of $\Delta$
 # ### 1D Case
 
@@ -282,16 +303,15 @@ plt.axhline(0)
 
 g = -10 #-3.077012439639267
 g = None
-delta = 2.5
+delta = 2.4
 dim = 3
 mu = 10
-dmu = 3.15
+dmu = 2.41
 k_c = 50
 ff = FFStateFinder(delta=delta, dim=dim, mu=mu, dmu=dmu, g=g, k_c=k_c)
-print(ff.ff._g)
-dqs = np.linspace(0,2, 20)
-plt.figure(figsize(16,8))
-gs = [ff._gc(mu=mu, dmu=dmu, delta=2.5, dq=dq) for dq in dqs]
+dqs = np.linspace(0,1.5, 20)
+plt.figure(figsize(8,4))
+gs = [ff._gc(mu=mu, dmu=dmu, delta=2.6, dq=dq) for dq in dqs]
 plt.plot(dqs, gs, label=f'd={d}')
 plt.axhline(0)
 plt.legend()
