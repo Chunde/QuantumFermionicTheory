@@ -120,6 +120,7 @@ class ASLDA(Functional, BCS):
         args = dict(mus_eff=mus_eff, delta=delta, ns=ns, taus=taus, kappa=kappa)
         vs = self.get_v_ext(**args)
         dens = 0
+        N_=0
         for twists in twistss:
             def f(k=0):
                 k_p = self.hbar**2/2/self.m*k**2
@@ -127,8 +128,10 @@ class ASLDA(Functional, BCS):
                 den = self._get_densities_H(H, twists=twists)
                 return den
             dens = dens + mquad(f, -k_c, k_c, abs_tol=abs_tol)/2/k_c
+            N_=N_ + 1
+        dens = dens/N_
 
-        return self._unpack_densities(dens, N_twist=N_twist, struct=False)
+        return self._unpack_densities(dens, struct=False)
 
     def get_ns_e_p(self, mus_eff, delta,
             ns=None, taus=None, kappa=None, N_twist=32, **args):

@@ -21,7 +21,6 @@ from mmf_hfb.FuldeFerrelState import FFState
 from mmf_hfb.FFStateFinder import FFStateFinder
 from scipy.optimize import brentq
 from mmfutils.plot import imcontourf
-clear_output()
 
 mu=10
 dmu=0
@@ -33,14 +32,27 @@ ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=3, g=g, k_c=k_c, fix_g=True)
 mu_eff, dmu_eff = mu, dmu
 n_a, n_b = ff.get_densities(mu=mu, dmu=dmu, delta=delta)
 print(f"n_a={n_a.n}, n_b={n_b.n}, P={(n_a - n_b).n/(n_a + n_b).n}")
-ds = np.linspace(0.001,3,30)
-dmus = np.linspace(0, delta, 5)
+ds = np.linspace(0.001,6,30)
+dmus = [0, 1]#np.linspace(0, 2.5, 2)
 for dmu in dmus:
-    ps = [ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu, dmu_eff=dmu, delta=d, dq=dq).n for d in ds]
+    ps0 = [ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu, dmu_eff=dmu, delta=d, dq=dq, use_kappa=False).n for d in ds]
+    #ps1 = [ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu, dmu_eff=dmu, delta=d, dq=dq, use_kappa=True).n for d in ds]
+
     delta_max = ff.solve(mu=mu, dmu=dmu, dq=dq)
-    print(f"g={ff._g},Delta={delta_max}")
-    plt.plot(ds,ps, label=f"$d\mu=${dmu}")
+    print(f"dmu={dmu},g={ff._g},Delta={delta_max}")
+    plt.plot(ds,ps0, label=f"$d\mu=${dmu}")
+    #plt.plot(ds,ps1, label=f"$d\mu=${dmu}")
     #plt.axvline(delta_max)
+clear_output()
+plt.legend()
+plt.axvline(delta)
+
+plt.figure(figsize(8,4))
+def g(d):
+    return ff.get_g(mu=mu, dmu=dmu, delta=d, dq=dq) - ff._g
+gs = [g(d) for d in ds]
+plt.plot(ds, gs, label=f"d$\mu$={dmu}")
+plt.axhline(0)
 plt.legend()
 
 

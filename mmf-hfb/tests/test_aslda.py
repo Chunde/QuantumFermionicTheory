@@ -51,8 +51,7 @@ def test_aslda_homogenous():
     assert np.allclose(ret.nu.n, kappa, rtol=1e-12)
 
     print("Test 1d lattice plus 1d integral over y with homogeneous system")
-    ns, taus, js, kappa = b.get_dens_integral(
-        mus_eff=(mu_eff, mu_eff), delta=delta, N_twist=N_twist)
+    ns, taus, js, kappa = b.get_dens_integral(mus_eff=(mu_eff, mu_eff), delta=delta, N_twist=N_twist)
     na, nb = ns
     print((sum(n).n, na[0].real + nb[0].real), (delta, -v_0.n*kappa[0].real))
     assert np.allclose(n_, na.real + nb.real, rtol=0.001)
@@ -109,4 +108,3 @@ def test_aslda_thermodynamic(dx=1e-3):
 
 if __name__ == "__main__":
     test_aslda_homogenous()
-    test_bcs_thermodynamic()

@@ -254,7 +254,7 @@ class FFState(object):
         return energy_density
 
     def get_energy_density(self, mu=None, dmu=None, q=0, dq=0, delta=None,
-                           n_a=None, n_b=None, k_c=None):
+                           n_a=None, n_b=None, k_c=None, use_kappa=True):
         assert (mu is None) == (dmu is None)
         if mu is None:
             mu, dmu = self.mus
@@ -266,7 +266,12 @@ class FFState(object):
                 mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, k_c=k_c)
 
         args = dict(self._tf_args, mu_a=mu + dmu, mu_b=mu - dmu, delta=delta, q=q, dq=dq)
-        kappa = tf.integrate_q(tf.kappa_integrand, **args)
+        if use_kappa:
+            kappa = tf.integrate_q(tf.kappa_integrand, **args)
+        else:
+            tau_p = tf.integrate_q(tf.tau_p_integrand, **args)
+            nu = tf.integrate_q(tf.nu_integrand, **args)
+            kappa = tau_p/2 + self._g * abs(nu)**2
         if self.fix_g:
             g_c = self._g
         else:
@@ -277,7 +282,8 @@ class FFState(object):
     
     def get_pressure(
             self, mu=None, dmu=None, mu_eff=None,
-            dmu_eff=None, q=0, dq=0, delta=None):
+            dmu_eff=None, q=0, dq=0, delta=None,
+            use_kappa=True):
         """return the pressure"""
         assert (mu is None) == (dmu is None)
         assert (mu_eff is None) == (dmu_eff is None)
@@ -291,7 +297,7 @@ class FFState(object):
         n_a, n_b = self.get_densities(mu=mu_eff, dmu=dmu_eff, delta=delta, q=q, dq=dq)
         energy_density = self.get_energy_density(
             mu=mu_eff, dmu=dmu_eff, delta=delta, q=q, dq=dq,
-            n_a=n_a, n_b=n_b)
+            n_a=n_a, n_b=n_b, use_kappa=use_kappa)
         mu_a, mu_b = mu + dmu, mu - dmu
         pressure = mu_a * n_a + mu_b * n_b - energy_density
         return pressure
