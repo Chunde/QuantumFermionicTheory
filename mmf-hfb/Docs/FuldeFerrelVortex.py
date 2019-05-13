@@ -21,28 +21,6 @@ from mmf_hfb.FuldeFerrelState import FFState
 from scipy.optimize import brentq
 from mmfutils.plot import imcontourf
 
-mu_eff=10
-dmu_eff= 0.21
-delta=0.2
-g=-2.8
-q=1
-dq=0.02630155299196228
-dim = 1
-ff = FFState(mu=mu_eff, dmu=dmu_eff, delta=delta, dim=dim, fix_g=True, g=g, bStateSentinel=True)
-mu, dmu = ff._get_bare_mus(mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta, q=q, dq=dq)
-n_a, n_b, e, p, mus_eff = ff.get_ns_p_e_mus_1d(mu=mu, dmu=dmu, delta=delta,q=q, dq=dq, update_g=False)
-# or compute effective mus first
-mu_eff, dmu_eff = ff._get_effective_mus(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, update_g=False)
-n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff,  delta=delta,q=q, dq=dq)
-j_a, j_b, j_p, j_m = ff.get_current(mu=mu_eff, dmu=dmu_eff, delta=0, q=q, dq=dq)
-print(f"n_a={n_a.n}, n_b={n_b.n}, j_a={j_a.n}, j_b={j_b.n}, j_p={j_p.n}, j_m={j_m.n}")
-# re-compute the effective mus as for normal state, delta=dq=0
-mu_eff, dmu_eff = ff._get_effective_mus(mu=mu, dmu=dmu, delta=0, mus_eff=(mu_eff, dmu_eff), q=q, dq=dq, update_g=False)
-p0 = ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=0)
-print(f"FF State Pressure={p}, Normal State Pressue={p0}")
-if not np.allclose(n_a.n, n_b.n) and dq != 0 and p0 < p:
-    print("The ground state is a FF State")
-
 # # Conditions for vortex
 # * $\Delta$ should be continuous in a close loop, in rotation frame, the gap should satisfy:
 # $$
@@ -56,19 +34,19 @@ dmu_eff= 0.21
 dim = 1
 delta=0.2
 g=-2.8
-dq=0.02630155299196228
 ff = FFState(mu=mu_eff, dmu=dmu_eff, delta=delta, dim=dim, fix_g=True, g=g, bStateSentinel=False)
 print(ff._get_effective_mus(mu=mu, dmu=dmu, dq=dq, delta=delta, update_g=False))
 
-# +
-rs = np.linspace(5, 8.3, 40)
+ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=0, dq=1)
+
+# ## Densities
+
+rs = np.linspace(3, 8.3, 30)
 rs1 = np.linspace(8.5,15,30)
 rs = np.concatenate((rs,rs1))
 deltas = []
 nas, nbs = [], []
 ps = []
-jas, jbs = [], []
-
 for r in rs:
     q = 1/ r
     dq = 0.5/ r
@@ -78,22 +56,58 @@ for r in rs:
     nas.append(n_a.n)
     nbs.append(n_b.n)
     deltas.append(d)
-    print(r, d)
-# -
 
 plt.figure(figsize(16, 6))
-plt.subplot(121)
+plt.subplot(221)
+plt.title(f"$\Delta$ vs r")
+plt.ylabel(f"$\Delta$")
 plt.plot(rs, deltas)
-plt.subplot(122)
-plt.plot(rs, nas)
-plt.plot(rs, nbs)
+plt.subplot(222)
+plt.title(f"$n_a, n_b$ vs r")
+plt.ylabel(f"$n_a, n_b$")
+plt.plot(rs, nas, label=f"$n_a$")
+plt.plot(rs, nbs, label=f"$n_b$")
+plt.legend()
+plt.subplot(223)
+plt.title(f"$n_+$ vs r")
+plt.ylabel(f"$n_a+n_b$")
+plt.plot(rs, np.array(nas)+np.array(nbs))
+plt.subplot(224)
+plt.title(f"$n_-$ vs r")
+plt.ylabel(f"$n_a-n_b$")
+plt.plot(rs, np.array(nas)-np.array(nbs))
 
-ps = [ff.get_pressure(mu_eff=mu_eff, dmu_eff=dmu_eff, delta=d, dq=dq, use_kappa=False) for d in deltas]
-ps0 = [ff.get_pressure(mu_eff=mu_eff, dmu_eff=dmu_eff, delta=0, dq=0, use_kappa=False) for d in deltas]
-clear_output()
+# ## Pressure
 
-plt.plot(rs,ps)
-plt.plot(rs,ps0, '--')
+import warnings
+warnings.filterwarnings("ignore")
+ps = [ff.get_pressure(mu_eff=mu_eff, dmu_eff=dmu_eff, delta=d, dq=0.5/r, use_kappa=False) for r, d in zip(rs,deltas)]
+ps0 = [ff.get_pressure(mu_eff=mu_eff, dmu_eff=dmu_eff, delta=0, dq=0, use_kappa=False) for r, d in zip(rs,deltas)]
+
+plt.plot(rs,ps, label="FF/Superfluid State Pressure")
+plt.plot(rs,ps0, '--', label="Normal State Pressure")
+plt.ylabel(f"Pressure")
+plt.xlabel(f"r")
+plt.legend()
+
+# ## Currents
+
+js = [ff.get_current(mu=mu_eff, dmu=dmu_eff, delta=d, q=1/r, dq=0.5/r) for r, d in zip(rs,deltas)]
+
+jas, jbs=[], []
+jps, jms=[], []
+for j in js:
+    jas.append(j[0].n)
+    jbs.append(j[1].n)
+    jps.append(j[2].n)
+    jms.append(j[3].n)
+plt.plot(rs, jas, label=f"$j_a$")
+plt.plot(rs, jbs, label=f"$j_b$")
+#plt.plot(rs, jps, label=f"$j_p$")
+#plt.plot(rs, jms, label=f"$j_m$")
+plt.legend()
+
+# ## Play with solve routine
 
 ds = np.linspace(0.8 * delta, 3* delta, 40)
 r=5.507692307692308

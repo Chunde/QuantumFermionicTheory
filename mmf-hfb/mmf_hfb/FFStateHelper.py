@@ -61,8 +61,7 @@ class FFStateHelper(object):
             ff.SaveToFile(output)
         except ValueError as e:
             print(f"Parsing file: {fileName}. Error:{e}")
-        except:
-            print(f"Unknown error when parsing file: {fileName}")
+        
 
     def compute_pressure_current(root=None):
         """compute current and pressure"""
@@ -113,19 +112,25 @@ class FFStateHelper(object):
     def search_single_configuration_3d():
         dim = 3
         mu = 10
-        delta = 2.5
-        dmu = 3.11
+        delta = 2.4
+        dmu = 2.48
         ff = FFStateFinder(delta=delta, dim=dim, mu=mu, dmu=dmu)
-        ff.run(dl=0.0001, du=5, dn=40, ql=0, qu=1.5)
+        ff.run(dl=2.37, du=2.95, dn=100, ql=0, qu=.5)
 
-    def sort_file(files):
+    def sort_file(files=None, abs_file=False):
         #files = ["FFState_(3d_2.5_10_3.15)2019_05_06_23_23_35.json"]
+        currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), "data")
+        if files is None:
+            pattern = join(currentdir,"FFState_[()d_0-9]*.json")
+            files = glob.glob(pattern)
+            abs_file = True
+
         if len(files) < 1:
             print("At least two files input")
             return
-        currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), "data")
         for file in files:
-            file = join(currentdir, file)
+            if not abs_file:
+                file = join(currentdir, file)
             if os.path.exists(file):
                 with open(file,'r+') as rf:
                     ret = json.load(rf)
@@ -133,6 +138,8 @@ class FFStateHelper(object):
                     ret['data']=data
                     rf.seek(0)
                     json.dump(ret, rf)
+                    rf.truncate()  # truncate the rest of the old file.
+                    print(f"{file} saved")
 
     def merge_files():
         files = ["FFState_(3d_2.4_10_2.85)2019_05_04_23_22_48.json", "FFState_(3d_2.4_10_2.85)2019_05_04_23_23_01.json"]
@@ -161,7 +168,7 @@ class FFStateHelper(object):
 
 if __name__ == "__main__":
     ## Sort file with discontinuity
-    #FFStateHelper.sort_file(["FFState_(3d_2.5_10_3.1)2019_05_06_21_11_24.json"])
+    #FFStateHelper.sort_file()
     ## Merge files with the same configuration
     # FFStateHelper.merge_files()
     ## Method: change parameters manually

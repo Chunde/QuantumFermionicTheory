@@ -11,12 +11,12 @@ import time
 
 
 class FFStateFinder():
-    def __init__(self, dim=1, delta=0.1, mu=10.0, dmu=0, g=None, k_c=None,
-                    prefix="FFState_", timeStamp=True):
+    def __init__(self, dim=1, delta=0.1, mu=10.0, dmu=0, g=None,
+                   k_c=None, prefix="FFState_", timeStamp=True):
         self.dim = dim
         self.delta = delta
-        self.mu = mu
-        self.dmu = dmu
+        self.mu_eff = mu  # mu_eff for 1d
+        self.dmu_eff = dmu  # dmu_eff for 1d
         if timeStamp:
             ts = time.strftime("%Y_%m_%d_%H_%M_%S.json")
             self.fileName = prefix + f"({dim}d_{delta}_{mu}_{dmu})" + ts
@@ -37,65 +37,57 @@ class FFStateFinder():
     def _gc(self, delta, mu=None, dmu=None, dq=0, update_mus=True):
         """compute the difference of a g_c[ using delta, dq] and fixed g_c"""
         if update_mus:
-            mu, dmu = self.ff._get_effective_mus(mu=self.mu,
-                                                dmu=self.dmu,
-                                                delta=delta,
-                                                dq=dq,
+            mu, dmu = self.ff._get_effective_mus(mu=self.mu_eff, dmu=self.dmu_eff,
+                                                delta=delta, dq=dq,
                                                 update_g=False)
         return self.ff.get_g(mu=mu, dmu=dmu,
                              delta=delta, dq=dq) - self.ff._g
 
-    def get_mus_eff(self, delta, dq, mus_eff=None):
+    def get_mus_eff(self, delta, q=0, dq=0, mus_eff=None):
         """return effective mus"""
-        return self.ff._get_effective_mus(mu=self.mu, dmu=self.dmu,
-                                          delta=delta, dq=dq, update_g=False)
+        return self.ff._get_effective_mus(mu=self.mu_eff, dmu=self.dmu_eff,
+                                          delta=delta, q=q, dq=dq, update_g=False)
 
-    def get_pressure(self, delta=None, dq=0, mus_eff=None):
+    def get_pressure(self, mus_eff=None, delta=None, q=0, dq=0):
         """return the pressure"""
         
         if delta is None:
             delta = self.delta
         if mus_eff is None:
-            mu_eff, dmu_eff = self.ff._get_effective_mus(mu=self.mu, 
-                                                        dmu=self.dmu, 
-                                                        delta=delta, 
-                                                        dq=dq, 
-                                                        update_g=False)
+            mu_eff, dmu_eff = self.mu_eff, self.dmu_eff
         else:
             mu_eff, dmu_eff = mus_eff
-        n_a, n_b = self.ff.get_densities(mu=mu_eff, dmu=dmu_eff, 
+        return self.ff.get_pressure(mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta, q=q, dq=dq, use_kappa=False)
+        
+        n_a, n_b = self.ff.get_densities(mu=mu_eff, dmu=dmu_eff,
                                          delta=delta, dq=dq)
-        energy_density = self.ff.get_energy_density(mu=mu_eff, 
-                                                    dmu=dmu_eff, 
-                                                    delta=delta, 
-                                                    dq=dq, 
-                                                    n_a=n_a, 
-                                                    n_b=n_b)
-
-        mu_a, mu_b = self.mu + self.dmu, self.mu - self.dmu
+        energy_density = self.ff.get_energy_density(mu=mu_eff, dmu=dmu_eff,
+                                                    delta=delta, dq=dq,
+                                                    n_a=n_a, n_b=n_b)
+        mu, dmu = self.ff._get_bare_mus(mu_eff=mu_eff, dmu_eff=dmu_eff,
+                                        q=q, dq=dq, delta=delta)
+        mu_a, mu_b = mu + dmu, mu - dmu
         pressure = mu_a * n_a + mu_b * n_b - energy_density
         if False:
             """Check if pressure is consistent"""
-            rets = self.ff.get_ns_p_e_mus_1d(mu=self.mu, dmu=self.dmu,
-                                                delta=delta, dq=dq, update_g=False)
+            rets = self.ff.get_ns_p_e_mus_1d(
+                mu=self.mu_eff, dmu=self.dmu_eff,
+                delta=delta, q=q, dq=dq, update_g=False)
             print(rets[3], pressure.n)
             assert np.allclose(rets[2], energy_density.n)
             assert np.allclose(rets[3], pressure.n)
         return pressure.n
 
-    def get_current(self, delta=None, dq=0, mus_eff=None):
+    def get_current(self, delta=None, q=0, dq=0, mus_eff=None):
         """return the current"""
         if delta is None:
             delta = self.delta
         if mus_eff is None:
-            mu_eff, dmu_eff = self.ff._get_effective_mus(mu=self.mu,
-                                                        dmu=self.dmu,
-                                                        delta=delta,
-                                                        dq=dq,
-                                                        update_g=False)
+            mu_eff, dmu_eff = self.ff._get_effective_mus(
+                mu=self.mu_eff, dmu=self.dmu_eff, delta=delta, q=q, dq=dq, update_g=False)
         else:
             mu_eff, dmu_eff = mus_eff
-        return self.ff.get_current(mu=mu_eff, dmu=dmu_eff, delta=delta, dq=dq)
+        return self.ff.get_current(mu=mu_eff, dmu=dmu_eff, delta=delta, q=q, dq=dq)
 
     def _get_fileName(self):
         currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -107,8 +99,8 @@ class FFStateFinder():
         output = {}
         output["dim"]= self.dim
         output["delta"] = self.delta
-        output["mu"] = self.mu
-        output["dmu"] = self.dmu
+        output["mu"] = self.mu_eff
+        output["dmu"] = self.dmu_eff
         output["g"] = self.ff._g
         output["k_c"] = self.k_c
         output["data"] = data

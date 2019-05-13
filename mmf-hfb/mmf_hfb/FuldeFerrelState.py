@@ -62,7 +62,7 @@ class FFState(object):
         args = dict(self._tf_args)
         args.update(kw)
         if self.fix_g:
-            return self.get_g(mu=mu, dmu=dmu, q=q, dq=dq, delta=delta, **args) - self._g
+            return self._g - self.get_g(mu=mu, dmu=dmu, q=q, dq=dq, delta=delta, **args)
 
         return tf.compute_C(
             mu_a=mu+dmu, mu_b=mu-dmu, delta=delta, 
@@ -123,13 +123,13 @@ class FFState(object):
             return self.get_g(delta=delta, mu=mu, dmu=dmu, q=q, dq=dq)
         return brentq(f, a * self.delta, b * self.delta)
 
-    def _get_bare_mus(self, mu_eff, dmu_eff, delta=None):
+    def _get_bare_mus(self, mu_eff, dmu_eff, delta=None, q=0, dq=0):
         if self.dim != 1:
             return (mu_eff, dmu_eff)
         if delta is None:
             delta = self.delta
         mu_a_eff, mu_b_eff = mu_eff + dmu_eff, mu_eff - dmu_eff
-        args = dict(self._tf_args, mu_a=mu_a_eff, mu_b=mu_b_eff, delta=delta)
+        args = dict(self._tf_args, mu_a=mu_a_eff, mu_b=mu_b_eff, delta=delta, q=q, dq=dq)
         n_p = tf.integrate_q(tf.n_p_integrand, **args).n
         n_m = tf.integrate_q(tf.n_m_integrand, **args).n
         n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
@@ -266,7 +266,7 @@ class FFState(object):
                 mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, k_c=k_c)
 
         args = dict(self._tf_args, mu_a=mu + dmu, mu_b=mu - dmu, delta=delta, q=q, dq=dq)
-        if use_kappa:
+        if use_kappa:  # kappa only for the situation where the gap equation is satisfied
             kappa = tf.integrate_q(tf.kappa_integrand, **args)
         else:
             tau_p = tf.integrate_q(tf.tau_p_integrand, **args)
@@ -288,7 +288,7 @@ class FFState(object):
         assert (mu is None) == (dmu is None)
         assert (mu_eff is None) == (dmu_eff is None)
         if mu is None:
-            mu, dmu = self.mus
+            mu, dmu = self._get_bare_mus(mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta)
         if mu_eff is None:
             mu_eff, dmu_eff = self._get_effective_mus(mu=mu, dmu=dmu, q=q, dq=dq)
         if delta is None:
@@ -300,7 +300,7 @@ class FFState(object):
             n_a=n_a, n_b=n_b, use_kappa=use_kappa)
         mu_a, mu_b = mu + dmu, mu - dmu
         pressure = mu_a * n_a + mu_b * n_b - energy_density
-        return pressure
+        return pressure.n
         
     def check_superfluidity(self, mu=None, dmu=None, q=0, dq=0):
         """
@@ -319,7 +319,7 @@ class FFState(object):
         return delta > 0
 
     def solve(self, mu=None, dmu=None, q=0, dq=0, 
-            a=None, b=None, throwException=False):
+            a=None, b=None, throwException=False, **args):
         """
         On problem with brentq is that it requires very smooth function with a 
         and b having different sign of values, this can fail frequently if our
@@ -339,13 +339,19 @@ class FFState(object):
             if self.fix_g:
                 return self._g - self.get_g(delta=delta, mu=mu, dmu=dmu, q=q, dq=dq)
             return self._C - tf.compute_C(delta=delta, mu_a=mu+dmu, mu_b=mu-dmu, **args).n
+
+        if True:
+            v1 = self.f(mu=mu, dmu=dmu,q=q,dq=dq, delta=a)
+            v2 = f(a)
+
         if throwException:
             delta = brentq(f, a, b)
         else:
             try:
                 delta = brentq(f, a, b)
             except ValueError:  # It's important to deal with specific exception.
-                ds = np.linspace(0, max(a,b) * (2 + dq/dmu), int((2 + dq/dmu) * 10))
+                ds = np.linspace(0, max(a,b) * (2 + dq/dmu), min(100, int((2 + dq/dmu) * 10)))
+                assert len(ds) <=100
                 f0 = f(ds[-1])
                 index0 = -1
                 delta = 0
