@@ -2,7 +2,7 @@
 This module provides a ASLDA method for solving the polarized
 two-species Fermi gas with short-range interaction.
 """
-from mmf_hfb.Functionals import FuncionalBase as Functional, FunctionalType
+from mmf_hfb.Functionals import FuncionalBdG as Functional, FunctionalType
 from mmfutils.math.integrate import mquad
 from mmf_hfb.bcs import BCS
 import numpy as np

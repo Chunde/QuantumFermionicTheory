@@ -8,7 +8,7 @@ class FunctionalType(Enum):
     ASLDA = 3
 
 
-class FuncionalBase(object):
+class FuncionalBdG(object):
 
     def __init__(self):
         self.FunctionalType = FunctionalType.BDG
@@ -117,10 +117,10 @@ class FuncionalBase(object):
         return (dD_n_a, dD_n_b) 
 
 
-class FunctionalSLDA(FuncionalBase):
+class FunctionalSLDA(FuncionalBdG):
     
     def __init__(self):
-        FuncionalBase.__init__(self)
+        FuncionalBdG.__init__(self)
         self.FunctionalType = FunctionalType.SLDA
 
     def _G(self, p):
