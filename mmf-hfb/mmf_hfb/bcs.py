@@ -129,6 +129,37 @@ class BCS(object):
                        self.fft(K))).reshape(mat_shape)
         return K
 
+    def _get_Del(self, twists=0, **kw):
+        """
+            Return the first order derivative matrix
+        """
+        ks_bloch = np.divide(twists, self.Lxyz)
+        ks = [_k + _kb for _k, _kb in zip(self.kxyz, ks_bloch)]
+        mat_shape = (np.prod(self.Nxyz),) * 2
+        tensor_shape = tuple(self.Nxyz) * 2
+
+        K = np.eye(mat_shape[0]).reshape(tensor_shape)
+        bcast = (slice(None),) * self.dim + (None,) * self.dim
+        K = (self.hbar**2 / 2 / self.m
+             * self.ifft(1j*sum(_k for _k in ks)[bcast] *
+                       self.fft(K))).reshape(mat_shape)
+        return K
+
+    def _Del(self, aplha, twists=0):
+        """
+        Apply the Del, or Nabla operation on a function alpha
+        -------
+        Note:
+            Here we compute the first derivatives and pack them so that
+            the first component is the derivative in x, y, z, etc.
+        """
+        ks_bloch = np.divide(twists, self.Lxyz)
+        ks = [_k + _kb for _k, _kb in zip(self.kxyz, ks_bloch)]
+        axes = range(1, self.dim + 1)
+        aplha_t = self.fft(aplha, axes=axes)
+        d_aplha = np.array([self.ifft(1j*_k[None, ..., None]*aplha_t, axes=axes) for _k in ks])
+        return d_aplha  # a vector
+
     def get_Ks(self, twists, **args):
         K = self._get_K(twists, **args)
         return (K, K)
@@ -291,20 +322,6 @@ class BCS(object):
             j_b = j_b + j_b_
         return (j_a / N_twist / np.prod(self.dxyz), j_b / N_twist / np.prod(self.dxyz))
     
-    def _Del(self, aplha, twists=0):
-        """
-        Apply the Del, or nabla operation on a fucntion alpha
-        -------
-        Note:
-            Here we compute the first derivatives and pack them so that
-            the first component is the derivative in x, y, z, etc.
-        """
-        ks_bloch = np.divide(twists, self.Lxyz)
-        ks = [_k + _kb for _k, _kb in zip(self.kxyz, ks_bloch)]
-        axes = range(1, self.dim + 1)
-        aplha_t = self.fft(aplha, axes=axes)
-        d_aplha = np.array([self.ifft(1j*_k[None, ..., None]*aplha_t, axes=axes) for _k in ks])
-        return d_aplha  # a vector
 
     def _get_densities_H(self, H, twists):
         """return densities for a given H"""
