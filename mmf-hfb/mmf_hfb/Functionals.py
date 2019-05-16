@@ -1,4 +1,4 @@
-import numpy as np
+from mmf_hfb.xp import xp
 from enum import Enum
 
 
@@ -8,7 +8,7 @@ class FunctionalType(Enum):
     ASLDA = 3
 
 
-class FuncionalBdG(object):
+class FunctionalBdG(object):
 
     def __init__(self):
         self.FunctionalType = FunctionalType.BDG
@@ -21,7 +21,7 @@ class FuncionalBdG(object):
     def _get_p(self, ns):
         """return p for a given ns"""
         if ns is None:
-            return None
+            return 0
         n_a, n_b = ns
         n_p, n_m = n_a + n_b, n_a - n_b
         p = n_m /n_p
@@ -43,7 +43,7 @@ class FuncionalBdG(object):
     def _get_alphas(self, ns=None):
         """return alpha_a, alpha_b, alpha_p"""
         p = self._get_p(ns)
-        alpha_a, alpha_b, alpha_odd, alpha_even = self._get_alphas_p(p)
+        alpha_a, alpha_b, alpha_even, alpha_odd = self._get_alphas_p(p)
         # alpha_p is defined as (alpha_a + alpha_b) /2 , it's alpha_even
         alpha_p = alpha_even
         return (alpha_a, alpha_b, alpha_p)
@@ -97,7 +97,7 @@ class FuncionalBdG(object):
         return 0
 
     def _D(self, ns):
-        C1_ = (6*np.pi**2*(sum(ns)))**(5.0/3)/20/np.pi**2
+        C1_ = (6*xp.pi**2*(sum(ns)))**(5.0/3)/20/xp.pi**2
         p = self._get_p(ns)
         C2_ = self._Beta(p)
         return C1_*C2_*2**(-2.0/3)
@@ -109,18 +109,25 @@ class FuncionalBdG(object):
         p = self._get_p(ns)
         dp_n_a, dp_n_b = self._dp_dn(ns)
         dBeta_p = self._dBeta_dp(p=p)
-        N0 = (6*np.pi**2)**(5.0/3)/20/np.pi**2
+        N0 = (6*xp.pi**2)**(5.0/3)/20/xp.pi**2
         C1_ = self._D(ns)/0.6/n_p
         C2_ = N0*n_p**(5/3)*dBeta_p
         dD_n_a = C1_ + C2_*dp_n_a*2**(-2.0/3)
         dD_n_b = C1_ + C2_*dp_n_b*2**(-2.0/3)
-        return (dD_n_a, dD_n_b) 
+        return (dD_n_a, dD_n_b)
 
+    def _g_eff(self, delta, kappa, **args):
+        """
+            get the effective g
+            equation (87c) in page 42
+        """
+        g_eff = -delta/kappa
+        return g_eff
 
-class FunctionalSLDA(FuncionalBdG):
+class FunctionalSLDA(FunctionalBdG):
     
     def __init__(self):
-        FuncionalBdG.__init__(self)
+        FunctionalBdG.__init__(self)
         self.FunctionalType = FunctionalType.SLDA
 
     def _G(self, p):
@@ -192,3 +199,17 @@ class FunctionalASLDA(FunctionalSLDA):
     def _dalpha_m_dp(self, p):
         """return dalpha_m / dp"""
         return 0.156*(p**2 - 1.0)**2
+
+    def _g_eff(self, mus_eff, ns, Vs, alpha_p, dim, **args):
+        """
+            get the effective g
+            equation (87c) in page 42
+        """
+        V_a, V_b = Vs
+        mu_p = (sum(mus_eff) - V_a + V_b) / 2
+        k0 = (2*self.m/self.hbar**2*mu_p/alpha_p)**0.5
+        k_c = (2*self.m/self.hbar**2 * (self.E_c + mu_p)/alpha_p)**0.5
+        C = alpha_p * (sum(ns)**(1.0/3))/self.gamma
+        Lambda = self._get_Lambda(k0=k0, k_c=k_c, dim=dim)
+        g = alpha_p/(C - Lambda)
+        return g

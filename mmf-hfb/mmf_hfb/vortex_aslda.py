@@ -5,8 +5,8 @@ two-species Fermi gas with short-range interaction.
 from mmf_hfb.Functionals import FunctionalASLDA as Functional, FunctionalType
 from mmfutils.math.integrate import mquad
 from mmf_hfb.bcs import BCS
-import numpy as np
-
+from mmf_hfb.xp import xp, allclose
+import numpy
 
 class ASLDA(Functional, BCS):
     
@@ -24,11 +24,11 @@ class ASLDA(Functional, BCS):
     def _get_Lambda(self, k0, k_c, dim=1):
         """return the renormalization condition parameter Lambda"""
         if dim ==3:
-            Lambda = self.m/self.hbar**2/2/np.pi**2*(1.0 - k0/k_c/2*np.log((k_c+k0)/(k_c-k0)))
+            Lambda = self.m/self.hbar**2/2/xp.pi**2*(1.0 - k0/k_c/2*xp.log((k_c+k0)/(k_c-k0)))
         elif dim == 2:
-            Lambda = self.m /self.hbar**2/4/np.pi*np.log((k_c/k0)**2 - 1)
+            Lambda = self.m /self.hbar**2/4/xp.pi*xp.log((k_c/k0)**2 - 1)
         elif dim == 1:
-            Lambda = self.m/self.hbar**2/2/np.pi*np.log((k_c-k0)/(k_c+k0))/k0
+            Lambda = self.m/self.hbar**2/2/xp.pi*xp.log((k_c-k0)/(k_c+k0))/k0
         return Lambda
 
     
@@ -43,13 +43,13 @@ class ASLDA(Functional, BCS):
                 (ab')=a'b'+ab''
 
         """
-        A = np.diag(alpha)
+        A = xp.diag(alpha.ravel())  #[Check] ????
         if Laplacian_only:
-            K = (D2.dot(A) - np.diag(self._D2.dot(alpha)) + A.dot(D2)) / 2
+            K = (D2.dot(A) - xp.diag(self._D2.dot(alpha.ravel())) + A.dot(D2)) / 2
         else:
             D1 =self._get_Del(twists=twists)
-            dalpha = self._D1.dot(alpha)
-            K = np.diag(dalpha).dot(D1) + A.dot(D2)
+            dalpha = self._D1.dot(alpha.ravel())
+            K = xp.diag(dalpha.ravel()).dot(D1) + A.dot(D2)
         return K
 
     def get_Ks(self, twists=0, ns=None, k_p=0,  **args):
@@ -62,7 +62,7 @@ class ASLDA(Functional, BCS):
         K = BCS._get_K(self, twists)
         if ns is None:
             return (K, K)
-        k_p = np.diag(np.ones_like(sum(self.xyz)) * k_p)
+        k_p = xp.diag(xp.ones_like(sum(self.xyz).ravel()) * k_p)   #[Check] the shape of the k_p matrix
         K = K + k_p
         alpha_a, alpha_b, alpha_p = self._get_alphas(ns)
         
@@ -71,7 +71,9 @@ class ASLDA(Functional, BCS):
         # K( A U') = [(A u')'= (A u)'' - A'' u + A u'']/2
         K_a = self._get_modified_K(K, alpha_a, **args)
         K_b = self._get_modified_K(K, alpha_b, **args)
-        assert np.allclose(K_b, K_b.conj().T)
+        if xp == numpy:
+            assert xp.allclose(K_b, K_b.conj().T)
+
         return (K_a, K_b)
 
     def get_v_ext(self, delta=0, ns=None, taus=None, kappa=0, **args):
@@ -94,7 +96,7 @@ class ASLDA(Functional, BCS):
         dD_dn_a, dD_dn_b = self._dD_dn(ns=ns)
         C0_ = self.hbar**2/self.m
         C1_ = C0_/2
-        C2_ = tau_p*C1_ - np.conj(delta).T*kappa/alpha_p
+        C2_ = tau_p*C1_ - xp.conj(delta).T*kappa/alpha_p
         V_a = dalpha_m_dn_a*tau_m*C1_ + dalpha_p_dn_a*C2_ + dC_dn_a + C0_*dD_dn_a + U_a
         V_b = dalpha_m_dn_b*tau_m*C1_ + dalpha_p_dn_b*C2_ + dC_dn_b + C0_*dD_dn_b + U_b
         return (V_a, V_b)
@@ -115,7 +117,7 @@ class ASLDA(Functional, BCS):
             Note: These code does not work
         """
         if k_c is None:
-            k_c = np.sqrt(2*self.m*self.E_c)/self.hbar
+            k_c = xp.sqrt(2*self.m*self.E_c)/self.hbar
 
         twistss = self._get_twistss(N_twist)
         args = dict(mus_eff=mus_eff, delta=delta, ns=ns, taus=taus, kappa=kappa)
@@ -148,8 +150,8 @@ class ASLDA(Functional, BCS):
             energy_density = (taus[0] + taus[1])*self.hbar**2/2/self.m
         elif self.FunctionalType == FunctionalType.SLDA:
             raise Exception("Not implemented")
-            assert np.allclose(alpha_a, alpha_b)
-            energy_density = alpha_a*(taus[0] + taus[1])/2.0  + self._Beta(ns)*(3*np.pi**2.0)**(2.0/3)*(ns[0] + ns[1])**(5.0/3)*3.0/10
+            assert xp.allclose(alpha_a, alpha_b)
+            energy_density = alpha_a*(taus[0] + taus[1])/2.0  + self._Beta(ns)*(3*xp.pi**2.0)**(2.0/3)*(ns[0] + ns[1])**(5.0/3)*3.0/10
             energy_density = energy_density *self.hbar**2/self.m
         elif self.FunctionalType == FunctionalType.ASLDA:
             args = dict(args, mus_eff=mus_eff, delta=delta, struct=False,N_twist=N_twist)
@@ -157,8 +159,9 @@ class ASLDA(Functional, BCS):
             while(True):
                 args.update(ns=ns, taus=taus, kappa=kappa)
                 ns, taus, js, kappa = self.get_densities( **args)
-                print(f"ns={ns[0][0], ns[1][0]}\ttaus={taus[0][0],taus[1][0]}\tkappa={kappa[0]}")
-                if ns_ is not None and np.allclose(ns_, ns):
+                print(f"ns={ns[0][0].max(), ns[1][0].max()}\ttaus={taus[0][0].max(),taus[1][0].max()}\tkappa={kappa[0].max().real}")
+                
+                if ns_ is not None and xp.allclose(ns_[0], ns[0]):
                     break
                 ns_ = ns
             D = self._D(ns)
