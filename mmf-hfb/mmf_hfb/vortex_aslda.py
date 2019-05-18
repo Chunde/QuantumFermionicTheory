@@ -60,10 +60,10 @@ class ASLDA(Functional, BCS):
         k_p: kinetic energy offset added to the diagonal elements
         """
         K = BCS._get_K(self, twists)
-        if ns is None:
-            return (K, K)
         k_p = xp.diag(xp.ones_like(sum(self.xyz).ravel()) * k_p)   #[Check] the shape of the k_p matrix
         K = K + k_p
+        if ns is None:
+            return (K, K)
         alpha_a, alpha_b, alpha_p = self._get_alphas(ns)
         
         if alpha_a is None or alpha_b is None:

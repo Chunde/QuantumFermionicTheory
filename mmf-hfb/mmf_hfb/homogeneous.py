@@ -222,13 +222,13 @@ class Homogeneous(object):
         return namedtuple('Densities', ['n_a', 'n_b', 'nu'])(
             n_a, n_b, nu)
     
-    def get_BCS_v_n_e(self, mus_eff, delta, N_twist=1):
+    def get_BCS_v_n_e(self, mus_eff, delta, N_twist=1, k_inf=np.inf):
         """Return `(v_0, n, mu, e)` for the 1D BCS solution at T=0."""
         kF = np.sqrt(2*max(0, max(mus_eff)))
         
         if self.Nxyz is None:
             def quad(f):
-                return quad_k(f, dim=self.dim, kF=kF)
+                return quad_k(f, dim=self.dim, kF=kF, k_inf=k_inf)
         else:
             def quad(f):
                 return quad_l(f, Nxyz=self.Nxyz, Lxyz=self.Lxyz,

@@ -45,6 +45,7 @@ class Vortex(bcs.BCS):
 class VortexState(Vortex):
     def __init__(self, mu, dmu, delta, **kw):
         Vortex.__init__(self, **kw)
+        self.delta = delta
         self.mus = (mu+dmu, mu-dmu)
         self.g = self.get_g(mu=mu, delta=delta)
         x, y = self.xyz
@@ -119,163 +120,172 @@ v = Vortex(Nxyz=(16, 16))
 #   \uvect{\theta}\cdot \vect{v} = \frac{-yv_x + xv_y}{r} = - \Re(v \uvect{\theta})
 # $$
 
-# # Potential Profile
+# ## Potential Profile
 
 V = v.get_v_ext()[0]
 x, y = v.xyz
 imcontourf(x, y, V, aspect=1);plt.colorbar()
 
-# # Symmetric Vortex
+# ## Large Gap
+# ### Symmetric Vortex $\Delta=5$
 
-v0 = VortexState(mu=10.0, dmu=0.0, delta=1.0, Nxyz=(32, 32))
+v0 = VortexState(mu=10.0, dmu=0.0, delta=5.0, Nxyz=(32, 32))
 v0.solve(plot=True)
 
-# # Polarized Vortex
+# ### Polarized Vortex $\Delta=5$
 
 v1 = VortexState(mu=10.0, dmu=2, delta=5.0, Nxyz=(32, 32))
 v1.solve(plot=True)
 
-# ## Compare to FF State
+# ## Smaller Gap
+# ### Symmetric Vortex $\Delta=1$
+# * smaller $\Delta$
 
+v2 = VortexState(mu=10.0, dmu=0, delta=1.0, Nxyz=(32, 32))
+v2.solve(plot=True)
+
+# ### Polarized Vortex $\Delta=1$
+
+v3 = VortexState(mu=10.0, dmu=1.2, delta=1.0, Nxyz=(32, 32))
+v3.solve(plot=True)
+
+v4 = VortexState(mu=10.0, dmu=0, delta=8, Nxyz=(32, 32))
+v4.solve(plot=True)
+
+# ## Compare to FF State
+# * The FFVortex will compute FF State data with the same $\mu,d\mu$, and compare the results in plots
+# * $\Delta$ should be continuous in a close loop, in rotation frame, the gap should satisfy:
+# $$
+# \Delta=\Delta e^{-2i\delta qx}
+# $$
+# with phase change in a loop by $2\pi$, which requires: $\delta q= \frac{1}{2r}$
+#
+
+# +
 from mmf_hfb import FuldeFerrelState; reload(FuldeFerrelState)
 import warnings
 warnings.filterwarnings("ignore")
-N = v.Nxyz[0]
-L = v.Lxyz[0]
-k_c = np.sqrt(2)*np.pi*N/L
-mu = 10.0
-dmu = 0
-delta = 5.0
+
+def FFVortex(bcs_vortex, delta=None):
+    mu_a, mu_b=bcs_vortex.mus
+    if delta is None:
+        delta = bcs_vortex.delta
+    mu, dmu = (mu_a + mu_b)/2, (mu_a - mu_b)/2
+    N = bcs_vortex.Nxyz[0]
+    L = bcs_vortex.Lxyz[0]
+    k_c = np.sqrt(2)*np.pi*N/L
+    args = dict(mu=mu, dmu=dmu, delta=delta, dim=1, k_c=np.inf)
+    f = FuldeFerrelState.FFState(fix_g=True, **args)
+    rs = np.linspace(0.01,1, 10)
+    rs = np.append(rs, np.linspace(1.1, 4, 10))
+    ds = [f.solve(mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
+    ps = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=d, dq=0.5/r, use_kappa=False) for r, d in zip(rs,ds)]
+    ps0 = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=0,q=0, dq=0, use_kappa=False) for r, d in zip(rs,ds)]
+
+    
+    r = np.sqrt(sum(_x**2 for _x in bcs_vortex.xyz))
+    plt.figure(figsize(16,8))
+    plt.subplot(321)
+    plt.plot(r.ravel(), abs(bcs_vortex.Delta).ravel(), '+', label="BCS")
+    plt.plot(rs, ds, label="TF Completion")
+    plt.legend()
+    plt.xlabel("r", fontsize=12)
+    plt.ylabel(r'$\Delta$', fontsize=12)
+    plt.subplot(322)
+    plt.xlabel("r", fontsize=12)
+    plt.ylabel("Pressure", fontsize=12)
+    plt.plot(rs, ps, label="FF State/Superfluid State Pressure")
+    plt.plot(rs, ps0,'--', label="Normal State pressure")
+    plt.legend()
+
+    na = np.array([])
+    nb = np.array([])
+    res = bcs_vortex.get_densities(mus_eff=bcs_vortex.mus, delta=bcs_vortex.Delta)
+    for i in range(len(rs)):
+        na_, nb_ = f.get_densities(delta=ds[i], dq=0.5/rs[i], mu=mu, dmu=dmu)
+        na = np.append(na, na_.n)
+        nb = np.append(nb, nb_.n)   
+    plt.subplot(323)
+    n_p = na + nb
+    plt.plot(r.ravel(), abs(res.n_a + res.n_b).ravel(), '+', label="BCS")
+    plt.plot(rs, n_p, label="TF Completion")
+    plt.xlabel("r", fontsize=12), plt.ylabel(r"$n_p$", fontsize=12)
+    plt.title("Total Density")
+    plt.legend()
+    plt.subplot(324)
+    n_m = na - nb
+    plt.plot(r.ravel(), abs(res.n_a - res.n_b).ravel(), '+', label="BCS")
+    plt.plot(rs, n_m, label="TF Completion")
+    plt.xlabel("r", fontsize=12), plt.ylabel(r"$n_m$", fontsize=12),plt.title("Density Difference")
+    plt.legend()
+
+    ja = np.abs(res.j_a[0] + 1j*res.j_a[1])
+    jb = np.abs(res.j_b[0] + 1j*res.j_b[1]) 
+    j_p_, j_m_ = ja + jb, ja - jb
+    ja = []
+    jb = []
+    js = [f.get_current(mu=mu, dmu=dmu, delta=d,dq=0.5/r) for r, d in zip(rs,ds)]
+    for j in js:
+        ja.append(j[0].n)
+        jb.append(j[1].n)
+    ja, jb = np.array(ja), np.array(jb)
+    j_p, j_m = -(ja + jb), ja - jb
+    plt.subplot(325)
+    plt.plot(r.ravel(), j_p_.ravel(), '+', label="BCS")
+    plt.plot(rs, j_m, label="TF Completion")
+    plt.xlabel("r", fontsize=12), plt.ylabel(r"$j_p$", fontsize=12),plt.title("Total Current")
+    plt.legend()
+    plt.subplot(326)
+    plt.plot(r.ravel(), j_m_.ravel(), '+', label="BCS")
+    plt.plot(rs, j_p, label="TF Completion")
+    plt.xlabel("r", fontsize=12), plt.ylabel(r"$j_m$", fontsize=12),plt.title("Current Difference")
+    plt.legend()
+# -
+
+rs = np.linspace(0.01,1, 10)
+rs = np.append(rs, np.linspace(1.1, 4, 10))
+mu=10
+dmu=2.1
+delta=2
 args = dict(mu=mu, dmu=dmu, delta=delta, dim=1, k_c=np.inf)
-f = FuldeFerrelState.FFState(fix_g=True, **args)
-rs = np.linspace(0.01,1, 20)
-rs = np.append(rs, np.linspace(1.1, 5, 30))
-ds = [f.solve(mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
-ps = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=d, dq=0.5/r, use_kappa=False) for r, d in zip(rs,ds)]
-ps0 = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=0, dq=0, use_kappa=False) for r, d in zip(rs,ds)]
+ff = FuldeFerrelState.FFState(fix_g=True, **args)
+qs = np.linspace(0, 5, 10)
+ds = []
+r = 20
+def get_P(q):
+    d = ff.solve(mu=mu, dmu=dmu, q=q*100, dq=0.5/r, a=0.001, b=1.2*delta)
+    print(d)
+    ds.append(d)
+    P = ff.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=d, q=q, dq=0.5/r, use_kappa=True)
+    return P
 
-# ### $\Delta$ and Pressure
 
-v_ = v0
-if dmu !=0:
-    v_=v1
-r = np.sqrt(sum(_x**2 for _x in v_.xyz))
-plt.figure(figsize(16,4))
-plt.subplot(121)
-plt.plot(r.ravel(), abs(v1.Delta).ravel(), '+', label="BCS")
-plt.plot(rs, ds, label="TF Completion")
-plt.legend()
-plt.xlabel("r", fontsize=12)
-plt.ylabel(r'$\Delta$', fontsize=12)
-plt.subplot(122)
-plt.xlabel("r", fontsize=12)
-plt.ylabel("Pressure", fontsize=12)
-plt.plot(rs, ps, label="FF State/Superfluid State Pressure")
-plt.plot(rs, ps0,'--', label="Normal State pressure")
-plt.legend()
+Ps = [get_P(q) for q in qs]
+plt.plot(qs, Ps)
 
-na = np.array([])
-nb = np.array([])
-res = v_.get_densities(mus_eff=v_.mus, delta=v1.Delta)
-for i in range(len(rs)):
-    na_, nb_ = f.get_densities(delta=ds[i], dq=0.5/rs[i], mu=mu, dmu=dmu)
-    na = np.append(na, na_.n)
-    nb = np.append(nb, nb_.n)   
+ff.solve(mu=mu, dmu=dmu, q=0, dq=0, a=0.001, b=1.2*delta)
 
-plt.figure(figsize=(20, 5))
-plt.subplot(121)
-n_p = na + nb
-plt.plot(r.ravel(), abs(res.n_a + res.n_b).ravel(), '+', label="BCS")
-plt.plot(rs, n_p, label="TF Completion")
-plt.xlabel("r", fontsize=12), plt.ylabel(r"$n_p$", fontsize=12)
-plt.title("Total Density")
-plt.legend()
-plt.subplot(122)
-n_m = na - nb
-plt.plot(r.ravel(), abs(res.n_a - res.n_b).ravel(), '+', label="BCS")
-plt.plot(rs, n_m, label="TF Completion")
-plt.xlabel("r", fontsize=12), plt.ylabel(r"$n_m$", fontsize=12),plt.title("Density Difference")
-plt.legend()
-clear_output()
+ff = FuldeFerrelState.FFState(fix_g=True, **args)
+ds = np.linspace(0.8*delta, delta*2, 40)
+gs = [ff.f(mu=mu,dmu=dmu, delta=d, q=0, dq=0.) for d in ds]
+plt.axhline(0)
+plt.axvline(delta)
+plt.plot(ds, gs, "--")
 
-# ### Old result
-# We used wrong formula to compute current before
+# ### Symmetric case $\Delta=5$
 
-ja = np.abs(res.j_a[0] + 1j*res.j_a[1])
-jb = np.abs(res.j_b[0] + 1j*res.j_b[1]) 
-j_p_, j_m_ = ja + jb, ja - jb
-ja = []
-jb = []
-for i in range(len(rs)):
-    ja.append(na[i] * 0.5/rs[i])
-    jb.append(nb[i] * 0.5/rs[i])
-ja, jb = np.array(ja), np.array(jb)
-j_p, j_m = ja + jb, ja - jb
-plt.figure(figsize=(20, 5))
-plt.subplot(121)
-plt.plot(r.ravel(), j_p_.ravel(), '+')
-plt.plot(rs, j_p)
-plt.ylim(0,5)
-plt.xlabel("r", fontsize=20), plt.ylabel(r"$j_p$", fontsize=20),plt.title("Total Current")
-plt.subplot(122)
-plt.plot(r.ravel(), j_m_.ravel(), '+')
-plt.plot(rs, j_m)
-plt.ylim(0,5)
-plt.xlabel("r", fontsize=20), plt.ylabel(r"$j_m$", fontsize=20),plt.title("Current Difference")
-clear_output()
+FFVortex(v0,delta=5)
 
-# ### New Result
+# ### Polarized case $\Delta=5$
 
-ja = np.abs(res.j_a[0] + 1j*res.j_a[1])
-jb = np.abs(res.j_b[0] + 1j*res.j_b[1]) 
-j_p_, j_m_ = ja + jb, ja - jb
-ja = []
-jb = []
-js = [f.get_current(mu=mu, dmu=dmu, delta=d,dq=0.5/r) for r, d in zip(rs,ds)]
-for j in js:
-    ja.append(j[0].n)
-    jb.append(j[1].n)
-    #jps.append(j[2].n)
-    #jms.append(j[3].n)
-ja, jb = np.array(ja), np.array(jb)
-j_p, j_m = -(ja + jb), ja - jb
-plt.figure(figsize=(20, 5))
-plt.subplot(121)
-plt.ylim(-1,2)
-plt.plot(r.ravel(), j_p_.ravel(), '+', label="BCS")
-plt.plot(rs, j_m, label="TF Completion")
-plt.xlabel("r", fontsize=12), plt.ylabel(r"$j_p$", fontsize=12),plt.title("Total Current")
-plt.legend()
-plt.subplot(122)
-plt.plot(r.ravel(), j_m_.ravel(), '+', label="BCS")
-plt.plot(rs, j_p, label="TF Completion")
-plt.xlabel("r", fontsize=12), plt.ylabel(r"$j_m$", fontsize=12),plt.title("Current Difference")
-plt.legend()
-clear_output()
+FFVortex(v1, delta=5)
 
-# ## FF State Phase Diagram
+# ### Smaller coupling and symmetric case $\Delta=1$
 
-# # Quiver
+FFVortex(v2, delta=1)
 
-x, y = VortexState(mu=10.0, dmu=0.4, delta=1.0, Nxyz=(32, 32)).xyz
-v = 1j*x - 2*y
-plt.quiver(x.ravel(), y.ravel(), v.T.real, v.T.imag)
+# ### Smaller coupling and polarized case $\Delta=1$
 
-# $$
-#   -u^\dagger \I\nabla u
-# $$
-
-# $$
-# E(\psi)={\bra{\psi}\frac{-\nabla^2}{2m}+\frac{g}{2}\abs{\psi^\dagger\psi}-\mu\ket{\psi}}
-# $$
-
-# $$
-# \psi = f(r)e^{i\theta}\\
-# \vec{\psi'} = \nabla f(r)(x+iy) + f(r)(x, iy)
-# $$
-
-# $$
-# E(\psi)= \int dr \left[\frac{\psi'^2}{2m} + \frac{g}{2}f(r)^2-\mu n(r)\right]
-# $$
+FFVortex(v3, delta=1)
 
 

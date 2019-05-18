@@ -34,8 +34,10 @@ dmu_eff= 0.21
 dim = 1
 delta=0.2
 g=-2.8
+dq=0
+q=0
 ff = FFState(mu=mu_eff, dmu=dmu_eff, delta=delta, dim=dim, fix_g=True, g=g, bStateSentinel=False)
-print(ff._get_effective_mus(mu=mu, dmu=dmu, dq=dq, delta=delta, update_g=False))
+print(ff._get_effective_mus(mu=mu_eff, dmu=dmu_eff, dq=dq, delta=delta, update_g=False))
 
 ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=0, dq=1)
 
@@ -51,7 +53,7 @@ for r in rs:
     q = 1/ r
     dq = 0.5/ r
     args = dict(mu=mu_eff, dmu=dmu_eff, q=q, dq=dq)
-    d = ff.solve(a=0.8 * delta, b=3* delta, **args)
+    d = ff.solve(a=0.8 * delta, b=1.2* delta, **args)
     n_a, n_b = ff.get_densities(delta=d, k_c=np.inf, **args)
     nas.append(n_a.n)
     nbs.append(n_b.n)
@@ -137,5 +139,20 @@ plt.plot(ds, ps, "--")
 plt.plot(ds, ps0, "-")
 args = dict(mu=mu_eff, dmu=dmu_eff, q=q, dq=dq)
 ff.solve(a=0.8 * delta, b=3* delta, **args)
+
+# +
+ps1 = [ff.get_pressure(mu_eff=mu_eff, dmu_eff=dmu_eff, delta=d, q=1, dq=dq, use_kappa=False) for d in ds]
+clear_output()
+plt.subplot(211)
+plt.plot(ds, gs)
+plt.axhline(0)
+plt.subplot(212)
+plt.plot(ds, ps, "--")
+plt.plot(ds, ps0, "-")
+plt.plot(ds, ps1, "+")
+
+args = dict(mu=mu_eff, dmu=dmu_eff, q=q, dq=dq)
+ff.solve(a=0.8 * delta, b=3* delta, **args)
+# -
 
 

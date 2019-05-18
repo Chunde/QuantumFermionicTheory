@@ -33,7 +33,16 @@ def f(E, T):
 # These *_integrand functions do not have the integration measure
 # factors, so they can be used for any dimension (but need an
 # appropriate wrapper).
-    
+
+@numba.jit(nopython=True)
+def get_ws(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
+    e = hbar**2/2
+    e_a, e_b = e*ka2/m_a - mu_a, e*kb2/m_b - mu_b
+    e_m, e_p = (e_a - e_b)/2, (e_a + e_b)/2
+    E = np.sqrt(e_p**2 + abs(delta)**2)
+    w_m, w_p = e_m - E, e_m + E
+    return e_m, e_p, E, w_m, w_p
+
 @numba.jit(nopython=True)
 def n_p_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     e = hbar**2/2

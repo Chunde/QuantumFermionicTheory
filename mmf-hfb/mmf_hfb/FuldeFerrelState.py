@@ -288,7 +288,7 @@ class FFState(object):
         assert (mu is None) == (dmu is None)
         assert (mu_eff is None) == (dmu_eff is None)
         if mu is None:
-            mu, dmu = self._get_bare_mus(mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta)
+            mu, dmu = self._get_bare_mus(mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta, q=q, dq=dq)
         if mu_eff is None:
             mu_eff, dmu_eff = self._get_effective_mus(mu=mu, dmu=dmu, q=q, dq=dq)
         if delta is None:
@@ -300,7 +300,7 @@ class FFState(object):
             n_a=n_a, n_b=n_b, use_kappa=use_kappa)
         mu_a, mu_b = mu + dmu, mu - dmu
         pressure = mu_a * n_a + mu_b * n_b - energy_density
-        return pressure.n
+        return pressure
         
     def check_superfluidity(self, mu=None, dmu=None, q=0, dq=0):
         """
@@ -336,13 +336,7 @@ class FFState(object):
         args = dict(self._tf_args, q=q, dq=dq) 
 
         def f(delta):
-            if self.fix_g:
-                return self._g - self.get_g(delta=delta, mu=mu, dmu=dmu, q=q, dq=dq)
-            return self._C - tf.compute_C(delta=delta, mu_a=mu+dmu, mu_b=mu-dmu, **args).n
-
-        if True:
-            v1 = self.f(mu=mu, dmu=dmu,q=q,dq=dq, delta=a)
-            v2 = f(a)
+            return self.f(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
 
         if throwException:
             delta = brentq(f, a, b)
@@ -350,7 +344,11 @@ class FFState(object):
             try:
                 delta = brentq(f, a, b)
             except ValueError:  # It's important to deal with specific exception.
-                ds = np.linspace(0, max(a,b) * (2 + dq/dmu), min(100, int((2 + dq/dmu) * 10)))
+                offset = 0
+                if not np.allclose(abs(dmu), 0):
+                    offset = min(abs(dq/dmu), 100)
+                ds = np.linspace(0, max(a,b) * (2 + offset), min(100, int((2 + offset) * 10)))
+
                 assert len(ds) <=100
                 f0 = f(ds[-1])
                 index0 = -1

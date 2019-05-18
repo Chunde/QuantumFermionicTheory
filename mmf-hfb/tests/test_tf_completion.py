@@ -4,6 +4,20 @@ import py.test
 import warnings
 from mmf_hfb import tf_completion, homogeneous
 
+def test_ws():
+    np.random.seed(1)
+    ks = np.random.random(3) * 1000
+    mu_a, mu_b, m = 1 + np.random.random(3)
+    mu_p = (mu_a + mu_b)/2
+    mu_m = (mu_a - mu_b)/2
+
+    for k in ks:
+        dq, q = np.random.random(2) * 2
+        k2_a = (k + q)**2
+        k2_b = (k - q)**2
+        em0, ep0, _, _, _ = tf_completion.get_ws(k2_a, k2_b,  mu_a, mu_b, 1, m, m, 1, 0)
+        assert np.allclose(ep0, k**2/2/m - (mu_p - q**2/2/m))
+        assert np.allclose(em0, q*k/m - mu_m)
 
 def test_3D():
     """Test the 3D UFG solution."""
