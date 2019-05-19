@@ -22,7 +22,7 @@ class BCS(object):
     hbar = 1.0
     m = 1.0
 
-    def __init__(self, Nxyz=None, Lxyz=None, dx=None, T=0, E_c=100):
+    def __init__(self, Nxyz=None, Lxyz=None, dx=None, T=0, E_c=None):
         """Specify any two of `Nxyz`, `Lxyz`, or `dx`.
 
         Arguments
@@ -181,11 +181,15 @@ class BCS(object):
         """Return the Fermi-Dirac distribution at E."""
         if E_c is None:
             E_c = self.E_c
+        
         if self.T > 0:
             f = 1./(1+xp.exp(E/self.T))
         else:
             f = (1 - xp.sign(E))/2
-        return f
+        if E_c is None:
+            return f
+        mask = 0.5 * (numpy.sign(abs(E_c)-abs(E)) + 1)
+        return f * mask
 
     def block(a11, a12, a21,a22):
         RowBlock1=xp.concatenate((a11,a12),axis=1)

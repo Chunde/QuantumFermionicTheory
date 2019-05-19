@@ -10,7 +10,7 @@ import numpy
 
 class ASLDA(Functional, BCS):
     
-    def __init__(self, Nxyz, Lxyz, dx=None, T=0, E_c=100):
+    def __init__(self, Nxyz, Lxyz, dx=None, T=0, E_c=None):
         BCS.__init__(self, Nxyz=Nxyz, Lxyz=Lxyz, dx=dx, T=T, E_c=E_c)
         Functional.__init__(self)
         self.E_c = E_c
@@ -130,7 +130,7 @@ class ASLDA(Functional, BCS):
                 H = self.get_H(vs=vs, k_p=k_p, twists=twists, **args)
                 den = self._get_densities_H(H, twists=twists)
                 return den
-            dens = dens + mquad(f, -k_c, k_c, abs_tol=abs_tol)/2/k_c
+            dens = dens + mquad(f, -k_c, k_c, abs_tol=abs_tol)/2/xp.pi # factor? It turns out the factor should be 2pi
             N_=N_ + 1
         dens = dens/N_
 

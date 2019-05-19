@@ -4,14 +4,14 @@ This module provides a class BCS2D for solving the BCS (BdG) equations in 2D for
 two-species Fermi gas with short-range interaction.
 """
 from __future__ import division
-from mmf_hfb.Functionals import Functionals
+from mmf_hfb.Functionals import FunctionalBdG
 import numpy as np
 import scipy.integrate
 
 from mmfutils.math.integrate import mquad
 
 
-class ASLDA(Functionals):
+class ASLDA(FunctionalBdG):
     hbar = 1.0
     m = 1.0
     w = 1.0                     # Trapping potential

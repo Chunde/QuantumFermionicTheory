@@ -43,7 +43,7 @@
 # &=\begin{pmatrix}\left[-(\nabla+iq_a)^2-\mu_a\right]U(x)e^{iq_a x}+ \Delta V*(x)e^{iq_ax}\\
 # \Delta^* U(x)e^{-iq_b x} + \left[(\nabla-iq_b)^2 + \mu_b)\right]V^*(x)e^{-iq_bx}\\
 # \end{pmatrix}
-# ==\begin{pmatrix}
+# =\begin{pmatrix}
 # E & 0\\
 # 0&-E
 # \end{pmatrix}\begin{pmatrix}
