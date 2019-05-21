@@ -140,7 +140,7 @@ class FunctionalSLDA(FunctionalBdG):
 
     def _Beta(self, p):
         "[Numerical Test Status:Pass]"
-        return self._G(p) - self._alpha(p)*((1+p)/2.0)**(5.0/3) - self._alpha(-p)*((1-p)/2.0)**(5.0/3)
+        return (self._G(p) - self._alpha(p)*((1+p)/2.0)**(5.0/3) - self._alpha(-p)*((1-p)/2.0)**(5.0/3)) * 2**(2/3.0)
 
     def _dBeta_dp(self, p):
         """return the derivative 'dD(p)/dp' """
@@ -153,7 +153,8 @@ class FunctionalSLDA(FunctionalBdG):
         p4 = p3*p
         p5 = p4*p
         p6 = p5*p
-        return 1.284*p + (-0.62345 + 0.7127*p2 - 0.9987*p4 + 0.42823*p6)*pm + (0.20411*p - 0.51741*p3 + 0.26962*p5)*pp 
+        dB_dp = 1.284*p + (-0.62345 + 0.7127*p2 - 0.9987*p4 + 0.42823*p6)*pm + (0.20411*p - 0.51741*p3 + 0.26962*p5)*pp 
+        return dB_dp * 2**(2/3.0)
 
     def _dC_dn(self, ns):
         """return dC / dn"""

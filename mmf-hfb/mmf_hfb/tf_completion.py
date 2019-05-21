@@ -236,7 +236,7 @@ def do_integration(integrand, mu_a, mu_b, delta, m_a, m_b, dim=3,
     if dim == 1:
         integrand = numba.cfunc(numba.float64(numba.float64))(integrand)
         integrand = sp.LowLevelCallable(integrand.ctypes)
-        return quad(func=integrand, a=-k_inf, b=k_inf, points=points, limit=limit)
+        return quad(func=integrand, a=-1*k_inf, b=k_inf, points=points, limit=limit)
         #return quad(func=integrand, a=k_0, b=k_inf, points=points, limit=limit)
 
     def kp0(kx):
@@ -429,5 +429,5 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, dim=3,
     else:
         raise ValueError(f"Only dim=1, 2, or 3 supported (got dim={dim})")
 
-    return do_integration(integrand, delta=delta, mu_a=mu_a, mu_b=mu_b, m_a=m_a, m_b=m_b, 
+    return do_integration(integrand, delta=delta, mu_a=mu_a, mu_b=mu_b, m_a=m_a, m_b=m_b,
                    dim=dim, q=q, dq=dq, hbar=hbar, k_0=k_0, k_inf=k_inf, limit=limit)

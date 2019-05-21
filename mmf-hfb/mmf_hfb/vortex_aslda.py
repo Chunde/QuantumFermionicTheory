@@ -7,6 +7,7 @@ from mmfutils.math.integrate import mquad
 from mmf_hfb.bcs import BCS
 from mmf_hfb.xp import xp, allclose
 import numpy
+import scipy.optimize
 
 class ASLDA(Functional, BCS):
     
@@ -136,8 +137,8 @@ class ASLDA(Functional, BCS):
 
         return self._unpack_densities(dens, struct=False)
 
-    def get_ns_e_p(self, mus_eff, delta,
-            ns=None, taus=None, kappa=None, N_twist=32, **args):
+    def get_ns_e_p(self, mus_eff, delta, ns=None,
+            taus=None, kappa=None, N_twist=32, max_iter=32, **args):
         """
             compute then energy density for ASLDA, equation(78) in page 39
             Note:
@@ -154,16 +155,48 @@ class ASLDA(Functional, BCS):
             energy_density = alpha_a*(taus[0] + taus[1])/2.0  + self._Beta(ns)*(3*xp.pi**2.0)**(2.0/3)*(ns[0] + ns[1])**(5.0/3)*3.0/10
             energy_density = energy_density *self.hbar**2/self.m
         elif self.FunctionalType == FunctionalType.ASLDA:
-            args = dict(args, mus_eff=mus_eff, delta=delta, struct=False,N_twist=N_twist)
-            ns_ = None
-            while(True):
-                args.update(ns=ns, taus=taus, kappa=kappa)
-                ns, taus, js, kappa = self.get_densities( **args)
-                print(f"ns={ns[0][0].max(), ns[1][0].max()}\ttaus={taus[0][0].max(),taus[1][0].max()}\tkappa={kappa[0].max().real}")
+            args = dict(args, mus_eff=mus_eff, delta=delta, struct=False, N_twist=N_twist)
+
+            # Broyden1 method
+            if False:
+                args.update(unpack=False)
+                x0 = self.get_densities(**args) # initial guess
+                def F(x):
+                    if x is not None:
+                        ns, taus, js, kappa = self._unpack_densities(x)
+                        args.update(ns=ns, taus=taus, kappa=kappa)
+                    x_ = self.get_densities( **args)
+                    ret = (x-x_)**2
+                    print(ret.max())
+                    return ret
+
+                x = scipy.optimize.broyden2(F, x0, maxiter=max_iter, f_tol=1e-4)
+                ns, taus, js, kappa = self._unpack_densities(x)
+            # simple iteration method
+            if True:
+                ns_ = taus_ = js_ =kappa_ = None
+                iter = 0
+                lr = .1
+                args.update(unpack=True)
+                while(True):
+                    args.update(ns=ns, taus=taus, kappa=kappa)
+                    ns, taus, js, kappa = self.get_densities( **args)
+                    print(f"{iter}:\tns={ns[0][0].max(), ns[1][0].max()}\ttaus={taus[0][0].max(),taus[1][0].max()}\tkappa={kappa[0].max().real}")
                 
-                if ns_ is not None and xp.allclose(ns_[0], ns[0]):
-                    break
-                ns_ = ns
+                    if ns_ is not None:
+                        if xp.allclose(ns_[0], ns[0]):
+                            break
+                        if lr < 1:
+                            mr = 1 - lr
+                            n, t, j, k = (ns * lr + ns_ * mr), (taus * lr + taus_ * mr), (js * lr + js_ * mr), (kappa * lr + kappa_ * mr)
+                            ns_, taus_, js_, kappa_= ns, taus, js, kappa
+                            ns, taus, js, kappa = n, t, j, k
+                    else:
+                        ns_, taus_, js_, kappa_= ns, taus, js, kappa
+                    iter = iter + 1
+                    if iter > max_iter:
+                        break
+
             D = self._D(ns)
             Vs = self.get_v_ext(**args)
             alpha_a, alpha_b, alpha_p = self._get_alphas(ns)

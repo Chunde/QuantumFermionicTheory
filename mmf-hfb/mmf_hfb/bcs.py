@@ -104,7 +104,7 @@ class BCS(object):
         kappa_ = (nu_real+ 1j*nu_imag)
         js = (dens[6:]).reshape((2, len(self.Nxyz)) + tuple(self.Nxyz))
         tau_a, tau_b = self._get_modified_taus(taus=(tau_a, tau_b), js=js)
-        return ((n_a, n_b), (tau_a, tau_b), js, kappa_)
+        return (xp.array([n_a, n_b]), xp.array([tau_a, tau_b]), js, kappa_)
 
     def _get_K(self, twists=0, **kw):
         """Return the kinetic energy matrix."""
@@ -362,7 +362,7 @@ class BCS(object):
         H = self.get_H(mus_eff=mus_eff, delta=delta, twists=twists, **args)
         return self._get_densities_H(H, twists=twists)
 
-    def get_densities(self, mus_eff, delta, N_twist=1, abs_tol=1e-12, struct=True, **args):
+    def get_densities(self, mus_eff, delta, N_twist=1, abs_tol=1e-12, unpack=True, struct=True, **args):
         """Return the densities.
 
         Arguments
@@ -391,7 +391,9 @@ class BCS(object):
                 dens += get_dens(twists=twists)
                 N_=N_+1
             dens = dens/N_
-        return self._unpack_densities(dens, struct=struct)
+        if unpack:
+            return self._unpack_densities(dens, struct=struct)
+        return dens
        
     def get_ns_e_p(self, mus_eff, delta, **args):
         """
