@@ -5,9 +5,11 @@ two-species Fermi gas with short-range interaction.
 from mmf_hfb.Functionals import FunctionalASLDA as Functional, FunctionalType
 from mmfutils.math.integrate import mquad
 from mmf_hfb.bcs import BCS
+from mmf_hfb.ParallelHelper import PoolHelper
 from mmf_hfb.xp import xp, allclose
 import numpy
 import scipy.optimize
+
 
 class ASLDA(Functional, BCS):
     
@@ -109,9 +111,22 @@ class ASLDA(Functional, BCS):
         """
         return taus
 
-    def get_dens_integral(self, mus_eff, delta,
-                            ns=None, taus=None, kappa=None,
-                            k_c=None, N_twist=32, abs_tol=1e-6):
+    def integral_worker(obj_twists):
+        obj, k_c, vs, twists, args = obj_twists
+        print(twists)
+        abs_tol=1e-6
+        def f(k=0):
+            k_p = obj.hbar**2/2/obj.m*k**2
+            H = obj.get_H(vs=vs, k_p=k_p, twists=twists, **args)
+            den = obj._get_densities_H(H, twists=twists)
+            return den
+        dens = mquad(f, -k_c, k_c, abs_tol=abs_tol)/2/xp.pi # factor? It turns out the factor should be 2pi
+        #print(dens)
+        return dens
+
+    def get_dens_integral(self, mus_eff, delta, ns=None, taus=None,
+                             kappa=None, k_c=None, N_twist=32,
+                             unpack=True, abs_tol=1e-6, **args):
         """
             integrate over other dimensions by assuming it's homogeneous
             on those dimensions
@@ -121,9 +136,16 @@ class ASLDA(Functional, BCS):
             k_c = xp.sqrt(2*self.m*self.E_c)/self.hbar
 
         twistss = self._get_twistss(N_twist)
-        args = dict(mus_eff=mus_eff, delta=delta, ns=ns, taus=taus, kappa=kappa)
+        args = dict(args, mus_eff=mus_eff, delta=delta, ns=ns, taus=taus, kappa=kappa)
         vs = self.get_v_ext(**args)
-        dens = 0
+
+        argslist = [(self, k_c, vs, twists, args) for twists in twistss]
+        res = PoolHelper.run(ASLDA.integral_worker, argslist )
+        print(res)
+        dens = sum(res)/len(res)
+
+
+        dens_ = 0
         N_=0
         for twists in twistss:
             def f(k=0):
@@ -131,14 +153,18 @@ class ASLDA(Functional, BCS):
                 H = self.get_H(vs=vs, k_p=k_p, twists=twists, **args)
                 den = self._get_densities_H(H, twists=twists)
                 return den
-            dens = dens + mquad(f, -k_c, k_c, abs_tol=abs_tol)/2/xp.pi # factor? It turns out the factor should be 2pi
+            den =  + mquad(f, -k_c, k_c, abs_tol=abs_tol)/2/xp.pi # factor? It turns out the factor should be 2pi
+            print(den)
+            dens_ = dens_ + den
             N_=N_ + 1
-        dens = dens/N_
+        dens_ = dens/N_
+        assert xp.allclose(dens, dens_)
+        if unpack:
+            return self._unpack_densities(dens, struct=False)
+        return dens
 
-        return self._unpack_densities(dens, struct=False)
-
-    def get_ns_e_p(self, mus_eff, delta, ns=None,
-            taus=None, kappa=None, N_twist=32, max_iter=32, **args):
+    def get_ns_e_p(self, mus_eff, delta, ns=None, taus=None, kappa=None,
+            N_twist=32, max_iter=None, use_Broyden = False, **args):
         """
             compute then energy density for ASLDA, equation(78) in page 39
             Note:
@@ -155,34 +181,35 @@ class ASLDA(Functional, BCS):
             energy_density = alpha_a*(taus[0] + taus[1])/2.0  + self._Beta(ns)*(3*xp.pi**2.0)**(2.0/3)*(ns[0] + ns[1])**(5.0/3)*3.0/10
             energy_density = energy_density *self.hbar**2/self.m
         elif self.FunctionalType == FunctionalType.ASLDA:
+            assert self.dim == 2
             args = dict(args, mus_eff=mus_eff, delta=delta, struct=False, N_twist=N_twist)
-
             # Broyden1 method
-            if False:
+            if use_Broyden:
+                print("Use Broyden method")
                 args.update(unpack=False)
                 x0 = self.get_densities(**args) # initial guess
-                def F(x):
+                def f(x):
                     if x is not None:
                         ns, taus, js, kappa = self._unpack_densities(x)
                         args.update(ns=ns, taus=taus, kappa=kappa)
-                    x_ = self.get_densities( **args)
+                    x_ = self.get_dens_integral( **args)
                     ret = (x-x_)**2
                     print(ret.max())
                     return ret
 
-                x = scipy.optimize.broyden2(F, x0, maxiter=max_iter, f_tol=1e-4)
+                x = scipy.optimize.broyden1(f, x0, maxiter=max_iter, f_tol=1e-4)
                 ns, taus, js, kappa = self._unpack_densities(x)
             # simple iteration method
-            if True:
+            if not use_Broyden:
+                print("Use simple iteration")
                 ns_ = taus_ = js_ =kappa_ = None
                 iter = 0
                 lr = .1
                 args.update(unpack=True)
                 while(True):
                     args.update(ns=ns, taus=taus, kappa=kappa)
-                    ns, taus, js, kappa = self.get_densities( **args)
+                    ns, taus, js, kappa = self.get_dens_integral( **args)
                     print(f"{iter}:\tns={ns[0][0].max(), ns[1][0].max()}\ttaus={taus[0][0].max(),taus[1][0].max()}\tkappa={kappa[0].max().real}")
-                
                     if ns_ is not None:
                         if xp.allclose(ns_[0], ns[0]):
                             break
@@ -194,9 +221,8 @@ class ASLDA(Functional, BCS):
                     else:
                         ns_, taus_, js_, kappa_= ns, taus, js, kappa
                     iter = iter + 1
-                    if iter > max_iter:
+                    if max_iter is not None and iter > max_iter:
                         break
-
             D = self._D(ns)
             Vs = self.get_v_ext(**args)
             alpha_a, alpha_b, alpha_p = self._get_alphas(ns)
