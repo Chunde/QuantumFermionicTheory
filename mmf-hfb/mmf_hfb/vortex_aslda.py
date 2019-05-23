@@ -121,7 +121,6 @@ class ASLDA(Functional, BCS):
             den = obj._get_densities_H(H, twists=twists)
             return den
         dens = mquad(f, -k_c, k_c, abs_tol=abs_tol)/2/xp.pi # factor? It turns out the factor should be 2pi
-        #print(dens)
         return dens
 
     def get_dens_integral(self, mus_eff, delta, ns=None, taus=None,
@@ -141,24 +140,21 @@ class ASLDA(Functional, BCS):
 
         argslist = [(self, k_c, vs, twists, args) for twists in twistss]
         res = PoolHelper.run(ASLDA.integral_worker, argslist )
-        print(res)
         dens = sum(res)/len(res)
 
+        
+        #dens=N=0
+        #for twists in twistss:
+        #    def f(k=0):
+        #        k_p = self.hbar**2/2/self.m*k**2
+        #        H = self.get_H(vs=vs, k_p=k_p, twists=twists, **args)
+        #        den = self._get_densities_H(H, twists=twists)
+        #        return den
+        #    den =  + mquad(f, -k_c, k_c, abs_tol=abs_tol)/2/xp.pi # factor? It turns out the factor should be 2pi
+        #    dens = dens + den
+        #    N_=N_ + 1
+        #dens = dens/N_
 
-        dens_ = 0
-        N_=0
-        for twists in twistss:
-            def f(k=0):
-                k_p = self.hbar**2/2/self.m*k**2
-                H = self.get_H(vs=vs, k_p=k_p, twists=twists, **args)
-                den = self._get_densities_H(H, twists=twists)
-                return den
-            den =  + mquad(f, -k_c, k_c, abs_tol=abs_tol)/2/xp.pi # factor? It turns out the factor should be 2pi
-            print(den)
-            dens_ = dens_ + den
-            N_=N_ + 1
-        dens_ = dens/N_
-        assert xp.allclose(dens, dens_)
         if unpack:
             return self._unpack_densities(dens, struct=False)
         return dens
@@ -174,12 +170,9 @@ class ASLDA(Functional, BCS):
         if self.FunctionalType == FunctionalType.BDG:
             ns, taus, js, kappa = self.get_densities(mus_eff=mus_eff, delta=delta, N_twist=N_twist,  struct=False)
             g_eff = self._g_eff(mus_eff=mus_eff, delta=delta, kappa=kappa)
-            energy_density = (taus[0] + taus[1])*self.hbar**2/2/self.m
+            energy_density = self._energy_density(delta=delta, ns=ns, taus=taus, kappa=kappa)
         elif self.FunctionalType == FunctionalType.SLDA:
-            raise Exception("Not implemented")
-            assert xp.allclose(alpha_a, alpha_b)
-            energy_density = alpha_a*(taus[0] + taus[1])/2.0  + self._Beta(ns)*(3*xp.pi**2.0)**(2.0/3)*(ns[0] + ns[1])**(5.0/3)*3.0/10
-            energy_density = energy_density *self.hbar**2/self.m
+            energy_density = self._energy_density(delta=delta, ns=ns, taus=taus, kappa=kappa)
         elif self.FunctionalType == FunctionalType.ASLDA:
             assert self.dim == 2
             args = dict(args, mus_eff=mus_eff, delta=delta, struct=False, N_twist=N_twist)
@@ -205,7 +198,7 @@ class ASLDA(Functional, BCS):
                 ns_ = taus_ = js_ =kappa_ = None
                 iter = 0
                 lr = .1
-                args.update(unpack=True)
+                args.update(unpack=True, im=self.dim)
                 while(True):
                     args.update(ns=ns, taus=taus, kappa=kappa)
                     ns, taus, js, kappa = self.get_dens_integral( **args)
@@ -223,15 +216,11 @@ class ASLDA(Functional, BCS):
                     iter = iter + 1
                     if max_iter is not None and iter > max_iter:
                         break
-            D = self._D(ns)
-            Vs = self.get_v_ext(**args)
-            alpha_a, alpha_b, alpha_p = self._get_alphas(ns)
-            g_eff = self._g_eff(alpha_p=alpha_p, Vs=Vs, dim=self.dim, **args)
-            energy_density = (alpha_a*taus[0]/2.0 + alpha_b*taus[1]/2.0 + D)*self.hbar**2/self.m
+
+            energy_density = self._energy_density(delta=delta, ns=ns, taus=taus, kappa=kappa, **args)
         else:
             raise ValueError('Unsupported functional type')
-
-        energy_density = energy_density - g_eff * kappa.T.conj()*kappa
+        # For 1d, mus_eff should be used to compute bare mus 
         pressure = ns[0] * mus_eff[0] + ns[1]*mus_eff[1] - energy_density
         return (ns, energy_density, pressure)
     

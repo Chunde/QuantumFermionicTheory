@@ -1,6 +1,7 @@
 from mmf_hfb.xp import xp
 from enum import Enum
 
+hbar=m=1
 
 class FunctionalType(Enum):
     BDG = 1
@@ -9,6 +10,7 @@ class FunctionalType(Enum):
 
 
 class FunctionalBdG(object):
+
 
     def __init__(self):
         self.FunctionalType = FunctionalType.BDG
@@ -124,6 +126,10 @@ class FunctionalBdG(object):
         g_eff = -delta/kappa
         return g_eff
 
+    def _energy_density(self, delta, ns, taus, kappa, **args):
+        g_eff = self._g_eff(delta=delta, kappa=kappa)
+        return hbar**2/2/m*sum(taus) - g_eff*kappa.T.conj()*kappa
+
 class FunctionalSLDA(FunctionalBdG):
     
     def __init__(self):
@@ -174,6 +180,11 @@ class FunctionalSLDA(FunctionalBdG):
         alpha_a, alpha_b = alpha_odd + alpha_even, -alpha_odd + alpha_even
         return (alpha_a, alpha_b, alpha_even, alpha_odd)
 
+    def _energy_density(self, delta, ns, taus, kappa, **args):
+        g_eff = self._g_eff(delta=delta, kappa=kappa)
+        return (hbar**2/2/m*sum(taus)*self._alpha(self._get_p(ns))
+                + self._Beta(ns)*(3*xp.pi**2.0)**(2.0/3)*sum(ns)**(5.0/3)*0.3 
+                - g_eff*kappa.T.conj()*kappa)
 
 class FunctionalASLDA(FunctionalSLDA):
 
@@ -201,12 +212,14 @@ class FunctionalASLDA(FunctionalSLDA):
         """return dalpha_m / dp"""
         return 0.156*(p**2 - 1.0)**2
 
-    def _g_eff(self, mus_eff, ns, Vs, alpha_p, dim, **args):
+    def _g_eff(self, mus_eff, ns, dim, **args):
         """
             get the effective g
             equation (87c) in page 42
         """
-        V_a, V_b = Vs
+        V_a, V_b = self.get_v_ext(**args)
+
+        alpha_a, alpha_b, alpha_p = self._get_alphas(ns)
         mu_p = (sum(mus_eff) - V_a + V_b) / 2
         k0 = (2*self.m/self.hbar**2*mu_p/alpha_p)**0.5
         k_c = (2*self.m/self.hbar**2 * (self.E_c + mu_p)/alpha_p)**0.5
@@ -214,3 +227,9 @@ class FunctionalASLDA(FunctionalSLDA):
         Lambda = self._get_Lambda(k0=k0, k_c=k_c, dim=dim)
         g = alpha_p/(C - Lambda)
         return g
+
+    def _energy_density(self, delta, ns, taus, kappa, **args):
+        g_eff = self._g_eff(delta=delta, ns=ns,  kappa=kappa, **args)
+        return (hbar**2/m*(self._alpha_a(ns)*tau[0]/2.0
+                           + self._alpha_b(ns)*taus[1] + self._D(ns)) 
+                - g_eff*kappa.T.conj()*kappa)

@@ -7,7 +7,7 @@ from os.path import join
 import json
 import time
 import glob
-
+import numpy as np
 
 class FFStateHelper(object):
     def compute_pressure_current_worker(jsonData_file):
@@ -34,7 +34,7 @@ class FFStateHelper(object):
                 #    continue
                 if dq1 is not None:
                     dic = {}
-                    p1 = ff.get_pressure(delta=d, dq=dq1)
+                    p1 = ff.get_pressure(delta=d, dq=dq1).n
                     ja, jb, jp, jm = ff.get_current(delta=d, dq=dq1)
 
                     dic['d']=d
@@ -47,7 +47,7 @@ class FFStateHelper(object):
                     print(dic)
                 if dq2 is not None:
                     dic = {}
-                    p2 = ff.get_pressure(delta=d, dq=dq2)
+                    p2 = ff.get_pressure(delta=d, dq=dq2).n
                     ja, jb, jp, jm = ff.get_current(delta=d, dq=dq2)
                     dic['d']=d
                     dic['q']=dq2
@@ -103,19 +103,39 @@ class FFStateHelper(object):
     def search_single_configuration_1d():
         dim = 1
         mu = 10
-        delta = 0.2  # when set g, delta is useless
-        dmu = 0.6
-        g = -10
+        delta = 0.21  # when set g, delta is useless
+        dmu = 0.5
+        g = None# -10
         ff = FFStateFinder(delta=delta, dim=dim, mu=mu, dmu=dmu, g=g)
-        ff.run(dl=0.001, du=15, dn=200, ql=0, qu=2)
+        ff.run(dl=0.001, du=0.5, dn=100, ql=0, qu=0.04)
 
     def search_single_configuration_3d():
-        dim = 3
-        mu = 10
-        delta = 2.4
-        dmu = 2.48
-        ff = FFStateFinder(delta=delta, dim=dim, mu=mu, dmu=dmu)
-        ff.run(dl=2.37, du=2.95, dn=100, ql=0, qu=.5)
+        e_F = 10
+        mu0 = 0.59060550703283853378393810185221521748413488992993 * e_F
+        delta0 = 0.68640205206984016444108204356564421137062514068346 * e_F
+
+        mu = mu0 # ~6
+        delta = 3.5
+        dmu = 3.6
+
+
+        dl = 0.0001
+        du = 2*dmu
+        ff = FFStateFinder(delta=delta, dim=3, mu=mu, dmu=dmu)
+        def q_upper_lim():
+            print("Finding q upper limit...")
+            dqs = np.linspace(0, 2*delta, 50)
+            gs = [ff._gc(mu=mu, dmu=dmu, delta=0.001, dq=dq) for dq in dqs]
+            g0 = gs[-1]
+            for i in reversed(range(len(dqs))):
+                if gs[i] * g0 < 0:
+                    print(dqs[i] * 2)
+                    return dqs[i] * 2
+            return delta
+        ql = 0
+        qu = q_upper_lim()
+        print(f"Start search:mu={mu}, dmu={dmu}, delta={delta},lower delta={dl}, upper delta={du}, lower dq={ql}, upper dq={qu}")
+        ff.run(dl=dl, du=du, dn=100, ql=ql, qu=qu)
 
     def sort_file(files=None, abs_file=False):
         #files = ["FFState_(3d_2.5_10_3.15)2019_05_06_23_23_35.json"]
@@ -179,4 +199,4 @@ if __name__ == "__main__":
     # FFStateHelper.SearchFFState(delta=2.1, mu=10, dmus=dmus, dim=1)
     ## Compute the pressure and current
     FFStateHelper.compute_pressure_current()
-    
+ 

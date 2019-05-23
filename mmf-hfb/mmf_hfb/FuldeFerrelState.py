@@ -318,7 +318,7 @@ class FFState(object):
         self.bStateSentinel = oldFlag
         return delta > 0
 
-    def solve(self, mu=None, dmu=None, q=0, dq=0, 
+    def solve(self, mu=None, dmu=None, q=0, dq=0,
             a=None, b=None, throwException=False, **args):
         """
         On problem with brentq is that it requires very smooth function with a 
@@ -338,6 +338,7 @@ class FFState(object):
         def f(delta):
             return self.f(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
 
+        self._delta = None # a another possible solution
         if throwException:
             delta = brentq(f, a, b)
         else:
@@ -357,6 +358,15 @@ class FFState(object):
                     f_ = f(ds[i])
                     if f0 * f_ < 0:
                         delta = brentq(f, ds[index0], ds[i])
+                        if f_ * f(ds[0]) < 0:  # another solution
+                            delta_ = brentq(f, ds[0], ds[i])
+                            self._delta = delta_
+                            print(f"Another solution delta={delta_} was found, return the one with higher pressure")
+                            p_ = self.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=delta_, q=q, dq=dq)
+                            p = self.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=delta, q=q, dq=dq)
+                            if p_ > p:
+                                self._delta = delta
+                                delta = delta_
                         break
                     else:
                         f0 = f_

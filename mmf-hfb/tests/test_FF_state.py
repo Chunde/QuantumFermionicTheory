@@ -331,4 +331,4 @@ def test_Thermodynamic_1d(
 
 if __name__ == "__main__":
     #test_Thermodynamic_1d(delta = 1.0, mu_delta = 10, dmu_delta = 1.2, q_dmu = 0.05, dq_dmu = 0.02, N = 20, dx = 0.001)
-    test_Thermodynamic(delta = 1.0, mu_delta = 5, dmu_delta = 1.2, q_dmu = 0, dq_dmu = 0.02, dim = 2, k_c = 50)
+    test_Thermodynamic(delta = 1.0, mu_delta = 5, dmu_delta = 1.2, q_dmu = 0, dq_dmu = 0.02, dim = 3, k_c = 50)
