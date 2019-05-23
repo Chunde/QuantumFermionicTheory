@@ -38,16 +38,6 @@ clear_output()
 # * here were found and plot all FF States
 # * to determine if any of the state is a ground state, we need to find a max pressure.
 
-# ### One FF Ground State
-# * Here is a ground FF state in 1d, these numbers are from the plot in this section.
-# * It's meta-state because it's slightly smaller than a nomral state pressure with the same $\mu$, $\delta \mu$
-# * it's interesting to find that to fix g in different way will change the result a lot,
-#     * if fix the g with dq, we get g=-3.077012439639267
-#     * However, if fix g without dq(g=-2.7137980772945562), we get something else that will not be a ground FF State.
-#     * So, it's better to fix g instead of picking a $\Delta$
-# * Normal Pressure=26.800450217524567
-# * FFState Pressue=26.801008398851206
-
 mu=10
 dmu= 0.27
 delta=0.2
@@ -63,40 +53,51 @@ j_a, j_b, j_p, j_m = ff.get_current(mu=mu_eff, dmu=dmu_eff, delta=0, dq=dq)
 print(f"n_a={n_a.n}, n_b={n_b.n}, j_a={j_a.n}, j_b={j_b.n}, j_p={j_p.n}, j_m={j_m.n}")
 # re-compute the effective mus as for normal state, delta=dq=0
 mu_eff, dmu_eff = ff._get_effective_mus(mu=mu, dmu=dmu, delta=0, mus_eff=(mu_eff, dmu_eff), update_g=False)
-p0 = ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=0).n
+p0 = ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=0)
 print(f"FF State Pressure={p}, Normal State Pressue={p0}")
 if p0 < p:
     print("The ground state is a FF State")
 
+# ### One FF Ground State
+# * Here is a ground FF state in 1d, these numbers are from the plot in this section.
+# * It's meta-state because it's slightly smaller than a nomral state pressure with the same $\mu$, $\delta \mu$
+# * it's interesting to find that to fix g in different way will change the result a lot,
+#     * if fix the g with dq, we get g=-3.077012439639267
+#     * However, if fix g without dq(g=-2.7137980772945562), we get something else that will not be a ground FF State.
+#     * So, it's better to fix g instead of picking a $\Delta$
+# * Normal Pressure=26.800450217524567
+# * FFState Pressue=26.801008398851206
 
 # ### Plots from external data
-
-def filter(mu, dmu, delta, g, dim):
-    if dim != 3:
-        return True
-    #return False
-    #if g != -2.88:
-    #    return True
-    #return False
-    #if g !=-2.6:
-    #    return True
-    if delta != 2.4:
-        return True
-    if dmu != 2.45:
-        return True
-    return False
-currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","mmf_hfb","data")
-
 
 import os
 import inspect
 from os.path import join
+def filter(mu, dmu, delta, g, dim):
+    if dim != 3:
+        return True
+    #return False
+    #if g != -2.8:
+    #    return True
+    #return False
+    #if g != -3.2:
+    #    return True
+    #if delta != 2.5:
+    #    return True
+    #if dmu != 5:
+    #    return True
+    return False
+currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","mmf_hfb","data")
+
+
+# +
+
 import json
 import glob
 from json import dumps
 pattern = join(currentdir,"FFState_[()d_0-9]*.json")
 files = glob.glob(pattern)
-plt.figure(figsize=(20,20))
+plt.figure(figsize=(16,4))
 style =['o','+','+']
 gs = set()
 for file in files:
@@ -118,14 +119,14 @@ for file in files:
                 if dq2 is not None:
                     dqs2.append(dq2)
                     ds2.append(d)
-            plt.subplot(211)
+            plt.subplot(121)
             if len(ds1) < len(ds2):
                 if len(ds1) > 0:
                     plt.plot(ds1, dqs1, style[dim-1], label=f"$\Delta=${delta}, $\mu$={mu}, $d\mu=${dmu}, g={g}")
             else:
                 if len(ds2) > 0:
                     plt.plot(ds2, dqs2, style[dim-1], label=f"$\Delta=${delta}, $\mu$={mu}, $d\mu=${dmu}, g={g}")
-            plt.subplot(212)
+            plt.subplot(122)
             if len(ds1) < len(ds2):
                 if len(ds2) > 0:
                     plt.plot(ds2, dqs2, style[dim-1], label=f"$\Delta=${delta}, $\mu$={mu}, $d\mu=${dmu}, g={g}")
@@ -134,16 +135,17 @@ for file in files:
                     plt.plot(ds1, dqs1, style[dim-1], label=f"$\Delta=${delta}, $\mu$={mu}, $d\mu=${dmu}, g={g}")
             #break
 print(gs)    
-plt.subplot(211)
+plt.subplot(121)
 plt.xlabel(f"$\Delta$")
 plt.ylabel(f"$\delta q$")
 plt.title(f"Lower Branch")
 plt.legend()
-plt.subplot(212)
+plt.subplot(122)
 plt.xlabel(f"$\Delta$")
 plt.ylabel(f"$\delta q$")
 plt.title(f"Upper Branch")
 plt.legend()
+# -
 
 # ## Compute Current and Pressure
 # $$
@@ -170,22 +172,19 @@ def PlotCurrentPressure(alignLowerBranches=True, alignUpperBranches=True, showLe
                 ret = json.load(rf)
                 dim, mu, dmu, delta, g=ret['dim'], ret['mu'], ret['dmu'], ret['delta'],ret['g']
                 if filter(mu=mu, dmu=dmu, delta=delta, g=g, dim=dim):
-                    continue                
-                print(f"g={g}")
+                    continue 
                 k_c = None
                 if 'k_c' in ret:
                     k_c = ret['k_c']
-                    print(f"k_c={k_c}")
                 gs.add(g)
-                print(file)    
+                print(file)
                 ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=dim, g=g, k_c=k_c, fix_g=True)
-                mu_eff, dmu_eff = ff._get_effective_mus(mu=mu, dmu=dmu)
+                mu_eff, dmu_eff = mu, dmu
                 n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff)
                 print(f"n_a={n_a.n}, n_b={n_b.n}, P={(n_a - n_b).n/(n_a + n_b).n}")
-                mu_eff, dmu_eff = ff._get_effective_mus(mu=mu, dmu=dmu, delta=0, mus_eff=(mu_eff, dmu_eff), update_g=False)
-                p0 = ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=0).n
+                p0 = ff.get_pressure(mu=None, dmu=None, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=0)
                 data1, data2 = ret['data']
-                del data2[-1]
+                
 
                 dqs1, dqs2, ds1, ds2, j1, j2, ja1, ja2, jb1, jb2, P1, P2 = [],[],[],[],[],[],[],[],[],[],[],[]
                 for data in data1:
@@ -217,7 +216,9 @@ def PlotCurrentPressure(alignLowerBranches=True, alignUpperBranches=True, showLe
                     else:
                         P1_=P1
                     index1, value = max(enumerate(P1), key=operator.itemgetter(1))
-                    state = "FF" if value > p0 else "NS"
+                    data = data1[index1]
+                    n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=data["d"], dq=data["q"])
+                    state = "FF" if value > p0 and not np.allclose(n_a.n, n_b.n) else "NS"
                     plt.plot(ds1, P1_, label=f"$\Delta=${delta},$\mu=${mu},$d\mu=${dmu},State:{state}")
                     plt.axvline(ds1[index1])
                     print(f"Normal Pressure={p0}，FFState Pressue={value}")
@@ -230,20 +231,22 @@ def PlotCurrentPressure(alignLowerBranches=True, alignUpperBranches=True, showLe
                     else:
                         P2_ = P2
                     index2, value = max(enumerate(P2), key=operator.itemgetter(1))
-                    state = "FF" if value > p0 else "NS"
+                    data = data2[index2]
+                    n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=data["d"], dq=data["q"])
+                    state = "FF" if value > p0 and not np.allclose(n_a.n, n_b.n) else "NS"
                     plt.plot(ds2, P2_, label=f"$\Delta=${delta},$\mu=${mu},$d\mu=${dmu},State:{state}")
                     plt.axvline(ds2[index2])
                     print(f"Normal Pressure={p0}，FFState Pressue={value}")
                     print(data2[index2])
                 plt.subplot(325)
-                plt.plot(ds1, j1, label=f"$j_p, \Delta=${delta},$\mu=${mu},$d\mu=${dmu}")
+                #plt.plot(ds1, j1, label=f"$j_p, \Delta=${delta},$\mu=${mu},$d\mu=${dmu}")
                 plt.plot(ds1, ja1, label=f"j_a")
-                plt.plot(ds1, jb1, label=f"j_b")
+                #plt.plot(ds1, jb1, label=f"j_b")
                 plt.axvline(ds1[index1])
                 plt.subplot(326)
                 #plt.plot(ds2, j2, label=f"$j_p, \Delta=${delta},$\mu=${mu},$d\mu=${dmu}")
                 plt.plot(ds2, ja2, "+",label=f"j_a")
-                plt.plot(ds2, jb2, "+",label=f"j_b")
+                #plt.plot(ds2, jb2, "+",label=f"j_b")
                 if len(ds2) > 0:
                     plt.axvline(ds2[index2])
                     plt.axhline(0)
@@ -265,8 +268,113 @@ def PlotCurrentPressure(alignLowerBranches=True, alignUpperBranches=True, showLe
             plt.ylabel("$Current$")
         plt.xlabel("$\Delta$")
 
-
 PlotCurrentPressure(alignLowerBranches=True, alignUpperBranches=True, showLegend=True)
+
+
+def FindFFState(verbose=False):
+    output = []
+    pattern = join(currentdir, "FFState_J_P[()d_0-9]*")
+    files=glob.glob(pattern)
+    for file in files[0:]:
+        if os.path.exists(file):
+            with open(file,'r') as rf:
+                ret = json.load(rf)
+                dim, mu, dmu, delta, g=ret['dim'], ret['mu'], ret['dmu'], ret['delta'],ret['g']
+                if filter(mu=mu, dmu=dmu, delta=delta, g=g, dim=dim):
+                    continue 
+                k_c = None
+                if 'k_c' in ret:
+                    k_c = ret['k_c']
+                if verbose:
+                    print(file)
+                ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=dim, g=g, k_c=k_c, fix_g=True)
+                mu_eff, dmu_eff = mu, dmu
+                ns = ff.get_densities(mu=mu_eff, dmu=dmu_eff)
+                if verbose:
+                    print(ns)
+                p0 = ff.get_pressure(mu=None, dmu=None, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=0)
+                p1 = ff.get_pressure(mu=None, dmu=None, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta)
+                if verbose:
+                    print(f"p0={p0},p1={p1}")
+                data1, data2 = ret['data']
+
+                dqs1, dqs2, ds1, ds2, j1, j2, ja1, ja2, jb1, jb2, P1, P2 = [],[],[],[],[],[],[],[],[],[],[],[]
+                for data in data1:
+                    d, q, p, j, j_a, j_b = data['d'],data['q'],data['p'],data['j'],data['ja'],data['jb']
+                    ds1.append(d)
+                    dqs1.append(q)
+                    j1.append(j)
+                    ja1.append(j_a)
+                    jb1.append(j_b)
+                    P1.append(p)
+                for data in data2:
+                    d, q, p, j, j_a, j_b = data['d'],data['q'],data['p'],data['j'], data['ja'], data['jb']
+                    ds2.append(d)
+                    dqs2.append(q)
+                    j2.append(j)
+                    ja2.append(j_a)
+                    jb2.append(j_b)
+                    P2.append(p)
+                bFFState = False
+                if len(P1) > 0:
+                    index1, value = max(enumerate(P1), key=operator.itemgetter(1))
+                    data = data1[index1]
+                    n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=data["d"], dq=data["q"])
+                    if verbose:
+                        print(f"na={n_a.n}, nb={n_b.n}, PF={value}, PN={p0.n}")
+                    if value > p0 and not np.allclose(n_a.n, n_b.n):
+                        bFFState = True
+                if len(P2) > 0:
+                    index2, value = max(enumerate(P2), key=operator.itemgetter(1))
+                    data = data2[index2]
+                    n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=data["d"], dq=data["q"])
+                    if verbose:
+                        print(f"na={n_a.n}, nb={n_b.n}, PF={value}, PN={p0.n}")
+                    if value > p0 and not np.allclose(n_a.n, n_b.n):
+                        bFFState = True
+                if bFFState and verbose:
+                    print(f"FFState: {bFFState} |<-------------")
+                dic = dict(mu=mu, dmu=dmu, na=ns[0].n, nb=ns[1].n,  g=g, delta=delta, state=bFFState)
+                if verbose:
+                    print(dic)
+                output.append(dic)
+                if verbose:
+                    print("-----------------------------------")
+    return output
+
+
+output = FindFFState()
+clear_output()
+
+xs = []
+ys = []
+states = []
+for dic in output:  
+    n = dic['na'] + dic['nb']
+    g= dic['g']
+    xs.append(-1/(g * n**1.5))
+    ys.append(dic['dmu']/dic['delta'])
+    #xs.append(-1/(g * n**1.5))
+    #ys.append(dic['dmu']/dic['delta'])
+    states.append(dic['state'])
+N=len(xs)
+colors = []
+area = []
+for i in range(len(states)):
+    s=states[i]
+    if s:
+        #print(xs[i],ys[i])
+        #print(output[i])
+        colors.append('red')
+        area.append(15)
+    else:
+        colors.append('blue')
+        area.append(1)
+plt.scatter(xs, ys,  s=area, c=colors)
+plt.ylabel(r"$\delta \mu/\Delta_{\delta \mu=0}$")
+plt.xlabel(r"$-1/gn^{3/2}$")
+
+states
 
 mu=10
 dmu=0
@@ -279,42 +387,30 @@ print(f"g={ff._g}")
 mu_eff, dmu_eff = mu, dmu
 n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=delta)
 print(f"n_a={n_a.n}, n_b={n_b.n}, P={(n_a - n_b).n/(n_a + n_b).n}")
-ds = np.linspace(0.001,2, 40)
-ps = [ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=d, dq=dq).n for d in ds]
+ds = np.linspace(0.001,4, 40)
+ps = [ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=d, dq=dq, use_kappa=False).n for d in ds]
 delta_max = ff.solve(mu=mu, dmu=dmu, dq=dq)
 print(f"Delta={delta_max}")
 plt.plot(ds,ps)
 plt.axvline(delta_max)
 
 # ## Check range of $\Delta$
-# ### 1D Case
-
-g=-2.8 #-3.077012439639267
-#g=None
-ff = FFStateFinder(delta=2.4, dim=1, mu=10, dmu=0.8, g=g)
-dqs = np.linspace(0.001, 2, 20)
-gs = [ff._gc(delta=0.1, dq=dq) for dq in dqs]
-plt.plot(dqs, gs)
-plt.axhline(0)
-
 # ### 3D case
 # * To compare with the phase diagram in [Leo 2010]
 # [Leo 2010]: http://iopscience.iop.org/article/10.1088/0034-4885/73/7/076501/meta 'Imbalanced Feshbach-resonant Fermi gases'
 
-g = -10 #-3.077012439639267
-g = None
-delta = 2.4
-dim = 3
-mu = 10
-dmu = 2.41
-k_c = 50
-ff = FFStateFinder(delta=delta, dim=dim, mu=mu, dmu=dmu, g=g, k_c=k_c)
-dqs = np.linspace(0,1.5, 20)
+e_F = 10
+mu0 = 0.59060550703283853378393810185221521748413488992993 * e_F
+delta0 = 0.68640205206984016444108204356564421137062514068346 * e_F
+mu = mu0 # ~6
+delta = 3.5
+dmu = 3.6
+ff = FFStateFinder(delta=delta, dim=3, mu=mu, dmu=dmu,  k_c=25)
+dqs = np.linspace(0,2*delta, 100)
 plt.figure(figsize(8,4))
-gs = [ff._gc(mu=mu, dmu=dmu, delta=2.6, dq=dq) for dq in dqs]
-plt.plot(dqs, gs, label=f'd={d}')
+gs = [ff._gc(mu=mu, dmu=dmu, delta=0.001, dq=dq) for dq in dqs]
+plt.plot(dqs, gs)
 plt.axhline(0)
-plt.legend()
 
 # ## Revisit the unitary case
 # * In [Leo 2010] scattering length is used in x axis
@@ -352,59 +448,6 @@ if (P_ff > P_ns):
 # \epsilon_+&= \frac{\hbar^2}{4m}(k_a^2+k_b^2) - \mu_+= \frac{\hbar^2}{2m}\left[(k+q)^2 + dq^2\right] - \mu_+\\
 # \epsilon_-&= \frac{\hbar^2}{4m}(k_a^2-k_b^2) - \mu_-=\frac{\hbar^2}{m}(k +q)dq - \mu_-\tag{1}\\
 # \end{align}
-
-# * For a FF state, the ground state should have zero overall current:
-# $$
-# n_a (q + \delta q) + n_b(q-\delta q) = 0\tag{2}
-# $$
-# which means:
-# $$
-# \frac{n_a}{n_b}=\frac{\delta q - q}{\delta q +q}
-# $$
-# Let $n_a/n_b=r$, then
-# $$
-# \frac{\delta q}{q}=\frac{1 + r}{1-r}=\frac{n_a+n_b}{n_b-n_a}
-# $$
-
-# ## Stable conditions for $q$ and $\delta q$:
-# We can start with the regular way to define the gap:
-# $$
-# \Delta(x)=\Delta_0e^{-2i\vec{\delta}.\vec{x}}
-# $$
-#
-# Then:
-#
-# $$
-# H=\begin{pmatrix}
-# \nabla-\mu_a & \Delta_0 e^{2i\delta x}\\
-#  \Delta_0 e^{-2i\delta x} & -\nabla + \mu_b\\
-# \end{pmatrix} \\
-# H
-# \begin{pmatrix}
-# U\\
-# V\\
-# \end{pmatrix}=\omega\begin{pmatrix}
-# U\\
-# V\\
-# \end{pmatrix}
-# $$
-
-# Let
-# $$
-# U=e^{+i\delta x}\tilde{U}\\
-# V=e^{-i\delta x}\tilde{V}
-# $$
-# Then 
-# $$
-# \begin{pmatrix}
-# \nabla-\mu_a & \Delta_0 e^{2i\delta x}\\
-#  \Delta_0 e^{-2i\delta x} & -\nabla + \mu_b\\
-# \end{pmatrix}
-# \begin{pmatrix}
-# e^{+i\delta x}\tilde{U}\\
-# e^{-i\delta x}\tilde{V}
-# \end{pmatrix}
-# $$
 
 # ### Thermodynamics Derivation:
 # * The energy depends on $n_a$, $n_b$, and $\q$, as the $\q$ will change $n_a$, $n_b$
