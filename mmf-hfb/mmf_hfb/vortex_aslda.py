@@ -6,7 +6,7 @@ from mmf_hfb.Functionals import FunctionalASLDA as Functional, FunctionalType
 from mmfutils.math.integrate import mquad
 from mmf_hfb.bcs import BCS
 from mmf_hfb.ParallelHelper import PoolHelper
-from mmf_hfb.xp import xp, allclose
+from mmf_hfb.xp import xp
 import numpy
 import scipy.optimize
 
@@ -15,6 +15,8 @@ class ASLDA(Functional, BCS):
     
     def __init__(self, Nxyz, Lxyz, dx=None, T=0, E_c=None):
         BCS.__init__(self, Nxyz=Nxyz, Lxyz=Lxyz, dx=dx, T=T, E_c=E_c)
+        mmf_hfb.Functionals.m = BCS.m
+        mmf_hfb.Functionals.hbar = BCS.hbar
         Functional.__init__(self)
         self.E_c = E_c
         self._D2 = BCS._get_K(self)
@@ -24,18 +26,7 @@ class ASLDA(Functional, BCS):
         """Need to override this property in BCS"""
         return len(self.Nxyz)
 
-    def _get_Lambda(self, k0, k_c, dim=1):
-        """return the renormalization condition parameter Lambda"""
-        if dim ==3:
-            Lambda = self.m/self.hbar**2/2/xp.pi**2*(1.0 - k0/k_c/2*xp.log((k_c+k0)/(k_c-k0)))
-        elif dim == 2:
-            Lambda = self.m /self.hbar**2/4/xp.pi*xp.log((k_c/k0)**2 - 1)
-        elif dim == 1:
-            Lambda = self.m/self.hbar**2/2/xp.pi*xp.log((k_c-k0)/(k_c+k0))/k0
-        return Lambda
-
-    
-    def _get_modified_K(self, D2, alpha, twists=0,  Laplacian_only=True, **args):
+    def _get_modified_K(self, D2, alpha, twists=0, Laplacian_only=True, **args):
         """"
             return a modified kinetic density matrix
             -------------
@@ -44,7 +35,6 @@ class ASLDA(Functional, BCS):
                 (ab')'=[(ab)'' -a''b + ab'']/2
             if False:
                 (ab')=a'b'+ab''
-
         """
         A = xp.diag(alpha.ravel())  #[Check] ????
         if Laplacian_only:
@@ -115,12 +105,13 @@ class ASLDA(Functional, BCS):
         obj, k_c, vs, twists, args = obj_twists
         print(twists)
         abs_tol=1e-6
+
         def f(k=0):
             k_p = obj.hbar**2/2/obj.m*k**2
             H = obj.get_H(vs=vs, k_p=k_p, twists=twists, **args)
             den = obj._get_densities_H(H, twists=twists)
             return den
-        dens = mquad(f, -k_c, k_c, abs_tol=abs_tol)/2/xp.pi # factor? It turns out the factor should be 2pi
+        dens = mquad(f, -k_c, k_c, abs_tol=abs_tol)/2/xp.pi  # factor? It turns out the factor should be 2pi
         return dens
 
     def get_dens_integral(self, mus_eff, delta, ns=None, taus=None,
@@ -139,7 +130,7 @@ class ASLDA(Functional, BCS):
         vs = self.get_v_ext(**args)
 
         argslist = [(self, k_c, vs, twists, args) for twists in twistss]
-        res = PoolHelper.run(ASLDA.integral_worker, argslist )
+        res = PoolHelper.run(ASLDA.integral_worker, argslist)
         dens = sum(res)/len(res)
 
         
@@ -160,7 +151,7 @@ class ASLDA(Functional, BCS):
         return dens
 
     def get_ns_e_p(self, mus_eff, delta, ns=None, taus=None, kappa=None,
-            N_twist=32, max_iter=None, use_Broyden = False, **args):
+            N_twist=32, max_iter=None, use_Broyden=False, **args):
         """
             compute then energy density for ASLDA, equation(78) in page 39
             Note:
@@ -168,7 +159,7 @@ class ASLDA(Functional, BCS):
         """
         
         if self.FunctionalType == FunctionalType.BDG:
-            ns, taus, js, kappa = self.get_densities(mus_eff=mus_eff, delta=delta, N_twist=N_twist,  struct=False)
+            ns, taus, js, kappa = self.get_densities(mus_eff=mus_eff, delta=delta, N_twist=N_twist, struct=False)
             g_eff = self._g_eff(mus_eff=mus_eff, delta=delta, kappa=kappa)
             energy_density = self._energy_density(delta=delta, ns=ns, taus=taus, kappa=kappa)
         elif self.FunctionalType == FunctionalType.SLDA:
@@ -180,12 +171,13 @@ class ASLDA(Functional, BCS):
             if use_Broyden:
                 print("Use Broyden method")
                 args.update(unpack=False)
-                x0 = self.get_densities(**args) # initial guess
+                x0 = self.get_densities(**args)  # initial guess
+
                 def f(x):
                     if x is not None:
                         ns, taus, js, kappa = self._unpack_densities(x)
                         args.update(ns=ns, taus=taus, kappa=kappa)
-                    x_ = self.get_dens_integral( **args)
+                    x_ = self.get_dens_integral(**args)
                     ret = (x-x_)**2
                     print(ret.max())
                     return ret
@@ -198,17 +190,18 @@ class ASLDA(Functional, BCS):
                 ns_ = taus_ = js_ =kappa_ = None
                 iter = 0
                 lr = .1
-                args.update(unpack=True, im=self.dim)
+                Vs = self.get_v_ext(**args)
+                args.update(unpack=True, Vs=Vs, E_c=self.E_c, dim=self.dim)
                 while(True):
                     args.update(ns=ns, taus=taus, kappa=kappa)
-                    ns, taus, js, kappa = self.get_dens_integral( **args)
+                    ns, taus, js, kappa = self.get_dens_integral(**args)
                     print(f"{iter}:\tns={ns[0][0].max(), ns[1][0].max()}\ttaus={taus[0][0].max(),taus[1][0].max()}\tkappa={kappa[0].max().real}")
                     if ns_ is not None:
                         if xp.allclose(ns_[0], ns[0]):
                             break
                         if lr < 1:
                             mr = 1 - lr
-                            n, t, j, k = (ns * lr + ns_ * mr), (taus * lr + taus_ * mr), (js * lr + js_ * mr), (kappa * lr + kappa_ * mr)
+                            n, t, j, k = (ns*lr + ns_*mr), (taus*lr + taus_*mr), (js*lr + js_*mr), (kappa*lr + kappa_*mr)
                             ns_, taus_, js_, kappa_= ns, taus, js, kappa
                             ns, taus, js, kappa = n, t, j, k
                     else:
@@ -216,11 +209,9 @@ class ASLDA(Functional, BCS):
                     iter = iter + 1
                     if max_iter is not None and iter > max_iter:
                         break
-
-            energy_density = self._energy_density(delta=delta, ns=ns, taus=taus, kappa=kappa, **args)
+            energy_density = self._energy_density(ns=ns, taus=taus, kappa=kappa, **args)
         else:
             raise ValueError('Unsupported functional type')
-        # For 1d, mus_eff should be used to compute bare mus 
+        # For 1d, mus_eff should be used to compute bare mus
         pressure = ns[0] * mus_eff[0] + ns[1]*mus_eff[1] - energy_density
         return (ns, energy_density, pressure)
-    

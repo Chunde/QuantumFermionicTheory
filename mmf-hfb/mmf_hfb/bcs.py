@@ -3,13 +3,10 @@
 This module provides a class BCS for solving the BCS (BdG functional)
 a two-species Fermi gas with short-range interactions.
 """
-from __future__ import division
-
 from collections import namedtuple
 import itertools
 import numpy
 from mmf_hfb.xp import xp
-
 from mmfutils.math.integrate import mquad
 
 
@@ -191,10 +188,10 @@ class BCS(object):
         mask = 0.5 * (numpy.sign(abs(E_c)-abs(E)) + 1)
         return f * mask
 
-    def block(a11, a12, a21,a22):
-        RowBlock1=xp.concatenate((a11,a12),axis=1)
-        RowBlock2=xp.concatenate((a21,a22),axis=1)
-        Block=xp.concatenate((RowBlock1,RowBlock2),axis=0)
+    def block(a11, a12, a21, a22):
+        RowBlock1=xp.concatenate((a11,  a12), axis=1)
+        RowBlock2=xp.concatenate((a21, a22), axis=1)
+        Block=xp.concatenate((RowBlock1, RowBlock2), axis=0)
         return Block
 
     def get_H(self, mus_eff, delta, twists=0, vs=None, **kw):
@@ -332,7 +329,6 @@ class BCS(object):
             j_b = j_b + j_b_
         return (j_a / N_twist / xp.prod(self.dxyz), j_b / N_twist / xp.prod(self.dxyz))
     
-
     def _get_densities_H(self, H, twists):
         """return densities for a given H"""
         d, UV = xp.linalg.eigh(H)
@@ -348,7 +344,7 @@ class BCS(object):
         f_m = self.f(-d)
         n_a = xp.dot(U*U.conj(), f_p).real
         n_b = xp.dot(V*V.conj(), f_m).real
-        nu = xp.dot(U*V.conj(), f_p - f_m) / 2
+        nu = xp.dot(U*V.conj(), f_p - f_m)/2
         tau_a = xp.dot(sum(dU.conj()*dU for dU in dUs), f_p).real
         tau_b = xp.dot(sum(dV.conj()*dV for dV in dVs), f_m).real
         j_a = [0.5*xp.dot((U.conj()*dU - U*dU.conj()), f_p).imag
