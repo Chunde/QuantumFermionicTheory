@@ -16,11 +16,11 @@
 from mmf_hfb import vortex_aslda
 from mmf_hfb.xp import xp  # np
 from mmf_hfb import homogeneous
-import pytest
 from mmf_hfb.xp import xp 
 
 
 # # Test the ASLDA thermodynamics
+# * Energy cut-off is applied in the $f$ function in BCS code
 
 def test_aslda_thermodynamic(dx=1e-3):
     L = 0.46
@@ -29,9 +29,7 @@ def test_aslda_thermodynamic(dx=1e-3):
     delta = 1.0
     mu=10
     dmu = 2.1
-    v_0, n, _, e_0 = homogeneous.Homogeneous1D().get_BCS_v_n_e(
-        delta=delta, mus_eff=(mu+dmu, mu-dmu))
-    b = vortex_aslda.ASLDA(T=0, Nxyz=[N,N], Lxyz=[L,L])
+    b = vortex_aslda.LDA(T=0, Nxyz=[N,N], Lxyz=[L,L]) # you can change LDA to SLDA, or ASLDA
     k_c = abs(xp.array(b.kxyz).max())
     b.E_c = 3 * (b.hbar*k_c)**2/2/b.m
     def get_ns_e_p(mu, dmu):

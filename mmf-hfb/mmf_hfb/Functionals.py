@@ -1,18 +1,11 @@
 from mmf_hfb.xp import xp
-from enum import Enum
 hbar=m=1
 
-
-class FunctionalType(Enum):
-    BDG = 1
-    SLDA = 2
-    ASLDA = 3
 
 
 class FunctionalBdG(object):
 
     def __init__(self):
-        self.FunctionalType=FunctionalType.BDG
         self.gamma = self._gamma()
 
     def _gamma(self, p=None):
@@ -141,7 +134,6 @@ class FunctionalSLDA(FunctionalBdG):
     
     def __init__(self):
         FunctionalBdG.__init__(self)
-        self.FunctionalType = FunctionalType.SLDA
 
     def _G(self, p):
         "[Numerical Test Status:Pass]"
@@ -149,7 +141,6 @@ class FunctionalSLDA(FunctionalBdG):
 
     def _dG_dp(self, p):
         "[Numerical Test Status:Pass]"
-        assert p <=1 
         return 1.284*p
 
     def _Beta(self, ns):
@@ -206,7 +197,6 @@ class FunctionalASLDA(FunctionalSLDA):
 
     def __init__(self):
         FunctionalSLDA.__init__(self)
-        self.FunctionalType=FunctionalType.ASLDA
     
     def _get_alphas_p(self, p):
         p2 = p**2
