@@ -193,10 +193,14 @@ class BCS(object):
             f = 1./(1+xp.exp(E/self.T))
         else:
             f = (1 - xp.sign(E))/2
+        # these line implement step cutoff
+        # this is very important for the case
+        # when we integrate over another direction
         if E_c is None:
             return f
         mask = 0.5 * (numpy.sign(abs(E_c)-abs(E)) + 1)
         return f * mask
+        return f
 
     def block(a11, a12, a21, a22):
         RowBlock1=xp.concatenate((a11,  a12), axis=1)
