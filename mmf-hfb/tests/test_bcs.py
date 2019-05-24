@@ -154,5 +154,81 @@ def test_BCS_get_currents_1d(dim, NLx, T, N_twist):
     assert xp.allclose(res.j_a[0], j_a)
     assert xp.allclose(res.j_b[0], j_b)  
 
+def test_bcs_integral_2d():
+    """
+        test 2d lattice BCS with 1d lattice + 1d integral
+        ------------------------
+        As 1d case is very fast, so we can have higher twisting
+        number to get good result.
+    """
+    L = 0.46
+    N = 4
+    N_twist = 32
+    delta = 1.0
+    mu_eff = 10.0
+    b = bcs.BCS(T=0, Nxyz=(N,), Lxyz=(L,))
+
+
+    print("Test 1d lattice with homogeneous system with high precision(1e-12)")
+    ns, taus, js, kappa = b.get_densities(mus_eff=(mu_eff, mu_eff), delta=delta, N_twist=N_twist, struct=False)
+    h = homogeneous.Homogeneous(Nxyz=(N,), Lxyz=(L), dim=1)
+    ret = h.get_densities(mus_eff=(mu_eff, mu_eff), delta=delta, N_twist=N_twist)
+    print(f"{(ret.n_a + ret.n_b).n}, {sum(ns)[0]}")
+    print(f"{ret.nu.n}, {kappa[0].real}")
+    assert xp.allclose((ret.n_a + ret.n_b).n, sum(ns), rtol=1e-12)
+    assert xp.allclose(ret.nu.n, kappa, rtol=1e-12)
+
+    k_c = abs(xp.array(b.kxyz).max())
+    b.E_c = (b.hbar*k_c)**2/2/b.m
+    v_0, n, mu, e_0 = homogeneous.Homogeneous2D().get_BCS_v_n_e(delta=delta, mus_eff=(mu_eff, mu_eff), k_inf=k_c)
+
+    h = homogeneous.Homogeneous(Nxyz=(N, N), Lxyz=(L, L), dim=2)
+    ret = h.get_densities(mus_eff=(mu_eff, mu_eff), delta=delta, N_twist=N_twist)
+    print("Test 1d lattice plus 1d integral over perpendicular dimension")
+    ns, taus, js, kappa = b.get_dens_integral(mus_eff=(mu_eff, mu_eff), delta=delta, N_twist=N_twist, k_c=k_c)
+    na, nb = ns
+    print(((ret.n_a + ret.n_b).n, na[0].real + nb[0].real), (delta, -v_0.n*kappa[0].real))
+    assert xp.allclose((ret.n_a + ret.n_b).n, na.real + nb.real, rtol=0.001)
+    assert xp.allclose(delta, -v_0.n*kappa[0].real, rtol=0.01)
+
+@pytest.mark.skip(reason="too slow")
+def test_bcs_integral_3d():
+    """
+        test 2d lattice BCS with 1d lattice + 1d integral
+        ------------------------
+        As 1d case is very fast, so we can have higher twisting
+        number to get good result.
+    """
+    L = 0.46
+    N = 4
+    N_twist = 40
+    delta = 1.0
+    mu_eff = 10.0
+    b = bcs.BCS(T=0, Nxyz=(N, N), Lxyz=(L,L))
+
+
+    print("Test 2d lattice with homogeneous system with high precision(1e-12)")
+    ns, taus, js, kappa = b.get_densities(mus_eff=(mu_eff, mu_eff), delta=delta, N_twist=N_twist, struct=False)
+    h = homogeneous.Homogeneous(Nxyz=(N, N), Lxyz=(L, L), dim=2)
+    ret = h.get_densities(mus_eff=(mu_eff, mu_eff), delta=delta, N_twist=N_twist)
+    print(f"{(ret.n_a + ret.n_b).n}, {sum(ns)[0]}")
+    print(f"{ret.nu.n}, {kappa[0].real}")
+    assert xp.allclose((ret.n_a + ret.n_b).n, sum(ns), rtol=1e-12)
+    assert xp.allclose(ret.nu.n, kappa, rtol=1e-12)
+
+    k_c = abs(xp.array(b.kxyz).max())
+    b.E_c = (b.hbar*k_c)**2/2/b.m
+    v_0, n, mu, e_0 = homogeneous.Homogeneous3D().get_BCS_v_n_e(delta=delta, mus_eff=(mu_eff, mu_eff), k_inf=k_c)
+
+    #h = homogeneous.Homogeneous(Nxyz=(N, N), Lxyz=(L, L), dim=2)
+    #ret = h.get_densities(mus_eff=(mu_eff, mu_eff), delta=delta, N_twist=N_twist)
+    print("Test 2d lattice plus 1d integral over perpendicular dimension")
+    ns, taus, js, kappa = b.get_dens_integral(mus_eff=(mu_eff, mu_eff), delta=delta, N_twist=N_twist, k_c=k_c)
+    na, nb = ns
+    print(((ret.n_a + ret.n_b).n, na[0].real + nb[0].real), (delta, -v_0.n*kappa[0].real))
+    assert xp.allclose((ret.n_a + ret.n_b).n, na.real + nb.real, rtol=0.01)
+    assert xp.allclose(delta, -v_0.n*kappa[0].real, rtol=0.01)
+
+
 if __name__ == "__main__":
-    test_BCS(dim = 2, NLx = (4, 10.0, None), T = 0, N_twist = 2)
+    test_bcs_integral_3d()

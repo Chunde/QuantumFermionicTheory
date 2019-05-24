@@ -15,8 +15,6 @@ class ASLDA(Functional, BCS):
     
     def __init__(self, Nxyz, Lxyz, dx=None, T=0, E_c=None):
         BCS.__init__(self, Nxyz=Nxyz, Lxyz=Lxyz, dx=dx, T=T, E_c=E_c)
-        mmf_hfb.Functionals.m = BCS.m
-        mmf_hfb.Functionals.hbar = BCS.hbar
         Functional.__init__(self)
         self.E_c = E_c
         self._D2 = BCS._get_K(self)
@@ -52,9 +50,9 @@ class ASLDA(Functional, BCS):
         ---------
         k_p: kinetic energy offset added to the diagonal elements
         """
-        K = BCS._get_K(self, twists)
-        k_p = xp.diag(xp.ones_like(sum(self.xyz).ravel()) * k_p)   #[Check] the shape of the k_p matrix
-        K = K + k_p
+        K = BCS._get_K(self, k_p=k_p, twists=twists, **args)
+        #k_p = xp.diag(xp.ones_like(sum(self.xyz).ravel()) * k_p)   #[Check] the shape of the k_p matrix
+        #K = K + k_p
         if ns is None:
             return (K, K)
         alpha_a, alpha_b, alpha_p = self._get_alphas(ns)
@@ -100,55 +98,6 @@ class ASLDA(Functional, BCS):
             currents in it, not implement
         """
         return taus
-
-    def integral_worker(obj_twists):
-        obj, k_c, vs, twists, args = obj_twists
-        print(twists)
-        abs_tol=1e-6
-
-        def f(k=0):
-            k_p = obj.hbar**2/2/obj.m*k**2
-            H = obj.get_H(vs=vs, k_p=k_p, twists=twists, **args)
-            den = obj._get_densities_H(H, twists=twists)
-            return den
-        dens = mquad(f, -k_c, k_c, abs_tol=abs_tol)/2/xp.pi  # factor? It turns out the factor should be 2pi
-        return dens
-
-    def get_dens_integral(self, mus_eff, delta, ns=None, taus=None,
-                             kappa=None, k_c=None, N_twist=32,
-                             unpack=True, abs_tol=1e-6, **args):
-        """
-            integrate over other dimensions by assuming it's homogeneous
-            on those dimensions
-            Note: These code does not work
-        """
-        if k_c is None:
-            k_c = xp.sqrt(2*self.m*self.E_c)/self.hbar
-
-        twistss = self._get_twistss(N_twist)
-        args = dict(args, mus_eff=mus_eff, delta=delta, ns=ns, taus=taus, kappa=kappa)
-        vs = self.get_v_ext(**args)
-
-        argslist = [(self, k_c, vs, twists, args) for twists in twistss]
-        res = PoolHelper.run(ASLDA.integral_worker, argslist)
-        dens = sum(res)/len(res)
-
-        
-        #dens=N=0
-        #for twists in twistss:
-        #    def f(k=0):
-        #        k_p = self.hbar**2/2/self.m*k**2
-        #        H = self.get_H(vs=vs, k_p=k_p, twists=twists, **args)
-        #        den = self._get_densities_H(H, twists=twists)
-        #        return den
-        #    den =  + mquad(f, -k_c, k_c, abs_tol=abs_tol)/2/xp.pi # factor? It turns out the factor should be 2pi
-        #    dens = dens + den
-        #    N_=N_ + 1
-        #dens = dens/N_
-
-        if unpack:
-            return self._unpack_densities(dens, struct=False)
-        return dens
 
     def get_ns_e_p(self, mus_eff, delta, ns=None, taus=None, kappa=None,
             N_twist=32, max_iter=None, use_Broyden=False, **args):
