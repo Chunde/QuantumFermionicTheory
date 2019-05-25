@@ -405,10 +405,34 @@ class BCS(object):
             return self._unpack_densities(dens, struct=struct)
         return dens
     
+    def mqaud_worker_thread(obj_args):
+            obj, vs, twists, k, args = obj_args
+            k_p = obj.hbar**2/2/obj.m*k**2
+            H = obj.get_H(vs=vs, k_p=k_p, twists=twists, **args)
+            den = obj._get_densities_H(H, twists=twists)
+            return den
 
-    def twising_worker_thread(obj_twists):
+    def mquad_(self, obj_args, k_a, k_b, N_factor=10):
+        """
+            a mquad implementation, should be changed 
+            later for more general purpose
+            ------------
+            N_factor: integer
+            a factor to increase density of Ks, larger value
+            will make the spacing smaller and increase accuracy
+            Note: need to test more carefully
+        """
+        obj, k_c, vs, twists, args = obj_args
+        ks = 2 * xp.pi * xp.fft.fftfreq(self.Nxyz[0] * N_factor, self.dxyz[0])
+        ks_ = ks[0:-1]
+        obj_twists_kp = [(obj, vs, twists, k, args) for k in ks]
+        res = PoolHelper.run(BCS.mqaud_worker_thread, paras=obj_twists_kp)
+        dens = sum(res)/(obj.dxyz[0] * obj.Nxyz[0] * N_factor)
+        return dens 
+
+    def twising_worker_thread(obj_args):
         """"""
-        obj, k_c, vs, twists, args = obj_twists
+        obj, k_c, vs, twists, args = obj_args
         abs_tol=1e-6
 
         def f(k=0):
@@ -417,6 +441,9 @@ class BCS(object):
             den = obj._get_densities_H(H, twists=twists)
             return den
         dens = mquad(f, -k_c, k_c, abs_tol=abs_tol)/2/xp.pi  # factor? It turns out the factor should be 2pi
+
+        #dens_ = obj.mquad_(obj_args=obj_args, k_a=-k_c, k_b=k_c, N_factor=100)
+        #assert xp.allclose(dens, dens_, rtol=1e-3)
         return dens
 
 

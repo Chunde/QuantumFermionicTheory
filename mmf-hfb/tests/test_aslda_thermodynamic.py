@@ -16,7 +16,7 @@ def test_aslda_thermodynamic(dx=1e-3):
     
     L = 0.46
     N = 16
-    N_twist = 10
+    N_twist = 1
     delta = 1.0
     mu=10
     dmu = 0
