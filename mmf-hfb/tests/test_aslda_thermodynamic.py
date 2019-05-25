@@ -13,7 +13,7 @@ def test_aslda_thermodynamic(dx=1e-3):
     delta = 1.0
     mu=10
     dmu = 2.1
-    b = vortex_aslda.LDA(T=0, Nxyz=[N, N], Lxyz=[L, L])
+    b = vortex_aslda.SLDA(T=0, Nxyz=[N, N], Lxyz=[L, L])
     k_c = abs(xp.array(b.kxyz).max())
     b.E_c = 3 * (b.hbar*k_c)**2/2/b.m
     def get_ns_e_p(mu, dmu):
