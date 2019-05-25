@@ -173,7 +173,7 @@ class SLDA(BDG, FunctionalSLDA):
 class ASLDA(SLDA, FunctionalASLDA):
 
     def __init__(self, Nxyz, Lxyz, dx=None, T=0, E_c=None):
-        LDA.__init__(self, Nxyz=Nxyz, Lxyz=Lxyz, dx=dx, T=T, E_c=E_c)
+        SLDA.__init__(self, Nxyz=Nxyz, Lxyz=Lxyz, dx=dx, T=T, E_c=E_c)
         FunctionalASLDA.__init__(self)
 
 

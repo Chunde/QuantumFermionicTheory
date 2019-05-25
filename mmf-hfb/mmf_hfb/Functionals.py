@@ -8,7 +8,7 @@ class FunctionalBdG(object):
         self.gamma = self._gamma()
 
     def _gamma(self, p=None):
-        return -11.11
+        return -11.11 # -11.039 in Aureal's code
 
     def _get_p(self, ns):
         """return p for a given ns"""
@@ -106,7 +106,7 @@ class FunctionalBdG(object):
         dD_n_b = C1_ + C2_*dp_n_b*2**(-2.0/3)
         return (dD_n_a, dD_n_b)
 
-    def _get_Lambda(self, k0, k_c, dim=1):
+    def _get_Lambda(self, k0, k_c, alpha, dim=1):
         """return the renormalization condition parameter Lambda"""
         if dim ==3:
             Lambda = m/hbar**2/2/xp.pi**2*(1.0 - k0/k_c/2*xp.log((k_c+k0)/(k_c-k0)))
@@ -114,7 +114,7 @@ class FunctionalBdG(object):
             Lambda = m /hbar**2/4/xp.pi*xp.log((k_c/k0)**2 - 1)
         elif dim == 1:
             Lambda = m/hbar**2/2/xp.pi*xp.log((k_c-k0)/(k_c+k0))/k0
-        return Lambda
+        return Lambda/alpha # do not forget effective mess inverse factor
 
     def _g_eff(self, delta, kappa, **args):
         """
@@ -175,13 +175,12 @@ class FunctionalSLDA(FunctionalBdG):
         dp_n_a, dp_n_b = self._dp_dn(ns)
         dC_dn_a = self._alpha_p(p)*n**(-2/3)/3 + n**(1/3)*self._dalpha_p_dp(p)*dp_n_a
         dC_dn_b = self._alpha_p(p)*n**(-2/3)/3 + n**(1/3)*self._dalpha_p_dp(p)*dp_n_b
-        gamma = self.gamma
-        return (dC_dn_a/gamma, dC_dn_b/gamma)
+        return (dC_dn_a/self.gamma, dC_dn_b/self.gamma)
 
     def _get_alphas_p(self, p):
         """"[overridden in Children]"""
         ones = xp.ones_like(p)
-        alpha_even = 1.094 * ones
+        alpha_even = 1.094 * ones # 1.14 in Aureal's Matlab code
         alpha_odd = 0
         alpha_a, alpha_b = alpha_odd + alpha_even, -alpha_odd + alpha_even
         return (alpha_a, alpha_b, alpha_even, alpha_odd)
@@ -196,8 +195,8 @@ class FunctionalSLDA(FunctionalBdG):
         mu_p = (sum(mus_eff) - V_a + V_b) / 2
         k0 = (2*m/hbar**2*mu_p/alpha_p)**0.5
         k_c = (2*m/hbar**2 * (E_c + mu_p)/alpha_p)**0.5
-        Lambda = self._get_Lambda(k0=k0, k_c=k_c, dim=dim)
-        g = sum(ns)**(1.0/3) - Lambda
+        Lambda = self._get_Lambda(k0=k0, k_c=k_c, alpha=alpha_a, dim=dim) # miss the alpha
+        g = 1.0/(sum(ns)**(1.0/3) / self.gamma - Lambda)
         return g
 
     def _energy_density(self, ns, taus, kappa, **args):

@@ -9,17 +9,22 @@ from mmf_hfb.xp import xp
 @pytest.mark.skip(reason="Not pass yet")
 def test_aslda_thermodynamic(dx=1e-3):
     # Failed  case: mu=5, dmu=2, N=16, N_twist=32, 2D
+    xi = 0.44
+    N0 = 30
+    E0 = (3*N0)**(4/3)/4*xi**0.5
+    mu = (3*N0)**(1/3)*xi**0.5
+    
     L = 0.46
-    N = 8
-    N_twist = 32
+    N = 16
+    N_twist = 10
     delta = 1.0
     mu=10
-    dmu = 2
-    b = vortex_aslda.BDG(T=0, Nxyz=[N,N], Lxyz=[L,L])
-    k_c = abs(xp.array(b.kxyz).max())
-    b.E_c = 3 * (b.hbar*k_c)**2/2/b.m
+    dmu = 0
+    lda = vortex_aslda.SLDA(T=0, Nxyz=[N,], Lxyz=[L,])
+    k_c = abs(xp.array(lda.kxyz).max())
+    lda.E_c = 3 * (lda.hbar*k_c)**2/2/lda.m
     def get_ns_e_p(mu, dmu):
-        ns, e, p = b.get_ns_e_p(mus_eff=(mu+dmu, mu-dmu), delta=delta, N_twist=N_twist, Laplacian_only=True, max_iter=32)
+        ns, e, p = lda.get_ns_e_p(mus_eff=(mu+dmu, mu-dmu), delta=delta, N_twist=N_twist, Laplacian_only=True, max_iter=32)
         return ns, e, p
     ns, e, p = get_ns_e_p(mu=mu, dmu=dmu)
     ns1, e1, p1 = get_ns_e_p(mu=mu+dx, dmu=dmu)
