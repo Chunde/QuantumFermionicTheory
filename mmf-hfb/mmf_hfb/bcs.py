@@ -8,7 +8,7 @@ import itertools
 import numpy
 from mmf_hfb.xp import xp
 from mmfutils.math.integrate import mquad
-
+from mmf_hfb.ParallelHelper import PoolHelper
 
 class BCS(object):
     """Simple implementation of the BCS equations in a periodic box.
@@ -75,6 +75,13 @@ class BCS(object):
                 *(xp.arange(0, N_twist) * 2 * xp.pi / N_twist,) * self.dim)
         return list(twistss)
 
+    def _get_modified_taus(self, taus, js):
+        """
+            return the modified taus with
+            currents in it, not implement
+        """
+        return taus
+
     def _unpack_densities(self, dens, N_twist=1, struct=False):
         """
             unpack the densities into proper items
@@ -103,7 +110,7 @@ class BCS(object):
         tau_a, tau_b = self._get_modified_taus(taus=(tau_a, tau_b), js=js)
         return (xp.array([n_a, n_b]), xp.array([tau_a, tau_b]), js, kappa_)
 
-    def _get_K(self, twists=0, **kw):
+    def _get_K(self, k_p=0, twists=0, **kw):
         """Return the kinetic energy matrix."""
         ks_bloch = numpy.divide(twists, self.Lxyz)
         ks = [_k + _kb for _k, _kb in zip(self.kxyz, ks_bloch)]
@@ -124,6 +131,9 @@ class BCS(object):
         K = (self.hbar**2 / 2 / self.m
              * self.ifft(sum(_k**2 for _k in ks)[bcast] *
                        self.fft(K))).reshape(mat_shape)
+        if not xp.allclose(k_p, 0, rtol=1e-16):
+            k_p = xp.diag(xp.ones_like(sum(self.xyz).ravel()) * k_p) 
+            K = K + k_p
         return K
 
     def _get_Del(self, twists=0, **kw):
@@ -157,7 +167,7 @@ class BCS(object):
         return xp.stack([self.ifft(1j*_k[None, ..., None]*aplha_t, axes=axes) for _k in ks])
 
     def get_Ks(self, twists, **args):
-        K = self._get_K(twists, **args)
+        K = self._get_K(twists=twists, **args)
         return (K, K)
 
     def fft(self, y, axes=None):
@@ -183,10 +193,14 @@ class BCS(object):
             f = 1./(1+xp.exp(E/self.T))
         else:
             f = (1 - xp.sign(E))/2
+        # these line implement step cutoff
+        # this is very important for the case
+        # when we integrate over another direction
         if E_c is None:
             return f
         mask = 0.5 * (numpy.sign(abs(E_c)-abs(E)) + 1)
         return f * mask
+        return f
 
     def block(a11, a12, a21, a22):
         RowBlock1=xp.concatenate((a11,  a12), axis=1)
@@ -390,7 +404,41 @@ class BCS(object):
         if unpack:
             return self._unpack_densities(dens, struct=struct)
         return dens
-       
+    
+
+    def twising_worker_thread(obj_twists):
+        """"""
+        obj, k_c, vs, twists, args = obj_twists
+        abs_tol=1e-6
+
+        def f(k=0):
+            k_p = obj.hbar**2/2/obj.m*k**2
+            H = obj.get_H(vs=vs, k_p=k_p, twists=twists, **args)
+            den = obj._get_densities_H(H, twists=twists)
+            return den
+        dens = mquad(f, -k_c, k_c, abs_tol=abs_tol)/2/xp.pi  # factor? It turns out the factor should be 2pi
+        return dens
+
+
+    def get_dens_integral(self, mus_eff, delta, k_c=None, N_twist=1,
+                             unpack=True, abs_tol=1e-6, **args):
+        """
+            integrate over another dimension by assuming it's homogeneous
+            Note: the results are for dim + 1 system.
+        """
+        if k_c is None:
+            k_c = xp.sqrt(2*self.m*self.E_c)/self.hbar
+        twistss = self._get_twistss(N_twist)
+        args = dict(args, mus_eff=mus_eff, delta=delta)
+        vs = self.get_v_ext(**args)
+        paras = [(self, k_c, vs, twists, args) for twists in twistss]
+        res = PoolHelper.run(BCS.twising_worker_thread, paras=paras)
+        dens = sum(res)/len(res)
+        if unpack:
+            return self._unpack_densities(dens, struct=False)
+        return dens
+
+
     def get_ns_e_p(self, mus_eff, delta, **args):
         """
             compute then energy density

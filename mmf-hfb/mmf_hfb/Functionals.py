@@ -1,18 +1,11 @@
 from mmf_hfb.xp import xp
-from enum import Enum
 hbar=m=1
 
-
-class FunctionalType(Enum):
-    BDG = 1
-    SLDA = 2
-    ASLDA = 3
 
 
 class FunctionalBdG(object):
 
     def __init__(self):
-        self.FunctionalType=FunctionalType.BDG
         self.gamma = self._gamma()
 
     def _gamma(self, p=None):
@@ -67,7 +60,7 @@ class FunctionalBdG(object):
         alpha_a, alpha_b = alpha_odd + alpha_even, -alpha_odd + alpha_even
         return (alpha_a, alpha_b, alpha_even, alpha_odd)
 
-    def _Beta(self, p):
+    def _Beta(self, ns):
         """"[overridden in Children]"""
         return 0
      
@@ -98,8 +91,7 @@ class FunctionalBdG(object):
 
     def _D(self, ns):
         C1_ = (6*xp.pi**2*(sum(ns)))**(5.0/3)/20/xp.pi**2
-        p = self._get_p(ns)
-        C2_ = self._Beta(p)
+        C2_ = self._Beta(ns=ns)
         return C1_*C2_*2**(-2.0/3)
 
     def _dD_dn(self, ns):
@@ -142,7 +134,6 @@ class FunctionalSLDA(FunctionalBdG):
     
     def __init__(self):
         FunctionalBdG.__init__(self)
-        self.FunctionalType = FunctionalType.SLDA
 
     def _G(self, p):
         "[Numerical Test Status:Pass]"
@@ -152,10 +143,15 @@ class FunctionalSLDA(FunctionalBdG):
         "[Numerical Test Status:Pass]"
         return 1.284*p
 
-    def _Beta(self, p):
+    def _Beta(self, ns):
+        p = self._get_p(ns)
+        "[Numerical Test Status:Pass]"
+        return self._Beta_p(p)
+
+    def _Beta_p(self, p):
         "[Numerical Test Status:Pass]"
         return ((self._G(p) - self._alpha(p)*((1+p)/2.0)**(5.0/3)
-                - self._alpha(-p)*((1-p)/2.0)**(5.0/3)) * 2**(2/3.0))
+                - self._alpha(-p)*((1-p)/2.0)**(5.0/3))*2**(2/3.0))
 
     def _dBeta_dp(self, p):
         """return the derivative 'dD(p)/dp' """
@@ -193,7 +189,7 @@ class FunctionalSLDA(FunctionalBdG):
     def _energy_density(self, delta, ns, taus, kappa, **args):
         g_eff = self._g_eff(delta=delta, kappa=kappa)
         return (hbar**2/2/m*sum(taus)*self._alpha(self._get_p(ns))
-                + self._Beta(ns)*(3*xp.pi**2.0)**(2.0/3)*sum(ns)**(5.0/3)*0.3
+            + self._Beta(ns=ns)*(3*xp.pi**2.0)**(2.0/3)*sum(ns)**(5.0/3)*0.3
                 - g_eff*kappa.T.conj()*kappa)
 
 
@@ -201,7 +197,6 @@ class FunctionalASLDA(FunctionalSLDA):
 
     def __init__(self):
         FunctionalSLDA.__init__(self)
-        self.FunctionalType=FunctionalType.ASLDA
     
     def _get_alphas_p(self, p):
         p2 = p**2
