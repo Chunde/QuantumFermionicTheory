@@ -2,7 +2,6 @@ from mmf_hfb.xp import xp
 hbar=m=1
 
 
-
 class FunctionalBdG(object):
 
     def __init__(self):
@@ -181,13 +180,28 @@ class FunctionalSLDA(FunctionalBdG):
 
     def _get_alphas_p(self, p):
         """"[overridden in Children]"""
-        alpha_even = 1.094
+        ones = xp.ones_like(p)
+        alpha_even = 1.094 * ones
         alpha_odd = 0
         alpha_a, alpha_b = alpha_odd + alpha_even, -alpha_odd + alpha_even
         return (alpha_a, alpha_b, alpha_even, alpha_odd)
 
-    def _energy_density(self, delta, ns, taus, kappa, **args):
-        g_eff = self._g_eff(delta=delta, kappa=kappa)
+    def _g_eff(self, mus_eff, ns, Vs, dim, E_c, **args):
+        """
+            get the effective g
+            equation (78) in page 39
+        """
+        V_a, V_b = Vs
+        alpha_a, alpha_b, alpha_p = self._get_alphas(ns)
+        mu_p = (sum(mus_eff) - V_a + V_b) / 2
+        k0 = (2*m/hbar**2*mu_p/alpha_p)**0.5
+        k_c = (2*m/hbar**2 * (E_c + mu_p)/alpha_p)**0.5
+        Lambda = self._get_Lambda(k0=k0, k_c=k_c, dim=dim)
+        g = sum(ns)**(1.0/3) - Lambda
+        return g
+
+    def _energy_density(self, ns, taus, kappa, **args):
+        g_eff = self._g_eff(ns=ns, **args)
         return (hbar**2/2/m*sum(taus)*self._alpha(self._get_p(ns))
             + self._Beta(ns=ns)*(3*xp.pi**2.0)**(2.0/3)*sum(ns)**(5.0/3)*0.3
                 - g_eff*kappa.T.conj()*kappa)

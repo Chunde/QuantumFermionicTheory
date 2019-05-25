@@ -10,7 +10,7 @@ import numpy
 import scipy.optimize
 
 
-class LDA(FunctionalBdG, BCS):
+class BDG(FunctionalBdG, BCS):
     
     def __init__(self, Nxyz, Lxyz, dx=None, T=0, E_c=None):
         BCS.__init__(self, Nxyz=Nxyz, Lxyz=Lxyz, dx=dx, T=T, E_c=E_c)
@@ -108,31 +108,11 @@ class LDA(FunctionalBdG, BCS):
         pressure = ns[0] * mus_eff[0] + ns[1]*mus_eff[1] - energy_density
         return (ns, energy_density, pressure)
 
-class SLDA(LDA, FunctionalSLDA):
+class SLDA(BDG, FunctionalSLDA):
 
     def __init__(self, Nxyz, Lxyz, dx=None, T=0, E_c=None):
-        LDA.__init__(self, Nxyz=Nxyz, Lxyz=Lxyz, dx=dx, T=T, E_c=E_c)
+        BDG.__init__(self, Nxyz=Nxyz, Lxyz=Lxyz, dx=dx, T=T, E_c=E_c)
         FunctionalSLDA.__init__(self)
-
-    def get_ns_e_p(self, mus_eff, delta, ns=None, taus=None, kappa=None,
-            N_twist=32, max_iter=None, use_Broyden=False, **args):
-        """
-            compute then energy density for SLDA, equation(78) in page 39
-            Note:
-                the return value also include the pressure and densities
-        """
-        
-        ns, taus, js, kappa = self.get_densities(mus_eff=mus_eff, delta=delta, N_twist=N_twist, struct=False)
-        energy_density = self._energy_density(delta=delta, ns=ns, taus=taus, kappa=kappa)
-        pressure = ns[0] * mus_eff[0] + ns[1]*mus_eff[1] - energy_density
-        return (ns, energy_density, pressure)
-
-
-class ASLDA(LDA, FunctionalASLDA):
-
-    def __init__(self, Nxyz, Lxyz, dx=None, T=0, E_c=None):
-        LDA.__init__(self, Nxyz=Nxyz, Lxyz=Lxyz, dx=dx, T=T, E_c=E_c)
-        FunctionalASLDA.__init__(self)
 
     def get_ns_e_p(self, mus_eff, delta, ns=None, taus=None, kappa=None,
                     N_twist=32, max_iter=None, use_Broyden=False, **args):
@@ -141,7 +121,7 @@ class ASLDA(LDA, FunctionalASLDA):
             Note:
                 the return value also include the pressure and densities
         """
-        assert self.dim == 2
+        #assert self.dim == 2
         args = dict(args, mus_eff=mus_eff, delta=delta, struct=False, N_twist=N_twist)
         # Broyden1 method
         if use_Broyden:
@@ -185,7 +165,15 @@ class ASLDA(LDA, FunctionalASLDA):
                 iter = iter + 1
                 if max_iter is not None and iter > max_iter:
                     break
-        energy_density = self._energy_density(ns=ns, taus=taus, kappa=kappa, **args)
+        energy_density = self._energy_density(**args)
         pressure = ns[0] * mus_eff[0] + ns[1]*mus_eff[1] - energy_density
         return (ns, energy_density, pressure)
+
+
+class ASLDA(SLDA, FunctionalASLDA):
+
+    def __init__(self, Nxyz, Lxyz, dx=None, T=0, E_c=None):
+        LDA.__init__(self, Nxyz=Nxyz, Lxyz=Lxyz, dx=dx, T=T, E_c=E_c)
+        FunctionalASLDA.__init__(self)
+
 
