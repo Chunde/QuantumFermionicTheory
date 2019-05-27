@@ -447,8 +447,7 @@ class BCS(object):
         return dens
 
 
-    def get_dens_integral(self, mus_eff, delta, k_c=None, N_twist=1,
-                             unpack=True, abs_tol=1e-6, **args):
+    def get_dens_integral(self, mus_eff, delta, k_c=None, N_twist=1, unpack=True, struct=False, abs_tol=1e-6, **args):
         """
             integrate over another dimension by assuming it's homogeneous
             Note: the results are for dim + 1 system.
@@ -462,7 +461,7 @@ class BCS(object):
         res = PoolHelper.run(BCS.twising_worker_thread, paras=paras)
         dens = sum(res)/len(res)
         if unpack:
-            return self._unpack_densities(dens, struct=False)
+            return self._unpack_densities(dens, struct=struct)
         return dens
 
 

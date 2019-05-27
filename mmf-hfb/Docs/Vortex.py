@@ -32,7 +32,7 @@ class Vortex(bcs.BCS):
     barrier_width = 0.2
     barrier_height = 100.0
     
-    def __init__(self, Nxyz=(32, 32), Lxyz=(10., 10.), **kw):
+    def __init__(self, Nxyz=(32, 32), Lxyz=(3.2, 3.2), **kw):
         self.R = min(Lxyz)/2
         bcs.BCS.__init__(self, Nxyz=Nxyz, Lxyz=Lxyz, **kw)
     
@@ -43,10 +43,12 @@ class Vortex(bcs.BCS):
         return (V, V)
 
 class VortexState(Vortex):
-    def __init__(self, mu, dmu, delta, **kw):
+    def __init__(self, mu, dmu, delta,N_twist=1,  **kw):
         Vortex.__init__(self, **kw)
         self.delta = delta
+        self.N_twist = N_twist
         self.mus = (mu+dmu, mu-dmu)
+        print(self.mus)
         self.g = self.get_g(mu=mu, delta=delta)
         x, y = self.xyz
         self.Delta = delta*(x+1j*y)
@@ -57,7 +59,7 @@ class VortexState(Vortex):
         g = delta/res.nu.n
         return g
     
-    def solve(self, tol=0.05, plot=True):
+    def solve(self, tol=0.01, plot=True):
         err = 1.0
         fig = None
         with NoInterrupt() as interrupted:
@@ -65,7 +67,7 @@ class VortexState(Vortex):
             clear_output(wait=True)
 
             while not interrupted and err > tol:
-                res = self.get_densities(mus_eff=self.mus, delta=self.Delta)
+                res = self.get_densities(mus_eff=self.mus, delta=self.Delta, N_twist=self.N_twist)
                 self.res = res
                 Delta0, self.Delta = self.Delta, self.g*res.nu  # ....
                 err = abs(Delta0 - self.Delta).max()
@@ -112,49 +114,9 @@ class VortexState(Vortex):
             plt.quiver(x.ravel(), y.ravel(), j_m.real.T, j_m.imag.T)
         return fig      
 
-v = Vortex(Nxyz=(16, 16))
 # -
 
-# $$
-#   v_x +\I v_y = v e^{\I\phi}, \\
-#   \uvect{\theta} = \frac{\I x - y}{r}\\
-#   \uvect{\theta}\cdot \vect{v} = \frac{-yv_x + xv_y}{r} = - \Re(v \uvect{\theta})
-# $$
-
-# ## Unitary regime in 2d
-# In 2D, we must compute results but we seem to have:
-#
-# $$
-# \newcommand{\E}{\mathcal{E}}\newcommand{\e}{\epsilon}
-#   n_+ = \frac{k_F^2}{2\pi}, \qquad
-#   \e_F = \frac{\hbar^2 k_F^2}{2m}, \qquad
-#   \E_{FG} = \frac{k_F^4}{8m\pi} = \frac{1}{2}n_+\e_F, \qquad
-#   \tilde{C} = 0,\\
-#   \frac{\mu}{\e_F} = \frac{1}{2},\qquad
-#   \frac{\Delta}{\e_F} = \sqrt{2}\\
-# $$
-# ### Symmetric Vortex $\delta \mu/\Delta=0$
-
-mu = 10
-delta = 2**1.5 * mu
-v0 = VortexState(mu=mu, dmu=0.0, delta=delta, Nxyz=(32, 32))
-v0.solve(plot=True)
-
-# ### Polarized Vortex $\delta\mu/\Delta=0.25$
-
-mu = 10
-delta = 2**1.5 * mu
-v1 = VortexState(mu=mu, dmu=0.25 * delta, delta=delta, Nxyz=(32, 32))
-v1.solve(plot=True)
-
-# ## Compare to FF State
-# * The FFVortex will compute FF State data with the same $\mu,d\mu$, and compare the results in plots
-# * $\Delta$ should be continuous in a close loop, in rotation frame, the gap should satisfy:
-# $$
-# \Delta=\Delta e^{-2i\delta qx}
-# $$
-# with phase change in a loop by $2\pi$, which requires: $\delta q= \frac{1}{2r}$
-#
+# ## Homogeneous
 
 from mmf_hfb import FuldeFerrelState; reload(FuldeFerrelState)
 import warnings
@@ -171,14 +133,15 @@ def FFVortex(bcs_vortex, mus=None, delta=None, plot_bcs=True):
     k_c = np.sqrt(2)*np.pi*N/L
     k_F = np.sqrt(2*mu)
     E_c=k_c**2/2
-    args = dict(mu=mu, dmu=dmu, delta=delta, dim=2, k_c=500)
+    args = dict(mu=mu, dmu=0, delta=delta, dim=2, k_c=500)
     f = FuldeFerrelState.FFState(fix_g=True, **args)
+    print(f.g, bcs_vortex.g)
     rs = np.linspace(0.0001,1, 10)
-    rs = np.append(rs, np.linspace(1.1, 4, 10))
+    rs = np.append(rs, np.linspace(1.1, bcs_vortex.R, 10))
 
     ds = [f.solve(mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
     ps = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=d, dq=0.5/r, use_kappa=False).n for r, d in zip(rs,ds)]
-    ps0 = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=0,q=0, dq=0, use_kappa=False).n for r, d in zip(rs,ds)]
+    ps0 = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=1e-8,q=0, dq=0, use_kappa=False).n for r, d in zip(rs,ds)]
 
     
     r = np.sqrt(sum(_x**2 for _x in bcs_vortex.xyz))
@@ -188,10 +151,8 @@ def FFVortex(bcs_vortex, mus=None, delta=None, plot_bcs=True):
         plt.plot(r.ravel()/dx, abs(bcs_vortex.Delta).ravel()/mu, '+', label="BCS")
     plt.plot(rs/dx, np.array(ds)/mu, label="Homogeneous")
     plt.legend()
-    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize)
     plt.ylabel(r'$\Delta/E_F$', fontsize=fontsize)
     plt.subplot(322)
-    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize)
     plt.ylabel(r"Pressure/$E_F$", fontsize=fontsize)
     plt.plot(rs/dx, ps, label="FF State/Superfluid State Pressure")
     plt.plot(rs/dx, ps0,'--', label="Normal State pressure")
@@ -209,7 +170,7 @@ def FFVortex(bcs_vortex, mus=None, delta=None, plot_bcs=True):
     if plot_bcs:
         plt.plot(r.ravel()/dx, abs(res.n_a + res.n_b).ravel()/k_F, '+', label="BCS")
     plt.plot(rs/dx, n_p/k_F, label="Homogeneous")
-    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$n_p/k_F$", fontsize=fontsize)
+    plt.ylabel(r"$n_p/k_F$", fontsize=fontsize)
     #plt.title("Total Density")
     plt.legend()
     plt.subplot(324)
@@ -217,7 +178,7 @@ def FFVortex(bcs_vortex, mus=None, delta=None, plot_bcs=True):
     if plot_bcs:
         plt.plot(r.ravel()/dx, abs(res.n_a - res.n_b).ravel()/k_F, '+', label="BCS")
     plt.plot(rs/dx, n_m/k_F, label="Homogeneous")
-    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$n_m/k_F$", fontsize=20)#,plt.title("Density Difference")
+    plt.ylabel(r"$n_m/k_F$", fontsize=20)#,plt.title("Density Difference")
     plt.legend()
 
     ja = np.abs(res.j_a[0] + 1j*res.j_a[1])
@@ -246,13 +207,76 @@ def FFVortex(bcs_vortex, mus=None, delta=None, plot_bcs=True):
     plt.legend()
     clear_output()
 
+# $$
+#   v_x +\I v_y = v e^{\I\phi}, \\
+#   \uvect{\theta} = \frac{\I x - y}{r}\\
+#   \uvect{\theta}\cdot \vect{v} = \frac{-yv_x + xv_y}{r} = - \Re(v \uvect{\theta})
+# $$
+
+# ## Unitary regime in 2d
+# In 2D, we must compute results but we seem to have:
+#
+# $$
+# \newcommand{\E}{\mathcal{E}}\newcommand{\e}{\epsilon}
+#   n_+ = \frac{k_F^2}{2\pi}, \qquad
+#   \e_F = \frac{\hbar^2 k_F^2}{2m}, \qquad
+#   \E_{FG} = \frac{k_F^4}{8m\pi} = \frac{1}{2}n_+\e_F, \qquad
+#   \tilde{C} = 0,\\
+#   \frac{\mu}{\e_F} = \frac{1}{2},\qquad
+#   \frac{\Delta}{\e_F} = \sqrt{2}\\
+# $$
+# ### Symmetric Vortex $\delta \mu/\Delta=0$
+
+mu = 5
+delta = 2**1.5 * mu
+v0 = VortexState(mu=mu, dmu=0.0, delta=delta, Nxyz=(32, 32))
+v0.solve(plot=True)
+
+# ### Polarized Vortex $\delta\mu/\Delta\ne 0$
+
+mu = 10
+delta = 7.5
+dmu = 4.5
+assert dmu < mu
+v1 = VortexState(mu=mu, dmu=dmu, delta=delta, Nxyz=(48, 48),Lxyz=(8,8))
+v1.solve(plot=True)
+
+mu = 10
+delta = 7.5
+dmu = 0
+assert dmu < mu
+v2 = VortexState(mu=mu, dmu=dmu, delta=delta, Nxyz=(48, 48),Lxyz=(8,8))
+v2.solve(plot=True)
+
+mu = 10
+delta = 7.5
+dmu = 4.5
+assert dmu < mu
+v3 = VortexState(mu=mu, dmu=dmu, delta=delta, Nxyz=(64, 64),Lxyz=(8,8))
+v3.solve(plot=True)
+
+# ## Compare to FF State
+# * The FFVortex will compute FF State data with the same $\mu,d\mu$, and compare the results in plots
+# * $\Delta$ should be continuous in a close loop, in rotation frame, the gap should satisfy:
+# $$
+# \Delta=\Delta e^{-2i\delta qx}
+# $$
+# with phase change in a loop by $2\pi$, which requires: $\delta q= \frac{1}{2r}$
+#
+
+
+
 # ### Symmetric case $\delta \mu/\Delta=0$
 
 FFVortex(v0)
 
-# ### Polarized case $\delta \mu/\Delta=0.25$
+# ### Polarized case $\delta \mu/\Delta\ne0$
 
 FFVortex(v1)
+
+FFVortex(v2)
+
+FFVortex(v3)
 
 
 def HomogeneousVortx(mu, dmu, delta, k_c=50):
@@ -261,12 +285,12 @@ def HomogeneousVortx(mu, dmu, delta, k_c=50):
     dx = 1
     args = dict(mu=mu, dmu=dmu, delta=delta, dim=3, k_c=k_c)
     f = FuldeFerrelState.FFState(fix_g=True, **args)
-    rs = np.linspace(0.0001,1, 15)
+    rs = np.linspace(0.0001,1, 30)
     rs = np.append(rs, np.linspace(1.1, 4, 10))
 
     ds = [f.solve(mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
     ps = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=d, dq=0.5/r, use_kappa=False).n for r, d in zip(rs,ds)]
-    ps0 = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=0,q=0, dq=0, use_kappa=False).n for r, d in zip(rs,ds)]
+    ps0 = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=1e-12,q=0, dq=0, use_kappa=False).n for r, d in zip(rs,ds)]
 
     
     plt.figure(figsize(16,8))
@@ -319,12 +343,12 @@ def HomogeneousVortx(mu, dmu, delta, k_c=50):
     plt.legend()
     clear_output()
 
-mu=10
+mu=5
 dmu=0
 delta = 1.16220056179 * mu
 HomogeneousVortx(mu=mu, dmu=dmu, delta=delta)
 
-mu=10
+mu=5
 delta = 1.16220056179 * mu
 dmu=0.25 * delta
 HomogeneousVortx(mu=mu, dmu=dmu, delta=delta)

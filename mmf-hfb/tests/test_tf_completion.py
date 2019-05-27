@@ -62,6 +62,40 @@ def test_2D():
     n_p = tf_completion.integrate_q(tf_completion.n_p_integrand, dim=2, dq=0, **args)
     assert np.allclose(n_p.n, nF)
     
+def BCS(mu_eff, delta=1.0):
+    m = hbar = 1.0
+    """Return `(E_N_E_2, lam)` for comparing with the exact Gaudin
+    solution.
+
+    Arguments
+    ---------
+    delta : float
+       Pairing gap.  This is the gap in the energy spectrum.
+    mu_eff : float
+       Effective chemical potential including both the bare chemical
+       potential and the self-energy correction arising from the
+       Hartree term.
+
+    Returns
+    -------
+    E_N_E_2 : float
+       Energy per particle divided by the two-body binding energy
+       abs(energy per particle) for 2 particles.
+    lam : float
+       Dimensionless interaction strength.
+    """
+    h = homogeneous.Homogeneous1D()
+    v_0, ns, mu, e = h.get_BCS_v_n_e(mus_eff=(mu_eff,)*2, delta=delta)
+    n = sum(ns)
+    lam = m*v_0/n/hbar**2
+
+    # Energy per-particle
+    E_N = e/n
+
+    # Energy per-particle for 2 particles
+    E_2 = -m*v_0**2/4.0 / 2.0
+    E_N_E_2 = E_N/abs(E_2)
+    return E_N_E_2.n, lam.n
 
 def test_1D():
     """Test a few values from Table I of Quick:1993."""
@@ -71,7 +105,7 @@ def test_1D():
     lam = 1./lam_inv
 
     def _lam(mu_eff):
-        E_N_E_2, _lam = homogeneous.BCS(mu_eff=mu_eff, delta=delta)
+        E_N_E_2, _lam = BCS(mu_eff=mu_eff, delta=delta)
         return _lam - lam
 
     mu_eff = brentq(_lam, 0.1, 20)
@@ -86,7 +120,7 @@ def test_1D():
     lam = m*v_0/n_p.n/hbar**2
     
     #v_0, n, mu, e = homogeneous.get_BCS_v_n_e(mu_eff=mu_eff, delta=delta)
-    E_N_E_2, lam = homogeneous.BCS(mu_eff=mu_eff,  delta=delta)
+    E_N_E_2, lam = BCS(mu_eff=mu_eff,  delta=delta)
     mu_tilde = (hbar**2/m/v_0**2)*mu
     assert np.allclose(lam, 1./lam_inv)
     assert np.allclose(mu_tilde, 0.0864, atol=0.0005)
@@ -101,3 +135,6 @@ def test_1D():
     mu_tilde = (hbar**2/m/v_0**2)*mu
     assert np.allclose(lam, 1./lam_inv)
     assert np.allclose(mu_tilde, 0.0864, atol=0.0005)
+
+if __name__ == "__main__":
+    test_1D()
