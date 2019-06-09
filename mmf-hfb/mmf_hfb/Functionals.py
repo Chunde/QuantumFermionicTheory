@@ -109,7 +109,7 @@ class FunctionalBdG(object):
     def _get_Lambda(self, k0, k_c, alpha, dim=1):
         """return the renormalization condition parameter Lambda"""
         if dim ==3:
-            Lambda = m/hbar**2/2/xp.pi**2*(1.0 - k0/k_c/2*xp.log((k_c+k0)/(k_c-k0)))
+            Lambda = m*k_c/hbar**2/2/xp.pi**2*(1.0 - k0/k_c/2*xp.log((k_c+k0)/(k_c-k0)))
         elif dim == 2:
             Lambda = m /hbar**2/4/xp.pi*xp.log((k_c/k0)**2 - 1)
         elif dim == 1:

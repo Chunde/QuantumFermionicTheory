@@ -78,6 +78,31 @@ class FFState(object):
         g = 1./nu_delta.n
         return g
 
+    def _get_Lambda(self, k0, k_c, dim=3):
+        """return the renormalization condition parameter Lambda"""
+        if dim ==3:
+            Lambda = k_c/self.hbar**2/2/np.pi**2*(1.0 - k0/k_c/2*np.log((k_c+k0)/(k_c-k0)))
+        elif dim == 2:
+            Lambda = 1/self.hbar**2/4/np.pi*np.log((k_c/k0)**2 - 1)
+        elif dim == 1:
+            Lambda = 1/self.hbar**2/2/np.pi*np.log((k_c-k0)/(k_c+k0))/k0
+        return Lambda # do not forget effective mess inverse factor
+
+    def get_a_inv(self, delta, mu=None, dmu=None,  q=0, dq=0, k_c=None,  **kw):
+        """return the inverse of scattering length"""
+        assert (mu is None) == (dmu is None)
+        if mu is None:
+            mu, dmu = self.mus
+        if k_c is None:
+            k_c = self.k_c
+        args = dict(self._tf_args, q=q, dq=dq, delta=delta)
+        args.update(kw, mu_a=mu+dmu, mu_b=mu-dmu, k_c=k_c)
+        nu_delta = tf.integrate_q(tf.nu_delta_integrand, **args) #1/g
+        k0 = ( 2*mu)**0.5/self.hbar
+        Lambda = self._get_Lambda(k0=k0, k_c=k_c, dim=self.dim)
+        a_inv = (nu_delta + Lambda)*4*np.pi*self.hbar**2
+        return a_inv
+
     def get_current(self, mu=None, dmu=None, q=0, dq=0, delta=None, k_c=None):
         """
         return the currents of two the components
@@ -104,7 +129,7 @@ class FFState(object):
             mu, dmu = self.mus
         if delta is None:
             delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
-                               a=self.delta * 0.8, b=self.delta * 1.2)
+                               a=self.delta * 0.8, b=self.delta * 2)
 
         args = dict(self._tf_args, mu_a=mu + dmu, mu_b=mu - dmu, delta=delta,
                     q=q, dq=dq)
@@ -361,6 +386,7 @@ class FFState(object):
                         if f_ * f(ds[0]) < 0:  # another solution
                             delta_ = brentq(f, ds[0], ds[i])
                             self._delta = delta_
+                            #return delta_
                             print(f"Another solution delta={delta_} was found, return the one with higher pressure")
                             p_ = self.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=delta_, q=q, dq=dq)
                             p = self.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=delta, q=q, dq=dq)
