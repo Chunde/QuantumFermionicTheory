@@ -255,5 +255,4 @@ class Homogeneous2D(Homogeneous):
 
 
 class Homogeneous3D(Homogeneous):
-    """Solutions to the homogeneous BCS equations in 3D at finite T."""
     dim = 3

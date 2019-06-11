@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>d96035f2-d7ba-4540-adc5-a336a7b7a91f</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>tests\test_aslda_thermodynamic.py</StartupFile>
+    <StartupFile>mmf_hfb\scratch.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -15,6 +15,7 @@
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <IsWindowsApplication>False</IsWindowsApplication>
     <InterpreterId>Global|PythonCore|3.7</InterpreterId>
+    <SuppressEnvironmentCreationPrompt>True</SuppressEnvironmentCreationPrompt>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -31,7 +32,6 @@
     <Folder Include="Docs\" />
     <Folder Include="mmf_hfb\" />
     <Folder Include="tests\" />
-    <Folder Include="_trash\" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Docs\2D Vortex.py" />
@@ -52,6 +52,10 @@
     <Compile Include="mmf_hfb\FuldeFerrelState.py" />
     <Compile Include="mmf_hfb\Functionals.py" />
     <Compile Include="mmf_hfb\homogeneous.py" />
+    <Compile Include="mmf_hfb\homogeneous3D.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="mmf_hfb\homogeneous_aslda.py" />
     <Compile Include="mmf_hfb\homogeneous_mmf.py" />
     <Compile Include="mmf_hfb\integrate.py" />
     <Compile Include="mmf_hfb\integrates.py" />
@@ -60,12 +64,16 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="mmf_hfb\tf_completion.py" />
+    <Compile Include="mmf_hfb\thread_worker.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="mmf_hfb\VortexState.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="mmf_hfb\vortex_1d_aslda.py" />
     <Compile Include="mmf_hfb\Vortex_2D_BdG.py" />
     <Compile Include="mmf_hfb\vortex_aslda.py" />
+    <Compile Include="mmf_hfb\xp.py" />
     <Compile Include="tests\test_aslda_functional.py" />
     <Compile Include="tests\test_aslda_homogeneous.py" />
     <Compile Include="tests\test_aslda_integral.py" />
@@ -80,18 +88,6 @@
     <Compile Include="tests\test_integrate.py" />
     <Compile Include="tests\test_tf_completion.py" />
     <Compile Include="tests\__init__.py" />
-    <Compile Include="_trash\ASLDA.py" />
-    <Compile Include="_trash\FFStatePhaseMapper.py" />
-    <Compile Include="_trash\FFStatePhaseMapperCmd.py" />
-    <Compile Include="_trash\Integrates.py" />
-    <Compile Include="_trash\Lattice.py" />
-    <Compile Include="_trash\test_2d_integrand.py" />
-    <Compile Include="_trash\test_ASLDA_Homogeneous.py" />
-    <Compile Include="_trash\test_ASLDA_iterate.py" />
-    <Compile Include="_trash\test_homogeneous_mmf.py" />
-    <Compile Include="_trash\test_vortex_1d_aslda.py" />
-    <Compile Include="_trash\test_vortex_2d.py" />
-    <Compile Include="_trash\test_vortex_2d_aslda.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

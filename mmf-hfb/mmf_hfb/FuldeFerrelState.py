@@ -86,9 +86,9 @@ class FFState(object):
             Lambda = 1/self.hbar**2/4/np.pi*np.log((k_c/k0)**2 - 1)
         elif dim == 1:
             Lambda = 1/self.hbar**2/2/np.pi*np.log((k_c-k0)/(k_c+k0))/k0
-        return Lambda # do not forget effective mess inverse factor
+        return Lambda  # do not forget effective mess inverse factor
 
-    def get_a_inv(self, delta, mu=None, dmu=None,  q=0, dq=0, k_c=None,  **kw):
+    def get_a_inv(self, delta, mu=None, dmu=None, q=0, dq=0, k_c=None, **kw):
         """return the inverse of scattering length"""
         assert (mu is None) == (dmu is None)
         if mu is None:
@@ -97,8 +97,8 @@ class FFState(object):
             k_c = self.k_c
         args = dict(self._tf_args, q=q, dq=dq, delta=delta)
         args.update(kw, mu_a=mu+dmu, mu_b=mu-dmu, k_c=k_c)
-        nu_delta = tf.integrate_q(tf.nu_delta_integrand, **args) #1/g
-        k0 = ( 2*mu)**0.5/self.hbar
+        nu_delta = tf.integrate_q(tf.nu_delta_integrand, **args)  #1/g
+        k0 = (2*mu)**0.5/self.hbar
         Lambda = self._get_Lambda(k0=k0, k_c=k_c, dim=self.dim)
         a_inv = (nu_delta + Lambda)*4*np.pi*self.hbar**2
         return a_inv
