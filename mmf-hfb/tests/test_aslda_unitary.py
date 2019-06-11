@@ -6,9 +6,60 @@ from mmf_hfb import bcs;reload(bcs)
 from mmf_hfb.bcs import BCS
 from mmf_hfb import vortex_1d_aslda;reload(vortex_1d_aslda)
 import time
+from collections import namedtuple
+import warnings
+import scipy.integrate
+import scipy as sp
 hbar = 1
 m = 1
 
+
+def _quad(f, kF=None, k_0=0, k_inf=np.inf, limit=1000):
+    """Wrapper for quad that deals with singularities
+    at the Fermi surface.
+    """
+    if kF is None:
+        res, err = sp.integrate.quad(f, k_0, k_inf)
+    else:
+        # One might think that `points=[kF]` could be used here, but
+        # this does not work with infinite limits.
+        res0, err0 = sp.integrate.quad(f, k_0, kF)
+        res1, err1 = sp.integrate.quad(f, kF, k_inf, limit=limit)
+        res = res0 + res1
+        err = max(err0, err1)
+
+    if abs(err) > 1e-6 and abs(err/res) > 1e-6:
+        warnings.warn("Gap integral did not converge: res, err = %g, %g" % (res, err))
+    return 2*res   # Accounts for integral from -inf to inf
+
+def get_BCS_v_n_e(delta, mu_eff):
+    m = hbar = 1.0
+    kF = np.sqrt(2*m*max(0, mu_eff))/hbar
+
+    def gap_integrand(k):
+        e_p = (hbar*k)**2/2.0/m - mu_eff
+        return 1./np.sqrt(e_p**2 + abs(delta)**2)
+
+    v_0 = 4*np.pi / _quad(gap_integrand, kF)
+
+    def n_integrand(k):
+        """Density"""
+        e_p = (hbar*k)**2/2.0/m - mu_eff
+        denom = np.sqrt(e_p**2 + abs(delta)**2)
+        return (denom - e_p)/denom
+
+    n = _quad(n_integrand, kF) / 2/np.pi
+
+    def e_integrand(k):
+        """Energy"""
+        e_p = (hbar*k)**2/2.0/m - mu_eff
+        denom = np.sqrt(e_p**2 + abs(delta)**2)
+        return (hbar*k)**2/2.0/m * (denom - e_p)/denom
+        """Where this formula comes from?"""
+    e = _quad(e_integrand, kF) / 2/np.pi - v_0*n**2/4.0 - abs(delta)**2/v_0
+    mu = mu_eff - n*v_0/2
+
+    return namedtuple('BCS_Results', ['v_0', 'n', 'mu', 'e'])(v_0, n, mu, e)
 
 class Lattice(BCS):
     """Adds optical lattice potential to species a with depth V0."""
@@ -54,7 +105,7 @@ def test_aslda_unitary():
     E_FG = 2./3*n_F*E_c
     delta = 1  #0.68640205206984016444108204356564421137062514068346 * E_c
     mu_eff = 1 # 0.59060550703283853378393810185221521748413488992993*E_c
-    v_0, n, mu, e_0 = homogeneous._get_BCS_v_n_e(delta=delta, mu_eff=mu_eff)
+    v_0, n, mu, e_0 = get_BCS_v_n_e(delta=delta, mu_eff=mu_eff)
 
     l = Lattice(T=0.0, N=N, L=L, v0=v_0, V0=0)
     R = l.get_Rs(mus_eff=(mu_eff, mu_eff), delta=delta, N_twist=N_twist)[0]

@@ -21,7 +21,7 @@ def test_derivative():
         assert np.allclose(dalpha_p, dalpha_p_, atol=0.0005)
 
         # test _Beta
-        dBeta_p = (a._Beta(p + dx) - a._Beta(p-dx))/2/dx
+        dBeta_p = (a._Beta_p(p + dx) - a._Beta_p(p-dx))/2/dx
         dBeta_p_ = a._dBeta_dp(p=p)
         assert np.allclose(dBeta_p, dBeta_p_, atol=0.0005)
 

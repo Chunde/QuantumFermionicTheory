@@ -1,24 +1,54 @@
 """Test the homogeneous code."""
 import numpy as np
-
 from scipy.optimize import brentq
-
 import pytest
-
 from mmfutils.testing import allclose
-
 from mmf_hfb import homogeneous
-from mmf_hfb.homogeneous import Homogeneous3D
+from mmf_hfb.homogeneous import Homogeneous1D, Homogeneous3D
 
 
 @pytest.fixture(params=[1, 2, 3])
 def dim(request):
     return request.param
 
+def BCS(mu_eff, delta=1.0):
+    m = hbar = 1.0
+    """Return `(E_N_E_2, lam)` for comparing with the exact Gaudin
+    solution.
+
+    Arguments
+    ---------
+    delta : float
+       Pairing gap.  This is the gap in the energy spectrum.
+    mu_eff : float
+       Effective chemical potential including both the bare chemical
+       potential and the self-energy correction arising from the
+       Hartree term.
+
+    Returns
+    -------
+    E_N_E_2 : float
+       Energy per particle divided by the two-body binding energy
+       abs(energy per particle) for 2 particles.
+    lam : float
+       Dimensionless interaction strength.
+    """
+    h = Homogeneous1D()
+    v_0, ns, mu, e = h.get_BCS_v_n_e(mus_eff=(mu_eff,)*2, delta=delta)
+    n = sum(ns)
+    lam = m*v_0/n/hbar**2
+
+    # Energy per-particle
+    E_N = e/n
+
+    # Energy per-particle for 2 particles
+    E_2 = -m*v_0**2/4.0 / 2.0
+    E_N_E_2 = E_N/abs(E_2)
+    return E_N_E_2.n, lam.n
 
 class TestIntegration(object):
     """Test the integrators in homogeneous"""
-    # Normalized Gaussians in d=1,2,3 dimensions
+    # Normalized Gaussian in d=1,2,3 dimensions
     f = {1: lambda k: 2*np.sqrt(np.pi) * np.exp(-k**2),
          2: lambda k: 4*np.pi * np.exp(-k**2),
          3: lambda k: 8*np.sqrt(np.pi)**3 * np.exp(-k**2)}
@@ -62,12 +92,12 @@ class TestHomogeneous(object):
         h = homogeneous.Homogeneous1D(m=m, hbar=hbar)
         
         def _lam(mu_eff):
-            E_N_E_2, _lam = homogeneous.BCS(mu_eff=mu_eff, delta=delta)
+            E_N_E_2, _lam = BCS(mu_eff=mu_eff, delta=delta)
             return _lam - lam
 
         mu_eff = brentq(_lam, 0.6, 0.8, xtol=1e-5)
         v_0, n, mu, e = h.get_BCS_v_n_e(mus_eff=(mu_eff, mu_eff), delta=delta)
-        E_N_E_2, lam = homogeneous.BCS(mu_eff=mu_eff, delta=delta)
+        E_N_E_2, lam = BCS(mu_eff=mu_eff, delta=delta)
         mu_tilde = (hbar**2/m/v_0**2)*mu
         assert allclose(lam, 1./0.5)
         assert allclose(mu_tilde, 0.0864, atol=0.0005)
