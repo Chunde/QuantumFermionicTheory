@@ -1,14 +1,59 @@
-from mmf_hfb.xp import xp
+import numpy as np
+from abc import ABC, abstractmethod
+
 hbar=m=1
 
 
-class FunctionalBdG(object):
+class IFunctional(ABC):
+
+    @abstractmethod
+    def get_alphas(self, ns, d=0):
+        """
+        Parameters
+        ----------------
+        ns: densities (na, nb)
+        d: order of derivative
+        """
+        pass
+
+    @abstractmethod
+    def get_p(self, ns, d=0):
+        """
+        Parameters
+        ----------------
+        ns: densities (na, nb)
+        d: order of derivative
+        """
+        pass
+
+    @abstractmethod
+    def get_C(self, ns, d=0):
+        """
+        Parameters
+        ----------------
+        ns: densities (na, nb)
+        d: order of derivative
+        """
+        pass
+
+    @abstractmethod
+    def get_D(self, ns, d=0):
+        """
+        Parameters
+        ----------------
+        ns: densities (na, nb)
+        d: order of derivative
+        """
+        pass
+
+
+class FunctionalBdG(IFunctional):
 
     def __init__(self):
         self.gamma = self._gamma()
 
     def _gamma(self, p=None):
-        return -11.11 # -11.039 in Aureal's code
+        return -11.11  # -11.039 in Aureal's code
 
     def _get_p(self, ns):
         """return p for a given ns"""
@@ -86,10 +131,10 @@ class FunctionalBdG(object):
 
     def _dC_dn(self, ns):
         """"[overridden in Children]"""
-        return 0
+        return (0, 0)
 
     def _D(self, ns):
-        C1_ = (6*xp.pi**2*(sum(ns)))**(5.0/3)/20/xp.pi**2
+        C1_ = (6*np.pi**2*(sum(ns)))**(5.0/3)/20/np.pi**2
         C2_ = self._Beta(ns=ns)
         return C1_*C2_*2**(-2.0/3)
 
@@ -99,7 +144,7 @@ class FunctionalBdG(object):
         p = self._get_p(ns)
         dp_n_a, dp_n_b = self._dp_dn(ns)
         dBeta_p = self._dBeta_dp(p=p)
-        N0 = (6*xp.pi**2)**(5.0/3)/20/xp.pi**2
+        N0 = (6*np.pi**2)**(5.0/3)/20/np.pi**2
         C1_ = self._D(ns)/0.6/n_p
         C2_ = N0*n_p**(5/3)*dBeta_p
         dD_n_a = C1_ + C2_*dp_n_a*2**(-2.0/3)
@@ -107,14 +152,17 @@ class FunctionalBdG(object):
         return (dD_n_a, dD_n_b)
 
     def _get_Lambda(self, k0, k_c, alpha, dim=1):
-        """return the renormalization condition parameter Lambda"""
+        """
+        return the renormalization condition parameter Lambda
+        # [check] be careful the alpha may be different for a and b
+        """
         if dim ==3:
-            Lambda = m*k_c/hbar**2/2/xp.pi**2*(1.0 - k0/k_c/2*xp.log((k_c+k0)/(k_c-k0)))
+            Lambda = m*k_c/hbar**2/2/np.pi**2*(1.0 - k0/k_c/2*np.log((k_c+k0)/(k_c-k0)))
         elif dim == 2:
-            Lambda = m /hbar**2/4/xp.pi*xp.log((k_c/k0)**2 - 1)
+            Lambda = m /hbar**2/4/np.pi*np.log((k_c/k0)**2 - 1)
         elif dim == 1:
-            Lambda = m/hbar**2/2/xp.pi*xp.log((k_c-k0)/(k_c+k0))/k0
-        return Lambda/alpha # do not forget effective mess inverse factor
+            Lambda = m/hbar**2/2/np.pi*np.log((k_c-k0)/(k_c+k0))/k0
+        return Lambda/alpha  # do not forget effective mess inverse factor
 
     def _g_eff(self, delta, kappa, **args):
         """
@@ -127,6 +175,49 @@ class FunctionalBdG(object):
     def _energy_density(self, delta, ns, taus, kappa, **args):
         g_eff = self._g_eff(delta=delta, kappa=kappa)
         return hbar**2/2/m*sum(taus) - g_eff*kappa.T.conj()*kappa
+
+    def get_alphas(self, ns, d=0):
+        """IFunctional interface implementation"""
+        if d==0:
+            alpha_a, alpha_b, _ = self._get_alphas(ns=ns)
+            return (alpha_a, alpha_b)
+        elif d==1:
+            p = self._get_p(ns=ns)
+            dp_n_a, dp_n_b = self._dp_dn(ns=ns)
+            dalpha_p = self._dalpha_p_dp(p=p)
+            dalpha_m = self._dalpha_m_dp(p=p)
+            dalpha_p_dn_a, dalpha_p_dn_b = dalpha_p*dp_n_a, dalpha_p*dp_n_b
+            dalpha_m_dn_a, dalpha_m_dn_b = dalpha_m*dp_n_a, dalpha_m*dp_n_b
+            return (dalpha_p_dn_a, dalpha_p_dn_b, dalpha_m_dn_a, dalpha_m_dn_b)
+        else:
+            raise ValueError(f"d={d} is not supported value")
+
+    def get_p(self, ns, d=0):
+        """IFunctional interface implementation"""
+        if d==0:
+            return self._dp_dn(ns=ns)
+        elif d==1:
+            return self._dp_dn(ns=ns)
+        else:
+            raise ValueError(f"d={d} is not supported value")
+
+    def get_C(self, ns, d=0):
+        """IFunctional interface implementation"""
+        if d==0:
+            return self._C(ns=ns)
+        elif d==1:
+            return self._dC_dn(ns)
+        else:
+            raise ValueError(f"d={d} is not supported value")
+
+    def get_D(self, ns, d=0):
+        """IFunctional interface implementation"""
+        if d==0:
+            return self._D(ns)
+        elif d==1:
+            return self._dD_dn(ns=ns)
+        else:
+            raise ValueError(f"d={d} is not supported value")
 
 
 class FunctionalSLDA(FunctionalBdG):
@@ -179,8 +270,8 @@ class FunctionalSLDA(FunctionalBdG):
 
     def _get_alphas_p(self, p):
         """"[overridden in Children]"""
-        ones = xp.ones_like(p)
-        alpha_even = 1.094 * ones # 1.14 in Aureal's Matlab code
+        ones = np.ones_like(p)
+        alpha_even = 1.094*ones  # 1.14 in Aureal's Matlab code
         alpha_odd = 0
         alpha_a, alpha_b = alpha_odd + alpha_even, -alpha_odd + alpha_even
         return (alpha_a, alpha_b, alpha_even, alpha_odd)
@@ -191,18 +282,18 @@ class FunctionalSLDA(FunctionalBdG):
             equation (78) in page 39
         """
         V_a, V_b = Vs
-        alpha_a, alpha_b, alpha_p = self._get_alphas(ns)
+        alpha_p = sum(self.get_alphas(ns))/2.0
         mu_p = (sum(mus_eff) - V_a + V_b) / 2
         k0 = (2*m/hbar**2*mu_p/alpha_p)**0.5
-        k_c = (2*m/hbar**2 * (E_c + mu_p)/alpha_p)**0.5
-        Lambda = self._get_Lambda(k0=k0, k_c=k_c, alpha=alpha_a, dim=dim) # miss the alpha
+        k_c = (2*m/hbar**2*(E_c + mu_p)/alpha_p)**0.5
+        Lambda = self._get_Lambda(k0=k0, k_c=k_c, alpha=alpha_p, dim=dim)
         g = 1.0/(sum(ns)**(1.0/3) / self.gamma - Lambda)
         return g
 
     def _energy_density(self, ns, taus, kappa, **args):
         g_eff = self._g_eff(ns=ns, **args)
         return (hbar**2/2/m*sum(taus)*self._alpha(self._get_p(ns))
-            + self._Beta(ns=ns)*(3*xp.pi**2.0)**(2.0/3)*sum(ns)**(5.0/3)*0.3
+                + self._Beta(ns=ns)*(3*np.pi**2.0)**(2.0/3)*sum(ns)**(5.0/3)*0.3
                 - g_eff*kappa.T.conj()*kappa)
 
 
@@ -237,12 +328,13 @@ class FunctionalASLDA(FunctionalSLDA):
             equation (87c) in page 42
         """
         V_a, V_b = Vs
-        alpha_a, alpha_b, alpha_p = self._get_alphas(ns)
+        alpha_p = sum(self.get_alphas(ns))/2.0
         mu_p = (sum(mus_eff) - V_a + V_b) / 2
         k0 = (2*m/hbar**2*mu_p/alpha_p)**0.5
         k_c = (2*m/hbar**2 * (E_c + mu_p)/alpha_p)**0.5
         C = alpha_p * (sum(ns)**(1.0/3))/self.gamma
-        Lambda = self._get_Lambda(k0=k0, k_c=k_c, dim=dim)
+        # [check]be careful the alpha may be different for a and b
+        Lambda = self._get_Lambda(k0=k0, k_c=k_c, dim=dim, alpha=alpha_p)
         g = alpha_p/(C - Lambda)
         return g
 
@@ -250,4 +342,4 @@ class FunctionalASLDA(FunctionalSLDA):
         g_eff = self._g_eff(delta=delta, ns=ns, kappa=kappa, **args)
         return (hbar**2/m*(self._alpha_a(ns)*taus[0]/2.0
                            + self._alpha_b(ns)*taus[1] + self._D(ns))
-                        - g_eff*kappa.T.conj()*kappa)
+                            - g_eff*kappa.T.conj()*kappa)

@@ -4,7 +4,7 @@ two-species Fermi gas with short-range interaction.
 """
 from mmf_hfb.Functionals import FunctionalASLDA, FunctionalBdG, FunctionalSLDA
 from mmf_hfb.bcs import BCS
-from mmf_hfb.xp import xp
+import numpy as np
 import numpy
 import scipy.optimize
 
@@ -28,13 +28,13 @@ class BDG(FunctionalBdG, BCS):
             if False:
                 (ab')=a'b'+ab''
         """
-        A = xp.diag(alpha.ravel())  #[Check] ????
+        A = np.diag(alpha.ravel())  #[Check] ????
         if Laplacian_only:
-            K = (D2.dot(A) - xp.diag(self._D2.dot(alpha.ravel())) + A.dot(D2)) / 2
+            K = (D2.dot(A) - np.diag(self._D2.dot(alpha.ravel())) + A.dot(D2)) / 2
         else:
             D1 =self._get_Del(twists=twists)
             dalpha = self._D1.dot(alpha.ravel())
-            K = xp.diag(dalpha.ravel()).dot(D1) + A.dot(D2)
+            K = np.diag(dalpha.ravel()).dot(D1) + A.dot(D2)
         return K
 
     def _get_modified_taus(self, taus, js):
@@ -44,7 +44,7 @@ class BDG(FunctionalBdG, BCS):
         """
         return taus
 
-    def get_Ks(self, twists=0, ns=None, k_p=0,  **args):
+    def get_Ks(self, twists=0, ns=None, k_p=0, **args):
         """
             return the modified kinetic density  matrix
         Arguments
@@ -52,7 +52,7 @@ class BDG(FunctionalBdG, BCS):
         k_p: kinetic energy offset added to the diagonal elements
         """
         K = BCS._get_K(self, k_p=k_p, twists=twists, **args)
-        #k_p = xp.diag(xp.ones_like(sum(self.xyz).ravel()) * k_p)   #[Check] the shape of the k_p matrix
+        #k_p = np.diag(np.ones_like(sum(self.xyz).ravel()) * k_p)   #[Check] the shape of the k_p matrix
         #K = K + k_p
         if ns is None:
             return (K, K)
@@ -63,8 +63,8 @@ class BDG(FunctionalBdG, BCS):
         # K( A U') = [(A u')'= (A u)'' - A'' u + A u'']/2
         K_a = self._get_modified_K(K, alpha_a, **args)
         K_b = self._get_modified_K(K, alpha_b, **args)
-        if xp == numpy:
-            assert xp.allclose(K_b, K_b.conj().T)
+        if np == numpy:
+            assert np.allclose(K_b, K_b.conj().T)
 
         return (K_a, K_b)
 
@@ -77,18 +77,15 @@ class BDG(FunctionalBdG, BCS):
         U_a, U_b = self.v_ext  # external trap
         tau_a, tau_b = taus
         tau_p, tau_m = tau_a + tau_b, tau_a - tau_b
-        alpha_a, alpha_b, alpha_p = self._get_alphas(ns)
-        p = self._get_p(ns)
-        dp_n_a, dp_n_b = self._dp_dn(ns)
-        dalpha_p = self._dalpha_p_dp(p)
-        dalpha_m = self._dalpha_m_dp(p)
-        dalpha_p_dn_a, dalpha_p_dn_b = dalpha_p*dp_n_a, dalpha_p*dp_n_b
-        dalpha_m_dn_a, dalpha_m_dn_b = dalpha_m*dp_n_a, dalpha_m*dp_n_b
-        dC_dn_a, dC_dn_b = self._dC_dn(ns)
-        dD_dn_a, dD_dn_b = self._dD_dn(ns=ns)
+
+        alpha_p = sum(self.get_alphas(ns))/2.0
+        dalpha_p_dn_a, dalpha_p_dn_b, dalpha_m_dn_a, dalpha_m_dn_b=self.get_alphas(ns=ns, d=1)
+        dC_dn_a, dC_dn_b = self.get_C(ns=ns, d=1)
+        dD_dn_a, dD_dn_b = self.get_D(ns=ns, d=1)
+       
         C0_ = self.hbar**2/self.m
         C1_ = C0_/2
-        C2_ = tau_p*C1_ - xp.conj(delta).T*kappa/alpha_p
+        C2_ = tau_p*C1_ - np.conj(delta).T*kappa/alpha_p
         V_a = dalpha_m_dn_a*tau_m*C1_ + dalpha_p_dn_a*C2_ + dC_dn_a + C0_*dD_dn_a + U_a
         V_b = dalpha_m_dn_b*tau_m*C1_ + dalpha_p_dn_b*C2_ + dC_dn_b + C0_*dD_dn_b + U_b
         return (V_a, V_b)
@@ -150,7 +147,7 @@ class SLDA(BDG, FunctionalSLDA):
                 ns, taus, js, kappa = self.get_dens_integral(**args)
                 print(f"{iter}:\tns={ns[0][0].max(), ns[1][0].max()}\ttaus={taus[0][0].max(),taus[1][0].max()}\tkappa={kappa[0].max().real}")
                 if ns_ is not None:
-                    if xp.allclose(ns_[0], ns[0]):
+                    if np.allclose(ns_[0], ns[0]):
                         break
                     if lr < 1:
                         mr = 1 - lr
@@ -165,6 +162,7 @@ class SLDA(BDG, FunctionalSLDA):
         energy_density = self._energy_density(**args)
         pressure = ns[0] * mus_eff[0] + ns[1]*mus_eff[1] - energy_density
         return (ns, energy_density, pressure)
+
 
 class ASLDA(SLDA, FunctionalASLDA):
 
