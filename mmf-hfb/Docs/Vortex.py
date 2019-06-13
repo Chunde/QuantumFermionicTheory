@@ -104,14 +104,19 @@ class VortexState(Vortex):
             j_p = j_a + j_b
             j_m = j_a - j_b
             utheta = np.exp(1j*np.angle(x + 1j*y))
-            imcontourf(x, y, abs(j_p), aspect=1)
-            plt.title(r'$j_p$'); plt.colorbar()
-            plt.quiver(x.ravel(), y.ravel(), j_a.real.T, j_a.imag.T)
+            imcontourf(x, y, abs(j_a), aspect=1)
+            plt.title(r'$j_a$'); plt.colorbar()
+            plt.quiver(x.ravel(), y.ravel(), j_a.real, j_a.imag)
             
             plt.subplot(235)
-            imcontourf(x, y, abs(j_m), aspect=1)
-            plt.title(r'$J_-$'); plt.colorbar()
-            plt.quiver(x.ravel(), y.ravel(), j_m.real.T, j_m.imag.T)
+            imcontourf(x, y, abs(j_b), aspect=1)
+            plt.title(r'$J_b$'); plt.colorbar()
+            plt.quiver(x.ravel(), y.ravel(), j_b.real, j_b.imag)
+            
+            plt.subplot(236)
+            imcontourf(x, y, abs(j_p), aspect=1)
+            plt.title(r'$J_+$'); plt.colorbar()
+            plt.quiver(x.ravel(), y.ravel(), j_p.real, j_p.imag)
         return fig      
 
 # -
@@ -122,7 +127,7 @@ from mmf_hfb import FuldeFerrelState; reload(FuldeFerrelState)
 import warnings
 warnings.filterwarnings("ignore")
 fontsize = 18
-def FFVortex(bcs_vortex, mus=None, delta=None, plot_bcs=True):
+def FFVortex(bcs_vortex, mus=None, delta=None, plot_tf=True):
     mu_a, mu_b=bcs_vortex.mus
     if delta is None:
         delta = bcs_vortex.delta
@@ -133,127 +138,144 @@ def FFVortex(bcs_vortex, mus=None, delta=None, plot_bcs=True):
     k_c = np.sqrt(2)*np.pi*N/L
     k_F = np.sqrt(2*mu)
     E_c=k_c**2/2
+    print(2.0**0.5 *np.max(bcs_vortex.kxyz))
     args = dict(mu=mu, dmu=0, delta=delta, dim=2, k_c=500)
-    f = FuldeFerrelState.FFState(fix_g=True, **args)
+    f = FuldeFerrelState.FFState(fix_g=True,   **args)
     print(f.g, bcs_vortex.g)
     rs = np.linspace(0.0001,1, 10)
     rs = np.append(rs, np.linspace(1.1, bcs_vortex.R, 10))
-
-    ds = [f.solve(mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
-    ps = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=d, dq=0.5/r, use_kappa=False).n for r, d in zip(rs,ds)]
-    ps0 = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=1e-8,q=0, dq=0, use_kappa=False).n for r, d in zip(rs,ds)]
+    rs_ = rs/dx
+    if plot_tf:
+        ds = [f.solve(mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
+        for i in range(len(ds)):
+            if ds[i]==0:
+                rs[i]=np.inf
+                ds[i]=1e-12
+            ps = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=d, dq=0.5/r, use_kappa=False).n for r, d in zip(rs,ds)]
+            ps0 = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=1e-8,q=0, dq=0, use_kappa=False).n for r, d in zip(rs,ds)]
 
     
     r = np.sqrt(sum(_x**2 for _x in bcs_vortex.xyz))
     plt.figure(figsize(16,8))
     plt.subplot(321)
-    if plot_bcs:
-        plt.plot(r.ravel()/dx, abs(bcs_vortex.Delta).ravel()/mu, '+', label="BCS")
-    plt.plot(rs/dx, np.array(ds)/mu, label="Homogeneous")
+
+    plt.plot(r.ravel()/dx, abs(bcs_vortex.Delta).ravel()/mu, '+', label="BCS")
+    if plot_tf:    
+        plt.plot(rs_, np.array(ds)/mu, label="Homogeneous")
     plt.legend()
     plt.ylabel(r'$\Delta/E_F$', fontsize=fontsize)
+    plt.xlim(0, bcs_vortex.R/dx)
     plt.subplot(322)
     plt.ylabel(r"Pressure/$E_F$", fontsize=fontsize)
-    plt.plot(rs/dx, ps, label="FF State/Superfluid State Pressure")
-    plt.plot(rs/dx, ps0,'--', label="Normal State pressure")
-    plt.legend()
-
+    if plot_tf:
+        plt.plot(rs_, ps, label="FF State/Superfluid State Pressure")
+        plt.plot(rs_, ps0,'--', label="Normal State pressure")
+        plt.legend()
+        plt.xlim(0,bcs_vortex.R/dx)
     na = np.array([])
     nb = np.array([])
-    res = bcs_vortex.get_densities(mus_eff=bcs_vortex.mus, delta=bcs_vortex.Delta)
-    for i in range(len(rs)):
-        na_, nb_ = f.get_densities(delta=ds[i], dq=0.5/rs[i], mu=mu, dmu=dmu)
-        na = np.append(na, na_.n)
-        nb = np.append(nb, nb_.n)   
+     
     plt.subplot(323)
-    n_p = na + nb
-    if plot_bcs:
-        plt.plot(r.ravel()/dx, abs(res.n_a + res.n_b).ravel()/k_F, '+', label="BCS")
-    plt.plot(rs/dx, n_p/k_F, label="Homogeneous")
+    
+    res = bcs_vortex.get_densities(mus_eff=bcs_vortex.mus, delta=bcs_vortex.Delta)
+    
+    plt.plot(r.ravel()/dx, abs(res.n_a + res.n_b).ravel()/k_F, '+', label="BCS")
+    if plot_tf:
+        for i in range(len(rs)):
+            na_, nb_ = f.get_densities(delta=ds[i], dq=0.5/rs[i], mu=mu, dmu=dmu)
+            na = np.append(na, na_.n)
+            nb = np.append(nb, nb_.n)  
+        n_p = na + nb
+        plt.plot(rs_, n_p/k_F, label="Homogeneous")
     plt.ylabel(r"$n_p/k_F$", fontsize=fontsize)
     #plt.title("Total Density")
     plt.legend()
+    plt.xlim(0, bcs_vortex.R/dx)
     plt.subplot(324)
     n_m = na - nb
-    if plot_bcs:
-        plt.plot(r.ravel()/dx, abs(res.n_a - res.n_b).ravel()/k_F, '+', label="BCS")
-    plt.plot(rs/dx, n_m/k_F, label="Homogeneous")
+    plt.plot(r.ravel()/dx, abs(res.n_a - res.n_b).ravel()/k_F, '+', label="BCS")
+    if plot_tf:
+        plt.plot(rs_, n_m/k_F, label="Homogeneous")
     plt.ylabel(r"$n_m/k_F$", fontsize=20)#,plt.title("Density Difference")
+    plt.ylim(0,1)
     plt.legend()
-
-    ja = np.abs(res.j_a[0] + 1j*res.j_a[1])
-    jb = np.abs(res.j_b[0] + 1j*res.j_b[1]) 
-    j_p_, j_m_ = ja + jb, ja - jb
-    ja = []
-    jb = []
-    js = [f.get_current(mu=mu, dmu=dmu, delta=d,dq=0.5/r) for r, d in zip(rs,ds)]
-    for j in js:
-        ja.append(j[0].n)
-        jb.append(j[1].n)
-    ja, jb = np.array(ja), np.array(jb)
-    j_p, j_m = -(ja + jb), ja - jb
+    plt.xlim(0, bcs_vortex.R/dx)
+    j_a_ = np.abs(res.j_a[0] + 1j*res.j_a[1])
+    j_b_ = np.abs(res.j_b[0] + 1j*res.j_b[1]) 
+    j_p_, j_m_ = j_a_ + j_b_, j_a_ - j_b_
+    j_a = []
+    j_b = []
+    if plot_tf:
+        js = [f.get_current(mu=mu, dmu=dmu, delta=d,dq=0.5/r) for r, d in zip(rs,ds)]
+        for j in js:
+            j_a.append(j[0].n)
+            j_b.append(j[1].n)
+        j_a, j_b = np.array(j_a), np.array(j_b)
+        j_p, j_m = -(j_a + j_b), j_a - j_b
     plt.subplot(325)
-    if plot_bcs:
-        plt.plot(r.ravel()/dx, j_p_.ravel(), '+', label="BCS")
-    plt.plot(rs/dx, j_m, label="Homogeneous")
-    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$j_p$", fontsize=fontsize)#,plt.title("Total Current")
+    
+    plt.plot(r.ravel()/dx, j_a_.ravel(), '+', label="BCS")
+    if plot_tf:
+        plt.plot(rs_, j_a, label="Homogeneous")
+    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$j_a$", fontsize=fontsize)#,plt.title("Total Current")
     plt.legend()
+    plt.xlim(0, bcs_vortex.R/dx)
     plt.subplot(326)
-    if plot_bcs:
-        plt.plot(r.ravel()/dx, j_m_.ravel(), '+', label="BCS")
-    plt.plot(rs/dx, j_p, label="Homogeneous")
-    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$j_m$", fontsize=fontsize)#,plt.title("Current Difference")
-    plt.ylim(0,15)
+    
+    plt.plot(r.ravel()/dx, j_b_.ravel(), '+', label="BCS")
+    if plot_tf:
+        plt.plot(rs_, -j_b, label="Homogeneous")
+    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$j_b$", fontsize=fontsize)#,plt.title("Current Difference")
+   # plt.ylim(0,15)
     plt.legend()
-    clear_output()
+    plt.xlim(0, bcs_vortex.R/dx)
 
-# $$
-#   v_x +\I v_y = v e^{\I\phi}, \\
-#   \uvect{\theta} = \frac{\I x - y}{r}\\
-#   \uvect{\theta}\cdot \vect{v} = \frac{-yv_x + xv_y}{r} = - \Re(v \uvect{\theta})
-# $$
-
-# ## Unitary regime in 2d
-# In 2D, we must compute results but we seem to have:
-#
-# $$
-# \newcommand{\E}{\mathcal{E}}\newcommand{\e}{\epsilon}
-#   n_+ = \frac{k_F^2}{2\pi}, \qquad
-#   \e_F = \frac{\hbar^2 k_F^2}{2m}, \qquad
-#   \E_{FG} = \frac{k_F^4}{8m\pi} = \frac{1}{2}n_+\e_F, \qquad
-#   \tilde{C} = 0,\\
-#   \frac{\mu}{\e_F} = \frac{1}{2},\qquad
-#   \frac{\Delta}{\e_F} = \sqrt{2}\\
-# $$
-# ### Symmetric Vortex $\delta \mu/\Delta=0$
 
 mu = 5
 delta = 2**1.5 * mu
 v0 = VortexState(mu=mu, dmu=0.0, delta=delta, Nxyz=(32, 32))
 v0.solve(plot=True)
 
-# ### Polarized Vortex $\delta\mu/\Delta\ne 0$
+FFVortex(v0)
 
-mu = 10
-delta = 7.5
-dmu = 4.5
-assert dmu < mu
-v1 = VortexState(mu=mu, dmu=dmu, delta=delta, Nxyz=(48, 48),Lxyz=(8,8))
+FFVortex(v0)
+
+mu = 5
+delta = 2**1.5 * mu
+v1 = VortexState(mu=mu, dmu=0.5* delta, delta=delta, Nxyz=(32, 32))
 v1.solve(plot=True)
 
-mu = 10
-delta = 7.5
-dmu = 0
-assert dmu < mu
-v2 = VortexState(mu=mu, dmu=dmu, delta=delta, Nxyz=(48, 48),Lxyz=(8,8))
+FFVortex(v1)
+
+FFVortex(v1, plot_tf=False)
+
+mu = 20
+delta = 0.75*delta
+v2 = VortexState(mu=mu, dmu=0.0, delta=delta, Nxyz=(32, 32), Lxyz=(3.2,3.2))
 v2.solve(plot=True)
+
+FFVortex(v2)
 
 mu = 10
 delta = 7.5
-dmu = 4.5
-assert dmu < mu
-v3 = VortexState(mu=mu, dmu=dmu, delta=delta, Nxyz=(64, 64),Lxyz=(8,8))
+v3 = VortexState(mu=mu, dmu=4.5, delta=delta, Nxyz=(32, 32), Lxyz=(8,8))
 v3.solve(plot=True)
+
+FFVortex(v3)
+
+mu = 10
+delta = 7.5
+v4 = VortexState(mu=mu, dmu=0, delta=delta, Nxyz=(32, 32), Lxyz=(8,8))
+v4.solve(plot=True)
+
+FFVortex(v4)
+
+mu = 10
+delta = 7.5
+v4 = VortexState(mu=mu, dmu=4.5, delta=delta, Nxyz=(32, 32), Lxyz=(8,8))
+v4.solve(plot=True)
+
+FFVortex(v4)
 
 # ## Compare to FF State
 # * The FFVortex will compute FF State data with the same $\mu,d\mu$, and compare the results in plots
@@ -263,8 +285,6 @@ v3.solve(plot=True)
 # $$
 # with phase change in a loop by $2\pi$, which requires: $\delta q= \frac{1}{2r}$
 #
-
-
 
 # ### Symmetric case $\delta \mu/\Delta=0$
 
@@ -278,71 +298,6 @@ FFVortex(v2)
 
 FFVortex(v3)
 
-
-def HomogeneousVortx(mu, dmu, delta, k_c=50):
-    k_F = np.sqrt(2*mu)   
-    E_c=k_c**2/2
-    dx = 1
-    args = dict(mu=mu, dmu=dmu, delta=delta, dim=3, k_c=k_c)
-    f = FuldeFerrelState.FFState(fix_g=True, **args)
-    rs = np.linspace(0.0001,1, 30)
-    rs = np.append(rs, np.linspace(1.1, 4, 10))
-
-    ds = [f.solve(mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
-    ps = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=d, dq=0.5/r, use_kappa=False).n for r, d in zip(rs,ds)]
-    ps0 = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=1e-12,q=0, dq=0, use_kappa=False).n for r, d in zip(rs,ds)]
-
-    
-    plt.figure(figsize(16,8))
-    plt.subplot(321)
-    plt.plot(rs/dx, np.array(ds)/mu, label="Homogeneous")
-    plt.legend()
-    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize)
-    plt.ylabel(r'$\Delta/E_F$', fontsize=fontsize)
-    plt.subplot(322)
-    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize)
-    plt.ylabel(r"Pressure/$E_F$", fontsize=fontsize)
-    plt.plot(rs/dx, ps, label="FF State/Superfluid State Pressure")
-    plt.plot(rs/dx, ps0,'--', label="Normal State pressure")
-    plt.legend()
-
-    na = np.array([])
-    nb = np.array([])
-    for i in range(len(rs)):
-        na_, nb_ = f.get_densities(delta=ds[i], dq=0.5/rs[i], mu=mu, dmu=dmu)
-        na = np.append(na, na_.n)
-        nb = np.append(nb, nb_.n)   
-    plt.subplot(323)
-    n_p = na + nb
-    plt.plot(rs/dx, n_p/k_F, label="Homogeneous")
-    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$n_p/k_F$", fontsize=fontsize)
-    #plt.title("Total Density")
-    plt.legend()
-    plt.subplot(324)
-    n_m = na - nb
-    plt.plot(rs/dx, n_m/k_F, label="Homogeneous")
-    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$n_m/k_F$", fontsize=20)#,plt.title("Density Difference")
-    plt.legend()
-
-    ja = []
-    jb = []
-    js = [f.get_current(mu=mu, dmu=dmu, delta=d,dq=0.5/r) for r, d in zip(rs,ds)]
-    for j in js:
-        ja.append(j[0].n)
-        jb.append(j[1].n)
-    ja, jb = np.array(ja), np.array(jb)
-    j_p, j_m = -(ja + jb), ja - jb
-    plt.subplot(325)
-    plt.plot(rs/dx, j_m, label="Homogeneous")
-    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$j_p$", fontsize=fontsize)#,plt.title("Total Current")
-    plt.legend()
-    plt.subplot(326)
-    plt.plot(rs/dx, j_p, label="Homogeneous")
-    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$j_m$", fontsize=fontsize)#,plt.title("Current Difference")
-    plt.ylim(0,15)
-    plt.legend()
-    clear_output()
-
 mu=5
 dmu=0
 delta = 1.16220056179 * mu
@@ -352,7 +307,5 @@ mu=5
 delta = 1.16220056179 * mu
 dmu=0.25 * delta
 HomogeneousVortx(mu=mu, dmu=dmu, delta=delta)
-
-# # ASLDA
 
 
