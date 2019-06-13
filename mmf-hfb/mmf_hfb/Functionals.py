@@ -45,6 +45,15 @@ class IFunctional(ABC):
         d: order of derivative
         """
         pass
+        
+    def get_beta(self, ns, d=0):
+        """
+        Parameters
+        ----------------
+        ns: densities (na, nb)
+        d: order of derivative
+        """
+        pass
 
 
 class FunctionalBdG(IFunctional):
@@ -157,11 +166,12 @@ class FunctionalBdG(IFunctional):
         # [check] be careful the alpha may be different for a and b
         """
         if dim ==3:
-            Lambda = m*k_c/hbar**2/2/np.pi**2*(1.0 - k0/k_c/2*np.log((k_c+k0)/(k_c-k0)))
+            Lambda = (m*k_c/hbar**2/2/np.pi**2*(
+                1.0 - k0/k_c/2*np.log((k_c + k0)/(k_c - k0))))
         elif dim == 2:
             Lambda = m /hbar**2/4/np.pi*np.log((k_c/k0)**2 - 1)
         elif dim == 1:
-            Lambda = m/hbar**2/2/np.pi*np.log((k_c-k0)/(k_c+k0))/k0
+            Lambda = m/hbar**2/2/np.pi*np.log((k_c - k0)/(k_c + k0))/k0
         return Lambda/alpha  # do not forget effective mess inverse factor
 
     def _g_eff(self, delta, kappa, **args):
@@ -177,7 +187,13 @@ class FunctionalBdG(IFunctional):
         return hbar**2/2/m*sum(taus) - g_eff*kappa.T.conj()*kappa
 
     def get_alphas(self, ns, d=0):
-        """IFunctional interface implementation"""
+        """IFunctional interface implementation
+        parameters:
+        ------------------
+        if d==1, return the first order derivatives
+        of alpha_p and alpha_m over n_a, and n_b,
+        NOT alpha_a and anlpha_b over n_a, and n_b
+        """
         if d==0:
             alpha_a, alpha_b, _ = self._get_alphas(ns=ns)
             return (alpha_a, alpha_b)
@@ -216,6 +232,18 @@ class FunctionalBdG(IFunctional):
             return self._D(ns)
         elif d==1:
             return self._dD_dn(ns=ns)
+        else:
+            raise ValueError(f"d={d} is not supported value")
+    
+    def get_beta(self, ns, d=0):
+        if d==0:
+            return self._Beta(ns=ns)
+        elif d==1:
+            p = self._get_p(ns=ns)
+            dp_n_a, dp_n_b = self._dp_dn(ns=ns)
+            dBeta_dp = self._dBeta_dp(p=p)
+            dBeta_dn_a, dBeta_p_dn_b = dBeta_dp*dp_n_a, dBeta_dp*dp_n_b
+            return (dBeta_dn_a, dBeta_p_dn_b)
         else:
             raise ValueError(f"d={d} is not supported value")
 
@@ -279,21 +307,22 @@ class FunctionalSLDA(FunctionalBdG):
     def _g_eff(self, mus_eff, ns, Vs, dim, E_c, **args):
         """
             get the effective g
-            equation (78) in page 39
+            equation (87c) in page 42
         """
-        V_a, V_b = Vs
         alpha_p = sum(self.get_alphas(ns))/2.0
-        mu_p = (sum(mus_eff) - V_a + V_b) / 2
+        mu_p = (sum(mus_eff) - sum(Vs))/2  # [check] signs lack of symmetry
         k0 = (2*m/hbar**2*mu_p/alpha_p)**0.5
         k_c = (2*m/hbar**2*(E_c + mu_p)/alpha_p)**0.5
-        Lambda = self._get_Lambda(k0=k0, k_c=k_c, alpha=alpha_p, dim=dim)
-        g = 1.0/(sum(ns)**(1.0/3) / self.gamma - Lambda)
+        C = alpha_p*(sum(ns)**(1.0/3))/self.gamma  # (97)
+        # [check] be careful the alpha may be different for a and b
+        Lambda = self._get_Lambda(k0=k0, k_c=k_c, dim=dim, alpha=alpha_p)
+        g = alpha_p/(C - Lambda)  # (84)
         return g
 
-    def _energy_density(self, ns, taus, kappa, **args):
-        g_eff = self._g_eff(ns=ns, **args)
-        return (hbar**2/2/m*sum(taus)*self._alpha(self._get_p(ns))
-                + self._Beta(ns=ns)*(3*np.pi**2.0)**(2.0/3)*sum(ns)**(5.0/3)*0.3
+    def _energy_density(self, delta, ns, taus, kappa, **args):
+        g_eff = self._g_eff(delta=delta, ns=ns, kappa=kappa, **args)
+        return (hbar**2/m*(self._alpha_a(ns)*taus[0]/2.0
+                + self._alpha_b(ns)*taus[1] + self._D(ns))
                 - g_eff*kappa.T.conj()*kappa)
 
 
@@ -320,26 +349,4 @@ class FunctionalASLDA(FunctionalSLDA):
 
     def _dalpha_m_dp(self, p):
         """return dalpha_m / dp"""
-        return 0.156*(p**2 - 1.0)**2
-
-    def _g_eff(self, mus_eff, ns, Vs, dim, E_c, **args):
-        """
-            get the effective g
-            equation (87c) in page 42
-        """
-        V_a, V_b = Vs
-        alpha_p = sum(self.get_alphas(ns))/2.0
-        mu_p = (sum(mus_eff) - V_a + V_b) / 2
-        k0 = (2*m/hbar**2*mu_p/alpha_p)**0.5
-        k_c = (2*m/hbar**2 * (E_c + mu_p)/alpha_p)**0.5
-        C = alpha_p * (sum(ns)**(1.0/3))/self.gamma
-        # [check]be careful the alpha may be different for a and b
-        Lambda = self._get_Lambda(k0=k0, k_c=k_c, dim=dim, alpha=alpha_p)
-        g = alpha_p/(C - Lambda)
-        return g
-
-    def _energy_density(self, delta, ns, taus, kappa, **args):
-        g_eff = self._g_eff(delta=delta, ns=ns, kappa=kappa, **args)
-        return (hbar**2/m*(self._alpha_a(ns)*taus[0]/2.0
-                           + self._alpha_b(ns)*taus[1] + self._D(ns))
-                            - g_eff*kappa.T.conj()*kappa)
+        return 0.156*(p**2 - 1.0)**2 

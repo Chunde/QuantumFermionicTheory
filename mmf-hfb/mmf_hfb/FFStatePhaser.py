@@ -92,7 +92,7 @@ def PlotCurrentPressure():
                         bFFState = True
                 if bFFState:
                     print(f"FFState: {bFFState} |<-------------")
-                dic = dict(mu=mu, dmu=dmu, na=ns[0].n, nb=ns[1].n,  g=g, delta=delta, state=bFFState)
+                dic = dict(mu=mu, dmu=dmu, na=ns[0].n, nb=ns[1].n, g=g, delta=delta, state=bFFState)
                 print(dic)
                 output.append(dic)
                 print("-----------------------------------")

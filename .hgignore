@@ -14,3 +14,5 @@ mmf-hfb/.pytest_cache/
 mmf-hfb\.coverage
 mmf-hfb\.leu
 Misc/
+mmf-hfb/mmf_hfb/data/
+mmf-hfb/.vscode/

@@ -384,8 +384,9 @@ def integrate(f, mu_a, mu_b, delta, m_a, m_b, dim=3, hbar=1.0, T=0.0,
     points = [kF]
     return quad(integrand, a=k_0, b=k_c, points=points)
 
+
 def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, dim=3,
-                q=0, dq=0.0, hbar=1.0, T=0.0, k_0=0, k_c=None, limit=None):
+                q=0, dq=0.0, hbar=1.0, T=0.0, k_0=0, k_c=None, limit=None, **args):
     """Return the integral of f() over dim-dimensional momentum space.
  
     Arguments
