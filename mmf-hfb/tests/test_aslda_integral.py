@@ -1,5 +1,5 @@
 
-from mmf_hfb import vortex_aslda
+from mmf_hfb import bcs_aslda
 from mmf_hfb.np import np
 from mmf_hfb import homogeneous
 import pytest

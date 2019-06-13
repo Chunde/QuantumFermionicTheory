@@ -40,30 +40,71 @@ def dmu_delta(request):
     return request.param
 
 
+def BCS(mu_eff, delta=1.0):
+    m = hbar = 1.0
+    """Return `(E_N_E_2, lam)` for comparing with the exact Gaudin
+    solution.
+
+    Arguments
+    ---------
+    delta : float
+       Pairing gap.  This is the gap in the energy spectrum.
+    mu_eff : float
+       Effective chemical potential including both the bare chemical
+       potential and the self-energy correction arising from the
+       Hartree term.
+
+    Returns
+    -------
+    E_N_E_2 : float
+       Energy per particle divided by the two-body binding energy
+       abs(energy per particle) for 2 particles.
+    lam : float
+       Dimensionless interaction strength.
+    """
+    h = homogeneous.Homogeneous1D()
+    v_0, ns, mu, e = h.get_BCS_v_n_e(mus_eff=(mu_eff,)*2, delta=delta)
+    n = sum(ns)
+    lam = m*v_0/n/hbar**2
+
+    # Energy per-particle
+    E_N = e/n
+
+    # Energy per-particle for 2 particles
+    E_2 = -m*v_0**2/4.0 / 2.0
+    E_N_E_2 = E_N/abs(E_2)
+    return E_N_E_2.n, lam.n
+
+
 def get_analytic_e_n(mu, dmu, q=0, dq=0, dim=1):
     """"return the analytical energy and particle density"""
     if dim == 1:
-        def f(e_F): #energy density
-            return np.sqrt(2)/np.pi * e_F**1.5/3.0
-        def g(e_F): #particle density
-            return np.sqrt(2 * e_F)/np.pi
+        def f(e_F):  # energy density
+            return np.sqrt(2)/np.pi*e_F**1.5/3.0
+
+        def g(e_F): # particle density
+            return np.sqrt(2*e_F)/np.pi
     elif dim == 2:
+
         def f(e_F):
-            return  (e_F**2)/4.0/np.pi
+            return (e_F**2)/4.0/np.pi
+
         def g(e_F):
             return e_F/np.pi/2.0
     elif dim == 3:
+
         def f(e_F):
-            return  (e_F**2.5)*2.0**1.5/10.0/np.pi**2
+            return (e_F**2.5)*2.0**1.5/10.0/np.pi**2
+
         def g(e_F):
-            return  ((2.0 * e_F)**1.5)/6.0/np.pi**2
+            return ((2.0*e_F)**1.5)/6.0/np.pi**2
         
-    kF_a, kF_b = np.sqrt(2.0 * (mu+dmu)),np.sqrt(2.0 * (mu-dmu))
+    kF_a, kF_b = np.sqrt(2.0*(mu+dmu)), np.sqrt(2.0*(mu-dmu))
     mu_a1, mu_b1, mu_a2, mu_b2 = (q+dq)**2/2.0, (q-dq)**2/2.0, (kF_a)**2/2.0, (kF_b)**2/2.0
     E_a, E_b = f(mu_a2) - f(mu_a1), f(mu_b2) - f(mu_b1)
     n_a, n_b = g(mu_a2) - g(mu_a1), g(mu_b2) - g(mu_b1)
     energy_density = E_a + E_b
-    return namedtuple('analytical', ['e','n_a', 'n_b'])(energy_density,n_a, n_b)
+    return namedtuple('analytical', ['e','n_a', 'n_b'])(energy_density, n_a, n_b)
     # return energy_density, (n_a, n_b)
 
 
@@ -76,14 +117,14 @@ def get_dE_dn(mu, dmu, dim, q=0, dq=0):
 
 
 def Thermodynamic(mu, dmu, delta0=1, dim=3, k_c=100, q=0, dq=0,
-                 T=0.0, a=0.8, b=1.2, dx=1e-3, N=10):
-    if dim == 1: # Because 1d case does not pass yet
+                    T=0.0, a=0.8, b=1.2, dx=1e-3, N=10):
+    if dim == 1:  # Because 1d case does not pass yet
         print("This method does nothing for 1d case")
         return 
     ff = FF(mu=mu, dmu=dmu, delta=delta0, q=q, dq=dq, dim=dim, k_c=k_c, T=T, 
             fix_g=True, bStateSentinel=True)
-    #mu0, dmu0 =mu, dmu
     print(ff.get_densities(mu=mu, dmu=dmu, delta=delta0))
+
     def get_P(mu, dmu):
         delta = ff.solve(mu=mu, dmu=dmu, q=q, dq=dq, a=0.8*delta0, b=1.2*delta0)
         return ff.get_pressure(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
@@ -123,7 +164,7 @@ def Thermodynamic(mu, dmu, delta0=1, dim=3, k_c=100, q=0, dq=0,
                     for j in reversed(range(i + 1, N)):
                         try:
                             endPos = f(irs[j])
-                            if startPos * endPos < 0:  # has solution
+                            if startPos*endPos < 0:  # has solution
                                 return brentq(f, irs[i], irs[j])
                         except:
                             continue
@@ -142,7 +183,7 @@ def Thermodynamic(mu, dmu, delta0=1, dim=3, k_c=100, q=0, dq=0,
     print(f"Fix dn:\t[dn1={(na1-nb1).n}\tdn0={(na0-nb0).n}]")
     print(f"Expected mu={mu}\tNumerical mu={mu_}")
     assert np.allclose((na1-nb1).n, (na0-nb0).n)
-    assert np.allclose(mu,mu_, rtol=1e-4)
+    assert np.allclose(mu, mu_, rtol=1e-4)
     n_a, n_b = get_ns(mu, dmu)
     n_a_ = (get_P(mu+dx/2, dmu+dx/2) - get_P(mu-dx/2, dmu - dx/2))/2/dx
     n_b_ = (get_P(mu+dx/2, dmu-dx/2) - get_P(mu-dx/2, dmu + dx/2))/2/dx
@@ -151,12 +192,13 @@ def Thermodynamic(mu, dmu, delta0=1, dim=3, k_c=100, q=0, dq=0,
     assert np.allclose(n_a.n, n_a_.n)
     assert np.allclose(n_b.n, n_b_.n)
 
+
 #@pytest.mark.skip(reason="pass")
 def test_efftive_mus():
     """Test a few values from Table I of Quick:1993."""
     lam_invs = [0.5]  # 1.5
-    mu_tilde_s = [0.0864]  #  2.0259
-    E_N_E_2_s = [-0.3037]  #  4.4021
+    mu_tilde_s = [0.0864]  # 2.0259
+    E_N_E_2_s = [-0.3037]  # 4.4021
     np.random.seed(1)
     for i in range(len(lam_invs)):
         lam_inv = lam_invs[i]
@@ -168,7 +210,7 @@ def test_efftive_mus():
         lam = 1./lam_inv
 
         def _lam(mu_eff):
-            E_N_E_2, _lam = homogeneous.BCS(mu_eff=mu_eff, delta=delta)
+            E_N_E_2, _lam = BCS(mu_eff=mu_eff, delta=delta)
             return _lam - lam
 
         mu_eff = brentq(_lam, 0.1, 20)
@@ -180,7 +222,7 @@ def test_efftive_mus():
         nu = tf.integrate(tf.nu_integrand, dim=1, **args)
         v_0 = -delta/nu.n
         mu = mu_eff - n_p.n*v_0/2
-        E_N_E_2, lam = homogeneous.BCS(mu_eff=mu_eff, delta=delta)
+        E_N_E_2, lam = BCS(mu_eff=mu_eff, delta=delta)
         mu_tilde = (hbar**2/m/v_0**2)*mu
         assert np.allclose(lam, 1./lam_inv)
         assert np.allclose(mu_tilde, mu_tilde_, atol=0.0005)
@@ -192,6 +234,7 @@ def test_efftive_mus():
         assert np.allclose(mus_eff[0], mu_eff)
         assert np.allclose(v_0, -ff._g)
 
+
 #@pytest.mark.skip(reason="pass")
 def test_density_with_qs(delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dim, k_c=200):
     """The density should not depend on q"""
@@ -200,7 +243,7 @@ def test_density_with_qs(delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dim, k_c=200
     mu = mu_delta * delta
     dmu = dmu_delta * delta
     q = q_dmu * mu
-    ff = FF(mu=mu, dmu=dmu, delta=delta, dim=1, k_c=100,fix_g=True)
+    ff = FF(mu=mu, dmu=dmu, delta=delta, dim=1, k_c=100, fix_g=True)
     ns = ff.get_densities(mu=mu, dmu=dmu)
     na0, nb0 = ns[0].n, ns[1].n
     print(na0, nb0)
@@ -238,7 +281,7 @@ def test_Thermodynamic_1d(
         dq=dq, update_g=True)
 
     n_a_1, n_b_1, e1, p1, mus1 = ff.get_ns_p_e_mus_1d(
-        mu=mu+dx, dmu=dmu, 
+        mu=mu+dx, dmu=dmu,
         mus_eff=mus_eff, q=q, dq=dq, update_g=False)
     n_a_2, n_b_2, e2, p2, mus2 = ff.get_ns_p_e_mus_1d(
         mu=mu-dx, dmu=dmu,
@@ -328,7 +371,5 @@ def test_Thermodynamic_1d(
     assert np.allclose((na1-nb1), (na0-nb0))
     assert np.allclose(mu,mu_, rtol=1e-4)
 
-
 if __name__ == "__main__":
-    #test_Thermodynamic_1d(delta = 1.0, mu_delta = 10, dmu_delta = 1.2, q_dmu = 0.05, dq_dmu = 0.02, N = 20, dx = 0.001)
-    test_Thermodynamic(delta = 1.0, mu_delta = 5, dmu_delta = 1.2, q_dmu = 0, dq_dmu = 0.02, dim = 3, k_c = 50)
+    Thermodynamic(mu=10, dmu=0, k_c=50, q=0, dq=0, dim=3, delta0=1)

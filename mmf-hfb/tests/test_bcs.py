@@ -1,9 +1,7 @@
 """Test the bcs code."""
-from scipy.optimize import brentq
 import pytest
 import numpy as np
 import numpy
-from mmfutils.testing import allclose
 from mmf_hfb import bcs, homogeneous
 
 @pytest.fixture(params=[1, 2, 3])
@@ -120,10 +118,11 @@ def test_BCS_get_densities(dim, NLx, T, N_twist):
 
     assert np.allclose(res.n_a, res_R.n_a)
     assert np.allclose(res.n_b, res_R.n_b)
-    if np == numpy: # complex128 type not works as expected
+    if np == numpy:  # complex128 type not works as expected
         assert numpy.allclose(res.nu, res_R.nu)
     else:
         assert numpy.allclose(res.nu.get(), res_R.nu.get())
+
 
 def test_BCS_get_currents_1d(dim, NLx, T, N_twist):
     if dim != 1:
@@ -154,5 +153,6 @@ def test_BCS_get_currents_1d(dim, NLx, T, N_twist):
     assert np.allclose(res.j_a[0], j_a)
     assert np.allclose(res.j_b[0], j_b)  
 
+
 if __name__ == "__main__":
-    test_BCS(dim = 2, NLx = (4, 10.0, None), T = 0, N_twist = 2)
+    test_BCS(dim=2, NLx=(4, 10.0, None), T=0, N_twist=2)

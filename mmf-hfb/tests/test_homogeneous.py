@@ -46,6 +46,7 @@ def BCS(mu_eff, delta=1.0):
     E_N_E_2 = E_N/abs(E_2)
     return E_N_E_2.n, lam.n
 
+
 class TestIntegration(object):
     """Test the integrators in homogeneous"""
     # Normalized Gaussian in d=1,2,3 dimensions

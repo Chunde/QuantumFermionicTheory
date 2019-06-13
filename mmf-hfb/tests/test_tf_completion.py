@@ -97,6 +97,7 @@ def BCS(mu_eff, delta=1.0):
     E_N_E_2 = E_N/abs(E_2)
     return E_N_E_2.n, lam.n
 
+
 def test_1D():
     """Test a few values from Table I of Quick:1993."""
     lam_inv = 0.5
@@ -135,6 +136,7 @@ def test_1D():
     mu_tilde = (hbar**2/m/v_0**2)*mu
     assert np.allclose(lam, 1./lam_inv)
     assert np.allclose(mu_tilde, 0.0864, atol=0.0005)
+
 
 if __name__ == "__main__":
     test_1D()

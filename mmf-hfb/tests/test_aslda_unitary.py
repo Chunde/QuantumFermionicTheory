@@ -4,7 +4,7 @@ import numpy as np
 from mmf_hfb import homogeneous;reload(homogeneous)
 from mmf_hfb import bcs;reload(bcs)
 from mmf_hfb.bcs import BCS
-from mmf_hfb import vortex_1d_aslda;reload(vortex_1d_aslda)
+from mmf_hfb import bcs_aslda
 import time
 from collections import namedtuple
 import warnings
@@ -81,7 +81,7 @@ class Lattice(BCS):
         v_a =  (-self.V0 * (1-((1+np.cos(2*np.pi * self.cells*self.xyz[0]/self.Lxyz[0]))/2)**self.power))
         v_b = 0 * self.xyz[0]
         return v_a, v_b
-class ASLDA_(vortex_1d_aslda.ASLDA):
+class ASLDA_(bcs_aslda.ASLDA):
     # a modified class from ASLDA with different alphas which are constant, so their derivatives are zero
     def _get_alphas(self, ns = None):
         alpha_a,alpha_b,alpha_p =np.ones(self.Nx), np.ones(self.Nx), np.ones(self.Nx)
@@ -95,8 +95,8 @@ def test_aslda_unitary():
     L = 0.46
     N = 32
     N_twist = 32
-    b = ASLDA_(T=0, Nx=N, Lx=L)
-    k_c = abs(b.kx).max()
+    b = ASLDA_(T=0, Nxyz=(N,), Lxyz=(L,))
+    k_c = abs(b.kxyz[0]).max()
     E_c = (b.hbar*k_c)**2/2/b.m 
     mu_eff = 1.0
     n = 1.0
@@ -116,10 +116,10 @@ def test_aslda_unitary():
     assert np.allclose(n, na[0].real + nb[0].real, rtol=0.001)
     assert np.allclose(delta, -v_0*kappa[0].real, rtol=0.01)
     print("Test 1d lattice with homogeneous system")
-    R = b.get_R(mus=(mu_eff*np.ones((N),), mu_eff*np.ones((N),)), delta=delta*np.ones((N),), N_twist=N_twist)
-    na = np.diag(R)[:N]/b.dx
-    nb = (1 - np.diag(R)[N:])/b.dx
-    kappa = np.diag(R[:N, N:])/b.dx
+    R = b.get_R(mus_eff=(mu_eff*np.ones((N),), mu_eff*np.ones((N),)), delta=delta*np.ones((N),), N_twist=N_twist)
+    na = np.diag(R)[:N]/np.prod(b.dxyz)
+    nb = (1 - np.diag(R)[N:])/np.prod(b.dxyz)
+    kappa = np.diag(R[:N, N:])/np.prod(b.dxyz)
     print((n, na[0].real + nb[0].real), (delta, -v_0*kappa[0].real))
     assert np.allclose(n, na[0].real + nb[0].real, rtol=0.001)
     assert np.allclose(delta, -v_0*kappa[0].real, rtol=0.01)

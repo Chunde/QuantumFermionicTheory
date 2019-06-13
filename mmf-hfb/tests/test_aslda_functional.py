@@ -48,6 +48,10 @@ def test_derivative():
         assert np.allclose(dalpha_m_dp, dalpha_m_dp_)
         assert np.allclose(dalpha_p_dp, dalpha_p_dp_)
 
+        # test beta and and D
+        D = a.get_D(ns=ns)
+        beta = a.get_beta(ns=ns)
+        assert np.allclose(beta * 0.3 * (3*np.pi**2)**(2.0/3)*sum(ns)**(5.0/3), D)
 
 if __name__ == '__main__':
     test_derivative()
