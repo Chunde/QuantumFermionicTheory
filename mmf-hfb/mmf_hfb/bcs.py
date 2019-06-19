@@ -90,7 +90,7 @@ class BCS(object):
             if True, return a struct-like package
             if False, return  bare arrays
         N_twist: int
-            the number of actual twisings used to
+            the number of actual twisting used to
             average out the result
         """
         dens = dens/N_twist/self.dV
@@ -318,6 +318,7 @@ class BCS(object):
             *(np.arange(0, N_twist) * 2 * np.pi / N_twist,) * self.dim)
         j_a = 0
         j_b = 0
+        
         def df(k, f):
             return np.fft.ifft(1j * k * np.fft.fft(f))
 
@@ -330,10 +331,10 @@ class BCS(object):
             d, psi = np.linalg.eigh(H)
             us, vs = psi.reshape(2, N, N * 2)
             us, vs = us.T, vs.T
-            j_a_ = -0.5j * sum((us[i].conj() * df(k, us[i]) - us[i]*
-                                df(k, us[i]).conj()) * self.f(d[i]) for i in range(len(us)))
-            j_b_ = -0.5j * sum((vs[i] * df(k, vs[i]).conj() - vs[i].conj()*
-                                df(k, vs[i])) * self.f(-d[i]) for i in range(len(vs)))
+            j_a_ = -0.5j * sum((us[i].conj() * df(k, us[i])
+                    -us[i]*df(k, us[i]).conj())*self.f(d[i]) for i in range(len(us)))
+            j_b_ = -0.5j*sum((vs[i]*df(k, vs[i]).conj()
+                    -vs[i].conj()*df(k, vs[i]))*self.f(-d[i]) for i in range(len(vs)))
             j_a = j_a + j_a_
             j_b = j_b + j_b_
         return (j_a / N_twist / np.prod(self.dxyz), j_b / N_twist / np.prod(self.dxyz))
@@ -363,7 +364,7 @@ class BCS(object):
         return self._get_densities_H(H, twists=twists)
 
     def get_densities(self, mus_eff, delta, N_twist=1,
-                         abs_tol=1e-12, unpack=True, struct=True, **args):
+                        abs_tol=1e-12, unpack=True, struct=True, **args):
         """Return the densities.
 
         Arguments
@@ -434,8 +435,8 @@ class BCS(object):
         return dens
 
     def get_dens_integral(self, mus_eff, delta, k_c=None,
-                         N_twist=1, unpack=True,
-                         struct=False, abs_tol=1e-6, **args):
+                            N_twist=1, unpack=True,
+                            struct=False, abs_tol=1e-6, **args):
         """
             integrate over another dimension by assuming it's homogeneous
             Note: the results are for dim + 1 system.

@@ -101,7 +101,7 @@ class Homogeneous(object):
     m = 1
     hbar = 1
     
-    def __init__(self, Nxyz=None, Lxyz=None, dx=None, dim=None, **kw):
+    def __init__(self, Nxyz=None, Lxyz=None, dx=None, dim=None, k_c=None, **kw):
         if Nxyz is None and Lxyz is None and dx is None:
             self._dim = dim
         elif dx is not None:
@@ -115,6 +115,7 @@ class Homogeneous(object):
             
         self.Nxyz = Nxyz
         self.Lxyz = Lxyz
+        self.k_c = k_c
         self.__dict__.update(kw)
 
     @property
@@ -155,7 +156,7 @@ class Homogeneous(object):
         
         if self.Nxyz is None:
             def quad(f):
-                return quad_k(f, dim=self.dim, kF=kF)
+                return quad_k(f, dim=self.dim, kF=kF, k_inf=self.k_c)
         else:
             def quad(f):
                 return quad_l(f, Nxyz=self.Nxyz, Lxyz=self.Lxyz,
@@ -173,24 +174,56 @@ class Homogeneous(object):
             n_m = self.f(res.w_p) - self.f(-res.w_m)
             return n_m
 
+        def tau_p_integrand(k):
+            k2 = k**2
+            res = self.get_res(k=k, mus_eff=mus_eff, delta=delta)
+            f_nu = self.f(res.w_m) - self.f(res.w_p)
+            f_p = 1 - res.e_p/res.E*f_nu
+            f_m = self.f(res.w_p) - self.f(-res.w_m)
+            f_a = (f_p + f_m)/2
+            f_b = (f_p - f_m)/2
+            return k2*(f_a + f_b)
+
+        def tau_m_integrand(k):
+            k2 = k**2
+            res = self.get_res(k=k, mus_eff=mus_eff, delta=delta)
+            f_nu = self.f(res.w_m) - self.f(res.w_p)
+            f_p = 1 - res.e_p/res.E*f_nu
+            f_m = self.f(res.w_p) - self.f(-res.w_m)
+            f_a = (f_p + f_m)/2
+            f_b = (f_p - f_m)/2
+            return k2*(f_a - f_b)
+
         def nu_delta_integrand(k):
             res = self.get_res(k=k, mus_eff=mus_eff, delta=delta)
             f_nu = self.f(res.w_m) - self.f(res.w_p)
             return -0.5/res.E*f_nu
-        
+
+        def nu_integrand(k):
+            tau_p = tau_p_integrand(k)
+            nu_delta = nu_delta_integrand(k)
+            return (tau_p*self.hbar**2/2 + abs(delta)**2*nu_delta)
+
         n_m = quad(nm_integrand)
         n_p = quad(np_integrand)
         n_a = (n_p + n_m)/2.0
         n_b = (n_p - n_m)/2.0
-        if self.Nxyz is None and self.dim != 1:
-            # This is divergent:
-            nu = np.inf
+        tau_m = quad(tau_m_integrand)
+        tau_p = quad(tau_p_integrand)
+        tau_a = (tau_p + tau_m)/2.0
+        tau_b = (tau_p - tau_m)/2.0
+        if self.k_c is None: # if not cutoff
+            if self.Nxyz is None and self.dim != 1:
+                # This is divergent:
+                nu = np.inf
+            else:
+                nu_delta = quad(nu_delta_integrand)
+                nu = nu_delta * delta
         else:
-            nu_delta = quad(nu_delta_integrand)
-            nu = nu_delta * delta
-        
-        return namedtuple('Densities', ['n_a', 'n_b', 'nu'])(
-            n_a, n_b, nu)
+             nu = quad(nu_integrand)
+
+        return namedtuple('Densities', ['n_a', 'n_b', 'tau_a','tau_b', 'nu'])(
+            n_a, n_b, tau_a, tau_b, nu)
     
     def get_BCS_v_n_e(self, mus_eff, delta, N_twist=1, k_inf=np.inf):
         """Return `(v_0, n, mu, e)` for the 1D BCS solution at T=0."""

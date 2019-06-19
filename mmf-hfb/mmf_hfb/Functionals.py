@@ -153,9 +153,9 @@ class FunctionalBdG(IFunctional):
         p = self._get_p(ns)
         dp_n_a, dp_n_b = self._dp_dn(ns)
         dBeta_p = self._dBeta_dp(p=p)
-        N0 = (6*np.pi**2)**(5.0/3)/20/np.pi**2
+        C0_ = (6*np.pi**2)**(5.0/3)/20/np.pi**2
         C1_ = self._D(ns)/0.6/n_p
-        C2_ = N0*n_p**(5/3)*dBeta_p
+        C2_ = C0_*n_p**(5/3)*dBeta_p
         dD_n_a = C1_ + C2_*dp_n_a*2**(-2.0/3)
         dD_n_b = C1_ + C2_*dp_n_b*2**(-2.0/3)
         return (dD_n_a, dD_n_b)
@@ -166,10 +166,9 @@ class FunctionalBdG(IFunctional):
         # [check] be careful the alpha may be different for a and b
         """
         if dim ==3:
-            Lambda = (m*k_c/hbar**2/2/np.pi**2*(
-                1.0 - k0/k_c/2*np.log((k_c + k0)/(k_c - k0))))
+            Lambda = m*k_c/hbar**2/2/np.pi**2*(1.0 - k0/k_c/2*np.log((k_c + k0)/(k_c - k0)))
         elif dim == 2:
-            Lambda = m /hbar**2/4/np.pi*np.log((k_c/k0)**2 - 1)
+            Lambda = m/hbar**2/4/np.pi*np.log((k_c/k0)**2 - 1)
         elif dim == 1:
             Lambda = m/hbar**2/2/np.pi*np.log((k_c - k0)/(k_c + k0))/k0
         return Lambda/alpha  # do not forget effective mess inverse factor
@@ -304,16 +303,20 @@ class FunctionalSLDA(FunctionalBdG):
         alpha_a, alpha_b = alpha_odd + alpha_even, -alpha_odd + alpha_even
         return (alpha_a, alpha_b, alpha_even, alpha_odd)
 
-    def _g_eff(self, mus_eff, ns, Vs, dim, E_c, **args):
+    def _g_eff(self, mus_eff, ns, dim, E_c, **args):
         """
             get the effective g
             equation (87c) in page 42
+            -----------
+            Note: mus_eff=(mu_eff_a, mu_eff_b)
+            Should make sure we have consistent convention
         """
         alpha_p = sum(self.get_alphas(ns))/2.0
-        mu_p = (sum(mus_eff) - sum(Vs))/2  # [check] signs lack of symmetry
+        mu_p = abs(sum(mus_eff))/2  # [check] mus_eff may be nagetive???
         k0 = (2*m/hbar**2*mu_p/alpha_p)**0.5
         k_c = (2*m/hbar**2*(E_c + mu_p)/alpha_p)**0.5
         C = alpha_p*(sum(ns)**(1.0/3))/self.gamma  # (97)
+        print(f"C={C}")
         # [check] be careful the alpha may be different for a and b
         Lambda = self._get_Lambda(k0=k0, k_c=k_c, dim=dim, alpha=alpha_p)
         g = alpha_p/(C - Lambda)  # (84)
