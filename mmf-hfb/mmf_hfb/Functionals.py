@@ -45,7 +45,8 @@ class IFunctional(ABC):
         d: order of derivative
         """
         pass
-        
+
+    @abstractmethod    
     def get_beta(self, ns, d=0):
         """
         Parameters
@@ -173,17 +174,32 @@ class FunctionalBdG(IFunctional):
             Lambda = m/hbar**2/2/np.pi*np.log((k_c - k0)/(k_c + k0))/k0
         return Lambda/alpha  # do not forget effective mess inverse factor
 
-    def _g_eff(self, delta, kappa, **args):
-        """
+    # def _g_eff(self, delta, kappa, **args):
+    #     """
+    #         get the effective g
+    #         equation (87c) in page 42
+    #     """
+    #     g_eff = -delta/kappa
+    #     return g_eff
+    def _g_eff(self, mus_eff, ns, E_c, k_c=None, dim=3, **args):
+        """1
             get the effective g
             equation (87c) in page 42
+            -----------
+            Note: mus_eff=(mu_eff_a, mu_eff_b)
+            Should make sure we have consistent convention
         """
-        g_eff = -delta/kappa
-        return g_eff
-
-    def _energy_density(self, delta, ns, taus, kappa, **args):
-        g_eff = self._g_eff(delta=delta, kappa=kappa)
-        return hbar**2/2/m*sum(taus) - g_eff*kappa.T.conj()*kappa
+        alpha_p = sum(self.get_alphas(ns))/2.0
+        mu_p = abs(sum(mus_eff))/2  # [check] mus_eff may be negative???
+        k0 = (2*m/hbar**2*mu_p/alpha_p)**0.5
+        if k_c is None:
+            k_c = (2*m/hbar**2*(E_c + mu_p)/alpha_p)**0.5
+        C = self.get_C(ns=ns)  # (97)
+        print(f"C={C}")
+        # [check] be careful the alpha may be different for a and b
+        Lambda = self._get_Lambda(k0=k0, k_c=k_c, dim=dim, alpha=alpha_p)
+        g = alpha_p/(C - Lambda)  # (84)
+        return g
 
     def get_alphas(self, ns, d=0):
         """IFunctional interface implementation
@@ -303,7 +319,7 @@ class FunctionalSLDA(FunctionalBdG):
         alpha_a, alpha_b = alpha_odd + alpha_even, -alpha_odd + alpha_even
         return (alpha_a, alpha_b, alpha_even, alpha_odd)
 
-    def _g_eff(self, mus_eff, ns, dim, E_c, **args):
+    def _g_eff(self, mus_eff, ns, E_c, dim, **args):
         """
             get the effective g
             equation (87c) in page 42
@@ -312,23 +328,17 @@ class FunctionalSLDA(FunctionalBdG):
             Should make sure we have consistent convention
         """
         alpha_p = sum(self.get_alphas(ns))/2.0
-        mu_p = abs(sum(mus_eff))/2  # [check] mus_eff may be nagetive???
+        mu_p = abs(sum(mus_eff))/2  # [check] mus_eff may be negative???
         k0 = (2*m/hbar**2*mu_p/alpha_p)**0.5
         k_c = (2*m/hbar**2*(E_c + mu_p)/alpha_p)**0.5
-        C = alpha_p*(sum(ns)**(1.0/3))/self.gamma  # (97)
+        C = self.get_C(ns=ns)  # (97)
         print(f"C={C}")
         # [check] be careful the alpha may be different for a and b
         Lambda = self._get_Lambda(k0=k0, k_c=k_c, dim=dim, alpha=alpha_p)
         g = alpha_p/(C - Lambda)  # (84)
         return g
 
-    def _energy_density(self, delta, ns, taus, kappa, **args):
-        g_eff = self._g_eff(delta=delta, ns=ns, kappa=kappa, **args)
-        return (hbar**2/m*(self._alpha_a(ns)*taus[0]/2.0
-                + self._alpha_b(ns)*taus[1] + self._D(ns))
-                - g_eff*kappa.T.conj()*kappa)
-
-
+    
 class FunctionalASLDA(FunctionalSLDA):
 
     def __init__(self):

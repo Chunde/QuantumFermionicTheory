@@ -199,10 +199,11 @@ class Homogeneous(object):
             f_nu = self.f(res.w_m) - self.f(res.w_p)
             return -0.5/res.E*f_nu
 
-        def nu_integrand(k):
-            tau_p = tau_p_integrand(k)
-            nu_delta = nu_delta_integrand(k)
-            return (tau_p*self.hbar**2/2 + abs(delta)**2*nu_delta)
+        # this integrand is the energy density, not nu
+        #def nu_integrand(k):
+        #    tau_p = tau_p_integrand(k)
+        #    nu_delta = nu_delta_integrand(k)
+        #    return (tau_p*self.hbar**2/2 + abs(delta)**2*nu_delta)
 
         n_m = quad(nm_integrand)
         n_p = quad(np_integrand)
@@ -220,7 +221,9 @@ class Homogeneous(object):
                 nu_delta = quad(nu_delta_integrand)
                 nu = nu_delta * delta
         else:
-             nu = quad(nu_integrand)
+             #nu = quad(nu_integrand)
+             nu_delta = quad(nu_delta_integrand)
+             nu = nu_delta * delta
 
         return namedtuple('Densities', ['n_a', 'n_b', 'tau_a','tau_b', 'nu'])(
             n_a, n_b, tau_a, tau_b, nu)

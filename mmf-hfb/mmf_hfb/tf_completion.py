@@ -174,9 +174,9 @@ def Lambda(m, mu, hbar, dim, E_c=None, k_c=None):
     if dim == 1:
         res = m/hbar**2/2/np.pi/k_0*np.log((k_c-k_0)/(k_c+k_0))
     elif dim == 2:
-        res = m/hbar**2/4/np.pi * np.log((k_c/k_0)**2-1)
+        res = m/hbar**2/4/np.pi*np.log((k_c/k_0)**2-1)
     elif dim == 3:
-        res = m/hbar**2 * k_c/2/np.pi**2 * (
+        res = m/hbar**2*k_c/2/np.pi**2*(
             1 - k_0/2/k_c*np.log((k_c+k_0)/(k_c-k_0)))
     else:
         raise ValueError(f"Only dim=1, 2, or 3 supported (got dim={dim})")
@@ -395,9 +395,9 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, dim=3,
        One of the base tf_completion functions called as f(k2_a, k2_b, ...).
     
     """
-    if k_0 != 0:
-        warnings.warn(f"""This integration routine does not assume it's symmetric in k,
-                       since your k_0 is nonzero, result may be wrong""")
+    #if k_0 != 0:
+    #    warnings.warn(f"""This integration routine does not assume it's symmetric in k,
+    #                   since your k_0 is nonzero, result may be wrong""")
     k_inf = np.inf if k_c is None else k_c
     
     if False and q == 0 and dq == 0:
