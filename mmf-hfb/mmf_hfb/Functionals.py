@@ -5,6 +5,7 @@ hbar=m=1
 
 
 class IFunctional(ABC):
+    """Interface for functionals"""
 
     @abstractmethod
     def get_alphas(self, ns, d=0):
@@ -59,9 +60,6 @@ class IFunctional(ABC):
 
 class FunctionalBdG(IFunctional):
 
-    def __init__(self):
-        self.gamma = self._gamma()
-
     def _gamma(self, p=None):
         return -11.11  # -11.039 in Aureal's code
 
@@ -88,12 +86,15 @@ class FunctionalBdG(IFunctional):
         return alpha
 
     def _get_alphas(self, ns=None):
-        """return alpha_a, alpha_b, alpha_p"""
+        """
+        return alpha_a, alpha_b
+        --------------
+        Note: this method should be 
+        """
         p = self._get_p(ns)
         alpha_a, alpha_b, alpha_even, alpha_odd = self._get_alphas_p(p)
         # alpha_p is defined as (alpha_a + alpha_b) /2 , it's alpha_even
-        alpha_p = alpha_even
-        return (alpha_a, alpha_b, alpha_p)
+        return (alpha_a, alpha_b)
 
     def _alpha_a(self, ns):
         return self._alpha(self._get_p(ns))
@@ -137,7 +138,7 @@ class FunctionalBdG(IFunctional):
     def _C(self, ns):
         """return C tilde"""
         p = self._get_p(ns)
-        return self._alpha_p(p)*(sum(ns))**(1.0/3)/self.gamma
+        return self._alpha_p(p)*(sum(ns))**(1.0/3)/self._gamma()
 
     def _dC_dn(self, ns):
         """"[overridden in Children]"""
@@ -174,13 +175,6 @@ class FunctionalBdG(IFunctional):
             Lambda = m/hbar**2/2/np.pi*np.log((k_c - k0)/(k_c + k0))/k0
         return Lambda/alpha  # do not forget effective mess inverse factor
 
-    # def _g_eff(self, delta, kappa, **args):
-    #     """
-    #         get the effective g
-    #         equation (87c) in page 42
-    #     """
-    #     g_eff = -delta/kappa
-    #     return g_eff
     def _g_eff(self, mus_eff, ns, E_c, k_c=None, dim=3, **args):
         """1
             get the effective g
@@ -195,7 +189,6 @@ class FunctionalBdG(IFunctional):
         if k_c is None:
             k_c = (2*m/hbar**2*(E_c + mu_p)/alpha_p)**0.5
         C = self.get_C(ns=ns)  # (97)
-        print(f"C={C}")
         # [check] be careful the alpha may be different for a and b
         Lambda = self._get_Lambda(k0=k0, k_c=k_c, dim=dim, alpha=alpha_p)
         g = alpha_p/(C - Lambda)  # (84)
@@ -210,15 +203,15 @@ class FunctionalBdG(IFunctional):
         NOT alpha_a and anlpha_b over n_a, and n_b
         """
         if d==0:
-            alpha_a, alpha_b, _ = self._get_alphas(ns=ns)
+            alpha_a, alpha_b = self._get_alphas(ns=ns)
             return (alpha_a, alpha_b)
         elif d==1:
             p = self._get_p(ns=ns)
-            dp_n_a, dp_n_b = self._dp_dn(ns=ns)
-            dalpha_p = self._dalpha_p_dp(p=p)
-            dalpha_m = self._dalpha_m_dp(p=p)
-            dalpha_p_dn_a, dalpha_p_dn_b = dalpha_p*dp_n_a, dalpha_p*dp_n_b
-            dalpha_m_dn_a, dalpha_m_dn_b = dalpha_m*dp_n_a, dalpha_m*dp_n_b
+            dp_dn_a, dp_dn_b = self._dp_dn(ns=ns)
+            dalpha_dp = self._dalpha_p_dp(p=p)
+            dalpha_dm = self._dalpha_m_dp(p=p)
+            dalpha_p_dn_a, dalpha_p_dn_b = dalpha_dp*dp_dn_a, dalpha_dp*dp_dn_b
+            dalpha_m_dn_a, dalpha_m_dn_b = dalpha_dm*dp_dn_a, dalpha_dm*dp_dn_b
             return (dalpha_p_dn_a, dalpha_p_dn_b, dalpha_m_dn_a, dalpha_m_dn_b)
         else:
             raise ValueError(f"d={d} is not supported value")
@@ -265,9 +258,6 @@ class FunctionalBdG(IFunctional):
 
 class FunctionalSLDA(FunctionalBdG):
     
-    def __init__(self):
-        FunctionalBdG.__init__(self)
-
     def _G(self, p):
         "[Numerical Test Status:Pass]"
         return 0.357 + 0.642*p**2
@@ -309,7 +299,7 @@ class FunctionalSLDA(FunctionalBdG):
         dp_n_a, dp_n_b = self._dp_dn(ns)
         dC_dn_a = self._alpha_p(p)*n**(-2/3)/3 + n**(1/3)*self._dalpha_p_dp(p)*dp_n_a
         dC_dn_b = self._alpha_p(p)*n**(-2/3)/3 + n**(1/3)*self._dalpha_p_dp(p)*dp_n_b
-        return (dC_dn_a/self.gamma, dC_dn_b/self.gamma)
+        return (dC_dn_a/self._gamma(), dC_dn_b/self._gamma())
 
     def _get_alphas_p(self, p):
         """"[overridden in Children]"""
@@ -319,31 +309,9 @@ class FunctionalSLDA(FunctionalBdG):
         alpha_a, alpha_b = alpha_odd + alpha_even, -alpha_odd + alpha_even
         return (alpha_a, alpha_b, alpha_even, alpha_odd)
 
-    def _g_eff(self, mus_eff, ns, E_c, dim, **args):
-        """
-            get the effective g
-            equation (87c) in page 42
-            -----------
-            Note: mus_eff=(mu_eff_a, mu_eff_b)
-            Should make sure we have consistent convention
-        """
-        alpha_p = sum(self.get_alphas(ns))/2.0
-        mu_p = abs(sum(mus_eff))/2  # [check] mus_eff may be negative???
-        k0 = (2*m/hbar**2*mu_p/alpha_p)**0.5
-        k_c = (2*m/hbar**2*(E_c + mu_p)/alpha_p)**0.5
-        C = self.get_C(ns=ns)  # (97)
-        print(f"C={C}")
-        # [check] be careful the alpha may be different for a and b
-        Lambda = self._get_Lambda(k0=k0, k_c=k_c, dim=dim, alpha=alpha_p)
-        g = alpha_p/(C - Lambda)  # (84)
-        return g
-
     
 class FunctionalASLDA(FunctionalSLDA):
-
-    def __init__(self):
-        FunctionalSLDA.__init__(self)
-    
+   
     def _get_alphas_p(self, p):
         p2 = p**2
         p4 = p2**2

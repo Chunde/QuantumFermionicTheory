@@ -56,7 +56,7 @@ class BDG(FunctionalBdG, BCS):
         #K = K + k_p
         if ns is None:
             return (K, K)
-        alpha_a, alpha_b, alpha_p = self._get_alphas(ns)
+        alpha_a, alpha_b = self._get_alphas(ns)
         
         if alpha_a is None or alpha_b is None:
             return (K, K)
@@ -98,7 +98,7 @@ class BDG(FunctionalBdG, BCS):
                 the return value also include the pressure and densities
         """
         ns, taus, js, kappa = self.get_densities(mus_eff=mus_eff, delta=delta, N_twist=N_twist, struct=False)
-        energy_density = self._energy_density(delta=delta, ns=ns, taus=taus, kappa=kappa)
+        energy_density = self._energy_density(delta=delta, ns=ns, taus=taus, kappa=kappa)  # [bad]
         pressure = ns[0] * mus_eff[0] + ns[1]*mus_eff[1] - energy_density
         return (ns, energy_density, pressure)
 
@@ -160,7 +160,7 @@ class SLDA(BDG, FunctionalSLDA):
                 iter = iter + 1
                 if max_iter is not None and iter > max_iter:
                     break
-        energy_density = self._energy_density(**args)
+        energy_density = self._energy_density(**args)  # [bad]
         pressure = ns[0] * mus_eff[0] + ns[1]*mus_eff[1] - energy_density
         return (ns, energy_density, pressure)
 

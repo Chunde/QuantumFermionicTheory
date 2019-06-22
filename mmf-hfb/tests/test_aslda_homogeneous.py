@@ -34,8 +34,8 @@ class ASLDA_(bcs_aslda.ASLDA):
     # a modified class from ASLDA with different 
     # alphas which are constant, so their derivatives are zero
     def _get_alphas(self, ns=None):
-        alpha_a, alpha_b, alpha_p =np.ones(self.Nx), np.ones(self.Nx), np.ones(self.Nx)
-        return (alpha_a, alpha_b, alpha_p)       
+        alpha_a, alpha_b =np.ones(self.Nx), np.ones(self.Nx)
+        return (alpha_a, alpha_b)       
 
 def test_aslda_homogenous():
     L = 0.46

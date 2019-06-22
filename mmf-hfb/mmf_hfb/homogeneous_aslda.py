@@ -2,12 +2,13 @@
 This module provides a ASLDA method for solving the polarized
 two-species Fermi gas with short-range interaction.
 """
-from mmf_hfb.Functionals import IFunctional, FunctionalASLDA, FunctionalBdG, FunctionalSLDA
+from mmf_hfb.Functionals import FunctionalBdG, FunctionalSLDA
+from mmf_hfb.Functionals import FunctionalASLDA
 from mmf_hfb.homogeneous import Homogeneous
 from mmf_hfb import tf_completion as tf
+from scipy.optimize import brentq
 import numpy as np
 import numpy
-from scipy.optimize import brentq
 
 
 class BDG(Homogeneous, FunctionalBdG):
@@ -15,12 +16,11 @@ class BDG(Homogeneous, FunctionalBdG):
     def __init__(
         self, mu_eff, dmu_eff, delta=1, q=0, dq=0,
             m=1, T=0, hbar=1, k_c=None, C=None, dim=3):
-        FunctionalBdG.__init__(self)
         kcs=[np.inf, 1000, 50]
         if k_c is None:
             k_c = kcs[dim - 1]
-        self.C = C
         Homogeneous.__init__(self, dim=dim, k_c=k_c)
+        self.C = C
         self.T = T
         self.mus_eff = (mu_eff, dmu_eff)
         self.m = m
@@ -29,9 +29,9 @@ class BDG(Homogeneous, FunctionalBdG):
         self.k_c = k_c
         self._tf_args = dict(m_a=1, m_b=1, dim=dim, hbar=hbar, T=T, k_c=k_c)
      
-    def get_v_ext(self, **args):
+    def get_v_ext(self):
         """
-            return the modified V functional terms
+            return the external potential
         """
         return (0, 0)
 
@@ -58,6 +58,7 @@ class BDG(Homogeneous, FunctionalBdG):
         return (V_a, V_b)
     
     def get_C(self, ns, d=0):
+        """override the C functional to support fixed C value"""
         if d==0:
             if self.C is None:
                 return FunctionalBdG.get_C(self, ns=ns)
@@ -86,11 +87,11 @@ class BDG(Homogeneous, FunctionalBdG):
             args.update(self._tf_args, mu_a=mu_a_eff, mu_b=mu_b_eff, delta=delta)
             res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta)
             ns, taus, nu = (res.n_a.n, res.n_b.n), (res.tau_a.n, res.tau_b.n), res.nu.n
-            print(ns, taus, nu)
+            #print(ns, taus, nu)
             mu_a_eff_, mu_b_eff_ = np.array([mu_a, mu_b]) + self.get_Vs(ns=ns, taus=taus, nu=nu)
             g_eff = self._g_eff(mus_eff=(mu_a_eff_, mu_b_eff_), ns=ns, dim=self.dim, k_c=self.k_c, E_c=self.k_c**2/2/self.m)
             delta_ = g_eff*nu
-            if np.allclose((mu_a_eff_, mu_b_eff_, delta_), (mu_a_eff, mu_b_eff, delta), rtol=1e-5):
+            if np.allclose((mu_a_eff_, mu_b_eff_, delta_), (mu_a_eff, mu_b_eff, delta), rtol=1e-8):
                 break
             delta, mu_a_eff, mu_b_eff = delta_, mu_a_eff_, mu_b_eff_
             print(f"mu_a_eff={mu_a_eff}, mu_b_eff={mu_b_eff}, delta={delta}")
@@ -109,20 +110,21 @@ class BDG(Homogeneous, FunctionalBdG):
     
 
 class SLDA(BDG, FunctionalSLDA):
+    #pass
 
-    def get_alphas(self, ns, d=0):
-        if d==0:
-            return (1, 1)
-        elif d==1:
-            return (0, 0, 0, 0)
-
-    
-    # def get_D(self, ns, d=0):
-    #     if d==0:
-    #         return 0
-    #     if d==1:
-    #         return (0, 0)
+     def get_alphas(self, ns, d=0):
+         if d==0:
+             return (1, 1)
+         elif d==1:
+             return (0, 0, 0, 0)
 
     
-class ASLDA(SLDA, FunctionalASLDA):
+     def get_D(self, ns, d=0):
+          if d==0:
+              return 0
+          if d==1:
+              return (0, 0)
+
+    
+class ASLDA(BDG, FunctionalASLDA):
     pass

@@ -60,8 +60,8 @@ def get_BCS_v_n_e(delta, mu_eff):
 class ASLDA_(bcs_aslda.ASLDA):
     # a modified class from ASLDA with different alphas which are constant, so their derivatives are zero
     def _get_alphas(self, ns=None):
-        alpha_a, alpha_b, alpha_p =np.ones(self.Nx), np.ones(self.Nx), np.ones(self.Nx)
-        return (alpha_a, alpha_b, alpha_p)       
+        alpha_a, alpha_b =np.ones(self.Nx), np.ones(self.Nx)
+        return (alpha_a, alpha_b)       
     
     def _dp_dn(self,ns):
         return (ns[0] * 0, ns[1]*0)
