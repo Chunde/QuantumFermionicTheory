@@ -5,7 +5,7 @@ hbar=m=1
 
 
 class IFunctional(ABC):
-    """Interface for functionals"""
+    """Interface for functional"""
 
     @abstractmethod
     def get_alphas(self, ns, d=0):

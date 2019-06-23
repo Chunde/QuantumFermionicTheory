@@ -8,6 +8,7 @@ def test_derivative():
     nas = np.linspace(0.1, 1, 10)
     nbs = np.linspace(0.1, 1, 10)
     nss = list(itertools.product(nas, nbs))
+    ls = np.linspace(0, 10, 32)[1:]
 
     for ns in nss:
         na, nb = ns
@@ -52,6 +53,13 @@ def test_derivative():
         D = a.get_D(ns=ns)
         beta = a.get_beta(ns=ns)
         assert np.allclose(beta * 0.3 * (3*np.pi**2)**(2.0/3)*sum(ns)**(5.0/3), D)
+
+        for l in ls:
+            # test alpha(l * n_a, l*n_b)=alpha(n_a, n_b)
+            assert np.allclose(a.get_alphas(ns=(ns[0]*l, ns[1]*l)), a.get_alphas(ns=ns), rtol=1e-16)
+            # test D(l*n_a,l*n_b)=l**(5/3)D(n_a, n_b)
+            assert np.allclose(a.get_D(ns=(ns[0]*l, ns[1]*l)), l**(5.0/3)*a.get_D(ns=ns), rtol=1e-16)
+
 
 if __name__ == '__main__':
     test_derivative()
