@@ -6,6 +6,7 @@ from mmf_hfb.Functionals import FunctionalBdG, FunctionalSLDA
 from mmf_hfb.Functionals import FunctionalASLDA
 from mmf_hfb.homogeneous import Homogeneous
 from scipy.optimize import brentq
+import scipy.optimize
 import numpy as np
 import numpy
 
@@ -67,7 +68,7 @@ class BDG(Homogeneous, FunctionalBdG):
                 return FunctionalBdG.get_C(self, ns=ns, d=1)
             return (0, 0)
 
-    def get_ns_e_p(self, mus, delta, update_C, **args):
+    def get_ns_e_p(self, mus, delta, update_C, use_Broyden=False, **args):
         """
             compute then energy density for BdG, equation(77) in page 39
             Note:
@@ -79,28 +80,52 @@ class BDG(Homogeneous, FunctionalBdG):
             delta = self.delta
         mu, dmu = mus
         mu_a, mu_b = mu + dmu, mu - dmu
-        V0 = 1.0
-        mu_a_eff, mu_b_eff =np.array([mu_a, mu_b]) + V0*self.get_Vs(delta=delta)
-        while(True):
+        mu_a_eff, mu_b_eff =np.array([mu_a, mu_b]) + self.get_Vs(delta=delta)
+
+        """use the Broyden solver may be much faster"""
+        if use_Broyden:
+            def fun(x):
+                mu_a_eff, mu_b_eff, delta = x
+                res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta)
+                ns, taus, nu = (res.n_a.n, res.n_b.n), (res.tau_a.n, res.tau_b.n), res.nu.n
+                mu_a_eff_, mu_b_eff_ = np.array([mu_a, mu_b]) + self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
+                g_eff =  self._g_eff(mus_eff=(mu_a_eff_, mu_b_eff_), ns=ns, dim=self.dim, E_c=self.k_c**2/2/self.m)
+                delta_ = g_eff*nu
+                print(f"mu_a_eff={mu_a_eff},\tmu_b_eff={mu_b_eff},\tdelta={delta}"
+                        +f"\tC={self.C},\tg={g_eff},\tn={ns[0]},\ttau={taus[0]},\tnu={nu}")
+                x_ = np.array([mu_a_eff_, mu_b_eff_, delta_])
+                return x - x_
+
+            x0 = np.array([mu_a_eff, mu_b_eff, delta])  # initial guess
+            x = scipy.optimize.broyden1(fun, x0, maxiter=100, f_tol=1e-4)
+            mu_a_eff, mu_b_eff, delta = x
             res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta)
             ns, taus, nu = (res.n_a.n, res.n_b.n), (res.tau_a.n, res.tau_b.n), res.nu.n
-            mu_a_eff_, mu_b_eff_ = np.array([mu_a, mu_b]) + V0*self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
-            g_eff = self._g_eff(mus_eff=(mu_a_eff_, mu_b_eff_), ns=ns, dim=self.dim, E_c=self.k_c**2/2/self.m)
-            delta_ = g_eff*nu
-            if np.allclose((mu_a_eff_, mu_b_eff_, delta_), (mu_a_eff, mu_b_eff, delta), rtol=1e-8):
-                break
-            delta, mu_a_eff, mu_b_eff = delta_, mu_a_eff_, mu_b_eff_
-            print(f"mu_a_eff={mu_a_eff},\tmu_b_eff={mu_b_eff},\tdelta={delta}"
-                  +f"\tC={self.C},\tg={g_eff},\tn={ns[0]},\ttau={taus[0]},\tnu={nu}")
-            V0 = g_eff
-        
+            g_eff = self._g_eff(mus_eff=(mu_a_eff, mu_b_eff), ns=ns, dim=self.dim, E_c=self.k_c**2/2/self.m)
+        else:
+            while(True):
+                res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta)
+                ns, taus, nu = (res.n_a.n, res.n_b.n), (res.tau_a.n, res.tau_b.n), res.nu.n
+                mu_a_eff_, mu_b_eff_ = np.array([mu_a, mu_b]) + V0*self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
+                g_eff = self._g_eff(mus_eff=(mu_a_eff_, mu_b_eff_), ns=ns, dim=self.dim, E_c=self.k_c**2/2/self.m)
+                delta_ = g_eff*nu
+                if np.allclose((mu_a_eff_, mu_b_eff_, delta_), (mu_a_eff, mu_b_eff, delta), rtol=1e-8):
+                    break
+                delta, mu_a_eff, mu_b_eff = delta_, mu_a_eff_, mu_b_eff_
+                print(f"mu_a_eff={mu_a_eff},\tmu_b_eff={mu_b_eff},\tdelta={delta}"
+                      +f"\tC={self.C},\tg={g_eff},\tn={ns[0]},\ttau={taus[0]},\tnu={nu}")
+                V0 = -g_eff
+
         alpha_a, alpha_b = self.get_alphas(ns=ns)
-        D = V0*self.get_D(ns=ns)
+        D = self.get_D(ns=ns)
         energy_density = taus[0]*alpha_a/2.0 + taus[1]*alpha_b/2.0 + g_eff*abs(nu)**2
 
-        energy_density = energy_density + D
+        energy_density = energy_density - D
         if self.dim == 1:
-            mu_a, mu_b = mu_a + g_eff*ns[0], mu_b + g_eff*ns[1]
+            """in 1d, the mu is actually the mu_eff"""
+            mu_a, mu_b = mu_a + g_eff*ns[1], mu_b + g_eff*ns[0]
+            self.bare_mu=(mu_a+mu_b)/2
+
         pressure = ns[0]*mu_a + ns[1]*mu_b - energy_density
         if update_C:
             self.C = self.get_C(ns)
@@ -117,11 +142,11 @@ class SLDA(BDG, FunctionalSLDA):
         elif d==1:
             return (0, 0, 0, 0)
     
-    def get_D(self, ns, d=0):
-        if d==0:
-            return np.prod(ns)
-        if d==1:
-            return (ns[1], ns[0])
+    #def get_D(self, ns, d=0):
+    #    if d==0:
+    #        return np.sum(ns)
+    #    if d==1:
+    #        return (1, 1)
 
 
 class ASLDA(BDG, FunctionalASLDA):
