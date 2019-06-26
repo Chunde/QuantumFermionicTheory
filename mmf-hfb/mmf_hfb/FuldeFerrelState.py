@@ -97,7 +97,7 @@ class FFState(object):
             k_c = self.k_c
         args = dict(self._tf_args, q=q, dq=dq, delta=delta)
         args.update(kw, mu_a=mu+dmu, mu_b=mu-dmu, k_c=k_c)
-        nu_delta = tf.integrate_q(tf.nu_delta_integrand, **args)  #1/g
+        nu_delta = tf.integrate_q(tf.nu_delta_integrand, **args)  # 1/g
         k0 = (2*mu)**0.5/self.hbar
         Lambda = self._get_Lambda(k0=k0, k_c=k_c, dim=self.dim)
         a_inv = (nu_delta + Lambda)*4*np.pi*self.hbar**2
@@ -161,8 +161,9 @@ class FFState(object):
         mu_a, mu_b = mu_a_eff + self._g * n_b, mu_b_eff + self._g * n_a
         return (mu_a + mu_b)/2, (mu_a - mu_b)/2
 
-    def _get_effective_mus(self, mu, dmu, mus_eff=None, delta=None, q=0, dq=0,
-                            k_c=np.inf, rtol=1e-6, update_g=False):
+    def _get_effective_mus(
+            self, mu, dmu, mus_eff=None, delta=None, q=0, dq=0,
+            k_c=np.inf, rtol=1e-6, update_g=False):
         """
         return effective mu, dmu
         ---------
@@ -219,7 +220,9 @@ class FFState(object):
                     mu=mu_eff, dmu=dmu_eff, q=q, dq=dq,
                     a=delta*0.8, b=delta*1.2)
             if itr > MAX_ITERATION:
-                warnings.warn(f"Reach max iteration without converging to the desired accuracy:{error}")
+                warnings.warn(
+                    f"Reach max iteration without "
+                    + f"converging to the desired accuracy:{error}")
                 break
         mu_a_eff = mu_a - self._g*n_b
         mu_b_eff = mu_b - self._g*n_a
@@ -237,7 +240,7 @@ class FFState(object):
         dmu: The bare chemical potential difference (mu_a - mu_b)/2
         delta: Nonable
             if delta is None, its value will be solved using mu and dmu
-        mus_eff :(mu, dmu) 
+        mus_eff :(mu, dmu)
             Effective mu, dmu that can be used to evaluate
             the gap equation in the beginning of the iteration if
             it's not None.
@@ -258,7 +261,9 @@ class FFState(object):
         n_p = tf.integrate_q(tf.n_p_integrand, **args).n
         n_m = tf.integrate_q(tf.n_m_integrand, **args).n
         n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
-        print(f"mu_eff={mu_eff}, dmu_eff={dmu_eff}, delta={self.delta}, n_a={n_a}, n_b={n_b}, g_c={self._g}")
+        print(
+            f"mu_eff={mu_eff}, dmu_eff={dmu_eff}, delta={self.delta}, "
+            + f"n_a={n_a}, n_b={n_b}, g_c={self._g}")
         kappa = tf.integrate_q(tf.kappa_integrand, **args).n
         e = kappa + self._g * n_a * n_b
         p = (mu+dmu) * n_a + (mu-dmu) * n_b - e
@@ -284,7 +289,7 @@ class FFState(object):
         if mu is None:
             mu, dmu = self.mus
         if delta is None:
-            delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
+            delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq,
                                a=self.delta * 0.8, b=self.delta * 1.2)
         if n_a is None:
             n_a, n_b = self.get_densities(
@@ -313,7 +318,8 @@ class FFState(object):
         assert (mu is None) == (dmu is None)
         assert (mu_eff is None) == (dmu_eff is None)
         if mu is None:
-            mu, dmu = self._get_bare_mus(mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta, q=q, dq=dq)
+            mu, dmu = self._get_bare_mus(
+                mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta, q=q, dq=dq)
         if mu_eff is None:
             mu_eff, dmu_eff = self._get_effective_mus(mu=mu, dmu=dmu, q=q, dq=dq)
         if delta is None:
@@ -343,7 +349,8 @@ class FFState(object):
         self.bStateSentinel = oldFlag
         return delta > 0
 
-    def solve(self, mu=None, dmu=None, q=0, dq=0,
+    def solve(
+            self, mu=None, dmu=None, q=0, dq=0,
             a=None, b=None, throwException=False, **args):
         """
         On problem with brentq is that it requires very smooth function with a 
@@ -358,12 +365,11 @@ class FFState(object):
             a = self.delta * 0.1
         if b is None:
             b = self.delta * 2
-        args = dict(self._tf_args, q=q, dq=dq) 
 
         def f(delta):
             return self.f(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
 
-        self._delta = None # a another possible solution
+        self._delta = None  # a another possible solution
         if throwException:
             delta = brentq(f, a, b)
         else:
@@ -373,7 +379,8 @@ class FFState(object):
                 offset = 0
                 if not np.allclose(abs(dmu), 0):
                     offset = min(abs(dq/dmu), 100)
-                ds = np.linspace(0, max(a,b) * (2 + offset), min(100, int((2 + offset) * 10)))
+                ds = np.linspace(
+                    0, max(a, b)*(2 + offset), min(100, int((2 + offset)*10)))
 
                 assert len(ds) <=100
                 f0 = f(ds[-1])
@@ -386,10 +393,13 @@ class FFState(object):
                         if f_ * f(ds[0]) < 0:  # another solution
                             delta_ = brentq(f, ds[0], ds[i])
                             self._delta = delta_
-                            #return delta_
-                            print(f"Another solution delta={delta_} was found, return the one with higher pressure")
-                            p_ = self.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=delta_, q=q, dq=dq)
-                            p = self.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=delta, q=q, dq=dq)
+                            print(
+                                f"Another solution delta={delta_} was found,"
+                                + f"return the one with higher pressure")
+                            p_ = self.get_pressure(
+                                mu_eff=mu, dmu_eff=dmu, delta=delta_, q=q, dq=dq)
+                            p = self.get_pressure(
+                                mu_eff=mu, dmu_eff=dmu, delta=delta, q=q, dq=dq)
                             if p_ > p:
                                 self._delta = delta
                                 delta = delta_

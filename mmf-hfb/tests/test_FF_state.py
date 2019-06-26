@@ -382,32 +382,30 @@ def test_Thermodynamic_1d_fast(
     ff = FF(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, dim=1, fix_g=True,
             bStateSentinel=True)
     n_a, n_b, e, p, mus_eff = ff.get_ns_p_e_mus_1d(
-        mu=mu, dmu=dmu, q=q,
-        dq=dq, update_g=True)
+        mu=mu, dmu=dmu, q=q, dq=dq, update_g=True)
 
     n_a_1, n_b_1, e1, p1, mus1 = ff.get_ns_p_e_mus_1d(
-        mu=mu+dx, dmu=dmu,
-        mus_eff=mus_eff, q=q, dq=dq, update_g=False)
+        mu=mu+dx, dmu=dmu, mus_eff=mus_eff, q=q, dq=dq, update_g=False)
+    print(f"na={n_a_1}, nb={n_b_1}, e={e1}, p={p1}, mus={mus1}")
+
     n_a_2, n_b_2, e2, p2, mus2 = ff.get_ns_p_e_mus_1d(
-        mu=mu-dx, dmu=dmu,
-        mus_eff=mus_eff, q=q, dq=dq, update_g=False)
+        mu=mu-dx, dmu=dmu, mus_eff=mus_eff, q=q, dq=dq, update_g=False)
+    print(f"na={n_a_2}, nb={n_b_2}, e={e2}, p={p2}, mus={mus2}")
+    n_p_1=n_a_1 + n_b_1
+    n_p_2 = n_b_2 + n_a_2
+
     n_p_ = (p1 - p2)/2/dx
+    mu_ = ((e1-e2)/(n_p_1-n_p_2))
     print(f"Expected n_p={n_a + n_b}\tNumerical n_p={n_p_}")
-    assert np.allclose(n_a + n_b, n_p_, rtol=1e-2)
-    na1, nb1, E1, p1, mus1 = ff.get_ns_p_e_mus_1d(
-        mu=mu+dx, dmu=0, mus_eff=mus_eff, q=q, dq=dq, update_g=False)
-    na0, nb0, E0, p0, mus0 = ff.get_ns_p_e_mus_1d(
-        mu=mu-dx, dmu=0, mus_eff=mus_eff, q=q, dq=dq, update_g=False)
-    n1, n0 = (na1 + nb1), (na0 + nb0)
-    mu_ = ((E1-E0)/(n1-n0))
-    print(f"Fix dn:\t[dn1={(na1-nb1)}\tdn0={(na0-nb0)}]")
     print(f"Expected mu={mu}\tNumerical mu={mu_}")
-    assert np.allclose((na1-nb1), (na0-nb0))
+    assert np.allclose(n_a + n_b, n_p_, rtol=1e-2)
+
+    assert np.allclose((n_a_1 - n_b_1), (n_a_2-n_b_2))
     assert np.allclose(mu, mu_, rtol=1e-4)
 
 
 if __name__ == "__main__":
-    test_Thermodynamic_1d_fast(delta=1, mu_delta=2)
+    test_Thermodynamic_1d_fast(delta=1, mu_delta=10)
     #Thermodynamic(mu=10,dmu=0)
     #test_Thermodynamic_1d(delta=1, mu_delta=2.0, dmu_delta=0, q_dmu=0, dq_dmu=0)
     #Thermodynamic(mu=10, dmu=0, k_c=50, q=0, dq=0, dim=3, delta0=1)
