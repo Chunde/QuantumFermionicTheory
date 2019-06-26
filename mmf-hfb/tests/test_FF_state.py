@@ -82,7 +82,7 @@ def get_analytic_e_n(mu, dmu, q=0, dq=0, dim=1):
         def f(e_F):  # energy density
             return np.sqrt(2)/np.pi*e_F**1.5/3.0
 
-        def g(e_F): # particle density
+        def g(e_F):  # particle density
             return np.sqrt(2*e_F)/np.pi
     elif dim == 2:
 
@@ -120,7 +120,7 @@ def Thermodynamic(mu, dmu, delta0=1, dim=3, k_c=100, q=0, dq=0,
                     T=0.0, a=0.8, b=1.2, dx=1e-3, N=10):
     if dim == 1:  # Because 1d case does not pass yet
         print("This method does nothing for 1d case")
-        return 
+        return
     ff = FF(mu=mu, dmu=dmu, delta=delta0, q=q, dq=dq, dim=dim, k_c=k_c, T=T, 
             fix_g=True, bStateSentinel=True)
     print(ff.get_densities(mu=mu, dmu=dmu, delta=delta0))
@@ -192,7 +192,7 @@ def Thermodynamic(mu, dmu, delta0=1, dim=3, k_c=100, q=0, dq=0,
     assert np.allclose(n_a.n, n_a_.n)
     assert np.allclose(n_b.n, n_b_.n)
 
-
+   
 #@pytest.mark.skip(reason="pass")
 def test_efftive_mus():
     """Test a few values from Table I of Quick:1993."""
@@ -265,15 +265,15 @@ def test_Thermodynamic(delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dim, k_c=200):
     Thermodynamic(mu=mu, dmu=dmu, k_c=k_c, q=q, dq=dq, dim=dim, delta0=delta)
 
 
-# @pytest.mark.skip(reason="Too Slow")
+@pytest.mark.skip(reason="Too Slow")
 def test_Thermodynamic_1d(
         delta, mu_delta, dmu_delta,
         q_dmu, dq_dmu, N=20, dx=1e-3):
     """test id case"""
-    mu = mu_delta * delta
-    dmu = dmu_delta * delta
-    q = q_dmu * mu
-    dq = dq_dmu * mu
+    mu = mu_delta*delta
+    dmu = dmu_delta*delta
+    q = q_dmu*mu
+    dq = dq_dmu*mu
     ff = FF(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, dim=1, fix_g=True,
             bStateSentinel=True)
     n_a, n_b, e, p, mus_eff = ff.get_ns_p_e_mus_1d(
@@ -354,7 +354,7 @@ def test_Thermodynamic_1d(
             warnings.warn(f"Can't find a solution in that region, use the default value={dmu}")
             return dmu  # when no solution is found
 
-    return # The follow part test is too slow, skip it at this point!
+    # return # The follow part test is too slow, skip it at this point!
     # Check the mu=dE/dn
     dmu1 = f_ns_dmu(dx, 0)
     dmu2 = f_ns_dmu(-dx, 0)
@@ -371,5 +371,43 @@ def test_Thermodynamic_1d(
     assert np.allclose((na1-nb1), (na0-nb0))
     assert np.allclose(mu,mu_, rtol=1e-4)
 
+def test_Thermodynamic_1d_fast(
+        delta, mu_delta, dmu_delta=0,
+        q_dmu=0, dq_dmu=0, N=20, dx=1e-3):
+    """test id case"""
+    mu = mu_delta*delta
+    dmu = dmu_delta*delta
+    q = q_dmu*mu
+    dq = dq_dmu*mu
+    ff = FF(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, dim=1, fix_g=True,
+            bStateSentinel=True)
+    n_a, n_b, e, p, mus_eff = ff.get_ns_p_e_mus_1d(
+        mu=mu, dmu=dmu, q=q,
+        dq=dq, update_g=True)
+
+    n_a_1, n_b_1, e1, p1, mus1 = ff.get_ns_p_e_mus_1d(
+        mu=mu+dx, dmu=dmu,
+        mus_eff=mus_eff, q=q, dq=dq, update_g=False)
+    n_a_2, n_b_2, e2, p2, mus2 = ff.get_ns_p_e_mus_1d(
+        mu=mu-dx, dmu=dmu,
+        mus_eff=mus_eff, q=q, dq=dq, update_g=False)
+    n_p_ = (p1 - p2)/2/dx
+    print(f"Expected n_p={n_a + n_b}\tNumerical n_p={n_p_}")
+    assert np.allclose(n_a + n_b, n_p_, rtol=1e-2)
+    na1, nb1, E1, p1, mus1 = ff.get_ns_p_e_mus_1d(
+        mu=mu+dx, dmu=0, mus_eff=mus_eff, q=q, dq=dq, update_g=False)
+    na0, nb0, E0, p0, mus0 = ff.get_ns_p_e_mus_1d(
+        mu=mu-dx, dmu=0, mus_eff=mus_eff, q=q, dq=dq, update_g=False)
+    n1, n0 = (na1 + nb1), (na0 + nb0)
+    mu_ = ((E1-E0)/(n1-n0))
+    print(f"Fix dn:\t[dn1={(na1-nb1)}\tdn0={(na0-nb0)}]")
+    print(f"Expected mu={mu}\tNumerical mu={mu_}")
+    assert np.allclose((na1-nb1), (na0-nb0))
+    assert np.allclose(mu, mu_, rtol=1e-4)
+
+
 if __name__ == "__main__":
-    Thermodynamic(mu=10, dmu=0, k_c=50, q=0, dq=0, dim=3, delta0=1)
+    test_Thermodynamic_1d_fast(delta=1, mu_delta=2)
+    #Thermodynamic(mu=10,dmu=0)
+    #test_Thermodynamic_1d(delta=1, mu_delta=2.0, dmu_delta=0, q_dmu=0, dq_dmu=0)
+    #Thermodynamic(mu=10, dmu=0, k_c=50, q=0, dq=0, dim=3, delta0=1)

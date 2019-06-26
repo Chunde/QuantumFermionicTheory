@@ -209,20 +209,20 @@ class FFState(object):
             n_p = tf.integrate_q(tf.n_p_integrand, **args).n
             n_m = tf.integrate_q(tf.n_m_integrand, **args).n
             n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
-            mu_a, mu_b = mu_a_eff + self.g * n_b, mu_b_eff + self.g * n_a
+            mu_a, mu_b = mu_a_eff + self.g*n_b, mu_b_eff + self.g*n_a
             mu_ = (mu_a + mu_b) / 2
             error = np.abs(mu_ - mu)/mu
-            mu_eff = (mu_a_eff + mu_b_eff)/2
-            dmu_eff = (mu_a_eff - mu_b_eff)/2 
+            mu_eff = (mu_a_eff + mu_b_eff)/2.0
+            dmu_eff = (mu_a_eff - mu_b_eff)/2.0
             if update_delta:
                 self.delta = self.solve(
                     mu=mu_eff, dmu=dmu_eff, q=q, dq=dq,
-                    a=delta * 0.8, b=delta * 1.2)
+                    a=delta*0.8, b=delta*1.2)
             if itr > MAX_ITERATION:
                 warnings.warn(f"Reach max iteration without converging to the desired accuracy:{error}")
                 break
-        mu_a_eff = mu_a - self._g * n_b
-        mu_b_eff = mu_b - self._g * n_a
+        mu_a_eff = mu_a - self._g*n_b
+        mu_b_eff = mu_b - self._g*n_a
         return ((mu_a_eff + mu_b_eff)/2, (mu_a_eff - mu_b_eff)/2)
 
     def get_ns_p_e_mus_1d(

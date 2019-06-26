@@ -200,7 +200,7 @@ class FunctionalBdG(IFunctional):
         ------------------
         if d==1, return the first order derivatives
         of alpha_p and alpha_m over n_a, and n_b,
-        NOT alpha_a and anlpha_b over n_a, and n_b
+        NOT alpha_a and alpha_b over n_a, and n_b
         """
         if d==0:
             alpha_a, alpha_b = self._get_alphas(ns=ns)

@@ -91,7 +91,6 @@ def quad_l(f, Nxyz, Lxyz, N_twist=1, **kw):
     return ufloat(f(k).sum() * np.prod(dkxyz), 0) / (2*np.pi)**dim
 
 
-
 class Homogeneous(object):
     """Solutions to the homogeneous BCS equations at finite T.
 
@@ -101,7 +100,7 @@ class Homogeneous(object):
     m = 1
     hbar = 1
     
-    def __init__(self, Nxyz=None, Lxyz=None, dx=None, dim=None, k_c=None, **kw):
+    def __init__(self, Nxyz=None, Lxyz=None, dx=None, dim=None, k_c=None, E_c=None, **kw):
         if Nxyz is None and Lxyz is None and dx is None:
             self._dim = dim
         elif dx is not None:
@@ -116,6 +115,7 @@ class Homogeneous(object):
         self.Nxyz = Nxyz
         self.Lxyz = Lxyz
         self.k_c = k_c
+        self.E_c = k_c**2*self.hbar**2/2.0/self.m
         self.__dict__.update(kw)
 
     @property
@@ -137,7 +137,9 @@ class Homogeneous(object):
     Results = namedtuple('Results', ['e_p', 'E', 'w_p', 'w_m'])
 
     def get_res(self, k, mus_eff, delta):
-        e_a, e_b = self.get_es(k, mus_eff=mus_eff)
+        e = (self.hbar*k)**2/2.0/self.m
+        #e_a, e_b = self.get_es(k, mus_eff=mus_eff)
+        e_a, e_b = e - mus_eff[0], e - mus_eff[1]
         e_p, e_m = (e_a + e_b)/2, (e_a - e_b)/2
         E = np.sqrt(e_p**2 + abs(delta)**2)
         w_p, w_m = e_m + E, e_m - E
@@ -213,7 +215,7 @@ class Homogeneous(object):
         tau_p = quad(tau_p_integrand)
         tau_a = (tau_p + tau_m)/2.0
         tau_b = (tau_p - tau_m)/2.0
-        if self.k_c is None: # if not cutoff
+        if self.k_c is None:  # if not cutoff
             if self.Nxyz is None and self.dim != 1:
                 # This is divergent:
                 nu = np.inf
@@ -221,9 +223,9 @@ class Homogeneous(object):
                 nu_delta = quad(nu_delta_integrand)
                 nu = nu_delta * delta
         else:
-             #nu = quad(nu_integrand)
-             nu_delta = quad(nu_delta_integrand)
-             nu = nu_delta * delta
+            #nu = quad(nu_integrand)
+            nu_delta = quad(nu_delta_integrand)
+            nu = nu_delta*delta
 
         return namedtuple('Densities', ['n_a', 'n_b', 'tau_a','tau_b', 'nu'])(
             n_a, n_b, tau_a, tau_b, nu)
