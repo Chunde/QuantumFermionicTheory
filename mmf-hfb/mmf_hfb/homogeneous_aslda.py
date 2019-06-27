@@ -106,7 +106,7 @@ class BDG(Homogeneous, FunctionalBdG):
             while(True):
                 res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta)
                 ns, taus, nu = (res.n_a.n, res.n_b.n), (res.tau_a.n, res.tau_b.n), res.nu.n
-                mu_a_eff_, mu_b_eff_ = np.array([mu_a, mu_b]) + V0*self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
+                mu_a_eff_, mu_b_eff_ = np.array([mu_a, mu_b]) + self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
                 g_eff = self._g_eff(mus_eff=(mu_a_eff_, mu_b_eff_), ns=ns, dim=self.dim, E_c=self.k_c**2/2/self.m)
                 delta_ = g_eff*nu
                 if np.allclose((mu_a_eff_, mu_b_eff_, delta_), (mu_a_eff, mu_b_eff, delta), rtol=1e-8):
@@ -114,17 +114,16 @@ class BDG(Homogeneous, FunctionalBdG):
                 delta, mu_a_eff, mu_b_eff = delta_, mu_a_eff_, mu_b_eff_
                 print(f"mu_a_eff={mu_a_eff},\tmu_b_eff={mu_b_eff},\tdelta={delta}"
                       +f"\tC={self.C},\tg={g_eff},\tn={ns[0]},\ttau={taus[0]},\tnu={nu}")
-                V0 = -g_eff
 
         alpha_a, alpha_b = self.get_alphas(ns=ns)
         D = self.get_D(ns=ns)
         energy_density = taus[0]*alpha_a/2.0 + taus[1]*alpha_b/2.0 + g_eff*abs(nu)**2
 
         energy_density = energy_density - D
-        if self.dim == 1:
-            """in 1d, the mu is actually the mu_eff"""
-            mu_a, mu_b = mu_a + g_eff*ns[1], mu_b + g_eff*ns[0]
-            self.bare_mu=(mu_a+mu_b)/2
+        #if self.dim == 1:
+        #    """in 1d, the mu is actually the mu_eff"""
+        #    mu_a, mu_b = mu_a + g_eff*ns[1], mu_b + g_eff*ns[0]
+        #    self.bare_mu=(mu_a+mu_b)/2
 
         pressure = ns[0]*mu_a + ns[1]*mu_b - energy_density
         if update_C:
@@ -136,7 +135,7 @@ class SLDA(BDG, FunctionalSLDA):
     #pass
 
     def get_alphas(self, ns, d=0):
-        dx = 0.
+        dx = 0.0
         if d==0:
             return (1+dx, 1+dx)
         elif d==1:
@@ -144,10 +143,10 @@ class SLDA(BDG, FunctionalSLDA):
     
     #def get_D(self, ns, d=0):
     #    if d==0:
-    #        return np.sum(ns)
+    #        return np.prod(ns)
     #    if d==1:
-    #        return (1, 1)
+    #        return (ns[1], ns[0])
 
 
-class ASLDA(BDG, FunctionalASLDA):
+class ASLDA(SLDA, FunctionalASLDA):
     pass
