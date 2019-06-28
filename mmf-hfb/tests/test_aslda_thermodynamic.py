@@ -1,20 +1,40 @@
-from mmf_hfb import bcs_aslda, homogeneous_aslda
+from mmf_hfb.homogeneous_aslda import BDG, SLDA, ASLDA
 import numpy as np
 import pytest
 import warnings
 warnings.filterwarnings("ignore")
 
 
-def test_homogeneous_aslda_thermodynamic(dx=1e-2):
+@pytest.fixture(params=[0, 0.5, 1])
+def T(request):
+    return request.param
+
+@pytest.fixture(params=[None, -0.54])
+def C(request):
+    return request.param
+
+@pytest.fixture(params=[1, 2, 3])
+def dim(request):
+    return request.param
+
+@pytest.fixture(params=[BDG, SLDA, ASLDA])
+def Functional(request):
+    return request.param
+
+def test_homogeneous_aslda_thermodynamic(Functional, T, C, dim):
+    if Functional == BDG and C is None:
+        return
+    dx=1e-2
     delta = 1
     mu = 10
     dmu = 0
-    C = None  # -0.55
-    lda = homogeneous_aslda.SLDA(T=0., mu_eff=mu, dmu_eff=dmu, delta=delta, C=C, dim=1)
+    lda = Functional(T=T, mu_eff=mu, dmu_eff=dmu, delta=delta, C=C, dim=dim)
+
     def get_ns_e_p(mu, dmu, delta=delta, update_C=False):
         ns, e, p = lda.get_ns_e_p(mus=(mu, dmu), delta=delta, update_C=update_C, use_Broyden=True)
         return ns, e, p
-    ns, e, p = get_ns_e_p(mu=mu, dmu=dmu, delta=None)
+
+    ns, _, _ = get_ns_e_p(mu=mu, dmu=dmu, delta=None)
     ns1, e1, p1 = get_ns_e_p(mu=mu+dx, dmu=dmu, delta=None)
     print("-------------------------------------")
 
@@ -32,4 +52,4 @@ def test_homogeneous_aslda_thermodynamic(dx=1e-2):
 
 
 if __name__ == "__main__":
-    test_homogeneous_aslda_thermodynamic()
+    test_homogeneous_aslda_thermodynamic(Functional=SLDA, T=0, C=None)

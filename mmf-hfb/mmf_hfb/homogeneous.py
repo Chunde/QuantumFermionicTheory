@@ -201,12 +201,6 @@ class Homogeneous(object):
             f_nu = self.f(res.w_m) - self.f(res.w_p)
             return -0.5/res.E*f_nu
 
-        # this integrand is the energy density, not nu
-        #def nu_integrand(k):
-        #    tau_p = tau_p_integrand(k)
-        #    nu_delta = nu_delta_integrand(k)
-        #    return (tau_p*self.hbar**2/2 + abs(delta)**2*nu_delta)
-
         n_m = quad(nm_integrand)
         n_p = quad(np_integrand)
         n_a = (n_p + n_m)/2.0
@@ -223,13 +217,38 @@ class Homogeneous(object):
                 nu_delta = quad(nu_delta_integrand)
                 nu = nu_delta * delta
         else:
-            #nu = quad(nu_integrand)
             nu_delta = quad(nu_delta_integrand)
             nu = nu_delta*delta
 
         return namedtuple('Densities', ['n_a', 'n_b', 'tau_a','tau_b', 'nu'])(
             n_a, n_b, tau_a, tau_b, nu)
-    
+
+    def get_entropy(self, mus_eff, delta, N_twist=1):
+        """Return the entropy"""
+        kF = np.sqrt(2*max(0, max(mus_eff)))
+        
+        if self.Nxyz is None:
+            def quad(f):
+                return quad_k(f, dim=self.dim, kF=kF, k_inf=self.k_c)
+        else:
+            def quad(f):
+                return quad_l(f, Nxyz=self.Nxyz, Lxyz=self.Lxyz,
+                              N_twist=N_twist)
+
+        def entropy_integrand(k):
+            res = self.get_res(k=k, mus_eff=mus_eff, delta=delta)
+            R_p = self.f(res.w_p)
+            R_m = self.f(res.w_m)
+            R = 0
+            if R_p > 0 and R_p < 1:
+                R = R + R_p*np.log(R_p) + (1-R_p)*np.log(1-R_p)
+            if R_m > 0 and R_m < 1:
+                R = R + R_m*np.log(R_m) + (1-R_m)*np.log(1-R_m)
+            return R
+
+        s = quad(entropy_integrand)
+        return s
+        
     def get_BCS_v_n_e(self, mus_eff, delta, N_twist=1, k_inf=np.inf):
         """Return `(v_0, n, mu, e)` for the 1D BCS solution at T=0."""
         kF = np.sqrt(2*max(0, max(mus_eff)))

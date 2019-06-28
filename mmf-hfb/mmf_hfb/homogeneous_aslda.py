@@ -118,7 +118,8 @@ class BDG(Homogeneous, FunctionalBdG):
         alpha_a, alpha_b = self.get_alphas(ns=ns)
         D = self.get_D(ns=ns)
         energy_density = taus[0]*alpha_a/2.0 + taus[1]*alpha_b/2.0 + g_eff*abs(nu)**2
-
+        if self.T !=0:
+            energy_density = energy_density + self.T * self.get_entropy(mus_eff=(mu_a_eff, mu_b_eff), delta=delta).n
         energy_density = energy_density - D
         #if self.dim == 1:
         #    """in 1d, the mu is actually the mu_eff"""
@@ -135,11 +136,11 @@ class SLDA(BDG, FunctionalSLDA):
     #pass
 
     def get_alphas(self, ns, d=0):
-        dx = 0.0
-        if d==0:
-            return (1+dx, 1+dx)
-        elif d==1:
-            return (0, 0, 0, 0)
+       dx = 0.0
+       if d==0:
+           return (1+dx, 1+dx)
+       elif d==1:
+           return (0, 0, 0, 0)
     
     #def get_D(self, ns, d=0):
     #    if d==0:

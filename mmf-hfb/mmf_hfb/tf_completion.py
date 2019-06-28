@@ -139,16 +139,33 @@ def C_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
 
 @numba.jit(nopython=True)
 def f_p_m(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
-        e = hbar**2/2
-        e_a, e_b = e*ka2/m_a - mu_a, e*kb2/m_b - mu_b
-        e_m, e_p = (e_a - e_b)/2, (e_a + e_b)/2
-        E = np.sqrt(e_p**2 + abs(delta)**2)
-        w_m, w_p = e_m - E, e_m + E
-        f_nu = (f(w_m, T) - f(w_p, T))
-        f_p = 1 - e_p/E*f_nu
-        f_m = f(w_p, T) - f(-w_m, T)
-        return (f_p, f_m)
-        
+    e = hbar**2/2
+    e_a, e_b = e*ka2/m_a - mu_a, e*kb2/m_b - mu_b
+    e_m, e_p = (e_a - e_b)/2, (e_a + e_b)/2
+    E = np.sqrt(e_p**2 + abs(delta)**2)
+    w_m, w_p = e_m - E, e_m + E
+    f_nu = (f(w_m, T) - f(w_p, T))
+    f_p = 1 - e_p/E*f_nu
+    f_m = f(w_p, T) - f(-w_m, T)
+    return (f_p, f_m)
+
+@numba.jit(nopython=True)
+def entropy_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
+    """the intropy integgrand, also in homogeneouse.py"""
+    e = hbar**2/2
+    e_a, e_b = e*ka2/m_a - mu_a, e*kb2/m_b - mu_b
+    e_m, e_p = (e_a - e_b)/2, (e_a + e_b)/2
+    E = np.sqrt(e_p**2 + abs(delta)**2)
+    w_m, w_p = e_m - E, e_m + E
+    R_p = f(w_p)
+    R_m = f(w_m)
+    R = 0
+    if R_p > 0 and R_p < 1:
+        R = R + R_p*np.log(R_p) + (1-R_p)*np.log(1-R_p)
+    if R_m > 0 and R_m < 1:
+        R = R + R_m*np.log(R_m) + (1-R_m)*np.log(1-R_m)
+    return R
+
 
 def Lambda(m, mu, hbar, dim, E_c=None, k_c=None):
     """Return the cutoff function Lambda assuming equal masses.
