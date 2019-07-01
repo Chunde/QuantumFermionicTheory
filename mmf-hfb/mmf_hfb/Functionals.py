@@ -168,7 +168,7 @@ class FunctionalBdG(IFunctional):
         # [check] be careful the alpha may be different for a and b
         """
         if dim ==3:
-            Lambda = m*k_c/hbar**2/2/np.pi**2*(1.0 - k0/k_c/2*np.log((k_c + k0)/(k_c - k0)))
+            Lambda = m*k_c/hbar**2/2/np.pi**2*(1.0 - k0/k_c/2.0*np.log((k_c + k0)/(k_c - k0)))
         elif dim == 2:
             Lambda = m/hbar**2/4/np.pi*np.log((k_c/k0)**2 - 1)
         elif dim == 1:

@@ -65,30 +65,36 @@ class BDG(FunctionalBdG, BCS):
         K_b = self._get_modified_K(K, alpha_b, **args)
         if np == numpy:
             assert np.allclose(K_b, K_b.conj().T)
-
         return (K_a, K_b)
 
-    def get_v_ext(self, delta=0, ns=None, taus=None, kappa=0, **args):
+    def get_v_ext(self):
+        """
+            return the external potential
+        """
+        return np.array([0, 0])
+
+    def get_Vs(self, delta=0, ns=None, taus=None, kappa=0, **args):
         """
             return the modified V functional terms
         """
         if ns is None or taus is None:
-            return BCS.get_v_ext(self)
-        U_a, U_b = self.v_ext  # external trap
+            return self.get_v_ext()
+        U_a, U_b = self.get_v_ext()  # external trap
         tau_a, tau_b = taus
         tau_p, tau_m = tau_a + tau_b, tau_a - tau_b
 
-        alpha_p = sum(self.get_alphas(ns))/2.0
+        alpha_p = sum(self.get_alphas(ns=ns))/2.0
         dalpha_p_dn_a, dalpha_p_dn_b, dalpha_m_dn_a, dalpha_m_dn_b=self.get_alphas(ns=ns, d=1)
         dC_dn_a, dC_dn_b = self.get_C(ns=ns, d=1)
         dD_dn_a, dD_dn_b = self.get_D(ns=ns, d=1)
        
         C0_ = self.hbar**2/self.m
-        C1_ = C0_/2
-        C2_ = tau_p*C1_ - np.conj(delta).T*kappa/alpha_p
-        V_a = dalpha_m_dn_a*tau_m*C1_ + dalpha_p_dn_a*C2_ + dC_dn_a + C0_*dD_dn_a + U_a
-        V_b = dalpha_m_dn_b*tau_m*C1_ + dalpha_p_dn_b*C2_ + dC_dn_b + C0_*dD_dn_b + U_b
-        return (V_a, V_b)
+        C1_ = C0_/2.0
+        C2_ = tau_p*C1_ + np.conj(delta).T*nu/alpha_p
+        C3_ = abs(delta)**2/alpha_p
+        V_a = dalpha_m_dn_a*tau_m*C1_ + dalpha_p_dn_a*C2_ + dC_dn_a*C3_ + C0_*dD_dn_a + U_a
+        V_b = dalpha_m_dn_b*tau_m*C1_ + dalpha_p_dn_b*C2_ + dC_dn_b*C3_ + C0_*dD_dn_b + U_b
+        return np.array([V_a, V_b])
 
 
     def get_ns_e_p(self, mus_eff, delta, N_twist=32, **args):
