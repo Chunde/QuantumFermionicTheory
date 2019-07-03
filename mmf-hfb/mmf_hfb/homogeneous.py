@@ -3,6 +3,7 @@ import warnings
 import numpy as np
 import scipy.integrate
 import scipy as sp
+from mmf_hfb import tf_completion as tf
 
 from uncertainties import ufloat
 
@@ -127,7 +128,6 @@ class Homogeneous(object):
         if self.T == 0:
             return (1+np.sign(-E))/2.0
         else:
-            # May overflow when T is too small
             return 1./(1+np.exp(E/self.T))
 
     def get_es(self, k, mus_eff):
@@ -138,7 +138,6 @@ class Homogeneous(object):
 
     def get_res(self, k, mus_eff, delta):
         e = (self.hbar*k)**2/2.0/self.m
-        #e_a, e_b = self.get_es(k, mus_eff=mus_eff)
         e_a, e_b = e - mus_eff[0], e - mus_eff[1]
         e_p, e_m = (e_a + e_b)/2, (e_a - e_b)/2
         E = np.sqrt(e_p**2 + abs(delta)**2)
@@ -152,8 +151,38 @@ class Homogeneous(object):
         res = self.Results(*[args[_n] for _n in self.Results._fields])
         return res
 
-    def get_densities(self, mus_eff, delta, N_twist=1):
-        """Return the densities (n_a, n_b)."""
+    def _get_densities_tf(
+            self, mus_eff, delta, q=0, dq=0, **args):
+        """
+        extended the homogeneous code to support FF state
+        calculation, seems to be much slower.
+        """
+        mu_a, mu_b = mus_eff
+        args.update(
+            mu_a=mu_a, mu_b=mu_b, m_a=self.m, m_b=self.m, delta=delta,
+            dim=self.dim, hbar=self.hbar, T=self.T, k_c=self.k_c)
+
+        n_m = tf.integrate_q(tf.n_m_integrand, **args)
+        n_p = tf.integrate_q(tf.n_p_integrand, **args)
+        n_a = (n_p + n_m)/2.0
+        n_b = (n_p - n_m)/2.0
+        tau_m = tf.integrate_q(tf.tau_m_integrand, **args)
+        tau_p = tf.integrate_q(tf.tau_p_integrand, **args)
+        tau_a = (tau_p + tau_m)/2.0
+        tau_b = (tau_p - tau_m)/2.0
+        nu_delta = tf.integrate_q(tf.nu_delta_integrand, **args)
+        nu = nu_delta*delta
+        return namedtuple('Densities', ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu'])(
+            n_a, n_b, tau_a, tau_b, nu)
+
+    def get_densities(self, mus_eff, delta, N_twist=1, **args):
+        """
+        Return the densities (ns, taus, nu).
+        --------------
+        Note: if dq is in args, that means we try to calculate FF state
+        """
+        if 'dq' in args:
+            return self._get_densities_tf(mus_eff=mus_eff, delta=delta, **args)
         kF = np.sqrt(2*max(0, max(mus_eff)))
         
         if self.Nxyz is None:

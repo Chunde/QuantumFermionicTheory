@@ -16,7 +16,7 @@ class BDG(Homogeneous, FunctionalBdG):
     def __init__(
         self, mu_eff, dmu_eff, delta=1, m=1, T=0,
             hbar=1, k_c=None, C=None, dim=3):
-        kcs=[1000, 1000, 100]
+        kcs=[1000, 1000, 50]
         if k_c is None:
             k_c = kcs[dim - 1]
         self.m = m
@@ -150,19 +150,12 @@ class BDG(Homogeneous, FunctionalBdG):
 class SLDA(BDG, FunctionalSLDA):
     pass
 
-    # def get_alphas(self, ns, d=0):
-    #     dx = 9
-    #     if d==0:
-    #         return (1+dx, 1+dx)
-    #     elif d==1:
-    #         return (0, 0, 0, 0)
+    def get_alphas(self, ns, d=0):
+        if d==0:
+            return (1.0, 1.0)
+        elif d==1:
+            return (0, 0, 0, 0)
     
-    # def get_D(self, ns, d=0):
-    #    if d==0:
-    #        return 1
-    #    if d==1:
-    #        return (0,0)
-
 
 class ASLDA(SLDA, FunctionalASLDA):
     pass

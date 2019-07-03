@@ -1,61 +1,6 @@
 import numpy as np
-from abc import ABC, abstractmethod
-
+from mmf_hfb.interface import IFunctional
 hbar=m=1
-
-
-class IFunctional(ABC):
-    """Interface for functional"""
-
-    @abstractmethod
-    def get_alphas(self, ns, d=0):
-        """
-        Parameters
-        ----------------
-        ns: densities (na, nb)
-        d: order of derivative
-        """
-        pass
-
-    @abstractmethod
-    def get_p(self, ns, d=0):
-        """
-        Parameters
-        ----------------
-        ns: densities (na, nb)
-        d: order of derivative
-        """
-        pass
-
-    @abstractmethod
-    def get_C(self, ns, d=0):
-        """
-        Parameters
-        ----------------
-        ns: densities (na, nb)
-        d: order of derivative
-        """
-        pass
-
-    @abstractmethod
-    def get_D(self, ns, d=0):
-        """
-        Parameters
-        ----------------
-        ns: densities (na, nb)
-        d: order of derivative
-        """
-        pass
-
-    @abstractmethod    
-    def get_beta(self, ns, d=0):
-        """
-        Parameters
-        ----------------
-        ns: densities (na, nb)
-        d: order of derivative
-        """
-        pass
 
 
 class FunctionalBdG(IFunctional):
