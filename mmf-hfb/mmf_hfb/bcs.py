@@ -9,9 +9,39 @@ import numpy
 import numpy as np
 from mmfutils.math.integrate import mquad
 from mmf_hfb.ParallelHelper import PoolHelper
+from mmf_hfb.interface import IHFB
 
 
-class BCS(object):
+def mqaud_worker_thread(obj_args):
+    obj, vs, twists, k, args = obj_args
+    k_p = obj.hbar**2/2/obj.m*k**2
+    H = obj.get_H(vs=vs, k_p=k_p, twists=twists, **args)
+    den = obj._get_densities_H(H, twists=twists)
+    return den
+
+
+def twising_worker_thread(obj_args):
+    """"""
+    obj, k_c, vs, twists, args = obj_args
+    abs_tol=1e-6
+
+    def f(k=0):
+        k_p = obj.hbar**2/2/obj.m*k**2
+        H = obj.get_H(vs=vs, k_p=k_p, twists=twists, **args)
+        den = obj._get_densities_H(H, twists=twists)
+        return den
+    dens = mquad(f, -k_c, k_c, abs_tol=abs_tol)/2/np.pi
+    return dens
+
+
+def block(a11, a12, a21, a22):
+    RowBlock1=np.concatenate((a11, a12), axis=1)
+    RowBlock2=np.concatenate((a21, a22), axis=1)
+    Block=np.concatenate((RowBlock1, RowBlock2), axis=0)
+    return Block
+
+
+class BCS(IHFB):
     """Simple implementation of the BCS equations in a periodic box.
 
     We use all states in the box, regularizing the theory with a fixed
@@ -97,12 +127,13 @@ class BCS(object):
         if struct:
             n_a, n_b, tau_a, tau_b, nu_real, nu_imag = (dens[0:6])
             j_a, j_b = (dens[6:]).reshape((2, len(self.Nxyz)) + tuple(self.Nxyz))
-            Densities = namedtuple('Densities',
-                                ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu', 'j_a', 'j_b'])
-            return Densities(n_a=n_a, n_b=n_b,
-                            tau_a=tau_a, tau_b=tau_b,
-                            nu=nu_real + 1j * nu_imag,
-                            j_a=j_a, j_b=j_b)
+            Densities = namedtuple(
+                'Densities', ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu', 'j_a', 'j_b'])
+            return Densities(
+                n_a=n_a, n_b=n_b,
+                tau_a=tau_a, tau_b=tau_b,
+                nu=nu_real + 1j * nu_imag,
+                j_a=j_a, j_b=j_b)
 
         n_a, n_b, tau_a, tau_b, nu_real, nu_imag = (dens[0:6])
         kappa_ = (nu_real+ 1j*nu_imag)
@@ -128,9 +159,9 @@ class BCS(object):
 
         K = np.eye(mat_shape[0]).reshape(tensor_shape)
         bcast = (slice(None),)*self.dim + (None,)*self.dim
-        K = (self.hbar**2/2/self.m
-             * self.ifft(sum(_k**2 for _k in ks)[bcast]*
-                       self.fft(K))).reshape(mat_shape)
+        K = (
+            self.hbar**2/2/self.m*self.ifft(
+                sum(_k**2 for _k in ks)[bcast]*self.fft(K))).reshape(mat_shape)
         if not np.allclose(k_p, 0, rtol=1e-16):
             k_p = np.diag(np.ones_like(sum(self.xyz).ravel())*k_p)
             K = K + k_p
@@ -147,9 +178,9 @@ class BCS(object):
 
         K = np.eye(mat_shape[0]).reshape(tensor_shape)
         bcast = (slice(None),) * self.dim + (None,)*self.dim
-        K = (self.hbar**2 / 2 / self.m
-             * self.ifft(1j*sum(_k for _k in ks)[bcast]*
-                       self.fft(K))).reshape(mat_shape)
+        K = (
+            self.hbar**2/2.0/self.m*self.ifft(
+                1j*sum(_k for _k in ks)[bcast]*self.fft(K))).reshape(mat_shape)
         return K
 
     def _Del(self, aplha, twists=0):
@@ -164,7 +195,8 @@ class BCS(object):
         ks = [_k + _kb for _k, _kb in zip(self.kxyz, ks_bloch)]
         axes = range(1, self.dim + 1)
         aplha_t = self.fft(aplha, axes=axes)
-        return np.stack([self.ifft(1j*_k[None, ..., None]*aplha_t, axes=axes) for _k in ks])
+        return np.stack(
+            [self.ifft(1j*_k[None, ..., None]*aplha_t, axes=axes) for _k in ks])
 
     def get_Ks(self, twists, **args):
         K = self._get_K(twists=twists, **args)
@@ -201,12 +233,6 @@ class BCS(object):
         mask = 0.5 * (numpy.sign(abs(E_c)-abs(E)) + 1)
         return f * mask
 
-    def block(a11, a12, a21, a22):
-        RowBlock1=np.concatenate((a11, a12), axis=1)
-        RowBlock2=np.concatenate((a21, a22), axis=1)
-        Block=np.concatenate((RowBlock1, RowBlock2), axis=0)
-        return Block
-
     def get_H(self, mus_eff, delta, twists=0, vs=None, **kw):
         """Return the single-particle Hamiltonian with pairing.
 
@@ -231,7 +257,7 @@ class BCS(object):
         mu_a += zero
         mu_b += zero
         Mu_a, Mu_b = np.diag((mu_a - v_a).ravel()), np.diag((mu_b - v_b).ravel())
-        H = BCS.block(K_a-Mu_a, Delta, Delta.conj(), -(K_b - Mu_b))
+        H = block(K_a-Mu_a, Delta, Delta.conj(), -(K_b - Mu_b))
         return H
 
     def get_R(self, mus_eff, delta, N_twist=1, twists=None):
@@ -315,12 +341,12 @@ class BCS(object):
     def get_1d_currents(self, mus_eff, delta, N_twist=1):
         """return current for 1d only"""
         twistss = itertools.product(
-            *(np.arange(0, N_twist) * 2 * np.pi / N_twist,) * self.dim)
+            *(np.arange(0, N_twist)*2.0*np.pi/N_twist,)*self.dim)
         j_a = 0
         j_b = 0
         
         def df(k, f):
-            return np.fft.ifft(1j * k * np.fft.fft(f))
+            return np.fft.ifft(1j*k*np.fft.fft(f))
 
         for twists in twistss:
             ks_bloch = np.divide(twists, self.Lxyz)
@@ -331,13 +357,15 @@ class BCS(object):
             d, psi = np.linalg.eigh(H)
             us, vs = psi.reshape(2, N, N * 2)
             us, vs = us.T, vs.T
-            j_a_ = -0.5j * sum((us[i].conj() * df(k, us[i])
+            j_a_ = -0.5j*sum(
+                (us[i].conj()*df(k, us[i])
                     -us[i]*df(k, us[i]).conj())*self.f(d[i]) for i in range(len(us)))
-            j_b_ = -0.5j*sum((vs[i]*df(k, vs[i]).conj()
+            j_b_ = -0.5j*sum(
+                (vs[i]*df(k, vs[i]).conj()
                     -vs[i].conj()*df(k, vs[i]))*self.f(-d[i]) for i in range(len(vs)))
             j_a = j_a + j_a_
             j_b = j_b + j_b_
-        return (j_a / N_twist / np.prod(self.dxyz), j_b / N_twist / np.prod(self.dxyz))
+        return (j_a/N_twist/np.prod(self.dxyz), j_b/N_twist/np.prod(self.dxyz))
     
     def _get_densities_H(self, H, twists):
         """return densities for a given H"""
@@ -363,8 +391,9 @@ class BCS(object):
         H = self.get_H(mus_eff=mus_eff, delta=delta, twists=twists, **args)
         return self._get_densities_H(H, twists=twists)
 
-    def get_densities(self, mus_eff, delta, N_twist=1,
-                        abs_tol=1e-12, unpack=True, struct=True, **args):
+    def get_densities(
+            self, mus_eff, delta, N_twist=1,
+            abs_tol=1e-12, unpack=True, struct=True, **args):
         """Return the densities.
 
         Arguments
@@ -378,7 +407,8 @@ class BCS(object):
         # Here we use the notation Rp = R = f(M) and Rm = f(-M) = 1-R
         def get_dens(twists):
             """Return (R, Rm) with the specified twist."""
-            return self._get_densities(mus_eff=mus_eff, delta=delta, twists=twists, **args)
+            return self._get_densities(
+                mus_eff=mus_eff, delta=delta, twists=twists, **args)
 
         if np.isinf(N_twist):
             if self.dim == 1:
@@ -397,26 +427,6 @@ class BCS(object):
             return self._unpack_densities(dens, struct=struct)
         return dens
 
-    def mqaud_worker_thread(obj_args):
-            obj, vs, twists, k, args = obj_args
-            k_p = obj.hbar**2/2/obj.m*k**2
-            H = obj.get_H(vs=vs, k_p=k_p, twists=twists, **args)
-            den = obj._get_densities_H(H, twists=twists)
-            return den
-
-    def twising_worker_thread(obj_args):
-        """"""
-        obj, k_c, vs, twists, args = obj_args
-        abs_tol=1e-6
-
-        def f(k=0):
-            k_p = obj.hbar**2/2/obj.m*k**2
-            H = obj.get_H(vs=vs, k_p=k_p, twists=twists, **args)
-            den = obj._get_densities_H(H, twists=twists)
-            return den
-        dens = mquad(f, -k_c, k_c, abs_tol=abs_tol)/2/np.pi
-        return dens
-
     def mquad_(self, obj_args, k_a, k_b, N_factor=10):
         """
             a mquad implementation, should be changed
@@ -430,13 +440,14 @@ class BCS(object):
         obj, k_c, vs, twists, args = obj_args
         ks = 2 * np.pi * np.fft.fftfreq(self.Nxyz[0] * N_factor, self.dxyz[0])
         obj_twists_kp = [(obj, vs, twists, k, args) for k in ks]
-        res = PoolHelper.run(BCS.mqaud_worker_thread, paras=obj_twists_kp)
+        res = PoolHelper.run(mqaud_worker_thread, paras=obj_twists_kp)
         dens = sum(res)/(obj.dxyz[0] * obj.Nxyz[0] * N_factor)
         return dens
 
-    def get_dens_integral(self, mus_eff, delta, k_c=None,
-                            N_twist=1, unpack=True,
-                            struct=False, abs_tol=1e-6, **args):
+    def get_dens_integral(
+            self, mus_eff, delta, k_c=None,
+            N_twist=1, unpack=True,
+            struct=False, abs_tol=1e-6, **args):
         """
             integrate over another dimension by assuming it's homogeneous
             Note: the results are for dim + 1 system.
@@ -447,7 +458,7 @@ class BCS(object):
         args = dict(args, mus_eff=mus_eff, delta=delta)
         vs = self.get_v_ext(**args)
         paras = [(self, k_c, vs, twists, args) for twists in twistss]
-        res = PoolHelper.run(BCS.twising_worker_thread, paras=paras)
+        res = PoolHelper.run(twising_worker_thread, paras=paras)
         dens = sum(res)/len(res)
         if unpack:
             return self._unpack_densities(dens, struct=struct)
@@ -456,11 +467,13 @@ class BCS(object):
     def get_ns_e_p(self, mus_eff, delta, **args):
         """
             compute then energy density
-            Note:
-                the return value also include the pressure and densities
+            Note: the return value also include the pressure and densities
         """
-        ns, taus, _, kappa = self.get_densities(mus_eff=mus_eff, delta=delta, struct=False, **args)
+        ns, taus, _, kappa = self.get_densities(
+            mus_eff=mus_eff, delta=delta, struct=False, **args)
         g_eff = -delta/kappa
-        energy_density = (taus[0] + taus[1])*self.hbar**2/2/self.m - g_eff * kappa.T.conj()*kappa
-        pressure = ns[0] * mus_eff[0] + ns[1]*mus_eff[1] - energy_density
+        energy_density = (
+            taus[0] + taus[1])*self.hbar**2/2/self.m - g_eff*kappa.T.conj()*kappa
+        pressure = ns[0]*mus_eff[0] + ns[1]*mus_eff[1] - energy_density
         return (ns, energy_density, pressure)
+        

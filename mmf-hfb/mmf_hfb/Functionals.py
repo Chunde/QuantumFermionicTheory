@@ -200,6 +200,8 @@ class FunctionalBdG(IFunctional):
         else:
             raise ValueError(f"d={d} is not supported value")
 
+    def get_Vs(self, **args):
+        return np.array([0,0])
 
 class FunctionalSLDA(FunctionalBdG):
     
@@ -254,6 +256,28 @@ class FunctionalSLDA(FunctionalBdG):
         alpha_a, alpha_b = alpha_odd + alpha_even, -alpha_odd + alpha_even
         return (alpha_a, alpha_b, alpha_even, alpha_odd)
 
+    def get_Vs(self, delta=0, ns=None, taus=None, nu=None, **args):
+        """
+            return the modified V functional terms
+        """
+        if ns is None or taus is None:
+            return self.get_v_ext()
+        U_a, U_b = self.get_v_ext()  # external trap
+        tau_a, tau_b = taus
+        tau_p, tau_m = tau_a + tau_b, tau_a - tau_b
+
+        alpha_p = sum(self.get_alphas(ns=ns))/2.0
+        dalpha_p_dn_a, dalpha_p_dn_b, dalpha_m_dn_a, dalpha_m_dn_b=self.get_alphas(ns=ns, d=1)
+        dC_dn_a, dC_dn_b = self.get_C(ns=ns, d=1)
+        dD_dn_a, dD_dn_b = self.get_D(ns=ns, d=1)
+       
+        C0_ = self.hbar**2/self.m
+        C1_ = C0_/2.0
+        C2_ = tau_p*C1_ + np.conj(delta).T*nu/alpha_p
+        C3_ = abs(delta)**2/alpha_p
+        V_a = dalpha_m_dn_a*tau_m*C1_ + dalpha_p_dn_a*C2_ + dC_dn_a*C3_ + C0_*dD_dn_a + U_a
+        V_b = dalpha_m_dn_b*tau_m*C1_ + dalpha_p_dn_b*C2_ + dC_dn_b*C3_ + C0_*dD_dn_b + U_b
+        return np.array([V_a, V_b])
     
 class FunctionalASLDA(FunctionalSLDA):
    
