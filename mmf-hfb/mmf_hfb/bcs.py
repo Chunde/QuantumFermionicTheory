@@ -470,16 +470,16 @@ class BCS(IHFBKernel):
             return self._unpack_densities(dens, struct=struct)
         return dens
 
-    def get_ns_e_p(self, mus_eff, delta, **args):
+    def get_ns_e_p(self, mus, delta, **args):
         """
             compute then energy density
             Note: the return value also include the pressure and densities
         """
         ns, taus, _, kappa = self.get_densities(
-            mus_eff=mus_eff, delta=delta, struct=False, **args)
+            mus_eff=mus, delta=delta, struct=False, **args)
         g_eff = -delta/kappa
         energy_density = (
             taus[0] + taus[1])*self.hbar**2/2/self.m - g_eff*kappa.T.conj()*kappa
-        pressure = ns[0]*mus_eff[0] + ns[1]*mus_eff[1] - energy_density
+        pressure = ns[0]*mus[0] + ns[1]*mus[1] - energy_density
         return (ns, energy_density, pressure)
         

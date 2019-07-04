@@ -99,10 +99,11 @@ class BDG(FunctionalBdG, BCS):
                         dim=self.dim, E_c=self.E_c)
                 delta_ = g_eff*nu
                 print(
-                    f"mu_a_eff={mu_a_eff},\tmu_b_eff={mu_b_eff},\tdelta={delta}"
-                    +f"\tC={self.C},\tg={g_eff},\tn={ns[0]},\ttau={taus[0]},\tnu={nu}")
+                    f"mu_a_eff={mu_a_eff[0].real},\tmu_b_eff={mu_b_eff[0].real},\tdelta={delta[0].real}"
+                    +f"\tC={self.C if (self.C is None or (len(self.C)==1)) else self.C[0]},\tg={g_eff[0].real},"
+                    +f"\tn={ns[0][0].real},\ttau={taus[0][0].real},\tnu={nu[0].real}")
                 x_ = np.array([mu_a_eff_, mu_b_eff_, delta_])
-                return x - x_
+                return x_ - x
            
             x0 = np.array([mu_a_eff, mu_b_eff, delta*np.ones_like(sum(self.xyz))])  # initial guess
             x = scipy.optimize.broyden1(fun, x0)
@@ -131,7 +132,7 @@ class BDG(FunctionalBdG, BCS):
                 delta, mu_a_eff, mu_b_eff = delta_, mu_a_eff_, mu_b_eff_
                 print(
                     f"mu_a_eff={mu_a_eff[0].real},\tmu_b_eff={mu_b_eff[0].real},\tdelta={delta[0].real}"
-                    +f"\tC={self.C if self.C is None or type(self.C)is not type(np.array) else self.C[0]},\tg={g_eff[0].real},"
+                    +f"\tC={self.C if (self.C is None or (len(self.C)==1)) else self.C[0]},\tg={g_eff[0].real},"
                     +f"\tn={ns[0][0].real},\ttau={taus[0][0].real},\tnu={nu[0].real}")
         return (ns, taus, nu, g_eff, delta, mu_a_eff, mu_b_eff)
 
@@ -139,8 +140,7 @@ class BDG(FunctionalBdG, BCS):
     def get_ns_e_p(self, mus, delta, update_C, use_Broyden=False, **args):
         """
             compute then energy density for BdG, equation(77) in page 39
-            Note:
-                the return value also include the pressure and densities
+            Note: the return value also include the pressure and densities
             -------------
             mus = (mu, dmu)
         """

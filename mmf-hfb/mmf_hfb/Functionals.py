@@ -251,7 +251,7 @@ class FunctionalSLDA(FunctionalBdG):
     def _get_alphas_p(self, p):
         """"[overridden in Children]"""
         ones = np.ones_like(p)
-        alpha_even = 1.094*ones  # 1.14 in Aureal's Matlab code
+        alpha_even = 1.0*ones  # 1.094*ones  # 1.14 in Aureal's Matlab code
         alpha_odd = 0
         alpha_a, alpha_b = alpha_odd + alpha_even, -alpha_odd + alpha_even
         return (alpha_a, alpha_b, alpha_even, alpha_odd)

@@ -4,11 +4,14 @@ two-species Fermi gas with short-range interaction.
 """
 from mmf_hfb.bcs import BCS
 import numpy as np
+import scipy.optimize
 
 
 class KernelBCS(BCS):
     
-    def __init__(self, Nxyz, Lxyz, dx=None, T=0, E_c=None, C=None, fix_C=False):
+    def __init__(
+        self, Nxyz, Lxyz, dx=None, T=0, 
+            E_c=None, C=None, fix_C=False, **args):
         BCS.__init__(self, Nxyz=Nxyz, Lxyz=Lxyz, dx=dx, T=T, E_c=E_c)
         self.E_c = E_c
         if E_c is None:  # the max k_c need to be checked again
@@ -73,3 +76,60 @@ class KernelBCS(BCS):
             return the external potential
         """
         return np.array([0*np.ones_like(sum(self.xyz)), 0*np.ones_like(sum(self.xyz))])
+
+    def solve(self, mus, delta, use_Broyden=True, rtol=1e-12):
+        """use the Broyden solver may be much faster"""
+        mu, dmu = mus
+        mu_a, mu_b = mu + dmu, mu - dmu
+        V_a, V_b = self.get_Vs()
+        mu_a_eff, mu_b_eff = mu_a + V_a, mu_b + V_b
+        if use_Broyden:
+
+            def fun(x):
+                mu_a_eff, mu_b_eff, delta = x
+                res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta)
+                ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
+                V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
+                mu_a_eff_, mu_b_eff_ = mu_a + V_a, mu_b + V_b
+                g_eff = self._g_eff(
+                    mus_eff=(
+                        mu_a_eff_, mu_b_eff_), ns=ns,
+                        dim=self.dim, E_c=self.E_c)
+                delta_ = g_eff*nu
+                print(
+                    f"mu_a_eff={mu_a_eff[0].real},\tmu_b_eff={mu_b_eff[0].real},\tdelta={delta[0].real}"
+                    +f"\tC={self.C if (self.C is None or (len(self.C)==1)) else self.C[0]},\tg={g_eff[0].real},"
+                    +f"\tn={ns[0][0].real},\ttau={taus[0][0].real},\tnu={nu[0].real}")
+                x_ = np.array([mu_a_eff_, mu_b_eff_, delta_])
+                return x_ - x
+            
+            x0 = np.array([mu_a_eff, mu_b_eff, delta*np.ones_like(sum(self.xyz))])  # initial guess
+            x = scipy.optimize.broyden1(fun, x0)
+            mu_a_eff, mu_b_eff, delta = x
+            res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta)
+            ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
+            g_eff = self._g_eff(
+                mus_eff=(mu_a_eff, mu_b_eff), ns=ns,
+                dim=self.dim, k_c=self.k_c, E_c=self.E_c)
+        else:
+            while(True):
+                res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta)
+                ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
+                V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
+                mu_a_eff_, mu_b_eff_ = mu_a + V_a, mu_b + V_b
+                g_eff = self._g_eff(
+                    mus_eff=(
+                        mu_a_eff_, mu_b_eff_), ns=ns,
+                            dim=self.dim, E_c=self.E_c)
+                delta_ = g_eff*nu
+                if (np.allclose(
+                    mu_a_eff_, mu_a_eff, rtol=rtol) and np.allclose(
+                        mu_b_eff_, mu_b_eff, rtol=rtol) and np.allclose(
+                            delta, delta_, rtol=rtol)):
+                    break
+                delta, mu_a_eff, mu_b_eff = delta_, mu_a_eff_, mu_b_eff_
+                print(
+                    f"mu_a_eff={mu_a_eff[0].real},\tmu_b_eff={mu_b_eff[0].real},\tdelta={delta[0].real}"
+                    +f"\tC={self.C if (self.C is None or (len(self.C)==1)) else self.C[0]},\tg={g_eff[0].real},"
+                    +f"\tn={ns[0][0].real},\ttau={taus[0][0].real},\tnu={nu[0].real}")
+        return (ns, taus, nu, g_eff, delta, mu_a_eff, mu_b_eff)

@@ -5,7 +5,6 @@ two-species Fermi gas with short-range interaction.
 from mmf_hfb.Functionals import FunctionalBdG, FunctionalSLDA
 from mmf_hfb.Functionals import FunctionalASLDA
 from mmf_hfb.homogeneous import Homogeneous
-from scipy.optimize import brentq
 import scipy.optimize
 import numpy as np
 import numpy
@@ -15,7 +14,7 @@ class BDG(Homogeneous, FunctionalBdG):
     
     def __init__(
         self, mu_eff, dmu_eff, delta=1, m=1, T=0,
-            hbar=1, k_c=None, C=None, dim=3,  fix_C=False):
+            hbar=1, k_c=None, C=None, dim=3, fix_C=False):
         kcs=[1000, 1000, 50]
         if k_c is None:
             k_c = kcs[dim - 1]
@@ -32,9 +31,7 @@ class BDG(Homogeneous, FunctionalBdG):
             return the external potential
         """
         return np.array([0, 0])
-
-    
-    
+ 
     def get_C(self, ns, d=0):
         """override the C functional to support fixed C value"""
         if d==0:
@@ -58,8 +55,7 @@ class BDG(Homogeneous, FunctionalBdG):
                 mu_a_eff, mu_b_eff, delta = x
                 res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta)
                 ns, taus, nu = (res.n_a.n, res.n_b.n), (res.tau_a.n, res.tau_b.n), res.nu.n
-                mu_a_eff_, mu_b_eff_ = (
-                    np.array([mu_a, mu_b])
+                mu_a_eff_, mu_b_eff_ = (np.array([mu_a, mu_b])
                     + self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu))
                 g_eff = self._g_eff(
                     mus_eff=(mu_a_eff_, mu_b_eff_), ns=ns,
@@ -87,9 +83,8 @@ class BDG(Homogeneous, FunctionalBdG):
                     np.array([mu_a, mu_b])
                     + self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu))
                 g_eff = self._g_eff(
-                    mus_eff=(
-                        mu_a_eff_, mu_b_eff_), ns=ns,
-                        dim=self.dim, E_c=self.k_c**2/2/self.m)
+                    mus_eff=(mu_a_eff_, mu_b_eff_), ns=ns,
+                                dim=self.dim, E_c=self.k_c**2/2/self.m)
                 delta_ = g_eff*nu
                 if np.allclose((mu_a_eff_, mu_b_eff_, delta_), (mu_a_eff, mu_b_eff, delta), rtol=1e-8):
                     break
@@ -127,7 +122,6 @@ class BDG(Homogeneous, FunctionalBdG):
     
 
 class SLDA(BDG, FunctionalSLDA):
-    #pass
 
     def get_alphas(self, ns, d=0):
         if d==0:

@@ -60,6 +60,7 @@ class IFunctional(ABC):
         """
         pass
 
+
 class IHFBKernel(ABC):
 
     @abstractmethod
@@ -74,7 +75,7 @@ class IHFBKernel(ABC):
         pass
 
     @abstractmethod
-    def get_ns_e_p(self, mus_eff, delta, **args):
+    def get_ns_e_p(self, mus, delta, **args):
         """
         return the particle densities(n_a, n_b)
         energy density and pressure
