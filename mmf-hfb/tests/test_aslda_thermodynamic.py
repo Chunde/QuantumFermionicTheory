@@ -75,9 +75,11 @@ def test_bcs_aslda_thermodynamic(dx=1e-3):
     lda.E_c = 3 * (lda.hbar*k_c)**2/2/lda.m
 
     def get_ns_e_p(mu, dmu, update_C=False):
-        ns, e, p = lda.get_ns_e_p(mus=(mu, dmu), delta=delta, N_twist=N_twist, Laplacian_only=True, update_C=update_C, max_iter=32)
+        ns, e, p = lda.get_ns_e_p(
+            mus=(mu, dmu), delta=delta, N_twist=N_twist, Laplacian_only=True,
+            update_C=update_C, max_iter=32, use_Broyden=False)
         return ns, e, p
-    ns, e, p = get_ns_e_p(mu=mu, dmu=dmu)
+    ns, e, p = get_ns_e_p(mu=mu, dmu=dmu, update_C=True)
     ns1, e1, p1 = get_ns_e_p(mu=mu+dx, dmu=dmu)
     ns2, e2, p2 = get_ns_e_p(mu=mu-dx, dmu=dmu)
     n_p = (p1-p2)/2.0/dx

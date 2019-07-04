@@ -1,9 +1,8 @@
 
 from mmf_hfb import bcs_aslda
-from mmf_hfb.np import np
 from mmf_hfb import homogeneous
+import numpy as np
 import pytest
-from mmf_hfb.np import np
     
 
 @pytest.mark.skip(reason="Not pass yet")
@@ -19,7 +18,7 @@ def test_aslda_integral_2d():
     N_twist = 32
     delta = 1.0
     mu_eff = 10.0
-    b = vortex_aslda.ASLDA(T=0, Nxyz=(N,), Lxyz=(L,))
+    b = bcs_aslda.ASLDA(T=0, Nxyz=(N,), Lxyz=(L,))
 
 
     print("Test 1d lattice with homogeneous system with high precision(1e-12)")
@@ -57,7 +56,7 @@ def test_aslda_integral_3d():
     N_twist = 16
     delta = 1.0
     mu_eff = 10.0
-    b = vortex_aslda.ASLDA(T=0, Nxyz=(N, N), Lxyz=(L,L))
+    b = bcs_aslda.ASLDA(T=0, Nxyz=(N, N), Lxyz=(L,L))
     k_c = abs(np.array(b.kxyz).max())
     b.E_c = (b.hbar*k_c)**2/2/b.m
     v_0, n, mu, e_0 = homogeneous.Homogeneous3D().get_BCS_v_n_e(delta=delta, mus_eff=(mu_eff, mu_eff), k_inf=k_c)

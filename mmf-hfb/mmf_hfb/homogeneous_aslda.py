@@ -127,7 +127,7 @@ class BDG(Homogeneous, FunctionalBdG):
     
 
 class SLDA(BDG, FunctionalSLDA):
-    pass
+    #pass
 
     def get_alphas(self, ns, d=0):
         if d==0:

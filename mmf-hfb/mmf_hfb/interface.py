@@ -60,7 +60,7 @@ class IFunctional(ABC):
         """
         pass
 
-class IHFB(ABC):
+class IHFBKernel(ABC):
 
     @abstractmethod
     def get_densities(self, mus_eff, delta, **args):

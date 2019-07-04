@@ -9,7 +9,7 @@ import numpy
 import numpy as np
 from mmfutils.math.integrate import mquad
 from mmf_hfb.ParallelHelper import PoolHelper
-from mmf_hfb.interface import IHFB
+from mmf_hfb.interface import IHFBKernel
 
 
 def mqaud_worker_thread(obj_args):
@@ -41,7 +41,7 @@ def block(a11, a12, a21, a22):
     return Block
 
 
-class BCS(IHFB):
+class BCS(IHFBKernel):
     """Simple implementation of the BCS equations in a periodic box.
 
     We use all states in the box, regularizing the theory with a fixed
@@ -426,6 +426,12 @@ class BCS(IHFB):
         if unpack:
             return self._unpack_densities(dens, struct=struct)
         return dens
+
+    def get_entropy(self, mus_eff, delta, N_twist=1):
+        """
+        Return the entropy
+        """
+        raise NotImplementedError("Not implemented yet")
 
     def mquad_(self, obj_args, k_a, k_b, N_factor=10):
         """

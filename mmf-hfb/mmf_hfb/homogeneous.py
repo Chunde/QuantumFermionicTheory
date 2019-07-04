@@ -4,7 +4,7 @@ import numpy as np
 import scipy.integrate
 import scipy as sp
 from mmf_hfb import tf_completion as tf
-
+from mmf_hfb.interface import IHFBKernel
 from uncertainties import ufloat
 
 _QUAD_ARGS = dict(
@@ -73,9 +73,9 @@ def quad_l(f, Nxyz, Lxyz, N_twist=1, **kw):
     if np.isinf(N_twist):
         k_max = np.pi/np.max(dxyz)
         
-        ## This is the idea, but we really need to compute the measure
-        ## properly so we integrate over the box rather than a
-        ## sphere.  This is a little tricky.
+        # This is the idea, but we really need to compute the measure
+        # properly so we integrate over the box rather than a
+        # sphere.  This is a little tricky.
         return quad_k(f, k_inf=k_max, dim=dim, **kw)
 
     # Lattice sums.
@@ -92,7 +92,7 @@ def quad_l(f, Nxyz, Lxyz, N_twist=1, **kw):
     return ufloat(f(k).sum() * np.prod(dkxyz), 0) / (2*np.pi)**dim
 
 
-class Homogeneous(object):
+class Homogeneous(IHFBKernel):
     """Solutions to the homogeneous BCS equations at finite T.
 
     Allows for modified dispersion as well as asymmetric populations.
@@ -116,7 +116,8 @@ class Homogeneous(object):
         self.Nxyz = Nxyz
         self.Lxyz = Lxyz
         self.k_c = k_c
-        self.E_c = k_c**2*self.hbar**2/2.0/self.m
+        if k_c is not None:
+            self.E_c = k_c**2*self.hbar**2/2.0/self.m
         self.__dict__.update(kw)
 
     @property
@@ -249,7 +250,7 @@ class Homogeneous(object):
             nu_delta = quad(nu_delta_integrand)
             nu = nu_delta*delta
 
-        return namedtuple('Densities', ['n_a', 'n_b', 'tau_a','tau_b', 'nu'])(
+        return namedtuple('Densities', ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu'])(
             n_a, n_b, tau_a, tau_b, nu)
 
     def get_entropy(self, mus_eff, delta, N_twist=1):

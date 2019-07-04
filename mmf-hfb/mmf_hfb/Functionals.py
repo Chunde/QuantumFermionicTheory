@@ -201,7 +201,7 @@ class FunctionalBdG(IFunctional):
             raise ValueError(f"d={d} is not supported value")
 
     def get_Vs(self, **args):
-        return np.array([0,0])
+        return self.get_v_ext(**args)
 
 class FunctionalSLDA(FunctionalBdG):
     
