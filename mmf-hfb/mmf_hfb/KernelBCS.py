@@ -86,10 +86,10 @@ class KernelBCS(BCS):
         if self.C is None or not hasattr(self.C, "__iter__"):
             C = self.C
         else:
-            C = self.C[0]
+            C = self.C.flat[0]
         print(
-            f"mu_a_eff={mu_a_eff[0].real},\tmu_b_eff={mu_b_eff[0].real},\tdelta={delta[0].real}"
-            +f"\tC={C},\tg={g_eff[0].real},"
-            +f"\tn={ns[0][0].real},\ttau={taus[0][0].real},\tnu={nu[0].real}")
+            f"mu_a_eff={mu_a_eff.flat[0].real},\tmu_b_eff={mu_b_eff.flat[0].real},\tdelta={delta.flat[0].real}"
+            +f"\tC={C},\tg={g_eff.flat[0].real},"
+            +f"\tn={ns[0].flat[0].real},\ttau={taus[0].flat[0].real},\tnu={nu.flat[0].real}")
 
     

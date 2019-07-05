@@ -4,84 +4,16 @@ two-species Fermi gas with short-range interaction.
 """
 from mmf_hfb.Functionals import FunctionalASLDA, FunctionalBdG, FunctionalSLDA
 from mmf_hfb.bcs import BCS
+from mmf_hfb.KernelBCS import KernelBCS
 import numpy as np
 import numpy
 import scipy.optimize
 
 
-class BDG(FunctionalBdG, BCS):
+class BDG(FunctionalBdG, KernelBCS):
     
-    def __init__(self, Nxyz, Lxyz, dx=None, T=0, E_c=None, C=None, fix_C=False):
-        BCS.__init__(self, Nxyz=Nxyz, Lxyz=Lxyz, dx=dx, T=T, E_c=E_c)
-        FunctionalBdG.__init__(self)
-        self.E_c = E_c
-        if E_c is None:  # the max k_c need to be checked again
-            self.k_c = np.max(self.kxyz)
-        else:
-            self.k_c = None
-        self.C = C
-        self.ones = np.ones_like(sum(self.xyz))
-        self._D2 = BCS._get_K(self)
-        self._D1 = BCS._get_Del(self)
-
-    def _get_modified_K(self, D2, alpha, twists=0, Laplacian_only=True, **args):
-        """"
-            return a modified kinetic density matrix
-            -------------
-            Laplacian_only: bool
-            if True, use the relation:
-                (ab')'=[(ab)'' -a''b + ab'']/2
-            if False:
-                (ab')=a'b'+ab''
-        """
-        A = np.diag(alpha.ravel())  # [Check] ????
-        if Laplacian_only:
-            K = (D2.dot(A) - np.diag(self._D2.dot(alpha.ravel())) + A.dot(D2)) / 2
-        else:
-            D1 =self._get_Del(twists=twists)
-            dalpha = self._D1.dot(alpha.ravel())
-            K = np.diag(dalpha.ravel()).dot(D1) + A.dot(D2)
-        return K
-
-    def _get_modified_taus(self, taus, js):
-        """
-            return the modified taus with
-            currents in it, not implement
-        """
-        return taus
-
-    def get_Ks(self, twists=0, ns=None, k_p=0, **args):
-        """
-            return the modified kinetic density  matrix
-        Arguments
-        ---------
-        k_p: kinetic energy offset added to the diagonal elements
-        """
-        K = BCS._get_K(self, k_p=k_p, twists=twists, **args)
-        # k_p = np.diag(np.ones_like(sum(self.xyz).ravel()) * k_p)
-        # #[Check] the shape of the k_p matrix
-        # K = K + k_p
-        if ns is None:
-            return (K, K)
-        alpha_a, alpha_b = self.get_alphas(ns)
-        
-        if alpha_a is None or alpha_b is None:
-            return (K, K)
-        # K( A U') = [(A u')'= (A u)'' - A'' u + A u'']/2
-        if not hasattr(alpha_a, '__iter__'):
-            alpha_a = alpha_a*self.ones
-            alpha_b = alpha_b*self.ones
-        K_a = self._get_modified_K(K, alpha_a, **args)
-        K_b = self._get_modified_K(K, alpha_b, **args)
-        if np == numpy:
-            assert np.allclose(K_b, K_b.conj().T)
-        return (K_a, K_b)
-
-    def get_v_ext(self, **args):
-        """
-            return the external potential
-        """
-        return np.array([0*np.ones_like(sum(self.xyz)), 0*np.ones_like(sum(self.xyz))])
+    def __init__(self, Nxyz, Lxyz, dx=None, T=0, C=None, fix_C=False, **args):
+        KernelBCS.__init__(self, Nxyz=Nxyz, Lxyz=Lxyz, dx=dx, T=T, **args)
 
     def solve(self, mus, delta, use_solver=True, rtol=1e-12, **args):
         """use the Broyden solver may be much faster"""
@@ -101,9 +33,9 @@ class BDG(FunctionalBdG, BCS):
             g_eff = self._g_eff(mus_eff=(mu_a_eff_, mu_b_eff_), **args)
             delta_ = g_eff*nu
             print(
-                f"mu_a_eff={mu_a_eff_[0].real},\tmu_b_eff={mu_b_eff_[0].real},\tdelta={delta_[0].real}"
-                +f"\tC={self.C if (self.C is None or (len(self.C)==1)) else self.C[0]},\tg={g_eff[0].real},"
-                +f"\tn={ns[0][0].real},\ttau={taus[0][0].real},\tnu={nu[0].real}")
+                f"mu_a_eff={mu_a_eff_.flat[0].real},\tmu_b_eff={mu_b_eff_.flat[0].real},\tdelta={delta_.flat[0].real}"
+                +f"\tC={self.C if (self.C is None or (len(self.C)==1)) else self.C.flat[0]},\tg={g_eff.flat[0].real},"
+                +f"\tn={ns[0].flat[0].real},\ttau={taus[0].flat[0].real},\tnu={nu.flat[0].real}")
             return np.array([mu_a_eff_, mu_b_eff_, delta_])
 
         if use_solver:
