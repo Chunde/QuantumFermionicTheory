@@ -1,55 +1,10 @@
 from mmf_hfb.Functionals import FunctionalBdG, FunctionalSLDA, FunctionalASLDA
-from mmf_hfb.KernelBCS import KernelBCS
 from mmf_hfb.KernelHomogeneouse import KernelHomogeneous
-import numpy as np
+from mmf_hfb.KernelBCS import KernelBCS
 from enum import Enum
+import scipy.optimize
+import numpy as np
 import inspect
-
-
-class Adapter(object):
-    """
-    the adapter used to connect functional and HFB kernel
-    (see interface.py). In the factory method, a new class
-    inherit from this class will be able to change the behavior 
-    of both functional and kernel as any method defined in 
-    this class can override method in other classes.
-    """
-    def get_C(self, ns, d=0):
-        """override the C functional to support fixed C value"""
-        if d==0:
-            if self.C is None:
-                return FunctionalBdG.get_C(self, ns=ns)
-            return self.C
-
-        if d==1:
-            if self.C is None:
-                return FunctionalBdG.get_C(self, ns=ns, d=1)
-            return (0, 0)
-
-    def get_ns_e_p(self, mus, delta, update_C, use_Broyden=False, **args):
-        """
-            compute then energy density for BdG, equation(77) in page 39
-            Note:
-                the return value also include the pressure and densities
-            -------------
-            mus = (mu, dmu)
-        """
-        mu, dmu = mus
-        mu_a, mu_b = mu + dmu, mu - dmu
-        ns, taus, nu, g_eff, delta, mu_a_eff, mu_b_eff = self.solve(
-            mus=mus, delta=delta, use_Broyden=use_Broyden)
-        alpha_a, alpha_b = self.get_alphas(ns=ns)
-        D = self.get_D(ns=ns)
-        energy_density = taus[0]/2.0 + taus[1]/2.0 + g_eff*abs(nu)**2
-        if self.T !=0:
-            energy_density = (
-                energy_density
-                +self.T*self.get_entropy(mus_eff=(mu_a_eff, mu_b_eff), delta=delta).n)
-        energy_density = energy_density - D
-        pressure = ns[0]*mu_a + ns[1]*mu_b - energy_density
-        if update_C:
-            self.C = self.get_C(ns)
-        return (ns, energy_density, pressure)
 
 
 class FunctionalType(Enum):
@@ -64,7 +19,110 @@ class FunctionalType(Enum):
 class KernelType(Enum):
     BCS=0  # BCS kernel
     HOM=1  # Homogeneous kernel
-    #  FFS=2  # FuldeFerrel kernel
+
+
+class Solvers(Enum):
+    """
+    solver types
+    """
+    NONE=None
+    BROYDEN1=scipy.optimize.broyden1
+    BROYDEN2=scipy.optimize.broyden2
+    ANDERSON=scipy.optimize.anderson
+    LINEARMIXING=scipy.optimize.linearmixing
+    DIAGBROYDEN=scipy.optimize.diagbroyden
+
+class Adapter(object):
+    """
+    the adapter used to connect functional and HFB kernel
+    (see interface.py). In the factory method, a new classd
+    inherit from this class will be able to change the behavior
+    of both functional and kernel as any method defined in
+    this class can override method in other classes.
+    """
+    def get_C(self, ns, d=0):
+        """override the C functional to support fixed C value"""
+        if d==0:
+            if self.C is None:
+                return FunctionalBdG.get_C(self, ns=ns)
+            return self.C
+
+        if d==1:
+            if self.C is None:
+                return FunctionalBdG.get_C(self, ns=ns, d=1)
+            return (0, 0)
+
+    def solve(
+        self, mus, delta, fix_delta=False, rtol=1e-12,
+            solver=None, verbosity=True, **args):
+        """
+        use solver or simple interation to solve the gap equation
+        """
+        mu, dmu = mus
+        mu_a, mu_b = mu + dmu, mu - dmu
+        V_a, V_b = self.get_Vs()
+        mu_a_eff, mu_b_eff = mu_a + V_a, mu_b + V_b
+        args.update(dim=self.dim, k_c=self.k_c, E_c=self.E_c)
+
+        def _fun(x):
+            mu_a_eff, mu_b_eff, delta=x
+            res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta, **args)
+            ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
+            args.update(ns=ns)
+            V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
+            mu_a_eff_, mu_b_eff_ = mu_a + V_a, mu_b + V_b
+            g_eff = self._g_eff(mus_eff=(mu_a_eff_, mu_b_eff_), **args)
+            delta_ = g_eff*nu
+            if verbosity:
+                self.output_res(mu_a_eff_, mu_b_eff_, delta_, g_eff, ns, taus, nu)
+            return np.array([mu_a_eff_, mu_b_eff_, delta_])
+
+        if solver is None or type(solver).__name__ != 'function':
+            while(True):  # use simple iteration if no solver is specified
+                mu_a_eff_, mu_b_eff_, delta_ = _fun((mu_a_eff, mu_b_eff, delta))
+                if (np.allclose(
+                    mu_a_eff_, mu_a_eff, rtol=rtol) and np.allclose(
+                        mu_b_eff_, mu_b_eff, rtol=rtol) and np.allclose(
+                            delta, delta_, rtol=rtol)):
+                    break
+                delta, mu_a_eff, mu_b_eff = delta_, mu_a_eff_, mu_b_eff_
+        else:
+            def fun(x):
+                return _fun(x) - x
+            
+            x0 = np.array([mu_a_eff, mu_b_eff, delta*np.ones_like(sum(self.xyz))])
+            mu_a_eff, mu_b_eff, delta = solver(fun, x0)
+        res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta, **args)
+        ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
+        args.update(ns=ns)
+        g_eff = self._g_eff(mus_eff=(mu_a_eff, mu_b_eff), **args)
+        return (ns, taus, nu, g_eff, delta, mu_a_eff, mu_b_eff)
+
+    def get_ns_e_p(self, mus, delta, update_C, solver=None, **args):
+        """
+            compute then energy density for BdG, equation(77) in page 39
+            Note:
+                the return value also include the pressure and densities
+            -------------
+            mus = (mu, dmu)
+        """
+        mu, dmu = mus
+        mu_a, mu_b = mu + dmu, mu - dmu
+        ns, taus, nu, g_eff, delta, mu_a_eff, mu_b_eff = self.solve(
+            mus=mus, delta=delta, solver=solver, **args)
+        # alpha_a, alpha_b = self.get_alphas(ns=ns)
+        D = self.get_D(ns=ns)
+        energy_density = taus[0]/2.0 + taus[1]/2.0 + g_eff*abs(nu)**2
+        if self.T !=0:
+            energy_density = (
+                energy_density
+                +self.T*self.get_entropy(mus_eff=(mu_a_eff, mu_b_eff), delta=delta).n)
+        energy_density = energy_density - D
+        pressure = ns[0]*mu_a + ns[1]*mu_b - energy_density
+        if update_C:
+            self.C = self.get_C(ns)
+        return (ns, energy_density, pressure)
+
 
 def ClassFactory(className, functionalType=FunctionalType.BDG, kernelType=KernelType.HOM):
     """
@@ -88,7 +146,7 @@ def ClassFactory(className, functionalType=FunctionalType.BDG, kernelType=Kernel
 
 
 if __name__ == "__main__":
-    dx = 1e-3
+    dx = 1e-2
     L = 0.46
     N = 16
     N_twist = 1
@@ -98,16 +156,16 @@ if __name__ == "__main__":
     LDA = ClassFactory(
         className="LDA",
         functionalType=FunctionalType.BDG,
-        kernelType=KernelType.HOM)
+        kernelType=KernelType.BCS)
 
     lda = LDA(
-            Nxyz=(N,), Lxyz=(L,), mu_eff=mu, dmu_eff=dmu,
-            delta=delta, T=0, dim=3, C=-0.54)
+        Nxyz=(N,), Lxyz=(L,), mu_eff=mu, dmu_eff=dmu,
+        delta=delta, T=0, dim=3, C=-0.54)
     
     def get_ns_e_p(mu, dmu, update_C=False):
         ns, e, p = lda.get_ns_e_p(
             mus=(mu, dmu), delta=delta, N_twist=N_twist, Laplacian_only=True,
-            update_C=update_C, max_iter=32, use_Broyden=True)
+            update_C=update_C, max_iter=32, solver=Solvers.NONE)
         return ns, e, p
 
     ns, e, p = get_ns_e_p(mu=mu, dmu=dmu, update_C=False)
@@ -120,4 +178,4 @@ if __name__ == "__main__":
     print(np.max(mu_), mu)
     print("-------------------------------------")
     assert np.allclose(np.max(n_p).real, sum(ns), rtol=1e-2)
-    assert np.allclose(np.max(mu_[0]).real, mu, rtol=1e-2)
+    assert np.allclose(np.max(mu_).real, mu, rtol=1e-2)

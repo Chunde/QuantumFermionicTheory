@@ -188,7 +188,7 @@ class Homogeneous(IHFBKernel):
         
         if self.Nxyz is None:
             def quad(f):
-                return quad_k(f, dim=self.dim, kF=kF, k_inf=self.k_c)
+                return quad_k(f, dim=self.dim, kF=kF, k_inf=self.k_c).n
         else:
             def quad(f):
                 return quad_l(f, Nxyz=self.Nxyz, Lxyz=self.Lxyz,

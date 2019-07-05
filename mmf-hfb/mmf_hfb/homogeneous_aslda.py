@@ -26,7 +26,7 @@ class BDG(Homogeneous, FunctionalBdG):
         self.delta = delta
         self.k_c = k_c
      
-    def get_v_ext(self):
+    def get_v_ext(self, **args):
         """
             return the external potential
         """
@@ -44,12 +44,12 @@ class BDG(Homogeneous, FunctionalBdG):
                 return FunctionalBdG.get_C(self, ns=ns, d=1)
             return (0, 0)
 
-    def solve(self, mus, delta, use_Broyden=True):
+    def solve(self, mus, delta, use_solver=True):
         """use the Broyden solver may be much faster"""
         mu, dmu = mus
         mu_a, mu_b = mu + dmu, mu - dmu
         mu_a_eff, mu_b_eff =np.array([mu_a, mu_b]) + self.get_Vs(delta=delta)
-        if use_Broyden:
+        if use_solver:
 
             def fun(x):
                 mu_a_eff, mu_b_eff, delta = x
@@ -93,7 +93,7 @@ class BDG(Homogeneous, FunctionalBdG):
                       +f"\tC={self.C},\tg={g_eff},\tn={ns[0]},\ttau={taus[0]},\tnu={nu}")
         return (ns, taus, nu, g_eff, delta, mu_a_eff, mu_b_eff)
 
-    def get_ns_e_p(self, mus, delta, update_C, use_Broyden=False, **args):
+    def get_ns_e_p(self, mus, delta, update_C, use_solver=False, **args):
         """
             compute then energy density for BdG, equation(77) in page 39
             Note:
@@ -106,7 +106,7 @@ class BDG(Homogeneous, FunctionalBdG):
         mu, dmu = mus
         mu_a, mu_b = mu + dmu, mu - dmu
         ns, taus, nu, g_eff, delta, mu_a_eff, mu_b_eff = self.solve(
-            mus=mus, delta=delta, use_Broyden=use_Broyden)
+            mus=mus, delta=delta, use_solver=use_solver)
         alpha_a, alpha_b = self.get_alphas(ns=ns)
         D = self.get_D(ns=ns)
         energy_density = taus[0]/2.0 + taus[1]/2.0 + g_eff*abs(nu)**2
