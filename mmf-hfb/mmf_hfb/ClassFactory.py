@@ -1,6 +1,7 @@
 from mmf_hfb.Functionals import FunctionalBdG, FunctionalSLDA, FunctionalASLDA
 from mmf_hfb.KernelHomogeneouse import KernelHomogeneous
 from mmf_hfb.KernelBCS import KernelBCS
+from mmf_hfb import tf_completion as tf
 from enum import Enum
 import scipy.optimize
 import numpy as np
@@ -32,10 +33,11 @@ class Solvers(Enum):
     LINEARMIXING=scipy.optimize.linearmixing
     DIAGBROYDEN=scipy.optimize.diagbroyden
 
+
 class Adapter(object):
     """
     the adapter used to connect functional and HFB kernel
-    (see interface.py). In the factory method, a new classd
+    (see interface.py). In the factory method, a new class
     inherit from this class will be able to change the behavior
     of both functional and kernel as any method defined in
     this class can override method in other classes.
@@ -44,13 +46,18 @@ class Adapter(object):
         """override the C functional to support fixed C value"""
         if d==0:
             if self.C is None:
-                return FunctionalBdG.get_C(self, ns=ns)
+                return self.get_C(ns=ns)
             return self.C
 
         if d==1:
             if self.C is None:
-                return FunctionalBdG.get_C(self, ns=ns, d=1)
+                return self.get_C(ns=ns, d=1)
             return (0, 0)
+
+    def fix_C(self, mu, dmu, delta, q=0, dq=0, **args):
+        mu_a, mu_b = mu + dmu, mu -dmu
+        args.update(m_a=self.m, m_b=self.m, T=self.T, dim=self.dim, k_c=self.k_c)
+        self.C = tf.compute_C(mu_a=mu_a, mu_b=mu_b, delta=delta, q=q, dq=dq, **args).n
 
     def solve(
         self, mus, delta, fix_delta=False, rtol=1e-12,
@@ -63,6 +70,8 @@ class Adapter(object):
         V_a, V_b = self.get_Vs()
         mu_a_eff, mu_b_eff = mu_a + V_a, mu_b + V_b
         args.update(dim=self.dim, k_c=self.k_c, E_c=self.E_c)
+        if fix_delta:
+            delta = delta*np.ones_like(sum(self.xyz))
 
         def _fun(x):
             mu_a_eff, mu_b_eff, delta=x
@@ -72,7 +81,7 @@ class Adapter(object):
             V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
             mu_a_eff_, mu_b_eff_ = mu_a + V_a, mu_b + V_b
             g_eff = self._g_eff(mus_eff=(mu_a_eff_, mu_b_eff_), **args)
-            delta_ = g_eff*nu
+            delta_  = delta if fix_delta else g_eff*nu
             if verbosity:
                 self.output_res(mu_a_eff_, mu_b_eff_, delta_, g_eff, ns, taus, nu)
             return np.array([mu_a_eff_, mu_b_eff_, delta_])
@@ -98,7 +107,7 @@ class Adapter(object):
         g_eff = self._g_eff(mus_eff=(mu_a_eff, mu_b_eff), **args)
         return (ns, taus, nu, g_eff, delta, mu_a_eff, mu_b_eff)
 
-    def get_ns_e_p(self, mus, delta, update_C, solver=None, **args):
+    def get_ns_e_p(self, mus, delta, update_C=False, solver=None, **args):
         """
             compute then energy density for BdG, equation(77) in page 39
             Note:
@@ -108,8 +117,10 @@ class Adapter(object):
         """
         mu, dmu = mus
         mu_a, mu_b = mu + dmu, mu - dmu
+        if update_C:
+            self.fix_C(mu=mu, dmu=0, delta=delta, **args)
         ns, taus, nu, g_eff, delta, mu_a_eff, mu_b_eff = self.solve(
-            mus=mus, delta=delta, solver=solver, **args)
+            mus=mus, delta=delta, solver=solver, fix_delta=update_C, **args)
         # alpha_a, alpha_b = self.get_alphas(ns=ns)
         D = self.get_D(ns=ns)
         energy_density = taus[0]/2.0 + taus[1]/2.0 + g_eff*abs(nu)**2
@@ -119,8 +130,6 @@ class Adapter(object):
                 +self.T*self.get_entropy(mus_eff=(mu_a_eff, mu_b_eff), delta=delta).n)
         energy_density = energy_density - D
         pressure = ns[0]*mu_a + ns[1]*mu_b - energy_density
-        if update_C:
-            self.C = self.get_C(ns)
         return (ns, energy_density, pressure)
 
 
@@ -143,39 +152,3 @@ def ClassFactory(className, functionalType=FunctionalType.BDG, kernelType=Kernel
                 base_class.__init__(self)
     new_class = type(className, (base_classes), {"__init__": __init__})
     return new_class
-
-
-if __name__ == "__main__":
-    dx = 1e-2
-    L = 0.46
-    N = 16
-    N_twist = 1
-    delta = 1.0
-    mu=10
-    dmu = 0
-    LDA = ClassFactory(
-        className="LDA",
-        functionalType=FunctionalType.BDG,
-        kernelType=KernelType.BCS)
-
-    lda = LDA(
-        Nxyz=(N,), Lxyz=(L,), mu_eff=mu, dmu_eff=dmu,
-        delta=delta, T=0, dim=3, C=-0.54)
-    
-    def get_ns_e_p(mu, dmu, update_C=False):
-        ns, e, p = lda.get_ns_e_p(
-            mus=(mu, dmu), delta=delta, N_twist=N_twist, Laplacian_only=True,
-            update_C=update_C, max_iter=32, solver=Solvers.NONE)
-        return ns, e, p
-
-    ns, e, p = get_ns_e_p(mu=mu, dmu=dmu, update_C=False)
-    ns1, e1, p1 = get_ns_e_p(mu=mu+dx, dmu=dmu)
-    ns2, e2, p2 = get_ns_e_p(mu=mu-dx, dmu=dmu)
-    n_p = (p1-p2)/2.0/dx
-    mu_ = (e1-e2)/(sum(ns1) - sum(ns2))
-    print("-------------------------------------")
-    print(np.max(n_p), np.max(sum(ns)))
-    print(np.max(mu_), mu)
-    print("-------------------------------------")
-    assert np.allclose(np.max(n_p).real, sum(ns), rtol=1e-2)
-    assert np.allclose(np.max(mu_).real, mu, rtol=1e-2)

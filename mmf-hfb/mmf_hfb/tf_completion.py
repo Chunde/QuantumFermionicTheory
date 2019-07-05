@@ -151,7 +151,7 @@ def f_p_m(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
 
 @numba.jit(nopython=True)
 def entropy_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
-    """the intropy integgrand, also in homogeneouse.py"""
+    """the entropy integrand, also in homogeneouse.py"""
     e = hbar**2/2
     e_a, e_b = e*ka2/m_a - mu_a, e*kb2/m_b - mu_b
     e_m, e_p = (e_a - e_b)/2, (e_a + e_b)/2
@@ -203,7 +203,7 @@ def Lambda(m, mu, hbar, dim, E_c=None, k_c=None):
 
 
 def compute_C(mu_a, mu_b, delta, m_a, m_b, dim=3, hbar=1.0, T=0.0,
-              q=0, dq=0, k_c=None, debug=False):
+              q=0, dq=0, k_c=None, debug=False, **arg):
     # Note: code only works for m_a == m_b
     # ERROR: Check with new q and dq relations...
     

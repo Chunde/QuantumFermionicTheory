@@ -1,10 +1,10 @@
 import numpy as np
 from mmf_hfb.interface import IFunctional
-hbar=m=1
 
 
 class FunctionalBdG(IFunctional):
-
+    m=hbar=1
+    
     def _gamma(self, p=None):
         return -11.11  # -11.039 in Aureal's code
 
@@ -113,11 +113,12 @@ class FunctionalBdG(IFunctional):
         # [check] be careful the alpha may be different for a and b
         """
         if dim ==3:
-            Lambda = m*k_c/hbar**2/2/np.pi**2*(1.0 - k0/k_c/2.0*np.log((k_c + k0)/(k_c - k0)))
+            Lambda = self.m*k_c/self.hbar**2/2/np.pi**2*(
+                1.0 - k0/k_c/2.0*np.log((k_c + k0)/(k_c - k0)))
         elif dim == 2:
-            Lambda = m/hbar**2/4/np.pi*np.log((k_c/k0)**2 - 1)
+            Lambda = self.m/self.hbar**2/4/np.pi*np.log((k_c/k0)**2 - 1)
         elif dim == 1:
-            Lambda = m/hbar**2/2/np.pi*np.log((k_c - k0)/(k_c + k0))/k0
+            Lambda = self.m/self.hbar**2/2/np.pi*np.log((k_c - k0)/(k_c + k0))/k0
         return Lambda/alpha  # do not forget effective mess inverse factor
 
     def _g_eff(self, mus_eff, ns, E_c, k_c=None, dim=3, **args):
@@ -130,9 +131,9 @@ class FunctionalBdG(IFunctional):
         """
         alpha_p = sum(self.get_alphas(ns))/2.0
         mu_p = abs(sum(mus_eff))/2  # [check] mus_eff may be negative???
-        k0 = (2*m/hbar**2*mu_p/alpha_p)**0.5
+        k0 = (2*self.m/self.hbar**2*mu_p/alpha_p)**0.5
         if k_c is None:
-            k_c = (2*m/hbar**2*(E_c + mu_p)/alpha_p)**0.5
+            k_c = (2*self.m/self.hbar**2*(E_c + mu_p)/alpha_p)**0.5
         C = self.get_C(ns=ns)  # (97)
         # [check] be careful the alpha may be different for a and b
         Lambda = self._get_Lambda(k0=k0, k_c=k_c, dim=dim, alpha=alpha_p)
@@ -203,6 +204,7 @@ class FunctionalBdG(IFunctional):
     def get_Vs(self, **args):
         return self.get_v_ext(**args)
 
+
 class FunctionalSLDA(FunctionalBdG):
     
     def _G(self, p):
@@ -267,7 +269,8 @@ class FunctionalSLDA(FunctionalBdG):
         tau_p, tau_m = tau_a + tau_b, tau_a - tau_b
 
         alpha_p = sum(self.get_alphas(ns=ns))/2.0
-        dalpha_p_dn_a, dalpha_p_dn_b, dalpha_m_dn_a, dalpha_m_dn_b=self.get_alphas(ns=ns, d=1)
+        dalpha_p_dn_a, dalpha_p_dn_b, dalpha_m_dn_a, dalpha_m_dn_b=self.get_alphas(
+            ns=ns, d=1)
         dC_dn_a, dC_dn_b = self.get_C(ns=ns, d=1)
         dD_dn_a, dD_dn_b = self.get_D(ns=ns, d=1)
        
@@ -278,7 +281,8 @@ class FunctionalSLDA(FunctionalBdG):
         V_a = dalpha_m_dn_a*tau_m*C1_ + dalpha_p_dn_a*C2_ + dC_dn_a*C3_ + C0_*dD_dn_a + U_a
         V_b = dalpha_m_dn_b*tau_m*C1_ + dalpha_p_dn_b*C2_ + dC_dn_b*C3_ + C0_*dD_dn_b + U_b
         return np.array([V_a, V_b])
-    
+
+
 class FunctionalASLDA(FunctionalSLDA):
    
     def _get_alphas_p(self, p):

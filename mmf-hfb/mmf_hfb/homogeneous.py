@@ -92,7 +92,7 @@ def quad_l(f, Nxyz, Lxyz, N_twist=1, **kw):
     return ufloat(f(k).sum() * np.prod(dkxyz), 0) / (2*np.pi)**dim
 
 
-class Homogeneous(IHFBKernel):
+class Homogeneous(object):
     """Solutions to the homogeneous BCS equations at finite T.
 
     Allows for modified dispersion as well as asymmetric populations.
