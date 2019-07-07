@@ -1,12 +1,12 @@
-import numpy as np
-import pytest
-from mmf_hfb import tf_completion as tf
-from mmf_hfb import bcs, homogeneous
-from scipy.optimize import brentq
-from collections import namedtuple
-import warnings
-
 from mmf_hfb.FuldeFerrelState import FFState as FF
+from mmf_hfb import tf_completion as tf
+from collections import namedtuple
+from scipy.optimize import brentq
+from mmf_hfb import homogeneous
+import numpy as np
+import warnings
+import pytest
+
 tf.MAX_DIVISION = 200
 
 
@@ -254,7 +254,7 @@ def test_density_with_qs(delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dim, k_c=200
     assert np.allclose(nb0, nb1)
 
 
-#@pytest.mark.skip(reason="pass")
+@pytest.mark.skip(reason="Too Slow")
 def test_Thermodynamic(delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dim, k_c=200):
     if dim == 3:
         k_c = 50
@@ -290,7 +290,7 @@ def test_Thermodynamic_1d(
     print(f"Expected n_p={n_a + n_b}\tNumerical n_p={n_p_}")
     assert np.allclose(n_a + n_b, n_p_, rtol=1e-2)
 
-    if False: #  skip for speed
+    if False:  # skip for speed
         # Fixed mu_b by changing mu and dmu with same value , as mu_b = mu - dmu
         # Then dP / dx = n_a
         n_a_1, n_b_1, e1, p1, mus1 = ff.get_ns_p_e_mus_1d(
@@ -405,6 +405,7 @@ def test_Thermodynamic_1d_fast(
 
 
 if __name__ == "__main__":
+    test_efftive_mus()
     test_Thermodynamic_1d_fast(delta=1, mu_delta=10)
     #Thermodynamic(mu=10,dmu=0)
     #test_Thermodynamic_1d(delta=1, mu_delta=2.0, dmu_delta=0, q_dmu=0, dq_dmu=0)

@@ -11,7 +11,7 @@ def T(request):
     return request.param
 
 
-@pytest.fixture(params=[None, -0.54])
+@pytest.fixture(params=[-0.54])
 def C(request):
     return request.param
 
@@ -64,7 +64,7 @@ def test_bcs_aslda_thermodynamic(dx=1e-3):
     delta = 1.0
     mu=10
     dmu = 0
-    lda = bcs_aslda.BDG(T=0, Nxyz=(N,), Lxyz=(L,))
+    lda = bcs_aslda.BDG(T=0, Nxyz=(N,N), Lxyz=(L,N))
     k_c = abs(np.array(lda.kxyz).max())
     #lda.E_c = 3 * (lda.hbar*k_c)**2/2/lda.m
 
@@ -76,15 +76,16 @@ def test_bcs_aslda_thermodynamic(dx=1e-3):
     ns, e, p = get_ns_e_p(mu=mu, dmu=dmu, update_C=True)
     ns1, e1, p1 = get_ns_e_p(mu=mu+dx, dmu=dmu)
     ns2, e2, p2 = get_ns_e_p(mu=mu-dx, dmu=dmu)
+
     n_p = (p1-p2)/2.0/dx
     mu_ = (e1-e2)/(sum(ns1) - sum(ns2))
     print("-------------------------------------")
-    print(n_p.max().real, sum(ns).max())
-    print(mu_[0].max().real, mu)
+    print(np.max(n_p), np.max(sum(ns)))
+    print(np.max(mu_), mu)
     print("-------------------------------------")
     assert np.allclose(n_p.max().real, sum(ns), rtol=1e-2)
     assert np.allclose(mu_[0].max().real, mu, rtol=1e-2)
 
 if __name__ == "__main__":
-    test_bcs_aslda_thermodynamic()
-    #test_homogeneous_aslda_thermodynamic(Functional=SLDA, T=0, C=-0.54, dim=3)
+    # test_bcs_aslda_thermodynamic()
+    test_homogeneous_aslda_thermodynamic(Functional=SLDA, T=0, C=-0.54, dim=2)

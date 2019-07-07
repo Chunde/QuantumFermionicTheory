@@ -54,7 +54,7 @@ class BDG(Homogeneous, FunctionalBdG):
             def fun(x):
                 mu_a_eff, mu_b_eff, delta = x
                 res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta)
-                ns, taus, nu = (res.n_a.n, res.n_b.n), (res.tau_a.n, res.tau_b.n), res.nu.n
+                ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
                 mu_a_eff_, mu_b_eff_ = (np.array([mu_a, mu_b])
                     + self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu))
                 g_eff = self._g_eff(
@@ -71,14 +71,14 @@ class BDG(Homogeneous, FunctionalBdG):
             x = scipy.optimize.broyden1(fun, x0, maxiter=100, f_tol=1e-4)
             mu_a_eff, mu_b_eff, delta = x
             res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta)
-            ns, taus, nu = (res.n_a.n, res.n_b.n), (res.tau_a.n, res.tau_b.n), res.nu.n
+            ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
             g_eff = self._g_eff(
                 mus_eff=(mu_a_eff, mu_b_eff), ns=ns,
                 dim=self.dim, k_c=self.k_c, E_c=self.k_c**2/2/self.m)
         else:
             while(True):
                 res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta)
-                ns, taus, nu = (res.n_a.n, res.n_b.n), (res.tau_a.n, res.tau_b.n), res.nu.n
+                ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
                 mu_a_eff_, mu_b_eff_ = (
                     np.array([mu_a, mu_b])
                     + self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu))

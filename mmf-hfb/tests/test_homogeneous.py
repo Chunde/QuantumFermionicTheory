@@ -158,4 +158,4 @@ def _test_Homogeneous3D_scattering_length():
  # to debug in Visual Studio
 if __name__ == '__main__':
     t = TestHomogeneous()
-    t.test_2D_T0()
+    t.test_3D_T0()

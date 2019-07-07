@@ -46,14 +46,20 @@ class Adapter(object):
         """override the C functional to support fixed C value"""
         if d==0:
             if self.C is None:
-                return self.get_C(ns=ns)
+                return FunctionalBdG.get_C(self, ns=ns)
             return self.C
 
         if d==1:
             if self.C is None:
-                return self.get_C(ns=ns, d=1)
+                return FunctionalBdG.get_C(self, ns=ns, d=1)
             return (0, 0)
 
+    def get_alphas(self, ns, d=0):
+        if d==0:
+            return (1.0, 1.0)
+        elif d==1:
+            return (0, 0, 0, 0)
+            
     def fix_C(self, mu, dmu, delta, q=0, dq=0, **args):
         mu_a, mu_b = mu + dmu, mu -dmu
         args.update(m_a=self.m, m_b=self.m, T=self.T, dim=self.dim, k_c=self.k_c)

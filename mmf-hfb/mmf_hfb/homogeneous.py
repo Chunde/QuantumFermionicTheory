@@ -101,7 +101,7 @@ class Homogeneous(object):
     m = 1
     hbar = 1
     
-    def __init__(self, Nxyz=None, Lxyz=None, dx=None, dim=None, k_c=None, E_c=None, **kw):
+    def __init__(self, Nxyz=None, Lxyz=None, dx=None, dim=None, k_c=np.inf, E_c=None, **kw):
         if Nxyz is None and Lxyz is None and dx is None:
             self._dim = dim
         elif dx is not None:
@@ -115,6 +115,9 @@ class Homogeneous(object):
             
         self.Nxyz = Nxyz
         self.Lxyz = Lxyz
+        kcs=[1000, 1000, 50]
+        if k_c is None:
+            k_c = kcs[self.dim - 1]
         self.k_c = k_c
         if k_c is not None:
             self.E_c = k_c**2*self.hbar**2/2.0/self.m
@@ -184,7 +187,7 @@ class Homogeneous(object):
         """
         if 'dq' in args:
             return self._get_densities_tf(mus_eff=mus_eff, delta=delta, **args)
-        kF = np.sqrt(2*max(0, max(mus_eff)))
+        kF = np.sqrt(2*max(0, np.max(mus_eff)))
         
         if self.Nxyz is None:
             def quad(f):
