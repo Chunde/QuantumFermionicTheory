@@ -59,11 +59,14 @@ class Adapter(object):
             return (1.0, 1.0)
         elif d==1:
             return (0, 0, 0, 0)
-            
+
     def fix_C(self, mu, dmu, delta, q=0, dq=0, **args):
         mu_a, mu_b = mu + dmu, mu -dmu
         args.update(m_a=self.m, m_b=self.m, T=self.T, dim=self.dim, k_c=self.k_c)
         self.C = tf.compute_C(mu_a=mu_a, mu_b=mu_b, delta=delta, q=q, dq=dq, **args).n
+
+    def compute_dc(self, mus, delta, dq):
+        pass
 
     def solve(
         self, mus, delta, fix_delta=False, rtol=1e-12,
@@ -107,6 +110,10 @@ class Adapter(object):
             
             x0 = np.array([mu_a_eff, mu_b_eff, delta*np.ones_like(sum(self.xyz))])
             mu_a_eff, mu_b_eff, delta = solver(fun, x0)
+        # if the delta is too small, that may mean not solution is found
+        if delta < 1e-5:
+            raise ValueError("Invalid delta")
+
         res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta, **args)
         ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
         args.update(ns=ns)

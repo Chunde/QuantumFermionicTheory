@@ -156,7 +156,7 @@ class Homogeneous(object):
         return res
 
     def _get_densities_tf(
-            self, mus_eff, delta, q=0, dq=0, **args):
+            self, mus_eff, delta, **args):
         """
         extended the homogeneous code to support FF state
         calculation, seems to be much slower.
@@ -166,15 +166,15 @@ class Homogeneous(object):
             mu_a=mu_a, mu_b=mu_b, m_a=self.m, m_b=self.m, delta=delta,
             dim=self.dim, hbar=self.hbar, T=self.T, k_c=self.k_c)
 
-        n_m = tf.integrate_q(tf.n_m_integrand, **args)
-        n_p = tf.integrate_q(tf.n_p_integrand, **args)
+        n_m = tf.integrate_q(tf.n_m_integrand, **args).n
+        n_p = tf.integrate_q(tf.n_p_integrand, **args).n
         n_a = (n_p + n_m)/2.0
         n_b = (n_p - n_m)/2.0
-        tau_m = tf.integrate_q(tf.tau_m_integrand, **args)
-        tau_p = tf.integrate_q(tf.tau_p_integrand, **args)
+        tau_m = tf.integrate_q(tf.tau_m_integrand, **args).n
+        tau_p = tf.integrate_q(tf.tau_p_integrand, **args).n
         tau_a = (tau_p + tau_m)/2.0
         tau_b = (tau_p - tau_m)/2.0
-        nu_delta = tf.integrate_q(tf.nu_delta_integrand, **args)
+        nu_delta = tf.integrate_q(tf.nu_delta_integrand, **args).n
         nu = nu_delta*delta
         return namedtuple('Densities', ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu'])(
             n_a, n_b, tau_a, tau_b, nu)

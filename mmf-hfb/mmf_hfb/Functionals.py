@@ -285,22 +285,22 @@ class FunctionalSLDA(FunctionalBdG):
 
 class FunctionalASLDA(FunctionalSLDA):
 
-     def _get_alphas_p(self, p):
-         p2 = p**2
-         p4 = p2**2
-         alpha_even = 1.094 - 0.532*p2*(1 - p2 + p4/3.0)
-         alpha_odd = 0.156*p*(1 - 2.0*p2/3.0 + p4/5.0)
-         alpha_a, alpha_b = alpha_odd + alpha_even, -alpha_odd + alpha_even
-         return (alpha_a, alpha_b, alpha_even, alpha_odd)
+    def _get_alphas_p(self, p):
+        p2 = p**2
+        p4 = p2**2
+        alpha_even = 1.094 - 0.532*p2*(1 - p2 + p4/3.0)
+        alpha_odd = 0.156*p*(1 - 2.0*p2/3.0 + p4/5.0)
+        alpha_a, alpha_b = alpha_odd + alpha_even, -alpha_odd + alpha_even
+        return (alpha_a, alpha_b, alpha_even, alpha_odd)
 
-     def _dalpha_dp(self, p):
-         """return dalpha / dp"""
-         return -((266*p - 39)*(p**2 - 1)**2)/250.0
+    def _dalpha_dp(self, p):
+        """return dalpha / dp"""
+        return -((266*p - 39)*(p**2 - 1)**2)/250.0
 
-     def _dalpha_p_dp(self, p):
-         """return dalpha_p / dp"""
-         return -1.064*p*(p**2 - 1.0)**2
+    def _dalpha_p_dp(self, p):
+        """return dalpha_p / dp"""
+        return -1.064*p*(p**2 - 1.0)**2
 
-     def _dalpha_m_dp(self, p):
-         """return dalpha_m / dp"""
-         return 0.156*(p**2 - 1.0)**2 
+    def _dalpha_m_dp(self, p):
+        """return dalpha_m / dp"""
+        return 0.156*(p**2 - 1.0)**2

@@ -10,6 +10,57 @@ import numpy as np
 import time
 
 
+def sort_data(rets):
+    """
+        sort data to make lines as long and smooth as possible
+    """
+    rets_ = []
+    def p(ret):
+        v1, v2, _ = ret
+        if v1 is None and v2 is None:
+            return 0
+        if v1 is None or v2 is None:
+            return 1
+        return 2
+
+    for ret in rets:
+        if p(ret) > 0:
+            rets_.append(ret)
+    rets = rets_
+    bflip = False
+    for i in range(1, len(rets)):
+        v1, v2, _ = rets[i]
+        v1_, v2_, _ = rets[i-1]
+        bflip = False
+        p1 = p(rets[i])
+        p2 = p(rets[i-1])
+        if p1 > p2:
+            if v1_ is None:
+                if abs(v1 - v2_) < abs(v2 - v2_):
+                    bflip = True
+                    print("flipping data")
+            if v2_ is None:
+                if abs(v1 - v1_) > abs(v2 - v1_):
+                    bflip = True
+                    print("flipping data")
+        elif p1 < p2:
+            if v1 is None:
+                if abs(v1_ - v2) < abs(v2_ - v2):
+                    bflip = True
+                    print("flipping data")
+            if v2 is None:
+                if abs(v1_ - v1) > abs(v2_ - v1):
+                    bflip = True
+                    print("flipping data")
+        elif p1 == p2:
+            if (v1 is None) !=(  v1_ is None) or (v2 is None) != (v2_ is None):
+                bflip=True
+                print("flipping data")
+        if bflip:
+            rets[i] = [rets[i][1], rets[i][0],rets[i][2]]
+    return rets
+
+
 class FFStateFinder():
     def __init__(self, dim=1, delta=0.1, mu=10.0, dmu=0, g=None,
                    k_c=None, prefix="FFState_", timeStamp=True):
@@ -118,9 +169,10 @@ class FFStateFinder():
         with open(file,'w') as wf:
             json.dump(output, wf)
 
-    def SearchFFStates(self, delta, lg=None, ug=None, 
-                       ql=0, qu=0.04, dn=10,
-               dx=0.0005, rtol=1e-8, raiseExcpetion=True):
+    def SearchFFStates(
+            self, delta, lg=None, ug=None, 
+            ql=0, qu=0.04, dn=10,
+            dx=0.0005, rtol=1e-8, raiseExcpetion=True):
         """
         ------
         lg: lower value guess
@@ -174,57 +226,6 @@ class FFStateFinder():
         for _ in range(2-len(rets)):
             rets.append(None)
         return rets
-
-    def sort_data(rets):
-        """
-            sort data to make lines as long and smooth as possible
-        """
-        rets_ = []
-        def p(ret):
-            v1, v2, _ = ret
-            if v1 is None and v2 is None:
-                return 0
-            if v1 is None or v2 is None:
-                return 1
-            return 2
-
-        for ret in rets:
-            if p(ret) > 0:
-                rets_.append(ret)
-        rets = rets_
-        bflip = False
-        for i in range(1, len(rets)):
-            v1, v2, _ = rets[i]
-            v1_, v2_, _ = rets[i-1]
-            bflip = False
-            p1 = p(rets[i])
-            p2 = p(rets[i-1])
-            if p1 > p2:
-                if v1_ is None:
-                    if abs(v1 - v2_) < abs(v2 - v2_):
-                        bflip = True
-                        print("flipping data")
-                if v2_ is None:
-                    if abs(v1 - v1_) > abs(v2 - v1_):
-                        bflip = True
-                        print("flipping data")
-            elif p1 < p2:
-                if v1 is None:
-                    if abs(v1_ - v2) < abs(v2_ - v2):
-                        bflip = True
-                        print("flipping data")
-                if v2 is None:
-                    if abs(v1_ - v1) > abs(v2_ - v1):
-                        bflip = True
-                        print("flipping data")
-            elif p1 == p2:
-                if (v1 is None) !=(  v1_ is None) or (v2 is None) != (v2_ is None):
-                    bflip=True
-                    print("flipping data")
-            if bflip:
-                rets[i] = [rets[i][1], rets[i][0],rets[i][2]]
-        return rets
-
     def run(self, dl=0.001, du=0.1001, ql=0, qu=0.04, dn=40):
         """
         dl: lower delta limit

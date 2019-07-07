@@ -11,7 +11,9 @@ import time
 import glob
 import numpy as np
 
+
 class FFStateHelper(object):
+
     def compute_pressure_current_worker(jsonData_file):
         """Use the FF State file to compute their current and pressure"""
         jsonData, fileName = jsonData_file
@@ -32,8 +34,6 @@ class FFStateHelper(object):
         try:
             for item in data:
                 dq1, dq2, d = item
-                #if not (np.allclose(dq1, 0.042377468400988445) or np.allclose(dq2, 0.042377468400988445)):
-                #    continue
                 if dq1 is not None:
                     dic = {}
                     p1 = ff.get_pressure(delta=d, dq=dq1).n
@@ -70,7 +70,10 @@ class FFStateHelper(object):
             print(f"Parsing file: {fileName}. Error:{e}")
         
     def FindFFState(filter, lastStates=None, verbose=False):
-        currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","mmf_hfb","data")
+        currentdir = join(
+            os.path.dirname(
+                os.path.abspath(
+                    inspect.getfile(inspect.currentframe()))),"..","mmf_hfb","data")
         output = []
         fileSet = []
         if lastStates is not None:
@@ -80,11 +83,11 @@ class FFStateHelper(object):
         files=glob.glob(pattern)
         for file in files[0:]:
             if os.path.exists(file):
-                with open(file,'r') as rf:
+                with open(file, 'r') as rf:
                     ret = json.load(rf)
                     dim, mu, dmu, delta, g=ret['dim'], ret['mu'], ret['dmu'], ret['delta'],ret['g']
                     if filter(mu=mu, dmu=dmu, delta=delta, g=g, dim=dim):
-                        continue 
+                        continue
                     if file in fileSet:
                         print(file)
                         continue
@@ -94,14 +97,17 @@ class FFStateHelper(object):
                         k_c = ret['k_c']
                     if verbose:
                         print(file)
-                    ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=dim, g=g, k_c=k_c, fix_g=True)
+                    ff = FFState(
+                        mu=mu, dmu=dmu, delta=delta,
+                        dim=dim, g=g, k_c=k_c, fix_g=True)
                     a_inv = ff.get_a_inv(mu=mu, dmu=0, delta=delta).n
                     mu_eff, dmu_eff = mu, dmu
                     ns = ff.get_densities(mu=mu_eff, dmu=0)
                     if verbose:
                         print(ns)
-                    p0 = ff.get_pressure(mu=None, dmu=None, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=0)
-                   # p1 = ff.get_pressure(mu=None, dmu=None, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta)
+                    p0 = ff.get_pressure(
+                        mu=None, dmu=None, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=0)
+                    # p1 = ff.get_pressure(mu=None, dmu=None, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta)
                     if verbose:
                         print(f"p0={p0},p1={p1}")
                     data1, data2 = ret['data']
@@ -110,21 +116,14 @@ class FFStateHelper(object):
 
                     dqs1, dqs2, ds1, ds2, j1, j2, ja1, ja2, jb1, jb2, P1, P2 = [],[],[],[],[],[],[],[],[],[],[],[]
                     for data in data1:
-                        d, q, p, j, j_a, j_b = data['d'],data['q'],data['p'],data['j'],data['ja'],data['jb']
+                        d, q, p, j, j_a, j_b = data['d'], data['q'], data['p'], data['j'], data['ja'], data['jb']
                         ds1.append(d)
                         dqs1.append(q)
                         j1.append(j)
                         ja1.append(j_a)
                         jb1.append(j_b)
                         P1.append(p)
-                    #for data in data2:
-                    #    d, q, p, j, j_a, j_b = data['d'],data['q'],data['p'],data['j'], data['ja'], data['jb']
-                    #    ds2.append(d)
-                    #    dqs2.append(q)
-                    #    j2.append(j)
-                    #    ja2.append(j_a)
-                    #    jb2.append(j_b)
-                    #    P2.append(p)
+                   
                     bFFState = False
                     if len(P1) > 0:
                         index1, value = max(enumerate(P1), key=operator.itemgetter(1))
@@ -132,7 +131,7 @@ class FFStateHelper(object):
                         n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=data["d"], dq=data["q"])
                         if verbose:
                             print(f"na={n_a.n}, nb={n_b.n}, PF={value}, PN={p0.n}")
-                        if value > p0 and not np.allclose(n_a.n, n_b.n, rtol=1e-9) and data["q"]>0.0001 and data["d"]>0.001:
+                        if value > (p0 and not np.allclose(n_a.n, n_b.n, rtol=1e-9) and data["q"]>0.0001 and data["d"]>0.001):
                             bFFState = True
                     #if len(P2) > 0:
                     #    index2, value = max(enumerate(P2), key=operator.itemgetter(1))
@@ -145,7 +144,9 @@ class FFStateHelper(object):
                     #        bFFState = True
                     if bFFState and verbose:
                         print(f"FFState: {bFFState} |<-------------")
-                    dic = dict(mu=mu, dmu=dmu, np=sum(ns).n, na=n_a.n, nb=n_b.n, ai=a_inv, g=g, delta=delta, state=bFFState)
+                    dic = dict(
+                        mu=mu, dmu=dmu, np=sum(ns).n, na=n_a.n,
+                        nb=n_b.n, ai=a_inv, g=g, delta=delta, state=bFFState)
                     if verbose:
                         print(dic)
                     output.append(dic)
@@ -157,7 +158,8 @@ class FFStateHelper(object):
         """compute current and pressure"""
         currentdir = root
         if currentdir is None:
-            currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+            currentdir = os.path.dirname(
+                os.path.abspath(inspect.getfile(inspect.currentframe())))
         pattern = join(currentdir, "data","FFState_[()_0-9]*.json")
         files = files=glob.glob(pattern)
 
@@ -165,7 +167,8 @@ class FFStateHelper(object):
         for file in files:
             if os.path.exists(file):
                 with open(file, 'r') as rf:
-                    jsonObjects.append((json.load(rf), os.path.splitext(os.path.basename(file))[0]))
+                    jsonObjects.append(
+                        (json.load(rf), os.path.splitext(os.path.basename(file))[0]))
         logic_cpu_count = os.cpu_count() - 1
         logic_cpu_count = 1 if logic_cpu_count < 1 else logic_cpu_count
         if False:  # Debugging
@@ -176,7 +179,7 @@ class FFStateHelper(object):
 
     def search_FFState_worker(dim_delta_mus):
         """worker thread"""
-        dim, delta, mu, dmu=dim_delta_mus
+        dim, delta, _, dmu=dim_delta_mus
         ff = FFStateFinder(delta=delta, dim=dim, dmu=dmu)
         ff.run(dl=0.001, du=0.2501, dn=60, ql=0, qu=1)
         
@@ -201,8 +204,8 @@ class FFStateHelper(object):
 
     def search_single_configuration_3d():
         e_F = 10
-        mu0 = 0.59060550703283853378393810185221521748413488992993 * e_F
-        delta0 = 0.68640205206984016444108204356564421137062514068346 * e_F
+        mu0 = 0.59060550703283853378393810185221521748413488992993*e_F
+        delta0 = 0.68640205206984016444108204356564421137062514068346*e_F
 
         mu = mu0 # ~6
         delta = 1
@@ -258,7 +261,8 @@ class FFStateHelper(object):
 
     def sort_file(files=None, abs_file=False):
         #files = ["FFState_(3d_0.5_5.906055070328385_0.55)2019_05_22_21_33_30.json"]
-        currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), "data")
+        currentdir = join(os.path.dirname(
+            os.path.abspath(inspect.getfile(inspect.currentframe()))), "data")
         if files is None:
             pattern = join(currentdir,"FFState_[()d_0-9]*.json")
             files = glob.glob(pattern)
@@ -285,7 +289,10 @@ class FFStateHelper(object):
         if len(files) < 1:
             print("At least two files input")
             return
-        currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), "data")
+        currentdir = join(
+            os.path.dirname(
+                os.path.abspath(
+                    inspect.getfile(inspect.currentframe()))), "data")
         ts = time.strftime("%Y_%m_%d_%H_%M_%S.json")
         
         datas = []
@@ -305,6 +312,7 @@ class FFStateHelper(object):
         with open(join(currentdir, output_fileName),'w') as wf:
                 json.dump(output, wf)
 
+
 def check_FF_State():
     def filter(mu, dmu, delta, g, dim):
         if dim != 3:
@@ -321,6 +329,7 @@ def check_FF_State():
             return True
         return False
     output = FFStateHelper.FindFFState(filter)
+
 
 def diagram_worker(mu_dmu_delta_dim):
     mu, dmu, delta, dim = mu_dmu_delta_dim
@@ -342,6 +351,7 @@ def diagram_worker(mu_dmu_delta_dim):
     qu = q_upper_lim()
     print(f"Start search:mu={mu}, dmu={dmu}, delta={delta},lower delta={dl}, upper delta={du}, lower dq={ql}, upper dq={qu}")
     ff.run(dl=dl, du=du, dn=100, ql=ql, qu=qu)
+
 
 def ConstructDiagram(dim=3, delta=None):
         e_F = 10
