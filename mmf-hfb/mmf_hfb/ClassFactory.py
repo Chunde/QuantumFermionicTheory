@@ -54,19 +54,64 @@ class Adapter(object):
                 return FunctionalBdG.get_C(self, ns=ns, d=1)
             return (0, 0)
 
-    def get_alphas(self, ns, d=0):
+    def get_alpha(self, p, d=0):
         if d==0:
-            return (1.0, 1.0)
-        elif d==1:
-            return (0, 0, 0, 0)
+            return 1.0
+        else:
+            return 0
 
     def fix_C(self, mu, dmu, delta, q=0, dq=0, **args):
+        """fix the C value using BDG value"""
         mu_a, mu_b = mu + dmu, mu -dmu
         args.update(m_a=self.m, m_b=self.m, T=self.T, dim=self.dim, k_c=self.k_c)
         self.C = tf.compute_C(mu_a=mu_a, mu_b=mu_b, delta=delta, q=q, dq=dq, **args).n
+    
+    def get_mus_eff(self, mus, delta, dq, ns=None, taus=None, nu=None):
+        """
+        return the effective mus
+        """
+        mu_a, mu_b = mus[0]+mus[1], mus[0]-mus[1]
+        V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
+        mu_a_eff, mu_b_eff = mu_a + V_a, mu_b + V_b
+        x0 = np.array([mu_a_eff, mu_b_eff])
 
-    def compute_dc(self, mus, delta, dq):
-        pass
+        def _fun(x):
+            mu_a_eff, mu_b_eff = x
+            res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta, dq=dq)
+            ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
+            V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
+            x_ = np.array([mu_a + V_a, mu_b + V_b])
+            print(x_)
+            return x_ - x
+        return scipy.optimize.broyden1(_fun, x0)
+
+    def _get_g(self, mus_eff, delta, dq):
+        """compute g for give effective mus"""
+        res = self.get_densities(mus_eff=mus_eff, delta=delta, dq=dq)
+        _, _, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
+        g_eff = delta/nu
+        return g_eff
+
+    def get_g(self, mus, delta, dq=0, ns=None, taus=None, nu=None):
+        """compute g with given mus and delta"""
+        mus_eff = self.get_mus_eff(
+            mus=mus, delta=delta, dq=dq, ns=ns, taus=taus, nu=nu)
+        return self._get_g(mus_eff=mus_eff, delta=delta, dq=dq)
+
+    def _get_C(self, mus, delta, dq=0, ns=None, taus=None, nu=None):
+        """
+        return the C value when computing g
+        Note: NOT the get_C(ns)
+        """
+        mus_eff = self.get_mus_eff(
+            mus=mus, delta=delta, dq=dq, ns=ns, taus=taus, nu=nu)
+        g = self._get_g(mus_eff=mus_eff, delta=delta, dq=dq)
+        alpha_p = sum(self.get_alphas(ns))/2.0
+        Lambda = self.get_Lambda(
+            mus_eff=mus_eff, alpha_p=alpha_p, E_c=self.E_c,
+            k_c=self.k_c, dim=self.dim)
+        C = alpha_p/g + Lambda
+        return C
 
     def solve(
         self, mus, delta, fix_delta=False, rtol=1e-12,

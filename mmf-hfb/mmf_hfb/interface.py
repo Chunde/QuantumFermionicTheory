@@ -2,7 +2,21 @@ from abc import ABC, abstractmethod
 
 
 class IFunctional(ABC):
-    """Interface for functional"""
+    """
+    Interface for functional
+    Note: Interface is unnecessary for Python
+    because python function call is made by looking up
+    a table with based on base classes order
+    """
+    @abstractmethod
+    def get_alpha(self, p, d=0):
+        """
+        Parameters
+        ----------------
+        p: polarization in range of (0, 1)
+        d: order of derivative(-1, 0, 1)
+        """
+        pass
 
     @abstractmethod
     def get_alphas(self, ns, d=0):
@@ -11,6 +25,7 @@ class IFunctional(ABC):
         ----------------
         ns: densities (na, nb)
         d: order of derivative
+        Note: call the get_alpha
         """
         pass
 

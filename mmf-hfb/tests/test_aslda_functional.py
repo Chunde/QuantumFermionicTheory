@@ -2,6 +2,7 @@ import numpy as np
 from mmf_hfb.Functionals import FunctionalASLDA
 import itertools  
 
+
 def test_derivative():
     a = FunctionalASLDA()
     dx = 1e-6
@@ -54,6 +55,8 @@ def test_derivative():
         beta = a.get_beta(ns=ns)
         assert np.allclose(beta * 0.3 * (3*np.pi**2)**(2.0/3)*sum(ns)**(5.0/3), D)
 
+        # test the public interfaces
+        # ......add more tests here......
         for l in ls:
             # test alpha(l * n_a, l*n_b)=alpha(n_a, n_b)
             assert np.allclose(a.get_alphas(ns=(ns[0]*l, ns[1]*l)), a.get_alphas(ns=ns), rtol=1e-16)
@@ -63,3 +66,4 @@ def test_derivative():
 
 if __name__ == '__main__':
     test_derivative()
+    print("pass...")

@@ -42,16 +42,17 @@ class FunctionalBdG(IFunctional):
         return (alpha_a, alpha_b)
 
     def _alpha_a(self, ns):
-        return self._alpha(self._get_p(ns))
+        return self.get_alpha(self._get_p(ns))
      
     def _alpha_b(self, ns):
-        return self._alpha(-self._get_p(ns))
+        return self.get_alpha(-self._get_p(ns))
 
     def _alpha_p(self, p):
-        return 0.5*(self._alpha(p) + self._alpha(-p))
+        """(alpa_a + alpha_b)/ 2"""
+        return 0.5*(self.get_alpha(p) + self.get_alpha(-p))
 
     def _alpha_m(self, p):
-        return 0.5*(self._alpha(p) - self._alpha(-p))
+        return 0.5*(self.get_alpha(p) - self.get_alpha(-p))
 
     def _get_alphas_p(self, p):
         """"[overridden in Children]"""
@@ -107,7 +108,7 @@ class FunctionalBdG(IFunctional):
         dD_n_b = C1_ + C2_*dp_n_b*2**(-2.0/3)
         return (dD_n_a, dD_n_b)
 
-    def _get_Lambda(self, k0, k_c, alpha, dim=1):
+    def _get_Lambda(self, k0, k_c, alpha=1, dim=1):
         """
         return the renormalization condition parameter Lambda
         # [check] be careful the alpha may be different for a and b
@@ -130,15 +131,34 @@ class FunctionalBdG(IFunctional):
             Should make sure we have consistent convention
         """
         alpha_p = sum(self.get_alphas(ns))/2.0
+        Lambda = self.get_Lambda(
+            mus_eff=mus_eff, alpha_p=alpha_p, E_c=E_c, k_c=k_c, dim=dim)
+        C = self.get_C(ns=ns)  # (97)
+        g = alpha_p/(C - Lambda)  # (84)
+        return g
+    
+    def get_Lambda(self, mus_eff, alpha_p, E_c, k_c=None, dim=3):
         mu_p = abs(sum(mus_eff))/2  # [check] mus_eff may be negative???
         k0 = (2*self.m/self.hbar**2*mu_p/alpha_p)**0.5
         if k_c is None:
             k_c = (2*self.m/self.hbar**2*(E_c + mu_p)/alpha_p)**0.5
-        C = self.get_C(ns=ns)  # (97)
-        # [check] be careful the alpha may be different for a and b
-        Lambda = self._get_Lambda(k0=k0, k_c=k_c, dim=dim, alpha=alpha_p)
-        g = alpha_p/(C - Lambda)  # (84)
-        return g
+        return self._get_Lambda(k0=k0, k_c=k_c, dim=dim, alpha=alpha_p)
+
+    def get_alpha(self, p, d=0):
+        """IFunctional interface implementation
+        parameters:
+        ------------------
+        if d==1, return partial alpha_p over partial p
+        if d==1, return partial alpha_m over partial p
+        """
+        if d==0:
+            return self._alpha(p)
+        elif d==1:
+            return self._dalpha_p_dp(p=p)
+        elif d==-1:
+            return self._dalpha_m_dp(p=p)
+        else:
+            raise ValueError(f"d={d} is not supported value")
 
     def get_alphas(self, ns, d=0):
         """IFunctional interface implementation
@@ -148,14 +168,13 @@ class FunctionalBdG(IFunctional):
         of alpha_p and alpha_m over n_a, and n_b,
         NOT alpha_a and alpha_b over n_a, and n_b
         """
+        p = self.get_p(ns)
         if d==0:
-            alpha_a, alpha_b = self._get_alphas(ns=ns)
-            return (alpha_a, alpha_b)
+            return (self.get_alpha(p), self.get_alpha(-p))
         elif d==1:
-            p = self._get_p(ns=ns)
             dp_dn_a, dp_dn_b = self._dp_dn(ns=ns)
-            dalpha_dp = self._dalpha_p_dp(p=p)
-            dalpha_dm = self._dalpha_m_dp(p=p)
+            dalpha_dp = self.get_alpha(p=p, d=1)
+            dalpha_dm = self.get_alpha(p=p, d=-1)
             dalpha_p_dn_a, dalpha_p_dn_b = dalpha_dp*dp_dn_a, dalpha_dp*dp_dn_b
             dalpha_m_dn_a, dalpha_m_dn_b = dalpha_dm*dp_dn_a, dalpha_dm*dp_dn_b
             return (dalpha_p_dn_a, dalpha_p_dn_b, dalpha_m_dn_a, dalpha_m_dn_b)
@@ -165,7 +184,7 @@ class FunctionalBdG(IFunctional):
     def get_p(self, ns, d=0):
         """IFunctional interface implementation"""
         if d==0:
-            return self._dp_dn(ns=ns)
+            return self._get_p(ns=ns)
         elif d==1:
             return self._dp_dn(ns=ns)
         else:
@@ -222,6 +241,11 @@ class FunctionalSLDA(FunctionalBdG):
 
     def _Beta_p(self, p):
         "[Numerical Test Status:Pass]"
+        # assert self._alpha(p) == self.get_alpha(p)
+        # assert self._alpha(-p) == self.get_alpha(-p)
+        # tmp = ((self._G(p) - self.get_alpha(p=p)*((1+p)/2.0)**(5.0/3)
+        #         - self.get_alpha(p=-p)*((1-p)/2.0)**(5.0/3))*2**(2/3.0))
+
         return ((self._G(p) - self._alpha(p)*((1+p)/2.0)**(5.0/3)
                 - self._alpha(-p)*((1-p)/2.0)**(5.0/3))*2**(2/3.0))
 
@@ -246,8 +270,10 @@ class FunctionalSLDA(FunctionalBdG):
         n = sum(ns)
         p = self._get_p(ns)
         dp_n_a, dp_n_b = self._dp_dn(ns)
-        dC_dn_a = self._alpha_p(p)*n**(-2/3)/3 + n**(1/3)*self._dalpha_p_dp(p)*dp_n_a
-        dC_dn_b = self._alpha_p(p)*n**(-2/3)/3 + n**(1/3)*self._dalpha_p_dp(p)*dp_n_b
+        C1_ = self._alpha_p(p=p)*n**(-2/3)/3.0
+        C2_ = n**(1/3)*self.get_alpha(p=p, d=1)
+        dC_dn_a = C1_ + C2_*dp_n_a
+        dC_dn_b = C1_ + C2_*dp_n_b
         return (dC_dn_a/self._gamma(), dC_dn_b/self._gamma())
 
     def _get_alphas_p(self, p):

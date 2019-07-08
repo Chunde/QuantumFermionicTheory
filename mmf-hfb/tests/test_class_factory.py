@@ -65,14 +65,16 @@ def test_class_factory(functional, kernel, mu, dmu=1, dim=3):
         Nxyz=(N, ), Lxyz=(L,), mu_eff=mu, dmu_eff=dmu,
         delta=delta, T=0, dim=dim)
 
-    def get_ns_e_p(mu, dmu, update_C=False):
+    def get_ns_e_p(mu, dmu, update_C=False, **args):
         ns, e, p = lda.get_ns_e_p(
             mus=(mu, dmu), delta=delta, N_twist=N_twist, Laplacian_only=True,
-            update_C=update_C, max_iter=32, solver=Solvers.NONE, verbosity=False)
+            update_C=update_C, max_iter=32, solver=Solvers.BROYDEN1,
+            verbosity=True, **args)
         return ns, e, p
-
+    #print(f"g={lda.get_g(mus=(mu, dmu), delta=delta)}")
+    #print(f"C={lda._get_C(mus=(mu, dmu), delta=delta)}")
     lda.fix_C(mu=mu, dmu=dmu, delta=delta)
-    ns, _, _ = get_ns_e_p(mu=mu+dx, dmu=dmu)
+    ns, _, _ = get_ns_e_p(mu=mu, dmu=dmu, update_C=False)
     print("-------------------------------------")
     ns1, e1, p1 = get_ns_e_p(mu=mu+dx, dmu=dmu)
     print("-------------------------------------")
@@ -88,4 +90,6 @@ def test_class_factory(functional, kernel, mu, dmu=1, dim=3):
 
 if __name__ == "__main__":
     #test_BDG(mu=5)
-    test_class_factory(functional=FunctionalType.BDG, kernel=KernelType.HOM, mu=10, dim=3)
+    test_class_factory(
+        functional=FunctionalType.ASLDA,
+        kernel=KernelType.HOM, mu=10, dim=3)
