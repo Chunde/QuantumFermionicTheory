@@ -101,7 +101,9 @@ class Homogeneous(object):
     m = 1
     hbar = 1
     
-    def __init__(self, Nxyz=None, Lxyz=None, dx=None, dim=None, k_c=np.inf, E_c=None, **kw):
+    def __init__(
+            self, Nxyz=None, Lxyz=None, dx=None, dim=None,
+            k_c=np.inf, E_c=None, **kw):
         if Nxyz is None and Lxyz is None and dx is None:
             self._dim = dim
         elif dx is not None:
@@ -179,7 +181,8 @@ class Homogeneous(object):
         return namedtuple('Densities', ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu'])(
             n_a, n_b, tau_a, tau_b, nu)
 
-    def get_densities(self, mus_eff, delta, N_twist=1, **args):
+    def get_densities(
+            self, mus_eff, delta, N_twist=1, taus_flag=True, nu_flag=True, **args):
         """
         Return the densities (ns, taus, nu).
         --------------
@@ -238,20 +241,26 @@ class Homogeneous(object):
         n_p = quad(np_integrand)
         n_a = (n_p + n_m)/2.0
         n_b = (n_p - n_m)/2.0
-        tau_m = quad(tau_m_integrand)
-        tau_p = quad(tau_p_integrand)
-        tau_a = (tau_p + tau_m)/2.0
-        tau_b = (tau_p - tau_m)/2.0
-        if self.k_c is None:  # if not cutoff
-            if self.Nxyz is None and self.dim != 1:
-                # This is divergent:
-                nu = np.inf
+        if taus_flag:
+            tau_m = quad(tau_m_integrand)
+            tau_p = quad(tau_p_integrand)
+            tau_a = (tau_p + tau_m)/2.0
+            tau_b = (tau_p - tau_m)/2.0
+        else:
+            tau_a = tau_b = None
+        if nu_flag:
+            if self.k_c is None:  # if not cutoff
+                if self.Nxyz is None and self.dim != 1:
+                    # This is divergent:
+                    nu = np.inf
+                else:
+                    nu_delta = quad(nu_delta_integrand)
+                    nu = nu_delta * delta
             else:
                 nu_delta = quad(nu_delta_integrand)
-                nu = nu_delta * delta
+                nu = nu_delta*delta
         else:
-            nu_delta = quad(nu_delta_integrand)
-            nu = nu_delta*delta
+            nu = None
 
         return namedtuple('Densities', ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu'])(
             n_a, n_b, tau_a, tau_b, nu)

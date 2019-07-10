@@ -2,6 +2,7 @@ from mmf_hfb.Functionals import FunctionalBdG, FunctionalSLDA, FunctionalASLDA
 from mmf_hfb.KernelHomogeneouse import KernelHomogeneous
 from mmf_hfb.KernelBCS import KernelBCS
 from mmf_hfb import tf_completion as tf
+from scipy.optimize import brentq
 from enum import Enum
 import scipy.optimize
 import numpy as np
@@ -102,13 +103,16 @@ class Adapter(object):
             mus=mus, delta=delta, dq=dq, ns=ns, taus=taus, nu=nu)
         return self._get_g(mus_eff=mus_eff, delta=delta, dq=dq)
 
-    def _get_C(self, mus, delta, dq=0, ns=None, taus=None, nu=None, verbosity=False):
+    def _get_C(
+            self, delta, mus=None, mus_eff=None, dq=0,
+            ns=None, taus=None, nu=None, verbosity=False):
         """
         return the C value when computing g
         Note: NOT the get_C(ns)
         """
-        mus_eff = self.get_mus_eff(
-            mus=mus, delta=delta, dq=dq, ns=ns, taus=taus, nu=nu, verbosity=verbosity)
+        if mus_eff is None:
+            mus_eff = self.get_mus_eff(
+                mus=mus, delta=delta, dq=dq, ns=ns, taus=taus, nu=nu, verbosity=verbosity)
         g = self._get_g(mus_eff=mus_eff, delta=delta, dq=dq)
         alpha_p = sum(self.get_alphas(ns))/2.0
         Lambda = self.get_Lambda(
@@ -118,7 +122,7 @@ class Adapter(object):
         return C
 
     def solve(
-        self, mus, delta, fix_delta=False, rtol=1e-12,
+            self, mus, delta, fix_delta=False, rtol=1e-12,
             solver=None, verbosity=True, **args):
         """
         use solver or simple interation to solve the gap equation
@@ -169,6 +173,21 @@ class Adapter(object):
         g_eff = self._g_eff(mus_eff=(mu_a_eff, mu_b_eff), **args)
         return (ns, taus, nu, g_eff, delta, mu_a_eff, mu_b_eff)
 
+    def solve_delta(self, mus_eff, dq=0, **args):
+        mu_a_eff, mu_b_eff = mus_eff
+        """solve the gap equation for given effective mus and C"""
+        def f(delta):
+            res = self.get_densities(
+                    mus_eff=(mu_a_eff, mu_b_eff), delta=delta,
+                    taus_flag=False, nu_flag=False, **args)
+            ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
+            return (self._get_C(
+                mus_eff=mus_eff, delta=delta, dq=dq, ns=ns,
+                taus=taus, nu=nu, **args) - self.C)
+           
+        delta = brentq(f, a=0.8*self.delta, b=2*self.delta)
+        return delta
+
     def get_ns_e_p(self, mus, delta, update_C=False, solver=None, **args):
         """
             compute then energy density for BdG, equation(77) in page 39
@@ -200,6 +219,10 @@ class Adapter(object):
         -----------
         Note: dq may be in args
         """
+        if delta is None:
+            # solve delta so that yields same C
+            delta = self.solve_delta(mus_eff=mus_eff, **args)
+
         mu_a_eff, mu_b_eff = mus_eff
         res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta, **args)
         ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu

@@ -10,13 +10,16 @@ from mmf_hfb import homogeneous
 def functional(request):
     return request.param
 
+
 @pytest.fixture(params=[KernelType.HOM])
 def kernel(request):
     return request.param
 
+
 @pytest.fixture(params=[np.pi, 10])
 def mu(request):
     return request.param
+
 
 @pytest.fixture(params=[0, 1.0])
 def dmu(request):
@@ -34,7 +37,6 @@ def create_LDA(mu, dmu, delta):
 
 
 def test_BDG(mu, dmu):
-    #dmu = 0
     delta = 1
     h = homogeneous.Homogeneous3D()
     v_0, ns, _, e = h.get_BCS_v_n_e(mus_eff=(mu + dmu, mu - dmu), delta=delta)
@@ -58,14 +60,43 @@ def test_BDG(mu, dmu):
     assert np.allclose(np.array([ns[0].n, ns[1].n]), ns_, rtol=1e-2)
 
 
-def test_effective_mus():
+def test_effective_mus(mu, dmu):
     delta = 1
-    lda = create_LDA(mu=10, dmu=0, delta=delta)
-    mus_eff = (10, 10)
+    lda = create_LDA(mu=mu, dmu=dmu, delta=delta)
+    mus_eff = (mu + dmu, mu-dmu)
     res = lda.get_ns_mus_e_p(mus_eff=mus_eff, delta=delta)
-    mus_eff_ = lda.get_mus_eff(mus=(sum(res[1])/2, (res[1][0]-res[1][1])/2.0), delta=delta)
+    mus_eff_ = lda.get_mus_eff(
+        mus=(sum(res[1])/2.0, (res[1][0]-res[1][1])/2.0), delta=delta)
     print(mus_eff, mus_eff_)
     assert np.allclose(np.array(mus_eff), np.array(mus_eff_))
+
+
+def test_effective_mus_thermodynamic(mu):
+    # the thermodynamic is not to high accuracy
+    # because the bare mu is not picked so numerical
+    # results are not guaranteed to be in the middle
+    delta = 1
+    dx = 1e-3
+    lda = create_LDA(mu=mu, dmu=0, delta=delta)
+    lda.C = lda._get_C(mus_eff=(mu, mu), delta=delta)
+    mus_eff = (mu, mu)
+    res = lda.get_ns_mus_e_p(mus_eff=mus_eff, delta=delta)
+    mus_eff = (mu + dx, mu + dx)
+    res1 = lda.get_ns_mus_e_p(mus_eff=mus_eff, delta=None)
+    mus_eff = (mu - dx, mu - dx)
+    res2 = lda.get_ns_mus_e_p(mus_eff=mus_eff, delta=None)
+    e2, e1, e = res2[2], res1[2], res[2]
+    p2, p1, p = res2[3], res1[3], res[3]
+    n2, n1, n = sum(res2[0]), sum(res1[0]), sum(res[0])
+    mu2, mu1, mu = sum(res2[1])/2.0, sum(res1[1])/2.0, sum(res[1])/2.0
+    mu_ = (e2 - e1)/(n2 - n1)
+    np_ = (p2 - p1)/(mu2 - mu1)
+    print(res1)
+    print(res2)
+    print(mu_, mu)
+    print(n, np_)
+    assert np.allclose(mu_, mu, rtol=1e-2)
+    assert np.allclose(np_, n, rtol=1e-2)
 
 
 def test_class_factory(functional, kernel, mu, dmu=1, dim=3):
@@ -110,6 +141,7 @@ def test_class_factory(functional, kernel, mu, dmu=1, dim=3):
 
 
 if __name__ == "__main__":
-    test_effective_mus()
+    test_effective_mus_thermodynamic(mu=np.pi)
+    #test_effective_mus(mu=np.pi, dmu=0.3)
     # test_BDG(mu=5)
     # test_class_factory(functional=FunctionalType.ASLDA, kernel=KernelType.HOM, mu=10, dim=3)
