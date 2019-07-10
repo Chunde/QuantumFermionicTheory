@@ -210,11 +210,10 @@ class FFStateHelper(object):
         mu = mu0 # ~6
         delta = 1
         dmu = 0.2
-
-
         dl = 0.0001
         du = delta
         ff = FFStateFinder(delta=delta, dim=3, mu=mu, dmu=dmu)
+
         def q_upper_lim():
             return 1
             print("Finding q upper limit...")
@@ -243,6 +242,7 @@ class FFStateHelper(object):
         dl = 0.0001
         du = 2*dmu
         ff = FFStateFinder(delta=delta, dim=2, mu=mu, dmu=dmu)
+
         def q_upper_lim():
             #return delta
             print("Finding q upper limit...")
@@ -260,7 +260,7 @@ class FFStateHelper(object):
         ff.run(dl=dl, du=du, dn=100, ql=ql, qu=qu)
 
     def sort_file(files=None, abs_file=False):
-        #files = ["FFState_(3d_0.5_5.906055070328385_0.55)2019_05_22_21_33_30.json"]
+        # files = ["FFState_(3d_0.5_5.906055070328385_0.55)2019_05_22_21_33_30.json"]
         currentdir = join(os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe()))), "data")
         if files is None:
@@ -369,6 +369,8 @@ def ConstructDiagram(dim=3, delta=None):
             dmus = dmus + (dmus[1] - dmus[0])/2.0
             args = [(mu, dmu, delta, dim) for dmu in dmus]
             PoolHelper.run(diagram_worker,args)
+
+            
 if __name__ == "__main__":
     #check_FF_State()
     ## Sort file with discontinuity

@@ -79,7 +79,7 @@ class FFStateFinder():
             elif dim == 2:
                 k_c = 100
             else:
-                 k_c = 50
+                k_c = 50
         self.k_c = k_c
         self.ff = FFState(mu=mu, dmu=0, delta=delta, g=g, dim=dim,
                          k_c=k_c, fix_g=True, bStateSentinel=True)
@@ -88,9 +88,9 @@ class FFStateFinder():
     def _gc(self, delta, mu=None, dmu=None, dq=0, update_mus=True):
         """compute the difference of a g_c[ using delta, dq] and fixed g_c"""
         if update_mus:
-            mu, dmu = self.ff._get_effective_mus(mu=self.mu_eff, dmu=self.dmu_eff,
-                                                delta=delta, dq=dq,
-                                                update_g=False)
+            mu, dmu = self.ff._get_effective_mus(
+                mu=self.mu_eff, dmu=self.dmu_eff,
+                delta=delta, dq=dq, update_g=False)
         return self.ff.get_g(mu=mu, dmu=dmu,
                              delta=delta, dq=dq) - self.ff._g 
 
@@ -119,7 +119,8 @@ class FFStateFinder():
             mu_eff, dmu_eff = self.mu_eff, self.dmu_eff
         else:
             mu_eff, dmu_eff = mus_eff
-        return self.ff.get_pressure(mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta, q=q, dq=dq, use_kappa=False)
+        return self.ff.get_pressure(
+            mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta, q=q, dq=dq, use_kappa=False)
         
         n_a, n_b = self.ff.get_densities(mu=mu_eff, dmu=dmu_eff,
                                          delta=delta, dq=dq)
@@ -152,7 +153,8 @@ class FFStateFinder():
         return self.ff.get_current(mu=mu_eff, dmu=dmu_eff, delta=delta, q=q, dq=dq)
 
     def _get_fileName(self):
-        currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+        currentdir = os.path.dirname(
+            os.path.abspath(inspect.getfile(inspect.currentframe())))
         return join(currentdir, "data", self.fileName)
 
     def SaveToFile(self, data):
@@ -226,6 +228,7 @@ class FFStateFinder():
         for _ in range(2-len(rets)):
             rets.append(None)
         return rets
+
     def run(self, dl=0.001, du=0.1001, ql=0, qu=0.04, dn=40):
         """
         dl: lower delta limit
@@ -299,5 +302,5 @@ class FFStateFinder():
                     continue
             
             self.SaveToFile(rets)
-        rets = FFStateFinder.sort_data(rets)
+        rets = sort_data(rets)
         self.SaveToFile(rets)

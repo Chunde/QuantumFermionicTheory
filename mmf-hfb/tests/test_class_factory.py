@@ -23,6 +23,16 @@ def dmu(request):
     return request.param
 
 
+def create_LDA(mu, dmu, delta):
+    LDA = ClassFactory(
+        className="LDA",
+        functionalType=FunctionalType.ASLDA,
+        kernelType=KernelType.HOM)
+
+    lda = LDA(mu_eff=mu, dmu_eff=dmu, delta=delta, T=0, dim=3)
+    return lda
+
+
 def test_BDG(mu, dmu):
     #dmu = 0
     delta = 1
@@ -46,6 +56,16 @@ def test_BDG(mu, dmu):
     print(ns[0].n, ns_[0])
     print(ns[1].n, ns_[1])
     assert np.allclose(np.array([ns[0].n, ns[1].n]), ns_, rtol=1e-2)
+
+
+def test_effective_mus():
+    delta = 1
+    lda = create_LDA(mu=10, dmu=0, delta=delta)
+    mus_eff = (10, 10)
+    res = lda.get_ns_mus_e_p(mus_eff=mus_eff, delta=delta)
+    mus_eff_ = lda.get_mus_eff(mus=(sum(res[1])/2, (res[1][0]-res[1][1])/2.0), delta=delta)
+    print(mus_eff, mus_eff_)
+    assert np.allclose(np.array(mus_eff), np.array(mus_eff_))
 
 
 def test_class_factory(functional, kernel, mu, dmu=1, dim=3):
@@ -73,7 +93,8 @@ def test_class_factory(functional, kernel, mu, dmu=1, dim=3):
         return ns, e, p
     #print(f"g={lda.get_g(mus=(mu, dmu), delta=delta)}")
     #print(f"C={lda._get_C(mus=(mu, dmu), delta=delta)}")
-    lda.fix_C(mu=mu, dmu=dmu, delta=delta)
+    #lda.fix_C(mu=mu, dmu=dmu, delta=delta)
+    lda.C = lda._get_C(mus=(mu, dmu), delta=0.75)
     ns, _, _ = get_ns_e_p(mu=mu, dmu=dmu, update_C=False)
     print("-------------------------------------")
     ns1, e1, p1 = get_ns_e_p(mu=mu+dx, dmu=dmu)
@@ -89,7 +110,6 @@ def test_class_factory(functional, kernel, mu, dmu=1, dim=3):
 
 
 if __name__ == "__main__":
-    #test_BDG(mu=5)
-    test_class_factory(
-        functional=FunctionalType.ASLDA,
-        kernel=KernelType.HOM, mu=10, dim=3)
+    test_effective_mus()
+    # test_BDG(mu=5)
+    # test_class_factory(functional=FunctionalType.ASLDA, kernel=KernelType.HOM, mu=10, dim=3)

@@ -10,7 +10,7 @@ import inspect
 
 class FunctionalType(Enum):
     """
-    Functional type 
+    Functional type
     """
     BDG=0
     SLDA=1
@@ -66,7 +66,7 @@ class Adapter(object):
         args.update(m_a=self.m, m_b=self.m, T=self.T, dim=self.dim, k_c=self.k_c)
         self.C = tf.compute_C(mu_a=mu_a, mu_b=mu_b, delta=delta, q=q, dq=dq, **args).n
     
-    def get_mus_eff(self, mus, delta, dq, ns=None, taus=None, nu=None):
+    def get_mus_eff(self, mus, delta, dq=0, ns=None, taus=None, nu=None, verbosity=True):
         """
         return the effective mus
         """
@@ -80,8 +80,12 @@ class Adapter(object):
             res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta, dq=dq)
             ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
             V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
-            x_ = np.array([mu_a + V_a, mu_b + V_b])
-            print(x_)
+            mu_a_eff_, mu_b_eff_ = mu_a + V_a, mu_b + V_b
+            if not ((mu_a_eff_ > 0) and (mu_b_eff_ > 0)):  # assume positive
+                raise ValueError(f"effective mu must be positive:{mu_a_eff_, mu_b_eff_}")
+            x_ = np.array([mu_a_eff_, mu_b_eff_])
+            if verbosity:
+                print(x_, ns)
             return x_ - x
         return scipy.optimize.broyden1(_fun, x0)
 
@@ -98,13 +102,13 @@ class Adapter(object):
             mus=mus, delta=delta, dq=dq, ns=ns, taus=taus, nu=nu)
         return self._get_g(mus_eff=mus_eff, delta=delta, dq=dq)
 
-    def _get_C(self, mus, delta, dq=0, ns=None, taus=None, nu=None):
+    def _get_C(self, mus, delta, dq=0, ns=None, taus=None, nu=None, verbosity=False):
         """
         return the C value when computing g
         Note: NOT the get_C(ns)
         """
         mus_eff = self.get_mus_eff(
-            mus=mus, delta=delta, dq=dq, ns=ns, taus=taus, nu=nu)
+            mus=mus, delta=delta, dq=dq, ns=ns, taus=taus, nu=nu, verbosity=verbosity)
         g = self._get_g(mus_eff=mus_eff, delta=delta, dq=dq)
         alpha_p = sum(self.get_alphas(ns))/2.0
         Lambda = self.get_Lambda(
@@ -189,6 +193,28 @@ class Adapter(object):
         energy_density = energy_density - D
         pressure = ns[0]*mu_a + ns[1]*mu_b - energy_density
         return (ns, energy_density, pressure)
+
+    def get_ns_mus_e_p(self, mus_eff, delta, solver=None, **args):
+        """
+        return ns, bare mu, e and p
+        -----------
+        Note: dq may be in args
+        """
+        mu_a_eff, mu_b_eff = mus_eff
+        res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta, **args)
+        ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
+        V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
+        mu_a, mu_b = mu_a_eff - V_a, mu_b_eff - V_b
+        D = self.get_D(ns=ns)
+        g_eff = delta/nu
+        energy_density = taus[0]/2.0 + taus[1]/2.0 + g_eff*abs(nu)**2
+        if self.T !=0:
+            energy_density = (
+                energy_density
+                +self.T*self.get_entropy(mus_eff=(mu_a_eff, mu_b_eff), delta=delta).n)
+        energy_density = energy_density - D
+        pressure = ns[0]*mu_a + ns[1]*mu_b - energy_density
+        return (ns, (mu_a, mu_b), energy_density, pressure)
 
 
 def ClassFactory(className, functionalType=FunctionalType.BDG, kernelType=KernelType.HOM):

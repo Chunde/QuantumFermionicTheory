@@ -1,8 +1,10 @@
 from multiprocessing import Pool
 import os
 
+
 class PoolHelper(object):
     """a helper class for parallelization"""
+
     def run(fun, paras, poolsize=None, **args):
         """
         invoke thread pools for parallelization
