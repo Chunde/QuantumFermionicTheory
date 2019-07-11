@@ -1,3 +1,8 @@
+"""
+This file contains classes used for creating ASLDA related class
+factory. The Adater class glues functional and Kernel(BCS or Homognesouse)
+as a brand new class used for all kind of calculation. 
+"""
 from mmf_hfb.Functionals import FunctionalBdG, FunctionalSLDA, FunctionalASLDA
 from mmf_hfb.KernelHomogeneouse import KernelHomogeneous
 from mmf_hfb.KernelBCS import KernelBCS
@@ -67,6 +72,18 @@ class Adapter(object):
         args.update(m_a=self.m, m_b=self.m, T=self.T, dim=self.dim, k_c=self.k_c)
         self.C = tf.compute_C(mu_a=mu_a, mu_b=mu_b, delta=delta, q=q, dq=dq, **args).n
     
+    def get_mus_bare(self, mus_eff, delta, **args):
+        """
+        return the bare mus for given effective mu
+        Note: args may contains dq
+        """
+        mu_a_eff, mu_b_eff = mus_eff
+        res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta, **args)
+        ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
+        V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
+        mu_a, mu_b = mu_a_eff - V_a, mu_b_eff - V_b
+        return (mu_a, mu_b)
+
     def get_mus_eff(self, mus, delta, dq=0, ns=None, taus=None, nu=None, verbosity=True):
         """
         return the effective mus
@@ -240,15 +257,28 @@ class Adapter(object):
         return (ns, (mu_a, mu_b), energy_density, pressure)
 
 
-def ClassFactory(className, functionalType=FunctionalType.BDG, kernelType=KernelType.HOM):
+def ClassFactory(
+    className, AgentClass=(),
+    functionalType=FunctionalType.BDG,
+    kernelType=KernelType.HOM):
     """
     A function that create a new class that uses an adapter class
     to connect a functional class with a kernel class, the new class
     can implement ASLDA in either homogeneous case or BCS case
+    Paras:
+    ClassName: a name for new class
+    AgentClass: one or multiple class(es) to inherit from
+        (such as a FF state finder agent class used for searching
+        FF states)
+    functionType: a given functional class(Enum type)
+    kernelType: a given kernel class(Enum type)
+    -----------
     """
     Functionals = [FunctionalBdG, FunctionalSLDA, FunctionalASLDA]
     Kernels = [KernelBCS, KernelHomogeneous]
-    base_classes = (Adapter, Kernels[kernelType.value], Functionals[functionalType.value])
+    base_classes = AgentClass + (
+        Adapter, Kernels[kernelType.value],
+        Functionals[functionalType.value])
 
     def __init__(self, **args):
         for base_class in base_classes:

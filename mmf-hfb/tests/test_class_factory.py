@@ -99,6 +99,17 @@ def test_effective_mus_thermodynamic(mu):
     assert np.allclose(np_, n, rtol=1e-2)
 
 
+def test_bare_mus(mu, dmu):
+    """test the method get_mus_bare"""
+    delta = 1
+    lda = create_LDA(mu=mu, dmu=0, delta=delta)
+    mus_eff = lda.get_mus_eff(mus=(mu, dmu), delta=delta)
+    mu_a, mu_b = lda.get_mus_bare(mus_eff=mus_eff, delta=delta)
+    print(mu_a, mu + dmu)
+    print(mu_b, mu - dmu)
+    assert np.allclose(mu_a, mu + dmu)
+    assert np.allclose(mu_b, mu - dmu)
+
 def test_class_factory(functional, kernel, mu, dmu=1, dim=3):
     dx = 1e-3
     L = 0.46
@@ -141,7 +152,8 @@ def test_class_factory(functional, kernel, mu, dmu=1, dim=3):
 
 
 if __name__ == "__main__":
-    test_effective_mus_thermodynamic(mu=np.pi)
+    test_bare_mus(mu=np.pi, dmu=0.5)
+    #test_effective_mus_thermodynamic(mu=np.pi)
     #test_effective_mus(mu=np.pi, dmu=0.3)
     # test_BDG(mu=5)
     # test_class_factory(functional=FunctionalType.ASLDA, kernel=KernelType.HOM, mu=10, dim=3)
