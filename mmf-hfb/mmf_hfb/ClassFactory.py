@@ -267,7 +267,7 @@ class Adapter(object):
 
 def ClassFactory(
         className, AgentClass=(),
-        functionalType=FunctionalType.BDG,
+        functionalType=FunctionalType.ASLDA,
         kernelType=KernelType.HOM, args=None):
     """
     A function that create a new class that uses an adapter class

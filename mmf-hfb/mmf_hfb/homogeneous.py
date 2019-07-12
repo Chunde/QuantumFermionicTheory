@@ -181,6 +181,23 @@ class Homogeneous(object):
         return namedtuple('Densities', ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu'])(
             n_a, n_b, tau_a, tau_b, nu)
 
+    def get_current(self, mus_eff, delta=None, q=0, dq=0, k_c=None):
+        """
+        return the currents of two the components
+        return value: (j_a, j_b, j_p, j_m)
+        """
+        if dq == 0:
+            return (ufloat(0, 0),)*4
+
+        mu_a, mu_b = mus_eff
+        args=dict(
+            mu_a=mu_a, mu_b=mu_b, m_a=self.m, m_b=self.m, delta=delta,
+            dim=self.dim, hbar=self.hbar, T=self.T, k_c=self.k_c)
+        if k_c is not None:
+            args.update(k_c=k_c)
+        args.update(q=q, dq=dq)
+        return tf.compute_current(**args)
+
     def get_densities(
             self, mus_eff, delta, N_twist=1, taus_flag=True, nu_flag=True, **args):
         """

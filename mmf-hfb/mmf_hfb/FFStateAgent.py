@@ -1,3 +1,4 @@
+from mmf_hfb.ClassFactory import ClassFactory, FunctionalType, KernelType, Solvers
 from mmf_hfb.DataHelper import ff_state_sort_data
 from mmf_hfb.ParallelHelper import PoolHelper
 from mmf_hfb.ClassFactory import ClassFactory
@@ -6,6 +7,7 @@ from os.path import join
 import numpy as np
 import inspect
 import time
+import glob
 import json
 import os
 
@@ -35,14 +37,21 @@ class FFStateAgent(object):
             os.path.abspath(inspect.getfile(inspect.currentframe())))
         return join(currentdir, "data", self.fileName)
 
+    def get_ns_e_p(self, mus_eff=None, delta=None, q=0, dq=0):
+        """return the pressure"""
+        if mus_eff is None:
+            mus_eff = (self.mu_eff + self.dmu_eff, self.mu_eff - self.dmu_eff)
+        ns, mus, e, p = self.get_ns_mus_e_p(mus_eff=mus_eff, delta=delta, q=q, dq=dq)
+        return (ns, mus, e, p)
+
     def SaveToFile(self, data):
         """Save states to persistent storage"""
         file = self._get_fileName()
         output = {}
         output["dim"]= self.dim
         output["delta"] = self.delta
-        output["mu"] = self.mu_eff
-        output["dmu"] = self.dmu_eff
+        output["mu_eff"] = self.mu_eff
+        output["dmu_eff"] = self.dmu_eff
         output["C"] = self.C
         output["k_c"] = self.k_c
         output["data"] = data
@@ -120,7 +129,7 @@ class FFStateAgent(object):
     def Search(
             self, delta_N, mu_eff=None, dmu_eff=None, delta=None,
             delta_lower=0.001, delta_upper=1, q_lower=0, q_upper=0.2,
-            q_N=40, auto_incremental=True):
+            q_N=40, auto_incremental=False):
         """
         Search possible states in ranges of delta and q
         Paras:
@@ -172,7 +181,6 @@ class FFStateAgent(object):
             print(ret)
         while(True):
             for delta_ in deltas:
-                print(delta_)
                 retry = True
                 if dx != dx0 and dx !=0:
                     try:
@@ -237,14 +245,102 @@ class FFStateAgent(object):
         self.SaveToFile(rets)
 
 
+def compute_pressure_current_worker(jsonData_file):
+        """Use the FF State file to compute their current and pressure"""
+        jsonData, fileName = jsonData_file
+        filetokens = fileName.split("_")
+        output_fileName = "FFState_J_P_" + "_".join(filetokens[1:]) + ".json"
+        dim = jsonData['dim']
+        delta = jsonData['delta']
+        mu_eff = jsonData['mu_eff']
+        dmu_eff = jsonData['dmu_eff']
+        data = jsonData['data']
+        k_c = jsonData['k_c']
+        C = jsonData['C']
+        mus_eff = (mu_eff + dmu_eff, mu_eff - dmu_eff)
+        args = dict(
+            mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
+            T=0, dim=dim, k_c=k_c, verbosity=False,
+            prefix=f"{output_fileName}", timeStamp=False)
+        lda = ClassFactory(
+                "LDA", (FFStateAgent,),
+                functionalType=FunctionalType.ASLDA,
+                kernelType=KernelType.HOM, args=args)
+        C_ = lda._get_C(mus_eff=mus_eff, delta=delta)
+        assert np.allclose(C, C_, rtol=1e-16)  # verify the C value
+       
+        if os.path.exists(lda._get_fileName()):
+            return None
+        print(f"Processing {lda._get_fileName()}")
+        output1 = []
+        output2 = []
+
+        def append_item(delta, dq, output):
+            if dq is not None:
+                dic = {}
+                ns, mus, e, p = lda.get_ns_e_p(delta=d, dq=dq)
+                ja, jb, jp, _ = lda.get_current(mus_eff=mus_eff, delta=d, dq=dq)
+                dic['na']=ns[0]
+                dic['nb']=ns[1]
+                dic['d']=d
+                dic['q']=dq
+                dic['e']=e
+                dic['p']=p
+                dic['j']=jp.n
+                dic['ja']=ja.n
+                dic['jb']=jb.n
+                dic['mu_a']=mus[0]
+                dic['mu_b']=mus[1]
+                output.append(dic)
+                print(dic)
+        try:
+            for item in data:
+                dq1, dq2, d = item
+                append_item(delta=d, dq=dq1, output=output1)
+                append_item(delta=d, dq=dq2, output=output2)
+            output =[output1, output2]
+            lda.SaveToFile(output)
+        except ValueError as e:
+            print(f"Parsing file: {fileName}. Error:{e}")
+
+
+def compute_pressure_current(root=None):
+    """compute current and pressure"""
+    currentdir = root
+    if currentdir is None:
+        currentdir = os.path.dirname(
+            os.path.abspath(inspect.getfile(inspect.currentframe())))
+    pattern = join(currentdir, "data","FFState_[()_0-9]*.json")
+    files = files=glob.glob(pattern)
+
+    jsonObjects = []
+    for file in files:
+        if os.path.exists(file):
+            with open(file, 'r') as rf:
+                jsonObjects.append(
+                    (json.load(rf), os.path.splitext(os.path.basename(file))[0]))
+ 
+    if True:  # Debugging
+        for item in jsonObjects:
+            compute_pressure_current_worker(item)
+    else:
+        PoolHelper.run(compute_pressure_current_worker, jsonObjects)
+    # with Pool(logic_cpu_count) as Pools:
+    #     Pools.map(compute_pressure_current_worker, jsonObjects)
+
+
 if __name__ == "__main__":
-    mu_eff = 10
-    dmu_eff = 0.1
-    delta = 0.2
-    args = dict(
-        mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
-        T=0, dim=3, k_c=50, verbosity=False)
-    lda = ClassFactory("LDA", (FFStateAgent,), args=args)
-    lda.Search(
-        delta_N=20, delta_lower=0.001, delta_upper=delta,
-        q_lower=0, q_upper=dmu_eff, q_N=10)
+    compute_pressure_current()
+    # mu_eff = 10
+    # dmu_eff = 0.5
+    # delta = 1
+    # args = dict(
+    #     mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
+    #     T=0, dim=3, k_c=50, verbosity=False)
+    # lda = ClassFactory(
+    #     "LDA", (FFStateAgent,),
+    #     functionalType=FunctionalType.ASLDA,
+    #     kernelType=KernelType.HOM, args=args)
+    # lda.Search(
+    #     delta_N=100, delta_lower=0.001, delta_upper=delta,
+    #     q_lower=0, q_upper=dmu_eff, q_N=10)
