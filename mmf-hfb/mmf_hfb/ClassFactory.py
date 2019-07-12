@@ -49,7 +49,9 @@ class Adapter(object):
     this class can override method in other classes.
     """
     def get_C(self, ns, d=0):
-        """override the C functional to support fixed C value"""
+        """
+        override the C functional to support fixed C value
+        """
         if d==0:
             if self.C is None:
                 return FunctionalBdG.get_C(self, ns=ns)
@@ -66,8 +68,10 @@ class Adapter(object):
         else:
             return 0
 
-    def fix_C(self, mu, dmu, delta, q=0, dq=0, **args):
-        """fix the C value using BDG value"""
+    def fix_C_BdG(self, mu, dmu, delta, q=0, dq=0, **args):
+        """
+        fix the C value using BDG integrand
+        """
         mu_a, mu_b = mu + dmu, mu -dmu
         args.update(m_a=self.m, m_b=self.m, T=self.T, dim=self.dim, k_c=self.k_c)
         self.C = tf.compute_C(mu_a=mu_a, mu_b=mu_b, delta=delta, q=q, dq=dq, **args).n
@@ -100,7 +104,7 @@ class Adapter(object):
             V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
             mu_a_eff_, mu_b_eff_ = mu_a + V_a, mu_b + V_b
             if not ((mu_a_eff_ > 0) and (mu_b_eff_ > 0)):  # assume positive
-                raise ValueError(f"effective mu must be positive:{mu_a_eff_, mu_b_eff_}")
+                raise ValueError(f"Effective mu must be positive:{mu_a_eff_, mu_b_eff_}")
             x_ = np.array([mu_a_eff_, mu_b_eff_])
             if verbosity:
                 print(x_, ns)
@@ -108,14 +112,18 @@ class Adapter(object):
         return scipy.optimize.broyden1(_fun, x0)
 
     def _get_g(self, mus_eff, delta, dq):
-        """compute g for give effective mus"""
+        """
+        compute g for give effective mus
+        """
         res = self.get_densities(mus_eff=mus_eff, delta=delta, dq=dq)
         _, _, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
         g_eff = delta/nu
         return g_eff
 
     def get_g(self, mus, delta, dq=0, ns=None, taus=None, nu=None):
-        """compute g with given mus and delta"""
+        """
+        compute g with given mus and delta
+        """
         mus_eff = self.get_mus_eff(
             mus=mus, delta=delta, dq=dq, ns=ns, taus=taus, nu=nu)
         return self._get_g(mus_eff=mus_eff, delta=delta, dq=dq)
@@ -142,7 +150,7 @@ class Adapter(object):
             self, mus, delta, fix_delta=False, rtol=1e-12,
             solver=None, verbosity=True, **args):
         """
-        use solver or simple interation to solve the gap equation
+        use a solver or simple interation to solve the gap equation
         """
         mu, dmu = mus
         mu_a, mu_b = mu + dmu, mu - dmu
@@ -180,7 +188,7 @@ class Adapter(object):
             
             x0 = np.array([mu_a_eff, mu_b_eff, delta*np.ones_like(sum(self.xyz))])
             mu_a_eff, mu_b_eff, delta = solver(fun, x0)
-        # if the delta is too small, that may mean not solution is found
+        # too small value of delta may mean no solution
         if delta < 1e-5:
             raise ValueError("Invalid delta")
 
@@ -207,11 +215,11 @@ class Adapter(object):
 
     def get_ns_e_p(self, mus, delta, update_C=False, solver=None, **args):
         """
-            compute then energy density for BdG, equation(77) in page 39
-            Note:
-                the return value also include the pressure and densities
-            -------------
-            mus = (mu, dmu)
+        compute then energy density for BdG, equation(77) in page 39
+        Note:
+            the return value also include the pressure and densities
+        -------------
+        mus = (mu, dmu)
         """
         mu, dmu = mus
         mu_a, mu_b = mu + dmu, mu - dmu
@@ -258,21 +266,26 @@ class Adapter(object):
 
 
 def ClassFactory(
-    className, AgentClass=(),
-    functionalType=FunctionalType.BDG,
-    kernelType=KernelType.HOM):
+        className, AgentClass=(),
+        functionalType=FunctionalType.BDG,
+        kernelType=KernelType.HOM, args=None):
     """
     A function that create a new class that uses an adapter class
     to connect a functional class with a kernel class, the new class
     can implement ASLDA in either homogeneous case or BCS case
     Paras:
+    -----------
     ClassName: a name for new class
     AgentClass: one or multiple class(es) to inherit from
         (such as a FF state finder agent class used for searching
         FF states)
     functionType: a given functional class(Enum type)
     kernelType: a given kernel class(Enum type)
+    args: the arguments used to instantiate a class, if None, the class
+        type will be returned.
     -----------
+    Note: if args is used to create an instance, it should include all
+        parameters fed to all base classes.
     """
     Functionals = [FunctionalBdG, FunctionalSLDA, FunctionalASLDA]
     Kernels = [KernelBCS, KernelHomogeneous]
@@ -288,4 +301,6 @@ def ClassFactory(
             else:
                 base_class.__init__(self)
     new_class = type(className, (base_classes), {"__init__": __init__})
-    return new_class
+    if args is None:
+        return new_class
+    return new_class(**args)

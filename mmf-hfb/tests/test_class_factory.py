@@ -1,9 +1,9 @@
 from mmf_hfb.ClassFactory import ClassFactory, FunctionalType, KernelType, Solvers
+from mmf_hfb import homogeneous
 import numpy as np
 import pytest
 import warnings
 warnings.filterwarnings("ignore")
-from mmf_hfb import homogeneous
 
 
 @pytest.fixture(params=[FunctionalType.ASLDA, FunctionalType.BDG, FunctionalType.SLDA])
@@ -39,7 +39,7 @@ def create_LDA(mu, dmu, delta):
 def test_BDG(mu, dmu):
     delta = 1
     h = homogeneous.Homogeneous3D()
-    v_0, ns, _, e = h.get_BCS_v_n_e(mus_eff=(mu + dmu, mu - dmu), delta=delta)
+    _, ns, _, e = h.get_BCS_v_n_e(mus_eff=(mu + dmu, mu - dmu), delta=delta)
 
     LDA = ClassFactory(
         className="LDA",
@@ -85,8 +85,8 @@ def test_effective_mus_thermodynamic(mu):
     res1 = lda.get_ns_mus_e_p(mus_eff=mus_eff, delta=None)
     mus_eff = (mu - dx, mu - dx)
     res2 = lda.get_ns_mus_e_p(mus_eff=mus_eff, delta=None)
-    e2, e1, e = res2[2], res1[2], res[2]
-    p2, p1, p = res2[3], res1[3], res[3]
+    e2, e1, _ = res2[2], res1[2], res[2]
+    p2, p1, _ = res2[3], res1[3], res[3]
     n2, n1, n = sum(res2[0]), sum(res1[0]), sum(res[0])
     mu2, mu1, mu = sum(res2[1])/2.0, sum(res1[1])/2.0, sum(res[1])/2.0
     mu_ = (e2 - e1)/(n2 - n1)
@@ -109,6 +109,7 @@ def test_bare_mus(mu, dmu):
     print(mu_b, mu - dmu)
     assert np.allclose(mu_a, mu + dmu)
     assert np.allclose(mu_b, mu - dmu)
+
 
 def test_class_factory(functional, kernel, mu, dmu=1, dim=3):
     dx = 1e-3
@@ -133,9 +134,9 @@ def test_class_factory(functional, kernel, mu, dmu=1, dim=3):
             update_C=update_C, max_iter=32, solver=Solvers.BROYDEN1,
             verbosity=True, **args)
         return ns, e, p
-    #print(f"g={lda.get_g(mus=(mu, dmu), delta=delta)}")
-    #print(f"C={lda._get_C(mus=(mu, dmu), delta=delta)}")
-    #lda.fix_C(mu=mu, dmu=dmu, delta=delta)
+    # print(f"g={lda.get_g(mus=(mu, dmu), delta=delta)}")
+    # print(f"C={lda._get_C(mus=(mu, dmu), delta=delta)}")
+    # lda.fix_C(mu=mu, dmu=dmu, delta=delta)
     lda.C = lda._get_C(mus=(mu, dmu), delta=0.75)
     ns, _, _ = get_ns_e_p(mu=mu, dmu=dmu, update_C=False)
     print("-------------------------------------")
@@ -153,7 +154,9 @@ def test_class_factory(functional, kernel, mu, dmu=1, dim=3):
 
 if __name__ == "__main__":
     test_bare_mus(mu=np.pi, dmu=0.5)
-    #test_effective_mus_thermodynamic(mu=np.pi)
-    #test_effective_mus(mu=np.pi, dmu=0.3)
+    # test_effective_mus_thermodynamic(mu=np.pi)
+    # test_effective_mus(mu=np.pi, dmu=0.3)
     # test_BDG(mu=5)
-    # test_class_factory(functional=FunctionalType.ASLDA, kernel=KernelType.HOM, mu=10, dim=3)
+    # test_class_factory(
+    #   functional=FunctionalType.ASLDA,
+    #   kernel=KernelType.HOM, mu=10, dim=3)

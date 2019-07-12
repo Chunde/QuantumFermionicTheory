@@ -1,69 +1,20 @@
+from mmf_hfb.DataHelper import ff_state_sort_data
 from mmf_hfb.FuldeFerrelState import FFState
 from scipy.optimize import brentq
-#import warnings
-#warnings.filterwarnings("ignore")
-import os
-import inspect
 from os.path import join
-import json
 import numpy as np
+import inspect
+import json
 import time
-
-
-def sort_data(rets):
-    """
-        sort data to make lines as long and smooth as possible
-    """
-    rets_ = []
-    def p(ret):
-        v1, v2, _ = ret
-        if v1 is None and v2 is None:
-            return 0
-        if v1 is None or v2 is None:
-            return 1
-        return 2
-
-    for ret in rets:
-        if p(ret) > 0:
-            rets_.append(ret)
-    rets = rets_
-    bflip = False
-    for i in range(1, len(rets)):
-        v1, v2, _ = rets[i]
-        v1_, v2_, _ = rets[i-1]
-        bflip = False
-        p1 = p(rets[i])
-        p2 = p(rets[i-1])
-        if p1 > p2:
-            if v1_ is None:
-                if abs(v1 - v2_) < abs(v2 - v2_):
-                    bflip = True
-                    print("flipping data")
-            if v2_ is None:
-                if abs(v1 - v1_) > abs(v2 - v1_):
-                    bflip = True
-                    print("flipping data")
-        elif p1 < p2:
-            if v1 is None:
-                if abs(v1_ - v2) < abs(v2_ - v2):
-                    bflip = True
-                    print("flipping data")
-            if v2 is None:
-                if abs(v1_ - v1) > abs(v2_ - v1):
-                    bflip = True
-                    print("flipping data")
-        elif p1 == p2:
-            if (v1 is None) !=(  v1_ is None) or (v2 is None) != (v2_ is None):
-                bflip=True
-                print("flipping data")
-        if bflip:
-            rets[i] = [rets[i][1], rets[i][0],rets[i][2]]
-    return rets
+import os
+# import warnings
+# warnings.filterwarnings("ignore")
 
 
 class FFStateFinder():
-    def __init__(self, dim=1, delta=0.1, mu=10.0, dmu=0, g=None,
-                   k_c=None, prefix="FFState_", timeStamp=True):
+    def __init__(
+            self, dim=1, delta=0.1, mu=10.0, dmu=0, g=None,
+            k_c=None, prefix="FFState_", timeStamp=True):
         self.dim = dim
         self.delta = delta
         self.mu_eff = mu  # mu_eff for 1d
@@ -81,8 +32,9 @@ class FFStateFinder():
             else:
                 k_c = 50
         self.k_c = k_c
-        self.ff = FFState(mu=mu, dmu=0, delta=delta, g=g, dim=dim,
-                         k_c=k_c, fix_g=True, bStateSentinel=True)
+        self.ff = FFState(
+            mu=mu, dmu=0, delta=delta, g=g, dim=dim,
+            k_c=k_c, fix_g=True, bStateSentinel=True)
         print(f"dim={dim}\tdelta={delta}\tmu={mu}\tdmu={dmu}\tg={self.ff.g}\tk_c={k_c}")
 
     def _gc(self, delta, mu=None, dmu=None, dq=0, update_mus=True):
@@ -92,12 +44,12 @@ class FFStateFinder():
                 mu=self.mu_eff, dmu=self.dmu_eff,
                 delta=delta, dq=dq, update_g=False)
         return self.ff.get_g(mu=mu, dmu=dmu,
-                             delta=delta, dq=dq) - self.ff._g 
+                             delta=delta, dq=dq) - self.ff._g
 
     def get_mus_eff(self, delta, q=0, dq=0, mus_eff=None):
         """return effective mus"""
-        return self.ff._get_effective_mus(mu=self.mu_eff, dmu=self.dmu_eff,
-                                          delta=delta, q=q, dq=dq, update_g=False)
+        return self.ff._get_effective_mus(
+            mu=self.mu_eff, dmu=self.dmu_eff, delta=delta, q=q, dq=dq, update_g=False)
 
     def get_densities(self, mus_eff=None, delta=None, q=0, dq=0):
         """return the pressure"""
@@ -168,11 +120,11 @@ class FFStateFinder():
         output["g"] = self.ff._g
         output["k_c"] = self.k_c
         output["data"] = data
-        with open(file,'w') as wf:
+        with open(file, 'w') as wf:
             json.dump(output, wf)
 
     def SearchFFStates(
-            self, delta, lg=None, ug=None, 
+            self, delta, lg=None, ug=None,
             ql=0, qu=0.04, dn=10,
             dx=0.0005, rtol=1e-8, raiseExcpetion=True):
         """
@@ -245,10 +197,11 @@ class FFStateFinder():
         dx = dx0
         trails=[1, 2, 5, 0.01, 0.2, 0.5, 10, 20, 0]
 
-        def do_search():
+        def do_search(delta):
             nonlocal lg
             nonlocal ug
-            ret = self.SearchFFStates(delta=d, lg=lg, ug=ug, ql=ql, qu=qu, dn=40, dx=dx)
+            ret = self.SearchFFStates(
+                delta=delta, lg=lg, ug=ug, ql=ql, qu=qu, dn=40, dx=dx)
             lg, ug = ret
             ret.append(d)
             rets.append(ret)
@@ -259,7 +212,7 @@ class FFStateFinder():
             print(dx)
             if dx != dx0 and dx !=0:
                 try:
-                    do_search()
+                    do_search(delta=d)
                     retry = False
                     continue
                 except ValueError:
@@ -268,7 +221,7 @@ class FFStateFinder():
                 for t in trails:
                     dx = dx0 * t
                     try:
-                        do_search()
+                        do_search(delta=d)
                         break
                     except ValueError:
                         print(f"No solution[{dx}], try...")
@@ -279,10 +232,9 @@ class FFStateFinder():
                     ret =[None, None]
                     for t in trails:
                         dx = dx0 * t
-                        ret0 = self.SearchFFStates(delta=d, lg=lg, ug=ug, 
-                                                    ql=ql, qu=qu,
-                                                    dn=40, dx=dx,
-                                                    raiseExcpetion=False)
+                        ret0 = self.SearchFFStates(
+                            delta=d, lg=lg, ug=ug, ql=ql, qu=qu,
+                            dn=40, dx=dx, raiseExcpetion=False)
                         lg, ug = ret0
                         if lg is None and ug is None:
                             continue
@@ -297,10 +249,10 @@ class FFStateFinder():
                     print(f"Delta={d} has no solution, trying with other deltas")
                     del rets[-1]
                     lg, ug=None, None
-                    if list(ds).index(d) > 10: # this is arbitrary
+                    if list(ds).index(d) > 10:  # this is arbitrary
                         break
                     continue
             
             self.SaveToFile(rets)
-        rets = sort_data(rets)
+        rets = ff_state_sort_data(rets)
         self.SaveToFile(rets)

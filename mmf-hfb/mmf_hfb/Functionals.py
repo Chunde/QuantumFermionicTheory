@@ -1,8 +1,7 @@
 import numpy as np
-from mmf_hfb.interface import IFunctional
 
 
-class FunctionalBdG(IFunctional):
+class FunctionalBdG(object):
     m=hbar=1
 
     def _gamma(self, p=None):
@@ -191,7 +190,12 @@ class FunctionalBdG(IFunctional):
             raise ValueError(f"d={d} is not supported value")
 
     def get_C(self, ns, d=0):
-        """IFunctional interface implementation"""
+        """
+        IFunctional interface implementation
+        -----------
+        Note: This is only valid for unitary case
+        Test: Not done yet.
+        """
         if d==0:
             return self._C(ns=ns)
         elif d==1:
@@ -286,7 +290,7 @@ class FunctionalSLDA(FunctionalBdG):
 
     def get_Vs(self, delta=0, ns=None, taus=None, nu=None, **args):
         """
-            return the modified V functional terms
+        return the modified V functional terms
         """
         if ns is None or taus is None:
             return self.get_v_ext()

@@ -22,8 +22,7 @@ class KernelHomogeneous(Homogeneous):
         self.mus_eff = (mu_eff, dmu_eff)
         self.delta = delta
         self.k_c = k_c
-        self.xyz = np.array([[1]])  # used for dimension check
-        print(f"Unused args: {args}")
+        self.xyz = np.array([[1]])  # used for dimensionality check
 
     def get_v_ext(self, **args):
         """

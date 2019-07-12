@@ -24,8 +24,9 @@ class FFStateHelper(object):
         mu = jsonData['mu']
         dmu = jsonData['dmu']
         data = jsonData['data']
-        ff = FFStateFinder(mu=mu, dmu=dmu, delta=delta, g=jsonData['g'],
-                        dim=dim, prefix=f"{output_fileName}", timeStamp=False)
+        ff = FFStateFinder(
+            mu=mu, dmu=dmu, delta=delta, g=jsonData['g'],
+            dim=dim, prefix=f"{output_fileName}", timeStamp=False)
         if os.path.exists(ff._get_fileName()):
             return None
         print(f"Processing {ff._get_fileName()}")
@@ -37,7 +38,7 @@ class FFStateHelper(object):
                 if dq1 is not None:
                     dic = {}
                     p1 = ff.get_pressure(delta=d, dq=dq1).n
-                    ja, jb, jp, jm = ff.get_current(delta=d, dq=dq1)
+                    ja, jb, jp, _ = ff.get_current(delta=d, dq=dq1)
                     ns = ff.get_densities(delta=d, dq=dq1)
                     dic['na']=ns[0].n
                     dic['nb']=ns[1].n
@@ -52,7 +53,7 @@ class FFStateHelper(object):
                 if dq2 is not None:
                     dic = {}
                     p2 = ff.get_pressure(delta=d, dq=dq2).n
-                    ja, jb, jp, jm = ff.get_current(delta=d, dq=dq2)
+                    ja, jb, jp, _ = ff.get_current(delta=d, dq=dq2)
                     ns = ff.get_densities(delta=d, dq=dq2)
                     dic['na']=ns[0].n
                     dic['nb']=ns[1].n
@@ -73,7 +74,8 @@ class FFStateHelper(object):
         currentdir = join(
             os.path.dirname(
                 os.path.abspath(
-                    inspect.getfile(inspect.currentframe()))),"..","mmf_hfb","data")
+                    inspect.getfile(
+                        inspect.currentframe()))), "..", "mmf_hfb", "data")
         output = []
         fileSet = []
         if lastStates is not None:
@@ -85,7 +87,7 @@ class FFStateHelper(object):
             if os.path.exists(file):
                 with open(file, 'r') as rf:
                     ret = json.load(rf)
-                    dim, mu, dmu, delta, g=ret['dim'], ret['mu'], ret['dmu'], ret['delta'],ret['g']
+                    dim, mu, dmu, delta, g=ret['dim'], ret['mu'], ret['dmu'], ret['delta'], ret['g']
                     if filter(mu=mu, dmu=dmu, delta=delta, g=g, dim=dim):
                         continue
                     if file in fileSet:
@@ -107,14 +109,16 @@ class FFStateHelper(object):
                         print(ns)
                     p0 = ff.get_pressure(
                         mu=None, dmu=None, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=0)
-                    # p1 = ff.get_pressure(mu=None, dmu=None, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta)
+                    # p1 = ff.get_pressure(
+                    #   mu=None, dmu=None, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta)
                     if verbose:
                         print(f"p0={p0},p1={p1}")
                     data1, data2 = ret['data']
 
                     data1.extend(data2)
 
-                    dqs1, dqs2, ds1, ds2, j1, j2, ja1, ja2, jb1, jb2, P1, P2 = [],[],[],[],[],[],[],[],[],[],[],[]
+                    dqs1, dqs2, ds1, ds2= [], [], [], []
+                    j1, j2, ja1, ja2, jb1, jb2, P1, P2 = [], [], [], [], [], [], [], []
                     for data in data1:
                         d, q, p, j, j_a, j_b = data['d'], data['q'], data['p'], data['j'], data['ja'], data['jb']
                         ds1.append(d)
@@ -131,7 +135,9 @@ class FFStateHelper(object):
                         n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=data["d"], dq=data["q"])
                         if verbose:
                             print(f"na={n_a.n}, nb={n_b.n}, PF={value}, PN={p0.n}")
-                        if value > (p0 and not np.allclose(n_a.n, n_b.n, rtol=1e-9) and data["q"]>0.0001 and data["d"]>0.001):
+                        if value > (
+                            p0 and not np.allclose(
+                                n_a.n, n_b.n, rtol=1e-9) and data["q"]>0.0001 and data["d"]>0.001):
                             bFFState = True
                     #if len(P2) > 0:
                     #    index2, value = max(enumerate(P2), key=operator.itemgetter(1))
@@ -152,7 +158,7 @@ class FFStateHelper(object):
                     output.append(dic)
                     if verbose:
                         print("-----------------------------------")
-        return (output,fileSet)
+        return (output, fileSet)
 
     def compute_pressure_current(root=None):
         """compute current and pressure"""
@@ -205,7 +211,7 @@ class FFStateHelper(object):
     def search_single_configuration_3d():
         e_F = 10
         mu0 = 0.59060550703283853378393810185221521748413488992993*e_F
-        delta0 = 0.68640205206984016444108204356564421137062514068346*e_F
+        # delta0 = 0.68640205206984016444108204356564421137062514068346*e_F
 
         mu = mu0 # ~6
         delta = 1
@@ -221,30 +227,30 @@ class FFStateHelper(object):
             gs = [ff._gc(mu=mu, dmu=dmu, delta=0.001, dq=dq) for dq in dqs]
             g0 = gs[-1]
             for i in reversed(range(len(dqs))):
-                if gs[i] * g0 < 0:
-                    print(dqs[i] * 2)
-                    return dqs[i] * 2
+                if gs[i]*g0 < 0:
+                    print(dqs[i]*2)
+                    return dqs[i]*2
             return delta
         ql = 0
         qu = q_upper_lim()
-        print(f"Start search:mu={mu}, dmu={dmu}, delta={delta},lower delta={dl}, upper delta={du}, lower dq={ql}, upper dq={qu}")
+        print(
+            f"Start search:mu={mu}, dmu={dmu}, delta={delta},lower delta={dl},"+
+            f" upper delta={du}, lower dq={ql}, upper dq={qu}")
         ff.run(dl=dl, du=du, dn=100, ql=ql, qu=qu)
     
     def search_single_configuration_2d():
         e_F = 10
         mu0 = 0.5*e_F
-        delta0 = 2.0**0.5*e_F # ~14
-
+        delta0 = 2.0**0.5*e_F  # ~14
         mu = mu0 # =5
         delta = 3
         dmu = 4.5
-
         dl = 0.0001
         du = 2*dmu
         ff = FFStateFinder(delta=delta, dim=2, mu=mu, dmu=dmu)
 
         def q_upper_lim():
-            #return delta
+            # return delta
             print("Finding q upper limit...")
             dqs = np.linspace(0, 2*delta, 50)
             gs = [ff._gc(mu=mu, dmu=dmu, delta=0.001, dq=dq) for dq in dqs]
@@ -256,7 +262,9 @@ class FFStateHelper(object):
             return delta
         ql = 0
         qu = q_upper_lim()
-        print(f"Start search:mu={mu}, dmu={dmu}, delta={delta},lower delta={dl}, upper delta={du}, lower dq={ql}, upper dq={qu}")
+        print(
+            f"Start search:mu={mu}, dmu={dmu}, delta={delta},"+
+            f"lower delta={dl}, upper delta={du}, lower dq={ql}, upper dq={qu}")
         ff.run(dl=dl, du=du, dn=100, ql=ql, qu=qu)
 
     def sort_file(files=None, abs_file=False):
@@ -264,7 +272,7 @@ class FFStateHelper(object):
         currentdir = join(os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe()))), "data")
         if files is None:
-            pattern = join(currentdir,"FFState_[()d_0-9]*.json")
+            pattern = join(currentdir, "FFState_[()d_0-9]*.json")
             files = glob.glob(pattern)
             abs_file = True
 
