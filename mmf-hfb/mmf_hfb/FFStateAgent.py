@@ -1,7 +1,6 @@
-from mmf_hfb.ClassFactory import ClassFactory, FunctionalType, KernelType, Solvers
+from mmf_hfb.ClassFactory import ClassFactory, FunctionalType, KernelType
 from mmf_hfb.DataHelper import ff_state_sort_data
 from mmf_hfb.ParallelHelper import PoolHelper
-from mmf_hfb.ClassFactory import ClassFactory
 from scipy.optimize import brentq
 from os.path import join
 import numpy as np
@@ -44,8 +43,17 @@ class FFStateAgent(object):
         ns, mus, e, p = self.get_ns_mus_e_p(mus_eff=mus_eff, delta=delta, q=q, dq=dq)
         return (ns, mus, e, p)
 
-    def SaveToFile(self, data):
-        """Save states to persistent storage"""
+    def get_pressure(self, mus_eff, delta, q=0, dq=0):
+        """return the pressure only"""
+        return self.get_ns_e_p(mus_eff=mus_eff, delta=delta, q=q, dq=dq)[3]
+        
+    def SaveToFile(self, data, extra_items=None):
+        """
+        Save states to persistent storage
+        Note: extra_item should be a dict object
+        """
+        if len(data) == 0:
+            return
         file = self._get_fileName()
         output = {}
         output["dim"]= self.dim
@@ -54,6 +62,8 @@ class FFStateAgent(object):
         output["dmu_eff"] = self.dmu_eff
         output["C"] = self.C
         output["k_c"] = self.k_c
+        if extra_items is not None:
+            output.update(extra_items)
         output["data"] = data
         with open(file, 'w') as wf:
             json.dump(output, wf)
@@ -246,62 +256,67 @@ class FFStateAgent(object):
 
 
 def compute_pressure_current_worker(jsonData_file):
-        """Use the FF State file to compute their current and pressure"""
-        jsonData, fileName = jsonData_file
-        filetokens = fileName.split("_")
-        output_fileName = "FFState_J_P_" + "_".join(filetokens[1:]) + ".json"
-        dim = jsonData['dim']
-        delta = jsonData['delta']
-        mu_eff = jsonData['mu_eff']
-        dmu_eff = jsonData['dmu_eff']
-        data = jsonData['data']
-        k_c = jsonData['k_c']
-        C = jsonData['C']
-        mus_eff = (mu_eff + dmu_eff, mu_eff - dmu_eff)
-        args = dict(
-            mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
-            T=0, dim=dim, k_c=k_c, verbosity=False,
-            prefix=f"{output_fileName}", timeStamp=False)
-        lda = ClassFactory(
-                "LDA", (FFStateAgent,),
-                functionalType=FunctionalType.ASLDA,
-                kernelType=KernelType.HOM, args=args)
-        C_ = lda._get_C(mus_eff=mus_eff, delta=delta)
-        assert np.allclose(C, C_, rtol=1e-16)  # verify the C value
-       
-        if os.path.exists(lda._get_fileName()):
-            return None
-        print(f"Processing {lda._get_fileName()}")
-        output1 = []
-        output2 = []
+    """
+    Use the FF State file to compute their current and pressure
+    """
+    jsonData, fileName = jsonData_file
+    filetokens = fileName.split("_")
+    output_fileName = "FFState_J_P_" + "_".join(filetokens[1:]) + ".json"
+    dim = jsonData['dim']
+    delta = jsonData['delta']
+    mu_eff = jsonData['mu_eff']
+    dmu_eff = jsonData['dmu_eff']
+    data = jsonData['data']
+    k_c = jsonData['k_c']
+    C = jsonData['C']
+    mus_eff = (mu_eff + dmu_eff, mu_eff - dmu_eff)
 
-        def append_item(delta, dq, output):
-            if dq is not None:
-                dic = {}
-                ns, mus, e, p = lda.get_ns_e_p(delta=d, dq=dq)
-                ja, jb, jp, _ = lda.get_current(mus_eff=mus_eff, delta=d, dq=dq)
-                dic['na']=ns[0]
-                dic['nb']=ns[1]
-                dic['d']=d
-                dic['q']=dq
-                dic['e']=e
-                dic['p']=p
-                dic['j']=jp.n
-                dic['ja']=ja.n
-                dic['jb']=jb.n
-                dic['mu_a']=mus[0]
-                dic['mu_b']=mus[1]
-                output.append(dic)
-                print(dic)
-        try:
-            for item in data:
-                dq1, dq2, d = item
-                append_item(delta=d, dq=dq1, output=output1)
-                append_item(delta=d, dq=dq2, output=output2)
-            output =[output1, output2]
-            lda.SaveToFile(output)
-        except ValueError as e:
-            print(f"Parsing file: {fileName}. Error:{e}")
+    args = dict(
+        mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
+        T=0, dim=dim, k_c=k_c, verbosity=False,
+        prefix=f"{output_fileName}", timeStamp=False)
+    lda = ClassFactory(
+            "LDA", (FFStateAgent,),
+            functionalType=FunctionalType.ASLDA,
+            kernelType=KernelType.HOM, args=args)
+    C_ = lda._get_C(mus_eff=mus_eff, delta=delta)
+    assert np.allclose(C, C_, rtol=1e-16)  # verify the C value
+    
+    if os.path.exists(lda._get_fileName()):
+        return None
+    normal_pressure = lda.get_ns_e_p(mus_eff=mus_eff, delta=0)[3]
+
+    print(f"Processing {lda._get_fileName()}")
+    output1 = []
+    output2 = []
+
+    def append_item(delta, dq, output):
+        if dq is not None:
+            dic = {}
+            ns, mus, e, p = lda.get_ns_e_p(delta=d, dq=dq)
+            ja, jb, jp, _ = lda.get_current(mus_eff=mus_eff, delta=d, dq=dq)
+            dic['na']=ns[0]  # particle density a
+            dic['nb']=ns[1]  # particle density b
+            dic['d']=d  # delta satisfies the gap equation
+            dic['q']=dq  # the q value
+            dic['e']=e  # energy density
+            dic['p']=p  # pressure
+            dic['j']=jp.n  # current sum
+            dic['ja']=ja.n  # current a
+            dic['jb']=jb.n  # current b
+            dic['mu_a']=mus[0]  # bare mu_a
+            dic['mu_b']=mus[1]  # bare mu_b
+            output.append(dic)
+            print(dic)
+    try:
+        for item in data:
+            dq1, dq2, d = item
+            append_item(delta=d, dq=dq1, output=output1)
+            append_item(delta=d, dq=dq2, output=output2)
+        output =[output1, output2]
+        lda.SaveToFile(output, extra_items={"p0": normal_pressure})
+    except ValueError as e:
+        print(f"Parsing file: {fileName}. Error:{e}")
 
 
 def compute_pressure_current(root=None):
@@ -310,7 +325,7 @@ def compute_pressure_current(root=None):
     if currentdir is None:
         currentdir = os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe())))
-    pattern = join(currentdir, "data","FFState_[()_0-9]*.json")
+    pattern = join(currentdir, "data", "FFState_[()_0-9]*.json")
     files = files=glob.glob(pattern)
 
     jsonObjects = []
@@ -320,16 +335,40 @@ def compute_pressure_current(root=None):
                 jsonObjects.append(
                     (json.load(rf), os.path.splitext(os.path.basename(file))[0]))
  
-    if True:  # Debugging
+    if False:  # Debugging
         for item in jsonObjects:
             compute_pressure_current_worker(item)
     else:
         PoolHelper.run(compute_pressure_current_worker, jsonObjects)
-    # with Pool(logic_cpu_count) as Pools:
-    #     Pools.map(compute_pressure_current_worker, jsonObjects)
+ 
+
+def search_states_worker(mus_delta):
+    mu_eff, dmu_eff, delta = mus_delta
+    args = dict(
+        mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
+        T=0, dim=3, k_c=50, verbosity=False)
+    lda = ClassFactory(
+        "LDA", (FFStateAgent,),
+        functionalType=FunctionalType.ASLDA,
+        kernelType=KernelType.HOM, args=args)
+    lda.Search(
+        delta_N=100, delta_lower=0.001, delta_upper=delta,
+        q_lower=0, q_upper=dmu_eff, q_N=10)
+
+
+def search_states(mu_eff=10, delta=1):
+    """compute current and pressure"""
+    dmus = np.linspace(0.001*delta, delta*0.999, 10)
+    mus_deltas = [(mu_eff, dmu, delta) for dmu in dmus]
+    if False:  # Debugging
+        for item in mus_deltas:
+            search_states_worker(item)
+    else:
+        PoolHelper.run(search_states_worker, mus_deltas, poolsize=5)
 
 
 if __name__ == "__main__":
+    #search_states(delta=2.5)
     compute_pressure_current()
     # mu_eff = 10
     # dmu_eff = 0.5

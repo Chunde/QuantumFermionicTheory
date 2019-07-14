@@ -254,7 +254,7 @@ class Adapter(object):
         V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
         mu_a, mu_b = mu_a_eff - V_a, mu_b_eff - V_b
         D = self.get_D(ns=ns)
-        g_eff = delta/nu
+        g_eff = 0 if nu==0 else delta/nu
         energy_density = taus[0]/2.0 + taus[1]/2.0 + g_eff*abs(nu)**2
         if self.T !=0:
             energy_density = (

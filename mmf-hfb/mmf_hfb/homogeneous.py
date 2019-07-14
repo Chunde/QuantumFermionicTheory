@@ -4,7 +4,6 @@ import numpy as np
 import scipy.integrate
 import scipy as sp
 from mmf_hfb import tf_completion as tf
-from mmf_hfb.interface import IHFBKernel
 from uncertainties import ufloat
 
 _QUAD_ARGS = dict(
