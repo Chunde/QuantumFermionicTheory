@@ -10,6 +10,7 @@ import glob
 import json
 import os
 
+import operator
 
 class FFStateAgent(object):
     """
@@ -108,7 +109,7 @@ class FFStateAgent(object):
             bExcept = False
             if guess_lower is not None:
                 try:
-                    ret1 = brentq(f, min(0, guess_lower - dx), guess_lower + dx)
+                    ret1 = brentq(f, max(0, guess_lower - dx), guess_lower + dx)
                     rets.append(ret1)
                 except:
                     bExcept = True
@@ -117,7 +118,7 @@ class FFStateAgent(object):
                 rets.append(None)
             if guess_upper is not None:
                 try:
-                    ret2 = brentq(f, min(0, guess_upper - dx), guess_upper + dx)
+                    ret2 = brentq(f, max(0, guess_upper - dx), guess_upper + dx)
                     rets.append(ret2)
                 except:
                     bExcept = True
@@ -281,7 +282,7 @@ def compute_pressure_current_worker(jsonData_file):
             kernelType=KernelType.HOM, args=args)
     C_ = lda._get_C(mus_eff=mus_eff, delta=delta)
     assert np.allclose(C, C_, rtol=1e-16)  # verify the C value
-    
+    lda.C= C
     if os.path.exists(lda._get_fileName()):
         return None
     normal_pressure = lda.get_ns_e_p(mus_eff=mus_eff, delta=0)[3]
@@ -352,13 +353,13 @@ def search_states_worker(mus_delta):
         functionalType=FunctionalType.ASLDA,
         kernelType=KernelType.HOM, args=args)
     lda.Search(
-        delta_N=100, delta_lower=0.001, delta_upper=delta,
+        delta_N=50, delta_lower=0.001, delta_upper=delta,
         q_lower=0, q_upper=dmu_eff, q_N=10)
 
 
 def search_states(mu_eff=10, delta=1):
     """compute current and pressure"""
-    dmus = np.linspace(0.001*delta, delta*0.999, 10)
+    dmus = np.linspace(0.5*delta, delta*0.7, 10)
     mus_deltas = [(mu_eff, dmu, delta) for dmu in dmus]
     if False:  # Debugging
         for item in mus_deltas:
@@ -367,19 +368,68 @@ def search_states(mu_eff=10, delta=1):
         PoolHelper.run(search_states_worker, mus_deltas, poolsize=5)
 
 
+def FindFFState(verbose=False):
+        currentdir = join(
+            os.path.dirname(
+                os.path.abspath(
+                    inspect.getfile(
+                        inspect.currentframe()))), "..", "mmf_hfb", "data")
+        output = []
+        
+        pattern = join(currentdir, "FFState_J_P[()d_0-9]*")
+        files=glob.glob(pattern)
+        for file in files[0:]:
+            if os.path.exists(file):
+                with open(file, 'r') as rf:
+                    ret = json.load(rf)
+                    dim, mu_eff, dmu_eff, delta, C=ret['dim'], ret['mu_eff'], ret['dmu_eff'], ret['delta'], ret['C']
+                    p0 = ret['p0']
+                    a_inv = 4.0*np.pi*C
+
+                    if verbose:
+                        print(file)
+                    data1, data2 = ret['data']
+
+                    data1.extend(data2)
+
+                    dqs1, dqs2, ds1, ds2= [], [], [], []
+                    j1, j2, ja1, ja2, jb1, jb2, P1, P2 = [], [], [], [], [], [], [], []
+                    for data in data1:
+                        d, q, p, j, j_a, j_b = data['d'], data['q'], data['p'], data['j'], data['ja'], data['jb']
+                        ds1.append(d)
+                        dqs1.append(q)
+                        j1.append(j)
+                        ja1.append(j_a)
+                        jb1.append(j_b)
+                        P1.append(p)
+                   
+                    bFFState = False
+                    if len(P1) > 0:
+                        index1, value = max(enumerate(P1), key=operator.itemgetter(1))
+                        data = data1[index1]
+                        n_a, n_b = data['na'], data['nb']
+                        mu_a, mu_b = data['mu_a'], data['mu_b']
+                        mu, dmu = (mu_a + mu_b)/2.0, (mu_a - mu_b)/2.0
+                        if verbose:
+                            print(f"na={n_a}, nb={n_b}, PF={value}, PN={p0}")
+                        if (value > p0) and (
+                            not np.allclose(
+                                n_a, n_b, rtol=1e-9) and data["q"]>0.0001 and data["d"]>0.001):
+                            bFFState = True
+                    if bFFState and verbose:
+                        print(f"FFState: {bFFState} |<-------------")
+                    dic = dict(
+                        mu=mu, dmu=dmu, np=n_a + n_b, na=n_a,
+                        nb=n_b, ai=a_inv, C=C, delta=delta, state=bFFState)
+                    if verbose:
+                        print(dic)
+                    output.append(dic)
+                    if verbose:
+                        print("-----------------------------------")
+        return output
+
+        
 if __name__ == "__main__":
-    #search_states(delta=2.5)
+    #FindFFState()
+    #search_states(delta=0.75)
     compute_pressure_current()
-    # mu_eff = 10
-    # dmu_eff = 0.5
-    # delta = 1
-    # args = dict(
-    #     mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
-    #     T=0, dim=3, k_c=50, verbosity=False)
-    # lda = ClassFactory(
-    #     "LDA", (FFStateAgent,),
-    #     functionalType=FunctionalType.ASLDA,
-    #     kernelType=KernelType.HOM, args=args)
-    # lda.Search(
-    #     delta_N=100, delta_lower=0.001, delta_upper=delta,
-    #     q_lower=0, q_upper=dmu_eff, q_N=10)

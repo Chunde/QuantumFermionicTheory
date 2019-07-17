@@ -146,6 +146,16 @@ class Adapter(object):
         C = alpha_p/g + Lambda
         return C
 
+    def get_a_inv(self, C=None):
+        """
+        return the inverse scattering length
+        ---------------
+        Note: the may be a alpha_p term missing
+        """
+        if C is None:
+            C=self.C
+        return 4.0*np.pi*self.hbar**2*C/self.m
+    
     def solve(
             self, mus, delta, fix_delta=False, rtol=1e-12,
             solver=None, verbosity=True, **args):

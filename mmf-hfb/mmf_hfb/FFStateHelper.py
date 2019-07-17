@@ -135,8 +135,7 @@ class FFStateHelper(object):
                         n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=data["d"], dq=data["q"])
                         if verbose:
                             print(f"na={n_a.n}, nb={n_b.n}, PF={value}, PN={p0.n}")
-                        if value > (
-                            p0 and not np.allclose(
+                        if value > p0 and (not np.allclose(  #  [Check] was wrong
                                 n_a.n, n_b.n, rtol=1e-9) and data["q"]>0.0001 and data["d"]>0.001):
                             bFFState = True
                     #if len(P2) > 0:
@@ -344,6 +343,7 @@ def diagram_worker(mu_dmu_delta_dim):
     dl = 0.0001
     du = delta
     ff = FFStateFinder(delta=delta, dim=dim, mu=mu, dmu=dmu)
+
     def q_upper_lim():
         return 1
         print("Finding q upper limit...")
@@ -362,21 +362,21 @@ def diagram_worker(mu_dmu_delta_dim):
 
 
 def ConstructDiagram(dim=3, delta=None):
-        e_F = 10
-        mu0 = 0.59060550703283853378393810185221521748413488992993 * e_F
-        delta0 = 0.68640205206984016444108204356564421137062514068346 * e_F
+    e_F=10
+    mu0=0.59060550703283853378393810185221521748413488992993*e_F
+    delta0=0.68640205206984016444108204356564421137062514068346*e_F
 
-        mu = mu0 # ~6
-        if delta is None:
-            deltas = np.linspace(0, e_F, 41)[1:]
-        else:
-            deltas = [delta]
+    mu=mu0 # ~6
+    if delta is None:
+        deltas = np.linspace(0, e_F, 41)[1:]
+    else:
+        deltas = [delta]
 
-        for delta in deltas:
-            dmus  = np.linspace(0.5*delta, 0.8*delta, max(20 + 1, int(delta/0.25)))[1:]
-            dmus = dmus + (dmus[1] - dmus[0])/2.0
-            args = [(mu, dmu, delta, dim) for dmu in dmus]
-            PoolHelper.run(diagram_worker,args)
+    for delta in deltas:
+        dmus=np.linspace(0.5*delta, 0.8*delta, max(20 + 1, int(delta/0.25)))[1:]
+        dmus=dmus + (dmus[1] - dmus[0])/2.0
+        args=[(mu, dmu, delta, dim) for dmu in dmus]
+        PoolHelper.run(diagram_worker, args)
 
             
 if __name__ == "__main__":
@@ -395,5 +395,4 @@ if __name__ == "__main__":
     ## Compute the pressure and current
     ConstructDiagram(delta=0.2)
     FFStateHelper.compute_pressure_current()
-    
  
