@@ -70,12 +70,13 @@ class FFStateHelper(object):
         except ValueError as e:
             print(f"Parsing file: {fileName}. Error:{e}")
         
-    def FindFFState(filter, lastStates=None, verbose=False):
-        currentdir = join(
-            os.path.dirname(
-                os.path.abspath(
-                    inspect.getfile(
-                        inspect.currentframe()))), "..", "mmf_hfb", "data")
+    def FindFFState(filter, currentdir=None, lastStates=None, verbose=False):
+        if currentdir is None:
+            currentdir = join(
+                os.path.dirname(
+                    os.path.abspath(
+                        inspect.getfile(
+                            inspect.currentframe()))), "..", "mmf_hfb", "data")
         output = []
         fileSet = []
         if lastStates is not None:
