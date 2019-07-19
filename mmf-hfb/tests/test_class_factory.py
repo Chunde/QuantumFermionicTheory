@@ -26,6 +26,11 @@ def dmu(request):
     return request.param
 
 
+@pytest.fixture(params=[0, 0.])
+def dq(request):
+    return request.param
+
+
 def create_LDA(mu, dmu, delta):
     LDA = ClassFactory(
         className="LDA",
@@ -60,13 +65,14 @@ def test_BDG(mu, dmu):
     assert np.allclose(np.array([ns[0].n, ns[1].n]), ns_, rtol=1e-2)
 
 
-def test_effective_mus(mu, dmu):
+def test_effective_mus(mu, dmu, dq=0):
     delta = 1
     lda = create_LDA(mu=mu, dmu=dmu, delta=delta)
     mus_eff = (mu + dmu, mu-dmu)
-    res = lda.get_ns_mus_e_p(mus_eff=mus_eff, delta=delta)
+    res = lda.get_ns_mus_e_p(mus_eff=mus_eff, delta=delta, dq=dq)
     mus_eff_ = lda.get_mus_eff(
-        mus=(sum(res[1])/2.0, (res[1][0]-res[1][1])/2.0), delta=delta)
+        mus=(sum(res[1])/2.0, (res[1][0]-res[1][1])/2.0),
+        delta=delta, dq=dq, verbosity=False)
     print(mus_eff, mus_eff_)
     assert np.allclose(np.array(mus_eff), np.array(mus_eff_))
 
@@ -153,9 +159,9 @@ def test_class_factory(functional, kernel, mu, dmu=1, dim=3):
 
 
 if __name__ == "__main__":
-    test_bare_mus(mu=np.pi, dmu=0.5)
-    # test_effective_mus_thermodynamic(mu=np.pi)
-    # test_effective_mus(mu=np.pi, dmu=0.3)
+    # test_bare_mus(mu=np.pi, dmu=0.5)
+    # test_effective_mus_thermodynamic(mu=np.pi, dmu=0.1)
+    test_effective_mus(mu=np.pi, dmu=0.3, dq=0)
     # test_BDG(mu=5)
     # test_class_factory(
     #   functional=FunctionalType.ASLDA,

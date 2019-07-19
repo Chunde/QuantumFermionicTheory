@@ -80,6 +80,7 @@ class Adapter(object):
         """
         return the bare mus for given effective mu
         Note: args may contains dq
+            mus_eff=(mu_a_eff, mu_b_eff)
         """
         mu_a_eff, mu_b_eff = mus_eff
         res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta, **args)
@@ -91,6 +92,8 @@ class Adapter(object):
     def get_mus_eff(self, mus, delta, dq=0, ns=None, taus=None, nu=None, verbosity=True):
         """
         return the effective mus
+        ----------------
+        Note: mus is (mu, dmu), not (mu_a, mu_b)
         """
         mu_a, mu_b = mus[0]+mus[1], mus[0]-mus[1]
         V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
@@ -123,6 +126,7 @@ class Adapter(object):
     def get_g(self, mus, delta, dq=0, ns=None, taus=None, nu=None):
         """
         compute g with given mus and delta
+        Note: mus = (mu, dmu)
         """
         mus_eff = self.get_mus_eff(
             mus=mus, delta=delta, dq=dq, ns=ns, taus=taus, nu=nu)
@@ -133,7 +137,8 @@ class Adapter(object):
             ns=None, taus=None, nu=None, verbosity=False):
         """
         return the C value when computing g
-        Note: NOT the get_C(ns)
+        Note: NOT the get_C(ns), mus = (mu, dmu)
+            
         """
         if mus_eff is None:
             mus_eff = self.get_mus_eff(
@@ -162,12 +167,15 @@ class Adapter(object):
         """
         use a solver or simple interation to solve the gap equation
         """
+        if delta is None:
+            fix_delta = False
+            delta = self.delta  # initial guess
         mu, dmu = mus
         mu_a, mu_b = mu + dmu, mu - dmu
         V_a, V_b = self.get_Vs()
         mu_a_eff, mu_b_eff = mu_a + V_a, mu_b + V_b
         args.update(dim=self.dim, k_c=self.k_c, E_c=self.E_c)
-        if fix_delta:
+        if fix_delta and len(np.ones_like(sum(self.xyz))) > 1:
             delta = delta*np.ones_like(sum(self.xyz))
 
         def _fun(x):
@@ -198,9 +206,7 @@ class Adapter(object):
             
             x0 = np.array([mu_a_eff, mu_b_eff, delta*np.ones_like(sum(self.xyz))])
             mu_a_eff, mu_b_eff, delta = solver(fun, x0)
-        # too small value of delta may mean no solution
-        if delta < 1e-5:
-            raise ValueError("Invalid delta")
+        
 
         res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta, **args)
         ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
@@ -223,7 +229,7 @@ class Adapter(object):
         delta = brentq(f, a=0.8*self.delta, b=2*self.delta)
         return delta
 
-    def get_ns_e_p(self, mus, delta, update_C=False, solver=None, **args):
+    def get_ns_e_p(self, mus, delta, update_C=False, fix_delta=True, solver=None, **args):
         """
         compute then energy density for BdG, equation(77) in page 39
         Note:
@@ -231,12 +237,13 @@ class Adapter(object):
         -------------
         mus = (mu, dmu)
         """
+        #fix_delta = (delta is not None)
         mu, dmu = mus
         mu_a, mu_b = mu + dmu, mu - dmu
         if update_C:
             self.fix_C(mu=mu, dmu=0, delta=delta, **args)
         ns, taus, nu, g_eff, delta, mu_a_eff, mu_b_eff = self.solve(
-            mus=mus, delta=delta, solver=solver, fix_delta=update_C, **args)
+            mus=mus, delta=delta, solver=solver, fix_delta=fix_delta, **args)
         # alpha_a, alpha_b = self.get_alphas(ns=ns)
         D = self.get_D(ns=ns)
         energy_density = taus[0]/2.0 + taus[1]/2.0 + g_eff*abs(nu)**2
@@ -254,9 +261,13 @@ class Adapter(object):
         -----------
         Note: dq may be in args
         """
+        if mus_eff is None:
+            mus_eff = (self.mu_eff + self.dmu_eff, self.mu_eff - self.dmu_eff)
+
         if delta is None:
             # solve delta so that yields same C
             delta = self.solve_delta(mus_eff=mus_eff, **args)
+            self._delta = delta
 
         mu_a_eff, mu_b_eff = mus_eff
         res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta, **args)

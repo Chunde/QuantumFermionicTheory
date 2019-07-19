@@ -231,18 +231,15 @@ from mmf_hfb.FFStateAgent import FFStateAgent
 args = dict(mu_eff=mu_eff, dmu_eff=dmu_eff, delta=1, T=0, dim=3, k_c=50, verbosity=False, C=C)
 lda = ClassFactory("LDA", (ffa.FFStateAgent,),  functionalType=FunctionalType.ASLDA, kernelType=KernelType.HOM, args=args)
 
-res = lda.get_ns_mus_e_p(mus_eff=mus_eff, delta=delta, dq=dq)
-mus_eff_ = lda.get_mus_eff(
-        mus=(sum(res[1])/2.0, (res[1][0]-res[1][1])/2.0),
-        delta=delta, dq=dq, verbosity=False)
-
-delta,ground_state_data['d'], mus_eff_
-
 mu_a_eff_, mu_b_eff_ = lda.get_mus_eff(mus=mus, delta=delta, dq=dq, verbosity=False)
 mu_eff_=(mu_a_eff_ + mu_b_eff_)/2
 dmu_eff_ = (mu_a_eff_-mu_b_eff_)/2
 
+# ### Compare pressures with same bare mus
+
 lda.get_ns_e_p(mus=mus,delta=delta, dq=dq, verbosity=False, solver=Solvers.BROYDEN1)
+
+lda.get_ns_e_p(mus=mus,delta=None, verbosity=False, solver=Solvers.BROYDEN1)
 
 lda.get_ns_e_p(mus=mus,delta=0, verbosity=False, solver=Solvers.BROYDEN1)
 
