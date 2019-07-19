@@ -9,8 +9,8 @@ import time
 import glob
 import json
 import os
-
 import operator
+
 
 class FFStateAgent(object):
     """
@@ -37,16 +37,9 @@ class FFStateAgent(object):
             os.path.abspath(inspect.getfile(inspect.currentframe())))
         return join(currentdir, "data", self.fileName)
 
-    def get_ns_e_p(self, mus_eff=None, delta=None, q=0, dq=0):
-        """return the pressure"""
-        if mus_eff is None:
-            mus_eff = (self.mu_eff + self.dmu_eff, self.mu_eff - self.dmu_eff)
-        ns, mus, e, p = self.get_ns_mus_e_p(mus_eff=mus_eff, delta=delta, q=q, dq=dq)
-        return (ns, mus, e, p)
-
     def get_pressure(self, mus_eff, delta, q=0, dq=0):
         """return the pressure only"""
-        return self.get_ns_e_p(mus_eff=mus_eff, delta=delta, q=q, dq=dq)[3]
+        return self.get_ns_mus_e_p(mus_eff=mus_eff, delta=delta, q=q, dq=dq)[3]
         
     def SaveToFile(self, data, extra_items=None):
         """
@@ -285,7 +278,7 @@ def compute_pressure_current_worker(jsonData_file):
     lda.C= C
     if os.path.exists(lda._get_fileName()):
         return None
-    normal_pressure = lda.get_ns_e_p(mus_eff=mus_eff, delta=0)[3]
+    normal_pressure = lda.get_ns_mus_e_p(mus_eff=mus_eff, delta=0)[3]
 
     print(f"Processing {lda._get_fileName()}")
     output1 = []
@@ -294,7 +287,7 @@ def compute_pressure_current_worker(jsonData_file):
     def append_item(delta, dq, output):
         if dq is not None:
             dic = {}
-            ns, mus, e, p = lda.get_ns_e_p(delta=d, dq=dq)
+            ns, mus, e, p = lda.get_ns_mus_e_p(delta=d, dq=dq)
             ja, jb, jp, _ = lda.get_current(mus_eff=mus_eff, delta=d, dq=dq)
             dic['na']=ns[0]  # particle density a
             dic['nb']=ns[1]  # particle density b
@@ -368,68 +361,89 @@ def search_states(mu_eff=10, delta=1):
         PoolHelper.run(search_states_worker, mus_deltas, poolsize=5)
 
 
-def FindFFState(verbose=False):
-        currentdir = join(
+def LabelStates(current_dir=None, raw_data=False, verbosity=False):
+    """
+    check all the pressure and current output files for
+    different configuration(mus_eff, delta), determine if
+    each of them is FF state or not.
+    --------------
+    return a list of information include state tag flag
+    can be used for plotting.
+    Para:
+    --------------
+    current_dir: specifies the dir where to find the 
+        pressure and current output files
+    raw_data: if this is True, the original data will 
+        also be included in the return list items
+
+    """
+    if current_dir is None:
+        current_dir = join(
             os.path.dirname(
                 os.path.abspath(
                     inspect.getfile(
                         inspect.currentframe()))), "..", "mmf_hfb", "data")
-        output = []
-        
-        pattern = join(currentdir, "FFState_J_P[()d_0-9]*")
-        files=glob.glob(pattern)
-        for file in files[0:]:
-            if os.path.exists(file):
-                with open(file, 'r') as rf:
-                    ret = json.load(rf)
-                    dim, mu_eff, dmu_eff, delta, C=ret['dim'], ret['mu_eff'], ret['dmu_eff'], ret['delta'], ret['C']
-                    p0 = ret['p0']
-                    a_inv = 4.0*np.pi*C
+    output = []
+    pattern = join(current_dir, "FFState_J_P[()d_0-9]*")
+    files=glob.glob(pattern)
+    for file in files[0:]:
+        if os.path.exists(file):
+            with open(file, 'r') as rf:
+                ret = json.load(rf)
+                dim, mu_eff, dmu_eff, delta, C=(
+                    ret['dim'], ret['mu_eff'], ret['dmu_eff'], ret['delta'], ret['C'])
+                p0 = ret['p0']
+                a_inv = 4.0*np.pi*C  # inverse scattering length
 
-                    if verbose:
-                        print(file)
-                    data1, data2 = ret['data']
+                if verbosity:
+                    print(file)
+                data1, data2 = ret['data']
 
-                    data1.extend(data2)
+                data1.extend(data2)
 
-                    dqs1, dqs2, ds1, ds2= [], [], [], []
-                    j1, j2, ja1, ja2, jb1, jb2, P1, P2 = [], [], [], [], [], [], [], []
-                    for data in data1:
-                        d, q, p, j, j_a, j_b = data['d'], data['q'], data['p'], data['j'], data['ja'], data['jb']
-                        ds1.append(d)
-                        dqs1.append(q)
-                        j1.append(j)
-                        ja1.append(j_a)
-                        jb1.append(j_b)
-                        P1.append(p)
-                   
-                    bFFState = False
-                    if len(P1) > 0:
-                        index1, value = max(enumerate(P1), key=operator.itemgetter(1))
-                        data = data1[index1]
-                        n_a, n_b = data['na'], data['nb']
-                        mu_a, mu_b = data['mu_a'], data['mu_b']
-                        mu, dmu = (mu_a + mu_b)/2.0, (mu_a - mu_b)/2.0
-                        if verbose:
-                            print(f"na={n_a}, nb={n_b}, PF={value}, PN={p0}")
-                        if (value > p0) and (
-                            not np.allclose(
-                                n_a, n_b, rtol=1e-9) and data["q"]>0.0001 and data["d"]>0.001):
-                            bFFState = True
-                    if bFFState and verbose:
-                        print(f"FFState: {bFFState} |<-------------")
-                    dic = dict(
-                        mu=mu, dmu=dmu, np=n_a + n_b, na=n_a,
-                        nb=n_b, ai=a_inv, C=C, delta=delta, state=bFFState)
-                    if verbose:
-                        print(dic)
-                    output.append(dic)
-                    if verbose:
-                        print("-----------------------------------")
-        return output
+                dqs1, dqs2, ds1, ds2= [], [], [], []
+                j1, j2, ja1, ja2, jb1, jb2, P1, P2 = [], [], [], [], [], [], [], []
+                for data in data1:
+                    d, q, p, j, j_a, j_b = (
+                        data['d'], data['q'], data['p'], data['j'], data['ja'], data['jb'])
+                    ds1.append(d)
+                    dqs1.append(q)
+                    j1.append(j)
+                    ja1.append(j_a)
+                    jb1.append(j_b)
+                    P1.append(p)
+                
+                bFFState = False
+                if len(P1) > 0:
+                    index1, value = max(enumerate(P1), key=operator.itemgetter(1))
+                    data = data1[index1]
+                    n_a, n_b = data['na'], data['nb']
+                    mu_a, mu_b = data['mu_a'], data['mu_b']
+                    mu, dmu = (mu_a + mu_b)/2.0, (mu_a - mu_b)/2.0
+                    if verbosity:
+                        print(f"na={n_a}, nb={n_b}, PF={value}, PN={p0}")
+                    if (value > p0) and (
+                        not np.allclose(
+                            n_a, n_b, rtol=1e-9) and (
+                                data["q"]>0.0001 and data["d"]>0.001)):
+                        bFFState = True
+                if bFFState and verbosity:
+                    print(f"FFState: {bFFState} |<-------------")
+                dic = dict(
+                    mu_eff=mu_eff, dmu_eff=dmu_eff,
+                    mu=mu, dmu=dmu, np=n_a + n_b, na=n_a,
+                    nb=n_b, ai=a_inv, C=C, delta=delta, state=bFFState)
+                if verbosity:
+                    print(dic)
+                if raw_data:
+                    dic['data']=ret
+                    dic['file']=file
+                output.append(dic)
+                if verbosity:
+                    print("-----------------------------------")
+    return output
 
         
 if __name__ == "__main__":
-    #FindFFState()
     #search_states(delta=0.75)
     compute_pressure_current()
