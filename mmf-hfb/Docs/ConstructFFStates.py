@@ -16,17 +16,22 @@
 
 # # Construct FF States
 
+# +
 import mmf_setup;mmf_setup.nbinit()
 # %pylab inline --no-import-all
 from nbimports import * 
 from mmf_hfb import tf_completion as tf
 from mmf_hfb.FuldeFerrelState import FFState
 from mmf_hfb.FFStateFinder import FFStateFinder
+import mmf_hfb.FFStateHelper as ffh
+reload(ffh)
 from mmf_hfb.FFStateHelper import FFStateHelper
+
 from scipy.optimize import brentq
 import operator
 from mmfutils.plot import imcontourf
 clear_output()
+# -
 
 # ### Plots from external data
 
@@ -47,7 +52,7 @@ def filter(mu, dmu, delta, g, dim):
     if not np.allclose(dmu,0.6):
         return True
     return False
-currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","mmf_hfb","data")
+currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","mmf_hfb","data(BdG)")
 
 
 import json
@@ -268,8 +273,8 @@ def filter1(mu, dmu, delta, g, dim):
     #    return True
     return False
 if output is not None:
-    lasStates=(output, fileSet)
-output, fileSet = FFStateHelper.FindFFState(filter1, lastStates=lastStates)
+    lastStates=(output, fileSet)
+output, fileSet = FFStateHelper.FindFFState(filter1,currentdir=currentdir, lastStates=lastStates, verbosity=False)
 clear_output()
 
 xs = []
@@ -320,10 +325,11 @@ plt.scatter(xs2, ys2,  s=area, c=colors)
 plt.ylabel(r"$\delta \mu$")
 plt.xlabel(r"$\Delta$")
 #plt.ylim(0.,1.5)
+plt.axhline(1.075, linestyle='dashed')
 plt.xlim(0,4)
-plt.ylim(0,3)
-#plt.axvline(1.2)
-#plt.axhline(.25)
+plt.ylim(1,1.2)
+plt.axvline(1.2)
+plt.axhline(.25)
 
 # ## Check range of $\Delta$
 # ### 3D case

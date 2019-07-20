@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>d96035f2-d7ba-4540-adc5-a336a7b7a91f</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>tests\test_FF_state.py</StartupFile>
+    <StartupFile>mmf_hfb\FFStateHelper.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -40,6 +40,7 @@
     <Compile Include="Docs\bdg-equations-in-1d.py" />
     <Compile Include="Docs\ConstructFFStates.py" />
     <Compile Include="Docs\EulerRelation.py" />
+    <Compile Include="Docs\FFState%28ASLDA%29.py" />
     <Compile Include="Docs\FuldeFerrelVortex.py" />
     <Compile Include="Docs\nbimports.py" />
     <Compile Include="Docs\ThermodynamicRelations.py" />
@@ -47,15 +48,26 @@
     <Compile Include="mmf_hfb\bcs.py" />
     <Compile Include="mmf_hfb\bcs_aslda.py" />
     <Compile Include="mmf_hfb\Broyden.py" />
+    <Compile Include="mmf_hfb\FFStateAgent.py" />
     <Compile Include="mmf_hfb\FFStateFinder.py" />
     <Compile Include="mmf_hfb\FFStateHelper.py" />
     <Compile Include="mmf_hfb\FFStatePhaser.py" />
+    <Compile Include="mmf_hfb\FFStatePlot.py" />
     <Compile Include="mmf_hfb\FuldeFerrelState.py" />
     <Compile Include="mmf_hfb\Functionals.py" />
     <Compile Include="mmf_hfb\homogeneous.py" />
     <Compile Include="mmf_hfb\homogeneous_aslda.py" />
     <Compile Include="mmf_hfb\homogeneous_mmf.py" />
     <Compile Include="mmf_hfb\integrate.py" />
+    <Compile Include="mmf_hfb\interface.py" />
+    <Compile Include="mmf_hfb\ClassFactory.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="mmf_hfb\KernelBCS.py" />
+    <Compile Include="mmf_hfb\KernelHomogeneouse.py" />
+    <Compile Include="mmf_hfb\DataHelper.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="mmf_hfb\ParallelHelper.py" />
     <Compile Include="mmf_hfb\scratch.py">
       <SubType>Code</SubType>
@@ -71,6 +83,7 @@
     <Compile Include="tests\test_aslda_twisting.py" />
     <Compile Include="tests\test_aslda_unitary.py" />
     <Compile Include="tests\test_bcs.py" />
+    <Compile Include="tests\test_class_factory.py" />
     <Compile Include="tests\test_FF_state.py">
       <SubType>Code</SubType>
     </Compile>

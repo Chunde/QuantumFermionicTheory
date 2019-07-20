@@ -162,10 +162,13 @@ class Adapter(object):
         return 4.0*np.pi*self.hbar**2*C/self.m
     
     def solve(
-            self, mus, delta, fix_delta=False, rtol=1e-12,
-            solver=None, verbosity=True, **args):
+            self, mus, delta, fix_delta=False,
+            solver=None, x0=None, verbosity=True, rtol=1e-12, **args):
         """
         use a solver or simple interation to solve the gap equation
+        Parameter
+        -------------
+        x0: init guess(optional)
         """
         if delta is None:
             fix_delta = False
@@ -190,10 +193,11 @@ class Adapter(object):
             if verbosity:
                 self.output_res(mu_a_eff_, mu_b_eff_, delta_, g_eff, ns, taus, nu)
             return np.array([mu_a_eff_, mu_b_eff_, delta_])
-
+        if x0 is None:
+            x0 = np.array([mu_a_eff, mu_b_eff, delta*np.ones_like(sum(self.xyz))])
         if solver is None or type(solver).__name__ != 'function':
             while(True):  # use simple iteration if no solver is specified
-                mu_a_eff_, mu_b_eff_, delta_ = _fun((mu_a_eff, mu_b_eff, delta))
+                mu_a_eff_, mu_b_eff_, delta_ = _fun(x0)
                 if (np.allclose(
                     mu_a_eff_, mu_a_eff, rtol=rtol) and np.allclose(
                         mu_b_eff_, mu_b_eff, rtol=rtol) and np.allclose(
@@ -204,7 +208,6 @@ class Adapter(object):
             def fun(x):
                 return _fun(x) - x
             
-            x0 = np.array([mu_a_eff, mu_b_eff, delta*np.ones_like(sum(self.xyz))])
             mu_a_eff, mu_b_eff, delta = solver(fun, x0)
         
 
@@ -237,7 +240,7 @@ class Adapter(object):
         -------------
         mus = (mu, dmu)
         """
-        #fix_delta = (delta is not None)
+        # fix_delta = (delta is not None)
         mu, dmu = mus
         mu_a, mu_b = mu + dmu, mu - dmu
         if update_C:
