@@ -29,7 +29,7 @@ class BDG(FunctionalBdG, KernelBCS):
             ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
             args.update(ns=ns)
             V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
-            mu_a_eff_, mu_b_eff_ = mu_a + V_a, mu_b + V_b
+            mu_a_eff_, mu_b_eff_ = mu_a - V_a, mu_b - V_b
             g_eff = self._g_eff(mus_eff=(mu_a_eff_, mu_b_eff_), **args)
             delta_ = g_eff*nu
             print(
@@ -80,7 +80,7 @@ class BDG(FunctionalBdG, KernelBCS):
             energy_density = (
                 energy_density
                 + self.T*self.get_entropy(mus_eff=(mu_a_eff, mu_b_eff), delta=delta).n)
-        energy_density = energy_density - D
+        energy_density = energy_density + D
         pressure = ns[0]*mu_a + ns[1]*mu_b - energy_density
         if update_C:
             self.C = self.get_C(ns)

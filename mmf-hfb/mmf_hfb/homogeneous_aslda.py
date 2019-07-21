@@ -48,7 +48,7 @@ class BDG(Homogeneous, FunctionalBdG):
         """use the Broyden solver may be much faster"""
         mu, dmu = mus
         mu_a, mu_b = mu + dmu, mu - dmu
-        mu_a_eff, mu_b_eff =np.array([mu_a, mu_b]) + self.get_Vs(delta=delta)
+        mu_a_eff, mu_b_eff =np.array([mu_a, mu_b]) - self.get_Vs(delta=delta)
         if use_solver:
 
             def fun(x):
@@ -82,7 +82,7 @@ class BDG(Homogeneous, FunctionalBdG):
                 ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
                 mu_a_eff_, mu_b_eff_ = (
                     np.array([mu_a, mu_b])
-                    + self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu))
+                    - self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu))
                 g_eff = self._g_eff(
                     mus_eff=(mu_a_eff_, mu_b_eff_), ns=ns,
                                 dim=self.dim, E_c=self.k_c**2/2/self.m)
