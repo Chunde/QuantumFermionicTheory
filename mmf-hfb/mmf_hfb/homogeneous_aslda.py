@@ -55,8 +55,9 @@ class BDG(Homogeneous, FunctionalBdG):
                 mu_a_eff, mu_b_eff, delta = x
                 res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta)
                 ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
-                mu_a_eff_, mu_b_eff_ = (np.array([mu_a, mu_b])
-                    + self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu))
+                mu_a_eff_, mu_b_eff_ = (
+                    np.array([mu_a, mu_b] - self.get_Vs(
+                        delta=delta, ns=ns, taus=taus, nu=nu)))
                 g_eff = self._g_eff(
                     mus_eff=(mu_a_eff_, mu_b_eff_), ns=ns,
                     dim=self.dim, E_c=self.k_c**2/2/self.m)
@@ -114,7 +115,7 @@ class BDG(Homogeneous, FunctionalBdG):
             energy_density = (
                 energy_density
                 + self.T*self.get_entropy(mus_eff=(mu_a_eff, mu_b_eff), delta=delta).n)
-        energy_density = energy_density - D
+        energy_density = energy_density  + D
         pressure = ns[0]*mu_a + ns[1]*mu_b - energy_density
         if update_C:
             self.C = self.get_C(ns)
@@ -128,7 +129,12 @@ class SLDA(BDG, FunctionalSLDA):
             return (1.0, 1.0)
         elif d==1:
             return (0, 0, 0, 0)
-    
+
+    # def get_D(self, ns, d=0):
+    #     if d==0:
+    #         return 1
+    #     elif d==1:
+    #         return (0, 0)
 
 class ASLDA(SLDA, FunctionalASLDA):
     pass

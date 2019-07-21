@@ -324,7 +324,7 @@ class FFState(object):
             mu_eff, dmu_eff = self._get_effective_mus(mu=mu, dmu=dmu, q=q, dq=dq)
         if delta is None:
             delta = self.solve(mu=mu_eff, dmu=dmu_eff, q=q, dq=dq, 
-                               a=self.delta * 0.8, b=self.delta * 1.2)
+                               a=self.delta*0.8, b=self.delta*1.2)
         n_a, n_b = self.get_densities(mu=mu_eff, dmu=dmu_eff, delta=delta, q=q, dq=dq)
         energy_density = self.get_energy_density(
             mu=mu_eff, dmu=dmu_eff, delta=delta, q=q, dq=dq,

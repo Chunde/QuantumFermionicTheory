@@ -86,7 +86,7 @@ class Adapter(object):
         res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta, **args)
         ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
         V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
-        mu_a, mu_b = mu_a_eff - V_a, mu_b_eff - V_b
+        mu_a, mu_b = mu_a_eff + V_a, mu_b_eff + V_b
         return (mu_a, mu_b)
 
     def get_mus_eff(self, mus, delta, dq=0, ns=None, taus=None, nu=None, verbosity=True):
@@ -97,7 +97,7 @@ class Adapter(object):
         """
         mu_a, mu_b = mus[0]+mus[1], mus[0]-mus[1]
         V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
-        mu_a_eff, mu_b_eff = mu_a + V_a, mu_b + V_b
+        mu_a_eff, mu_b_eff = mu_a - V_a, mu_b - V_b
         x0 = np.array([mu_a_eff, mu_b_eff])
 
         def _fun(x):
@@ -105,7 +105,7 @@ class Adapter(object):
             res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta, dq=dq)
             ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
             V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
-            mu_a_eff_, mu_b_eff_ = mu_a + V_a, mu_b + V_b
+            mu_a_eff_, mu_b_eff_ = mu_a - V_a, mu_b - V_b
             if not ((mu_a_eff_ > 0) and (mu_b_eff_ > 0)):  # assume positive
                 raise ValueError(f"Effective mu must be positive:{mu_a_eff_, mu_b_eff_}")
             x_ = np.array([mu_a_eff_, mu_b_eff_])
@@ -187,7 +187,7 @@ class Adapter(object):
             ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
             args.update(ns=ns)
             V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
-            mu_a_eff_, mu_b_eff_ = mu_a + V_a, mu_b + V_b
+            mu_a_eff_, mu_b_eff_ = mu_a - V_a, mu_b - V_b
             g_eff = self._g_eff(mus_eff=(mu_a_eff_, mu_b_eff_), **args)
             delta_  = delta if fix_delta else g_eff*nu
             if verbosity:
@@ -254,7 +254,7 @@ class Adapter(object):
             energy_density = (
                 energy_density
                 +self.T*self.get_entropy(mus_eff=(mu_a_eff, mu_b_eff), delta=delta).n)
-        energy_density = energy_density - D
+        energy_density = energy_density + D
         pressure = ns[0]*mu_a + ns[1]*mu_b - energy_density
         return (ns, energy_density, pressure)
 
@@ -276,7 +276,7 @@ class Adapter(object):
         res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta, **args)
         ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
         V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
-        mu_a, mu_b = mu_a_eff - V_a, mu_b_eff - V_b
+        mu_a, mu_b = mu_a_eff + V_a, mu_b_eff + V_b
         D = self.get_D(ns=ns)
         g_eff = 0 if nu==0 else delta/nu
         energy_density = taus[0]/2.0 + taus[1]/2.0 + g_eff*abs(nu)**2
@@ -284,7 +284,7 @@ class Adapter(object):
             energy_density = (
                 energy_density
                 +self.T*self.get_entropy(mus_eff=(mu_a_eff, mu_b_eff), delta=delta).n)
-        energy_density = energy_density - D
+        energy_density = energy_density + D
         pressure = ns[0]*mu_a + ns[1]*mu_b - energy_density
         return (ns, (mu_a, mu_b), energy_density, pressure)
 

@@ -324,8 +324,13 @@ if __name__ == "__main__":
     mu_b_eff=mu_eff - dmu_eff
     mus_eff=(mu_a_eff, mu_b_eff)
 
-    args = dict(mu_eff=mu_eff, dmu_eff=dmu_eff, delta=1, T=0, dim=3, k_c=50, verbosity=False, C=C)
-    lda = ClassFactory("LDA", (FFStateAgent,), functionalType=FunctionalType.ASLDA, kernelType=KernelType.HOM, args=args)
+    args = dict(
+        mu_eff=mu_eff, dmu_eff=dmu_eff, delta=1,
+        T=0, dim=3, k_c=50, verbosity=False, C=C)
+    lda = ClassFactory(
+        "LDA", (FFStateAgent,),
+        functionalType=FunctionalType.ASLDA,
+        kernelType=KernelType.HOM, args=args)
     
     # mu_a_eff_, mu_b_eff_ = lda.get_mus_eff(mus=mus, delta=delta, dq=dq)
     # mu_eff_=(mu_a_eff_ + mu_b_eff_)/2
@@ -337,5 +342,5 @@ if __name__ == "__main__":
     # print(res1)
     # print(res2)
 
-    res3 = lda.get_ns_e_p(mus=mus, delta=0, verbosity=False, fix_delta=False, solver=Solvers.BROYDEN1)
+    res3 = lda.get_ns_e_p(mus=mus, delta=None, verbosity=False, fix_delta=False, solver=Solvers.BROYDEN1)
     print(res3)

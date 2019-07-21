@@ -1,4 +1,4 @@
-from mmf_hfb.ClassFactory import ClassFactory, FunctionalType, KernelType
+from mmf_hfb.ClassFactory import ClassFactory, FunctionalType, KernelType, Solvers
 from mmf_hfb.DataHelper import ff_state_sort_data
 from mmf_hfb.ParallelHelper import PoolHelper
 from scipy.optimize import brentq
@@ -20,7 +20,7 @@ class FFStateAgent(object):
     def __init__(
             self, mu_eff, dmu_eff, delta, dim, verbosity=True,
             prefix="FFState_", timeStamp=True, **args):
-        assert dmu_eff < delta
+        # assert dmu_eff < delta
         self.delta = delta
         self.mu_eff = mu_eff
         self.dmu_eff = dmu_eff
@@ -36,6 +36,17 @@ class FFStateAgent(object):
         currentdir = os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe())))
         return join(currentdir, "data", self.fileName)
+
+    def get_other_pressures(self, mus, delta, dq, C, mus_eff):
+        self.C = C
+        # P_ff = self.get_ns_e_p(
+        #     mus=mus, delta=delta, dq=dq, verbosity=False,
+        #     x0=mus_eff +(delta,), solver=Solvers.BROYDEN1)
+        P_ss = self.get_ns_e_p(
+            mus=mus, delta=None, verbosity=False, solver=Solvers.BROYDEN1)
+        P_ns = self.get_ns_e_p(
+            mus=mus, delta=0, verbosity=False, solver=Solvers.BROYDEN1)
+        return (P_ss[2], P_ns[2])
 
     def get_pressure(self, mus_eff, delta, q=0, dq=0):
         """return the pressure only"""
@@ -371,9 +382,9 @@ def LabelStates(current_dir=None, raw_data=False, verbosity=False):
     can be used for plotting.
     Para:
     --------------
-    current_dir: specifies the dir where to find the 
+    current_dir: specifies the dir where to find the
         pressure and current output files
-    raw_data: if this is True, the original data will 
+    raw_data: if this is True, the original data will
         also be included in the return list items
 
     """
@@ -386,12 +397,14 @@ def LabelStates(current_dir=None, raw_data=False, verbosity=False):
     output = []
     pattern = join(current_dir, "FFState_J_P[()d_0-9]*")
     files=glob.glob(pattern)
+
     for file in files[0:]:
         if os.path.exists(file):
             with open(file, 'r') as rf:
                 ret = json.load(rf)
                 dim, mu_eff, dmu_eff, delta, C=(
                     ret['dim'], ret['mu_eff'], ret['dmu_eff'], ret['delta'], ret['C'])
+                
                 p0 = ret['p0']
                 a_inv = 4.0*np.pi*C  # inverse scattering length
 
@@ -420,13 +433,30 @@ def LabelStates(current_dir=None, raw_data=False, verbosity=False):
                     n_a, n_b = data['na'], data['nb']
                     mu_a, mu_b = data['mu_a'], data['mu_b']
                     mu, dmu = (mu_a + mu_b)/2.0, (mu_a - mu_b)/2.0
+                    #  create a lda instance to compute all types of pressure
+                    args = dict(
+                        mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
+                        T=0, dim=ret['dim'], k_c=ret['k_c'], verbosity=False, C=C)
+                    lda = ClassFactory(
+                        "LDA", (FFStateAgent,),
+                        functionalType=FunctionalType.ASLDA,
+                        kernelType=KernelType.HOM, args=args)
+                    
                     if verbosity:
                         print(f"na={n_a}, nb={n_b}, PF={value}, PN={p0}")
-                    if (value > p0) and (
+                    if (
                         not np.allclose(
                             n_a, n_b, rtol=1e-9) and (
                                 data["q"]>0.0001 and data["d"]>0.001)):
-                        bFFState = True
+                        try:
+                            pressures = lda.get_other_pressures(
+                                mus_eff=(mu_eff + dmu_eff, mu_eff - dmu_eff),
+                                mus=(mu, dmu), delta=data["d"], dq=data['q'], C=C)
+                        except:
+                            print(file)
+                            break
+                        if data['p']>pressures[0] and data['p']>pressures[1]:
+                            bFFState = True
                 if bFFState and verbosity:
                     print(f"FFState: {bFFState} |<-------------")
                 dic = dict(
