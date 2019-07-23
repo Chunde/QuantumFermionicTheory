@@ -63,6 +63,7 @@ class Adapter(object):
             return (0, 0)
 
     def get_alpha(self, p, d=0):
+        """override the alpha"""
         if d==0:
             return 1.0
         else:
@@ -137,7 +138,7 @@ class Adapter(object):
             ns=None, taus=None, nu=None, verbosity=False):
         """
         return the C value when computing g
-        Note: NOT the get_C(ns), mus = (mu, dmu)
+        Note: NOT the functional get_C(ns), mus = (mu, dmu)
             
         """
         if mus_eff is None:
@@ -166,6 +167,7 @@ class Adapter(object):
             solver=None, x0=None, verbosity=True, rtol=1e-12, **args):
         """
         use a solver or simple interation to solve the gap equation
+        return delta and effective mus
         Parameter
         -------------
         x0: init guess(optional)
@@ -177,7 +179,6 @@ class Adapter(object):
         mu_a, mu_b = mu + dmu, mu - dmu
         V_a, V_b = self.get_Vs()
         mu_a_eff, mu_b_eff = mu_a + V_a, mu_b + V_b
-        args.update(dim=self.dim, k_c=self.k_c, E_c=self.E_c)
         if fix_delta and len(np.ones_like(sum(self.xyz))) > 1:
             delta = delta*np.ones_like(sum(self.xyz))
 
@@ -189,10 +190,11 @@ class Adapter(object):
             V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
             mu_a_eff_, mu_b_eff_ = mu_a - V_a, mu_b - V_b
             g_eff = self._g_eff(mus_eff=(mu_a_eff_, mu_b_eff_), **args)
-            delta_  = delta if fix_delta else g_eff*nu
+            delta_ = delta if fix_delta else g_eff*nu
             if verbosity:
                 self.output_res(mu_a_eff_, mu_b_eff_, delta_, g_eff, ns, taus, nu)
             return np.array([mu_a_eff_, mu_b_eff_, delta_])
+
         if x0 is None:
             x0 = np.array([mu_a_eff, mu_b_eff, delta*np.ones_like(sum(self.xyz))])
         if solver is None or type(solver).__name__ != 'function':
@@ -207,15 +209,9 @@ class Adapter(object):
         else:
             def fun(x):
                 return _fun(x) - x
-            
             mu_a_eff, mu_b_eff, delta = solver(fun, x0)
-        
 
-        res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta, **args)
-        ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
-        args.update(ns=ns)
-        g_eff = self._g_eff(mus_eff=(mu_a_eff, mu_b_eff), **args)
-        return (ns, taus, nu, g_eff, delta, mu_a_eff, mu_b_eff)
+        return (delta, mu_a_eff, mu_b_eff)
 
     def solve_delta(self, mus_eff, dq=0, **args):
         mu_a_eff, mu_b_eff = mus_eff
@@ -232,6 +228,17 @@ class Adapter(object):
         delta = brentq(f, a=0.8*self.delta, b=2*self.delta)
         return delta
 
+    def _get_e_p(self, mus, mus_eff, delta, ns, taus, nu, g_eff):
+        """return energy  density and pressure"""
+        # alpha_a, alpha_b = self.get_alphas(ns=ns)
+        energy_density = taus[0]/2.0 + taus[1]/2.0 + g_eff*abs(nu)**2
+        if self.T !=0:
+            energy_density = (
+                energy_density +self.T*self.get_entropy(mus_eff=mus_eff, delta=delta).n)
+        energy_density = energy_density + self.get_D(ns=ns)
+        pressure = ns[0]*mus[0] + ns[1]*mus[1] - energy_density
+        return (energy_density, pressure)
+
     def get_ns_e_p(self, mus, delta, update_C=False, fix_delta=True, solver=None, **args):
         """
         compute then energy density for BdG, equation(77) in page 39
@@ -241,22 +248,25 @@ class Adapter(object):
         mus = (mu, dmu)
         """
         # fix_delta = (delta is not None)
+        args.update(dim=self.dim, k_c=self.k_c, E_c=self.E_c)
         mu, dmu = mus
         mu_a, mu_b = mu + dmu, mu - dmu
-        if update_C:
-            self.fix_C(mu=mu, dmu=0, delta=delta, **args)
-        ns, taus, nu, g_eff, delta, mu_a_eff, mu_b_eff = self.solve(
+
+        delta, mu_a_eff, mu_b_eff = self.solve(
             mus=mus, delta=delta, solver=solver, fix_delta=fix_delta, **args)
-        # alpha_a, alpha_b = self.get_alphas(ns=ns)
-        D = self.get_D(ns=ns)
-        energy_density = taus[0]/2.0 + taus[1]/2.0 + g_eff*abs(nu)**2
-        if self.T !=0:
-            energy_density = (
-                energy_density
-                +self.T*self.get_entropy(mus_eff=(mu_a_eff, mu_b_eff), delta=delta).n)
-        energy_density = energy_density + D
-        pressure = ns[0]*mu_a + ns[1]*mu_b - energy_density
-        return (ns, energy_density, pressure)
+        mus_eff = (mu_a_eff, mu_b_eff)
+
+        res = self.get_densities(mus_eff=mus_eff, delta=delta, **args)
+        ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
+        args.update(ns=ns)
+        g_eff = self._g_eff(mus_eff=mus_eff, **args)
+        if update_C:
+            self.C = self._get_C(mus_eff=mus_eff, delta=delta, ns=ns, taus=taus, nu=nu)
+        e_p = self._get_e_p(
+            mus=(mu_a, mu_b), mus_eff=mus_eff, delta=delta,
+            ns=ns, taus=taus, nu=nu, g_eff=g_eff)
+       
+        return (ns,) + e_p
 
     def get_ns_mus_e_p(self, mus_eff, delta, solver=None, **args):
         """
@@ -264,6 +274,7 @@ class Adapter(object):
         -----------
         Note: dq may be in args
         """
+        args.update(dim=self.dim, k_c=self.k_c, E_c=self.E_c)
         if mus_eff is None:
             mus_eff = (self.mu_eff + self.dmu_eff, self.mu_eff - self.dmu_eff)
 
@@ -272,21 +283,17 @@ class Adapter(object):
             delta = self.solve_delta(mus_eff=mus_eff, **args)
             self._delta = delta
 
-        mu_a_eff, mu_b_eff = mus_eff
-        res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta, **args)
+        res = self.get_densities(mus_eff=mus_eff, delta=delta, **args)
         ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
         V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
-        mu_a, mu_b = mu_a_eff + V_a, mu_b_eff + V_b
-        D = self.get_D(ns=ns)
-        g_eff = 0 if nu==0 else delta/nu
-        energy_density = taus[0]/2.0 + taus[1]/2.0 + g_eff*abs(nu)**2
-        if self.T !=0:
-            energy_density = (
-                energy_density
-                +self.T*self.get_entropy(mus_eff=(mu_a_eff, mu_b_eff), delta=delta).n)
-        energy_density = energy_density + D
-        pressure = ns[0]*mu_a + ns[1]*mu_b - energy_density
-        return (ns, (mu_a, mu_b), energy_density, pressure)
+        mu_a, mu_b = mus_eff[0] + V_a, mus_eff[1] + V_b
+        
+        g_eff = self._g_eff(mus_eff=mus_eff, **args)
+        #g_eff = 0 if nu==0 else delta/nu
+        e_p = self._get_e_p(
+            mus=(mu_a, mu_b), mus_eff=mus_eff, delta=delta,
+            ns=ns, taus=taus, nu=nu, g_eff=g_eff)
+        return (ns, (mu_a, mu_b), ) + e_p
 
 
 def ClassFactory(

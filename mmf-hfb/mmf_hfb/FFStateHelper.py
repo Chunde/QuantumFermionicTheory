@@ -69,8 +69,69 @@ class FFStateHelper(object):
             ff.SaveToFile(output)
         except ValueError as e:
             print(f"Parsing file: {fileName}. Error:{e}")
-        
-    def FindFFState(filter, currentdir=None, lastStates=None, verbosity=False):
+
+    def label_state_worker(file_name):
+        dic = None
+        del_file = False
+        if os.path.exists(file_name):
+            with open(file_name, 'r') as rf:
+                print(file_name)
+                ret = json.load(rf)
+                dim, mu, dmu, delta, g=ret['dim'], ret['mu'], ret['dmu'], ret['delta'], ret['g']
+                
+                k_c = None
+                if 'k_c' in ret:
+                    k_c = ret['k_c']
+                
+                # print(file_name)
+                
+                data1, data2 = ret['data']
+                data1.extend(data2)
+
+                dqs1, ds1, j1, ja1, jb1, P1=[], [], [], [], [], []
+                for data in data1:
+                    d, q, p, j, j_a, j_b = data['d'], data['q'], data['p'], data['j'], data['ja'], data['jb']
+                    ds1.append(d)
+                    dqs1.append(q)
+                    j1.append(j)
+                    ja1.append(j_a)
+                    jb1.append(j_b)
+                    P1.append(p)
+                
+                bFFState = False
+                if len(P1) > 0:
+                    ff = FFState(
+                    mu=mu, dmu=dmu, delta=delta,
+                    dim=dim, g=g, k_c=k_c, fix_g=True)
+                    a_inv = ff.get_a_inv(mu=mu, dmu=0, delta=delta).n
+                    mu_eff, dmu_eff = mu, dmu
+                    ns = ff.get_densities(mu=mu_eff, dmu=0)
+
+                    p0 = ff.get_pressure(
+                        mu=None, dmu=None, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=0)
+                    p1 = ff.get_pressure(
+                    mu=None, dmu=None, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=None)
+                    index1, value = max(enumerate(P1), key=operator.itemgetter(1))
+                    data = data1[index1]
+                    n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=data["d"], dq=data["q"])
+                    if value > p0 and value > p1 and (not np.allclose(
+                            n_a.n, n_b.n, rtol=1e-9) and data["q"]>0.0001 and data["d"]>0.001):
+                        bFFState = True
+                    if bFFState:
+                        print(f"FFState: {bFFState} |<-------------")
+                    dic = dict(
+                        mu=mu, dmu=dmu, np=sum(ns).n, na=n_a.n,
+                        nb=n_b.n, ai=a_inv, g=g, delta=delta, state=bFFState, file=file_name)
+                    
+                else:
+                    print(f"Del Empty file: {file_name}")
+                    del_file = True
+        if del_file:
+            os.remove(file_name)            
+        return dic
+
+
+    def label_states(filter, currentdir=None, lastStates=None, verbosity=False):
         if currentdir is None:
             currentdir = join(
                 os.path.dirname(
@@ -84,81 +145,20 @@ class FFStateHelper(object):
             output, fileSet = lastStates
         pattern = join(currentdir, "FFState_J_P[()d_0-9]*")
         files=glob.glob(pattern)
-        for file in files[0:]:
-            if os.path.exists(file):
-                with open(file, 'r') as rf:
-                    ret = json.load(rf)
-                    dim, mu, dmu, delta, g=ret['dim'], ret['mu'], ret['dmu'], ret['delta'], ret['g']
-                    if filter(mu=mu, dmu=dmu, delta=delta, g=g, dim=dim):
-                        continue
-                    if file in fileSet:
-                        if verbosity:
-                            print(file)
-                        continue
-                    fileSet.append(file)
-                    k_c = None
-                    if 'k_c' in ret:
-                        k_c = ret['k_c']
-                    
-                    print(file)
-                    ff = FFState(
-                        mu=mu, dmu=dmu, delta=delta,
-                        dim=dim, g=g, k_c=k_c, fix_g=True)
-                    a_inv = ff.get_a_inv(mu=mu, dmu=0, delta=delta).n
-                    mu_eff, dmu_eff = mu, dmu
-                    ns = ff.get_densities(mu=mu_eff, dmu=0)
-                    if verbosity:
-                        print(ns)
-                    p0 = ff.get_pressure(
-                        mu=None, dmu=None, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=0)
-                    p1 = ff.get_pressure(
-                        mu=None, dmu=None, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=None)
-                    if verbosity:
-                        print(f"p0={p0},p1={p1}")
-                    data1, data2 = ret['data']
-
-                    data1.extend(data2)
-
-                    dqs1, dqs2, ds1, ds2= [], [], [], []
-                    j1, j2, ja1, ja2, jb1, jb2, P1, P2 = [], [], [], [], [], [], [], []
-                    for data in data1:
-                        d, q, p, j, j_a, j_b = data['d'], data['q'], data['p'], data['j'], data['ja'], data['jb']
-                        ds1.append(d)
-                        dqs1.append(q)
-                        j1.append(j)
-                        ja1.append(j_a)
-                        jb1.append(j_b)
-                        P1.append(p)
-                   
-                    bFFState = False
-                    if len(P1) > 0:
-                        index1, value = max(enumerate(P1), key=operator.itemgetter(1))
-                        data = data1[index1]
-                        n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=data["d"], dq=data["q"])
-                        if verbosity:
-                            print(f"na={n_a.n}, nb={n_b.n}, PF={value}, PN={p0.n}")
-                        if value > p0 and value > p1 and (not np.allclose(
-                                n_a.n, n_b.n, rtol=1e-9) and data["q"]>0.0001 and data["d"]>0.001):
-                            bFFState = True
-                    #if len(P2) > 0:
-                    #    index2, value = max(enumerate(P2), key=operator.itemgetter(1))
-                    #    data = data2[index2]
-                    #    n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=data["d"], dq=data["q"])
-                    #    if verbosity:
-                    #        print(f"na={n_a.n}, nb={n_b.n}, PF={value}, PN={p0.n}")
-
-                    #    if value > p0 and not np.allclose(n_a.n, n_b.n, rtol=1e-9) and data["q"]>0.0001 and data["d"]>0.001:
-                    #        bFFState = True
-                        if bFFState and verbosity:
-                            print(f"FFState: {bFFState} |<-------------")
-                        dic = dict(
-                            mu=mu, dmu=dmu, np=sum(ns).n, na=n_a.n,
-                            nb=n_b.n, ai=a_inv, g=g, delta=delta, state=bFFState)
-                        if verbosity:
-                            print(dic)
-                    output.append(dic)
-                    if verbosity:
-                        print("-----------------------------------")
+        file_names = []
+        for file_name in files[0:]:
+            if file_name in fileSet:
+                if verbosity:
+                    print(file_name)
+                continue
+            file_names.append(file_name)
+        if False:
+            for file_name in file_names:
+                ret = FFStateHelper.label_state_worker(file_name)
+                output.append(ret)
+        else:
+            output.extend(PoolHelper.run(FFStateHelper.label_state_worker, file_names))
+        fileSet.extend(file_names)
         return (output, fileSet)
 
     def compute_pressure_current(root=None):
@@ -383,28 +383,32 @@ def ConstructDiagram(dim=3, delta=None):
             
 if __name__ == "__main__":
     # check_FF_State()
-    ## Sort file with discontinuity
+    # Sort file with discontinuity
     # FFStateHelper.sort_file()
-    ## Merge files with the same configuration
+    # Merge files with the same configuration
     # FFStateHelper.merge_files()
-    ## Method: change parameters manually
+    # Method: change parameters manually
     # FFStateHelper.search_single_configuration_1d()
     # FFStateHelper.search_single_configuration_2d()
-    #FFStateHelper.search_single_configuration_3d()
-    ## Method 2: Thread pool
-    #dmus = np.array([0.11, 0.12, 0.13, 0.14, 0.15, 0.16]) * 2 + 2
+    # FFStateHelper.search_single_configuration_3d()
+    # Method 2: Thread pool
+    # dmus = np.array([0.11, 0.12, 0.13, 0.14, 0.15, 0.16]) * 2 + 2
     # FFStateHelper.SearchFFState(delta=2.1, mu=10, dmus=dmus, dim=1)
-    ## Compute the pressure and current
+    # Compute the pressure and current
     # ConstructDiagram(delta=0.2)
-    FFStateHelper.compute_pressure_current()
+    # FFStateHelper.compute_pressure_current()
 
-    # def filter1(mu, dmu, delta, g, dim):
-    #     if dim != 3:
-    #         return True
-    #     return False
-    # currentdir = join(
-    #     os.path.dirname(
-    #         os.path.abspath(
-    #             inspect.getfile(
-    #                 inspect.currentframe()))), "..", "mmf_hfb", "data(BdG)")    
-    # output, fileSet = FFStateHelper.FindFFState(filter1, currentdir=currentdir)
+    def filter1(mu, dmu, delta, g, dim):
+        if dim != 3:
+            return True
+        return False
+
+    currentdir = join(
+        os.path.dirname(
+            os.path.abspath(
+                inspect.getfile(
+                    inspect.currentframe()))), "..", "mmf_hfb", "data(BdG)")    
+    output, fileSet = FFStateHelper.label_states(filter1, currentdir=currentdir)
+    for ret in output:
+        if ret is not None and ret['state']:
+            print(ret['file'])

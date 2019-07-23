@@ -298,7 +298,7 @@ def compute_pressure_current_worker(jsonData_file):
     def append_item(delta, dq, output):
         if dq is not None:
             dic = {}
-            ns, mus, e, p = lda.get_ns_mus_e_p(delta=d, dq=dq)
+            ns, mus, e, p = lda.get_ns_mus_e_p(mus_eff=mus_eff, delta=d, dq=dq)
             ja, jb, jp, _ = lda.get_current(mus_eff=mus_eff, delta=d, dq=dq)
             dic['na']=ns[0]  # particle density a
             dic['nb']=ns[1]  # particle density b
@@ -358,12 +358,12 @@ def search_states_worker(mus_delta):
         kernelType=KernelType.HOM, args=args)
     lda.Search(
         delta_N=50, delta_lower=0.001, delta_upper=delta,
-        q_lower=0, q_upper=dmu_eff, q_N=10)
+        q_lower=0, q_upper=dmu_eff, q_N=10, auto_incremental=True)
 
 
 def search_states(mu_eff=10, delta=1):
     """compute current and pressure"""
-    dmus = np.linspace(0.5*delta, delta*0.7, 10)
+    dmus = np.linspace(0.3*delta, 0.7*delta, 10)
     mus_deltas = [(mu_eff, dmu, delta) for dmu in dmus]
     if False:  # Debugging
         for item in mus_deltas:
@@ -372,7 +372,7 @@ def search_states(mu_eff=10, delta=1):
         PoolHelper.run(search_states_worker, mus_deltas, poolsize=5)
 
 
-def LabelStates(current_dir=None, raw_data=False, verbosity=False):
+def label_states(current_dir=None, raw_data=False, verbosity=False):
     """
     check all the pressure and current output files for
     different configuration(mus_eff, delta), determine if
@@ -448,14 +448,10 @@ def LabelStates(current_dir=None, raw_data=False, verbosity=False):
                         not np.allclose(
                             n_a, n_b, rtol=1e-9) and (
                                 data["q"]>0.0001 and data["d"]>0.001)):
-                        try:
-                            pressures = lda.get_other_pressures(
-                                mus_eff=(mu_eff + dmu_eff, mu_eff - dmu_eff),
-                                mus=(mu, dmu), delta=data["d"], dq=data['q'], C=C)
-                        except:
-                            print(file)
-                            break
-                        if data['p']>pressures[0] and data['p']>pressures[1]:
+                        pressures = lda.get_other_pressures(
+                            mus_eff=(mu_eff + dmu_eff, mu_eff - dmu_eff),
+                            mus=(mu, dmu), delta=data["d"], dq=data['q'], C=C)
+                        if data['p']>pressures[1]:
                             bFFState = True
                 if bFFState and verbosity:
                     print(f"FFState: {bFFState} |<-------------")
@@ -475,5 +471,6 @@ def LabelStates(current_dir=None, raw_data=False, verbosity=False):
 
         
 if __name__ == "__main__":
-    #search_states(delta=0.75)
+    search_states(delta=0.5)
     compute_pressure_current()
+    # label_states(raw_data=True)

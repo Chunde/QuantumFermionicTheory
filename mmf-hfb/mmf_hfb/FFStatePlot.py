@@ -1,4 +1,4 @@
-from mmf_hfb.FFStateAgent import LabelStates
+from mmf_hfb.FFStateAgent import label_states
 import matplotlib.pyplot as plt
 from os.path import join
 import numpy as np
@@ -19,7 +19,7 @@ def PlotStates(filter_fun, current_dir=None, two_plot=False, print_file_name=Fal
         -----------------
         filter_fun: a filter used to filter out files satisfy certain condition
         current_dir: the folder contains all state files used to plot
-        two_plot: if true, the lower and upper branches will be ploted in 
+        two_plot: if true, the lower and upper branches will be ploted in
             separate subplots
         print_file_name: if True, full paths of those selected files will be printed
     """

@@ -16,7 +16,6 @@
 
 # # Construct FF States
 
-# +
 import mmf_setup;mmf_setup.nbinit()
 # %pylab inline --no-import-all
 from nbimports import * 
@@ -26,14 +25,21 @@ from mmf_hfb.FFStateFinder import FFStateFinder
 import mmf_hfb.FFStateHelper as ffh
 reload(ffh)
 from mmf_hfb.FFStateHelper import FFStateHelper
-
 from scipy.optimize import brentq
 import operator
 from mmfutils.plot import imcontourf
 clear_output()
-# -
 
 # ### Plots from external data
+
+# E:\Physics\quantum-fermion-theories\mmf-hfb\Docs\..\mmf_hfb\data(BdG)\FFState_J_P_(3d_0.20_5.91_0.14)2019_06_08_22_30_20.json
+# E:\Physics\quantum-fermion-theories\mmf-hfb\Docs\..\mmf_hfb\data(BdG)\FFState_J_P_(3d_0.20_5.91_0.15)2019_06_08_22_32_21.json
+# E:\Physics\quantum-fermion-theories\mmf-hfb\Docs\..\mmf_hfb\data(BdG)\FFState_J_P_(3d_0.20_5.91_0.15)2019_06_08_22_32_25.json
+# E:\Physics\quantum-fermion-theories\mmf-hfb\Docs\..\mmf_hfb\data(BdG)\FFState_J_P_(3d_0.50_5.91_0.36)2019_06_08_00_49_31.json
+# E:\Physics\quantum-fermion-theories\mmf-hfb\Docs\..\mmf_hfb\data(BdG)\FFState_J_P_(3d_0.75_5.91_0.54)2019_06_08_01_18_56.json
+# E:\Physics\quantum-fermion-theories\mmf-hfb\Docs\..\mmf_hfb\data(BdG)\FFState_J_P_(3d_1.00_5.91_0.73)2019_06_08_01_44_25.json
+# E:\Physics\quantum-fermion-theories\mmf-hfb\Docs\..\mmf_hfb\data(BdG)\FFState_J_P_(3d_1.25_5.91_0.91)2019_06_08_02_06_56.json
+# E:\Physics\quantum-fermion-theories\mmf-hfb\Docs\..\mmf_hfb\data(BdG)\FFState_J_P_(3d_1.50_5.91_1.09)2019_06_08_02_27_12.json
 
 import os
 import inspect
@@ -47,9 +53,9 @@ def filter(mu, dmu, delta, g, dim):
     #return False
     #if g != -3.2:
     #    return True
-    if delta != 1:
+    if delta != 1.5:
         return True
-    if not np.allclose(dmu,0.6):
+    if not np.allclose(dmu,1.09,rtol=1e-2):
         return True
     return False
 currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","mmf_hfb","data(BdG)")
@@ -274,7 +280,7 @@ def filter1(mu, dmu, delta, g, dim):
     return False
 if output is not None:
     lastStates=(output, fileSet)
-output, fileSet = FFStateHelper.FindFFState(filter1,currentdir=currentdir, lastStates=lastStates, verbosity=False)
+output, fileSet = FFStateHelper.label_states(filter1,currentdir=currentdir, lastStates=lastStates, verbosity=False)
 clear_output()
 
 xs = []
@@ -326,10 +332,14 @@ plt.ylabel(r"$\delta \mu$")
 plt.xlabel(r"$\Delta$")
 #plt.ylim(0.,1.5)
 plt.axhline(1.075, linestyle='dashed')
-plt.xlim(0,4)
+#plt.xlim(0,4)
 plt.ylim(1,1.2)
 plt.axvline(1.2)
 plt.axhline(.25)
+
+for ret in output:
+    if ret is not None and ret['state']:
+        print(ret['file'])
 
 # ## Check range of $\Delta$
 # ### 3D case
@@ -340,17 +350,16 @@ e_F = 10
 mu0 = 0.59060550703283853378393810185221521748413488992993 * e_F
 delta0 = 0.68640205206984016444108204356564421137062514068346 * e_F
 mu = mu0 # ~6
-delta = 0.75
-dmu = 0.8
+delta = 1.5
+dmu = 1.0875000000000001
 ff = FFStateFinder(delta=delta, dim=3, mu=mu, dmu=dmu,  k_c=50)
-dqs = np.linspace(0,.4, 50)
+dqs = np.linspace(0,.6, 20)
 plt.figure(figsize(8,4))
 delta=0.001
 gs = [ff._gc(mu=mu, dmu=dmu, delta=delta, dq=dq) for dq in dqs]
 plt.plot(dqs, gs)
 plt.axhline(0)
-plt.ylim(0, -0.002)
-
+#plt.ylim(0, -0.002)
 
 def f(dq):
     return ff._gc(mu=mu, dmu=dmu, delta=delta, dq=dq)
