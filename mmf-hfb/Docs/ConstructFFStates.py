@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # ---
 # jupyter:
 #   jupytext:
@@ -28,6 +27,8 @@ from mmf_hfb.FFStateHelper import FFStateHelper
 from scipy.optimize import brentq
 import operator
 from mmfutils.plot import imcontourf
+import mmf_hfb.BdGPlot as bp
+reload(bp)
 clear_output()
 
 # ### Plots from external data
@@ -61,199 +62,15 @@ def filter(mu, dmu, delta, g, dim):
 currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","mmf_hfb","data(BdG)")
 
 
-import json
-import glob
-from json import dumps
-def plotStates(twoPlot=False):
-    pattern = join(currentdir,"FFState_[()d_0-9]*.json")
-    files = glob.glob(pattern)
-    if twoPlot:
-        plt.figure(figsize=(16,16))
-    else:
-        plt.figure(figsize=(12,12))
-    style =['o','-','+']
-    gs = set()
-    for file in files:
-        if os.path.exists(file):
-            with open(file,'r') as rf:
-                ret = json.load(rf)
-                dim, mu, dmu, delta, g=ret['dim'], ret['mu'], ret['dmu'], ret['delta'], ret['g']
-                gs.add(g)
-                if filter(mu=mu, dmu=dmu, delta=delta, g=g, dim=dim):
-                        continue
-                print(file)
-                datas = ret['data']
-                dqs1, dqs2, ds1, ds2 = [],[],[],[]
-                for data in datas:
-                    dq1, dq2, d = data
-                    if dq1 is not None:
-                        dqs1.append(dq1)
-                        ds1.append(d)
-                    if dq2 is not None:
-                        dqs2.append(dq2)
-                        ds2.append(d)
-                if twoPlot:
-                    plt.subplot(211)
-                if len(ds1) < len(ds2):
-                    if len(ds1) > 0:
-                        plt.plot(ds1, dqs1, style[dim-1], label=f"$\Delta=${delta}, $\mu$={mu:.2}, $d\mu=${dmu:.2}, g={g:.2}")
-                else:
-                    if len(ds2) > 0:
-                        plt.plot(ds2, dqs2, style[dim-1], label=f"$\Delta=${delta}, $\mu$={mu:.2}, $d\mu=${dmu:.2}, g={g:.2}")
-                if twoPlot:
-                    plt.subplot(212)
-                if len(ds1) < len(ds2):
-                    if len(ds2) > 0:
-                        plt.plot(ds2, dqs2, style[dim-1], label=f"$\Delta=${delta}, $\mu$={mu:.2}, $d\mu=${dmu:.2}, g={g:.2}")
-                else:
-                    if len(ds1)> 0:
-                        plt.plot(ds1, dqs1, style[dim-1], label=f"$\Delta=${delta}, $\mu$={mu:.2}, $d\mu=${dmu:.2}, g={g:.2}")
-                #break
-    print(gs)   
-    if twoPlot:
-        plt.subplot(211)
-        plt.xlabel(f"$\Delta$")
-        plt.ylabel(f"$\delta q$")
-        plt.title(f"Lower Branch")
-        plt.legend()
-        plt.subplot(212)
-        plt.xlabel(f"$\Delta$")
-        plt.ylabel(f"$\delta q$")
-        plt.title(f"Upper Branch")
-        plt.legend()
-    else:
-        plt.xlabel(f"$\Delta$")
-        plt.ylabel(f"$\delta q$")
-        plt.legend()
-
-
-plotStates(twoPlot=False)
-#plt.axhline(0.006636947229367991)
+plt.figure(figsize(12,12))
+bp.PlotStates(filter_fun=filter)
 
 # ## Compute Current and Pressure
 # $$
 # J=\int dk\left[(k+\delta q) f_a + (k - \delta q) f_b\right]
 # $$
 
-import os
-import inspect
-from os.path import join
-import json
-import glob
-import warnings
-warnings.filterwarnings("ignore")
-from json import dumps
-def PlotCurrentPressure(alignLowerBranches=True, alignUpperBranches=True, showLegend=False):
-    pattern = join(currentdir, "FFState_J_P[()d_0-9]*")
-    files=glob.glob(pattern)
-    plt.figure(figsize=(20,20))
-    gs = set()
-    for file in files[0:]:
-        if os.path.exists(file):
-            with open(file,'r') as rf:
-                ret = json.load(rf)
-                dim, mu, dmu, delta, g=ret['dim'], ret['mu'], ret['dmu'], ret['delta'],ret['g']
-                if filter(mu=mu, dmu=dmu, delta=delta, g=g, dim=dim):
-                    continue 
-                k_c = None
-                if 'k_c' in ret:
-                    k_c = ret['k_c']
-                gs.add(g)
-                #print(file)
-                ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=dim, g=g, k_c=k_c, fix_g=True)
-                mu_eff, dmu_eff = mu, dmu
-                n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff)
-                #print(f"n_a={n_a.n}, n_b={n_b.n}, P={(n_a - n_b).n/(n_a + n_b).n}")
-                p0 = ff.get_pressure(mu=None, dmu=None, mu_eff=mu_eff, dmu_eff=dmu_eff, delta=0).n
-                data1, data2 = ret['data']
-                
-
-                dqs1, dqs2, ds1, ds2, j1, j2, ja1, ja2, jb1, jb2, P1, P2 = [],[],[],[],[],[],[],[],[],[],[],[]
-                for data in data1:
-                    d, q, p, j, j_a, j_b = data['d'],data['q'],data['p'],data['j'],data['ja'],data['jb']
-                    ds1.append(d)
-                    dqs1.append(q)
-                    j1.append(j)
-                    ja1.append(j_a)
-                    jb1.append(j_b)
-                    P1.append(p)
-                for data in data2:
-                    d, q, p, j, j_a, j_b = data['d'],data['q'],data['p'],data['j'], data['ja'], data['jb']
-                    ds2.append(d)
-                    dqs2.append(q)
-                    j2.append(j)
-                    ja2.append(j_a)
-                    jb2.append(j_b)
-                    P2.append(p)
-
-                plt.subplot(321)
-                plt.plot(ds1, dqs1,"+", label=f"$\Delta=${delta},$\mu=${mu:.2},$d\mu=${dmu:.2}")
-                plt.subplot(322)
-                plt.plot(ds2, dqs2,"+", label=f"$\Delta=${delta},$\mu=${mu:.2},$d\mu=${dmu:.2}")
-                plt.subplot(323)
-                if len(P1) > 0:
-                    if alignLowerBranches:
-                        P1 = np.array(P1)
-                        P1_ = P1- P1.min()
-                    else:
-                        P1_=P1
-                    index1, value = max(enumerate(P1), key=operator.itemgetter(1))
-                    data = data1[index1]
-                    n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=data["d"], dq=data["q"])
-                    state = "FF" if value > p0 and not np.allclose(n_a.n, n_b.n) else "NS"
-                    plt.plot(ds1, P1_,"+", label=f"$\Delta=${delta},$\mu=${mu:.2},$d\mu=${dmu:.2},State:{state}")
-                    #plt.axvline(ds1[index1])
-                    plt.axhline(p0,color='r', linestyle='dashed')
-                    print(f"Delta={delta}, dmu={dmu}, Normal Pressure={p0}，FFState Pressue={value}")
-                    if state== "FF":
-                        print(index1,data1[index1])
-                plt.subplot(324)
-                if len(P2) > 0:
-                    if alignUpperBranches:
-                        P2 = np.array(P2)
-                        P2_ = P2 - P2.min()
-                    else:
-                        P2_ = P2
-                    index2, value = max(enumerate(P2), key=operator.itemgetter(1))
-                    data = data2[index2]
-                    n_a, n_b = ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=data["d"], dq=data["q"])
-                    state = "FF" if value > p0 and not np.allclose(n_a.n, n_b.n) and data['q']>0.0001 else "NS"
-                    plt.plot(ds2, P2_, "+", label=f"$\Delta=${delta},$\mu=${mu:.2},$d\mu=${dmu:.2},State:{state}")
-                    #plt.axvline(ds2[index2])
-                    plt.axhline(p0,color='r', linestyle='dashed')
-                    print(f"Delta={delta}, dmu={dmu}, Normal Pressure={p0}，FFState Pressue={value}")
-                    #print(data2[index2])
-                plt.subplot(325)
-                #plt.plot(ds1, j1, label=f"$j_p, \Delta=${delta},$\mu=${mu},$d\mu=${dmu}")
-                plt.plot(ds1, ja1, "+",label=f"j_a")
-                #plt.plot(ds1, jb1, label=f"j_b")
-                #plt.axvline(ds1[index1])
-                plt.subplot(326)
-                #plt.plot(ds2, j2, label=f"$j_p, \Delta=${delta},$\mu=${mu},$d\mu=${dmu}")
-                plt.plot(ds2, ja2, "+",label=f"j_a")
-                #plt.plot(ds2, jb2, "+",label=f"j_b")
-                if len(ds2) > 0:
-                    plt.axvline(ds2[index2])
-                    plt.axhline(0)
-                #break
-        
-    for i in range(1,7):
-        plt.subplot(3,2,i)
-        if showLegend:
-                plt.legend()
-        if i == 1:
-            plt.title(f"Lower Branch")
-            plt.ylabel("$\delta q$")
-        if i == 2:
-            plt.title(f"Upper Branch")
-            plt.ylabel("$\delta q$")
-        if i == 3 or i == 4:
-            plt.ylabel("$Pressure$")
-        if i == 5 or i == 6:
-            plt.ylabel("$Current$")
-        plt.xlabel("$\Delta$")
-
-PlotCurrentPressure(alignLowerBranches=False, alignUpperBranches=False, showLegend=True)
+bp.PlotCurrentPressure(filter_fun=filter, alignLowerBranches=False, alignUpperBranches=False, showLegend=True)
 
 # $$
 # \frac{1}{g}=\frac{m}{4\pi\hbar^2 a}\\
@@ -353,13 +170,22 @@ mu = mu0 # ~6
 delta = 1.5
 dmu = 1.0875000000000001
 ff = FFStateFinder(delta=delta, dim=3, mu=mu, dmu=dmu,  k_c=50)
-dqs = np.linspace(0,.6, 20)
+dqs = np.linspace(0.3,0.6, 20)
 plt.figure(figsize(8,4))
-delta=0.001
-gs = [ff._gc(mu=mu, dmu=dmu, delta=delta, dq=dq) for dq in dqs]
-plt.plot(dqs, gs)
-plt.axhline(0)
+ds = np.linspace(0.001, .5, 10)
+gss=[]
+for d in ds:
+    gs = [ff._gc(mu=mu, dmu=dmu, delta=d, dq=dq) for dq in dqs]
+    gss.append(gs)
+    plt.plot(dqs, gs, label=f"{d}")
+plt.axhline(0, linestyle='dashed')
 #plt.ylim(0, -0.002)
+
+for d in ds:
+    gss.append(gs)
+    plt.plot(dqs, gs, label=f"{d}")
+plt.axhline(0, linestyle='dashed')
+
 
 def f(dq):
     return ff._gc(mu=mu, dmu=dmu, delta=delta, dq=dq)
