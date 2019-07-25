@@ -17,8 +17,7 @@ class BDG(FunctionalBdG, KernelBCS):
 
     def solve(self, mus, delta, use_solver=True, rtol=1e-12, **args):
         """use the Broyden solver may be much faster"""
-        mu, dmu = mus
-        mu_a, mu_b = mu + dmu, mu - dmu
+        mu_a, mu_b = mus
         V_a, V_b = self.get_Vs()
         mu_a_eff, mu_b_eff = mu_a + V_a, mu_b + V_b
         args.update(dim=self.dim, k_c=self.k_c, E_c=self.E_c)
@@ -65,12 +64,11 @@ class BDG(FunctionalBdG, KernelBCS):
             compute then energy density for BdG, equation(77) in page 39
             Note: the return value also include the pressure and densities
             -------------
-            mus = (mu, dmu)
+            mus = (mu_a, mu_b)
         """
         if delta is None:
             delta = self.delta
-        mu, dmu = mus
-        mu_a, mu_b = mu + dmu, mu - dmu
+        mu_a, mu_b = mus
         ns, taus, nu, g_eff, delta, mu_a_eff, mu_b_eff = self.solve(
             mus=mus, delta=delta, use_solver=use_solver)
         alpha_a, alpha_b = self.get_alphas(ns=ns)

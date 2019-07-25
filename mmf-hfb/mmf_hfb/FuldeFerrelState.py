@@ -32,7 +32,7 @@ class FFState(object):
         self.fix_g = fix_g
         self.dim = dim
         self.T = T
-        self.mus = (mu, dmu)
+        self.mus = (mu + dmu, mu - dmu)
         self.m = m
         self.delta = delta
         self.hbar = hbar
@@ -71,7 +71,8 @@ class FFState(object):
     def get_g(self, delta, mu=None, dmu=None, q=0, dq=0, **kw):
         assert (mu is None) == (dmu is None)
         if mu is None:
-            mu, dmu = self.mus
+            mu_a, mu_b = self.mu
+            mu, dmu = (mu_a + mu_b)/2.0, (mu_a - mu_b)/2.0
         args = dict(self._tf_args, q=q, dq=dq, delta=delta)
         args.update(kw, mu_a=mu+dmu, mu_b=mu-dmu)
         nu_delta = tf.integrate_q(tf.nu_delta_integrand, **args)
@@ -92,7 +93,8 @@ class FFState(object):
         """return the inverse of scattering length"""
         assert (mu is None) == (dmu is None)
         if mu is None:
-            mu, dmu = self.mus
+            mu_a, mu_b = self.mu
+            mu, dmu = (mu_a + mu_b)/2.0, (mu_a - mu_b)/2.0
         if k_c is None:
             k_c = self.k_c
         args = dict(self._tf_args, q=q, dq=dq, delta=delta)
@@ -110,7 +112,8 @@ class FFState(object):
         """
         assert (mu is None) == (dmu is None)
         if mu is None:
-            mu, dmu = self.mus
+            mu_a, mu_b = self.mu
+            mu, dmu = (mu_a + mu_b)/2.0, (mu_a - mu_b)/2.0
 
         if delta is None:
             delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq,
@@ -126,7 +129,8 @@ class FFState(object):
         """return the densities of two the components"""
         assert (mu is None) == (dmu is None)
         if mu is None:
-            mu, dmu = self.mus
+            mu_a, mu_b = self.mu
+            mu, dmu = (mu_a + mu_b)/2.0, (mu_a - mu_b)/2.0
         if delta is None:
             delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
                                a=self.delta * 0.8, b=self.delta * 2)
@@ -287,7 +291,8 @@ class FFState(object):
                            n_a=None, n_b=None, k_c=None, use_kappa=True):
         assert (mu is None) == (dmu is None)
         if mu is None:
-            mu, dmu = self.mus
+            mu_a, mu_b = self.mu
+            mu, dmu = (mu_a + mu_b)/2.0, (mu_a - mu_b)/2.0
         if delta is None:
             delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq,
                                a=self.delta * 0.8, b=self.delta * 1.2)
@@ -341,7 +346,8 @@ class FFState(object):
         """
         assert (mu is None) == (dmu is None)
         if mu is None:
-            mu, dmu = self.mus
+           mu_a, mu_b = self.mu
+           mu, dmu = (mu_a + mu_b)/2.0, (mu_a - mu_b)/2.0
         oldFlag = self.bStateSentinel
         self.bStateSentinel = False
         delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq,
@@ -359,7 +365,8 @@ class FFState(object):
         """
         assert (mu is None) == (dmu is None)
         if mu is None:
-            mu, dmu = self.mus
+            mu_a, mu_b = self.mu
+            mu, dmu = (mu_a + mu_b)/2.0, (mu_a - mu_b)/2.0
 
         if a is None:
             a = self.delta * 0.1

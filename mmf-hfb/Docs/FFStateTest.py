@@ -86,7 +86,7 @@ lda.C=lda._get_C(mus_eff=(mu+dmu, mu - dmu), delta=delta0)
 # ## Check the pressure of the configuration
 
 lda.D0=0
-lda.get_pressure(mus_eff=(mu+dmu, mu-dmu), delta=delta_, dq=q)
+lda.get_pressure(mus_eff=(mu+dmu, mu-dmu), delta=delta, dq=q)
 
 # ## Get the bare mus
 # * To compare with normal state and symetric state, we need to use the same bare mus
@@ -94,12 +94,25 @@ lda.get_pressure(mus_eff=(mu+dmu, mu-dmu), delta=delta_, dq=q)
 mu_a, mu_b = lda.get_mus_bare(mus_eff=(mu+dmu, mu-dmu), delta=delta, dq=q)
 print(mu_a, mu_b)
 
-lda.get_pressure(mus_eff=(mu_eff+dmu_eff, mu_eff-dmu_eff), delta=0)
+lda.get_pressure(mus=(mu_a, mu_b), delta=0)
 
-lda._get_C(mus_eff=(mu_eff,mu_eff), delta=1)
+lda.get_pressure(mus=(mu_a, mu_b), delta=None)
 
-lda.fix_C_BdG(mu=mu_eff,dmu=0, delta=1)
+# ## Plot Pressures vs D0
 
-lda.C
+Ds = np.linspace(0, 1, 10)
+mu_a, mu_b = lda.get_mus_bare(mus_eff=(mu+dmu, mu-dmu), delta=delta, dq=q)
+P0, P1, P2 = [],[],[]
+for D0 in Ds:
+    lda.D0=D0
+    P0.append(lda.get_pressure(mus_eff=(mu+dmu, mu-dmu), delta=delta, dq=q))
+    P1.append(lda.get_pressure(mus=(mu_a, mu_b), delta=0))
+    P2.append(lda.get_pressure(mus=(mu_a, mu_b), delta=None))
+clear_output()
+
+plt.plot(Ds, P0, label="FF State")
+plt.plot(Ds, P1, label="Normal State")
+plt.plot(Ds, P2, label="Sysmetric State")
+print(P0[0], P1[0], P2[0])
 
 

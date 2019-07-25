@@ -34,18 +34,18 @@ LDA = ClassFactory(
             functionalType=FunctionalType.SLDA,
             kernelType=KernelType.HOM)
 lda = LDA(mu_eff=mu, dmu_eff=dmu, delta=delta, T=0, dim=dim)
-lda.C = lda._get_C(mus=(mu,0), delta=delta)
+lda.C = lda._get_C(mus=(mu, mu), delta=delta)
 
 lda.C
 
-ns, e, p = lda.get_ns_e_p(mus=(mu, 1), delta=0.8, solver=Solvers.BROYDEN1, update_C=False, verbosity=True)
+ns, e, p = lda.get_ns_e_p(mus=(mu + 1, mu - 1), delta=0.8, solver=Solvers.BROYDEN1, update_C=False, verbosity=True)
 
 lda.get_ns_mus_e_p(mus_eff=(10.643740524431747,2.206170614085716), delta=1, update_C=False, verbosity=True)
 
 
 def f(delta, dq):
     print(f"dq={dq}")
-    return lda.C - lda._get_C(mus=(mu,dmu), delta=delta, dq=dq, verbosity=False)
+    return lda.C - lda._get_C(mus=(mu + dmu, mu - dmu), delta=delta, dq=dq, verbosity=False)
 
 
 dqs = np.linspace(0, 0.018, 10)
@@ -64,7 +64,7 @@ def c_thread(dmu):
     ds_ = np.linspace(0.01, 3*delta, 100) 
     for d in ds_:
         try:
-            C = lda._get_C(mus=(mu,dmu), delta=d, dq=0, verbosity=False)
+            C = lda._get_C(mus=(mu + dmu,mu - dmu), delta=d, dq=0, verbosity=False)
             ds.append(d)
             Cs.append(C)
             print(d, C)

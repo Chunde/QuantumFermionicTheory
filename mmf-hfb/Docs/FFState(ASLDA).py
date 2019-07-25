@@ -214,9 +214,9 @@ dic = dict(
 # ## Extract the parameters
 
 delta=ground_state_data['d']
-mu_a=mu+dmu
-mu_b=mu-dmu
-mus=(mu, dmu)
+mu_a=mu + dmu
+mu_b=mu - dmu
+mus=(mu_a, mu_b)
 mu_a_eff=mu_eff + dmu_eff
 mu_b_eff=mu_eff - dmu_eff
 mus_eff=(mu_a_eff, mu_b_eff)

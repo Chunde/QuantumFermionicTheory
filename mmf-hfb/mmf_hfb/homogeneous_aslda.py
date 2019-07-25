@@ -45,9 +45,12 @@ class BDG(Homogeneous, FunctionalBdG):
             return (0, 0)
 
     def solve(self, mus, delta, use_solver=True):
-        """use the Broyden solver may be much faster"""
-        mu, dmu = mus
-        mu_a, mu_b = mu + dmu, mu - dmu
+        """
+        use the Broyden solver may be much faster
+        -------------
+        mus = (mu_a, mu_b)
+        """
+        mu_a, mu_b = mus
         mu_a_eff, mu_b_eff =np.array([mu_a, mu_b]) - self.get_Vs(delta=delta)
         if use_solver:
 
@@ -100,12 +103,11 @@ class BDG(Homogeneous, FunctionalBdG):
             Note:
                 the return value also include the pressure and densities
             -------------
-            mus = (mu, dmu)
+            mus = (mu_a, mu_b)
         """
         if delta is None:
             delta = self.delta
-        mu, dmu = mus
-        mu_a, mu_b = mu + dmu, mu - dmu
+        mu_a, mu_b = mus
         ns, taus, nu, g_eff, delta, mu_a_eff, mu_b_eff = self.solve(
             mus=mus, delta=delta, use_solver=use_solver)
         alpha_a, alpha_b = self.get_alphas(ns=ns)

@@ -70,7 +70,7 @@ def test_bcs_aslda_thermodynamic(dx=1e-3):
 
     def get_ns_e_p(mu, dmu, update_C=False):
         ns, e, p = lda.get_ns_e_p(
-            mus=(mu, dmu), delta=delta, N_twist=N_twist, Laplacian_only=True,
+            mus=(mu + dmu, mu - dmu), delta=delta, N_twist=N_twist, Laplacian_only=True,
             update_C=update_C, max_iter=32, use_solver=False)
         return ns, e, p
     ns, e, p = get_ns_e_p(mu=mu, dmu=dmu, update_C=True)
@@ -88,4 +88,4 @@ def test_bcs_aslda_thermodynamic(dx=1e-3):
 
 if __name__ == "__main__":
     # test_bcs_aslda_thermodynamic()
-    test_homogeneous_aslda_thermodynamic(Functional=SLDA, T=0, C=-0.54, dim=2)
+    test_homogeneous_aslda_thermodynamic(Functional=SLDA, T=0.5, C=-0.54, dim=1)

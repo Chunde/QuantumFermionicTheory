@@ -47,14 +47,7 @@ class FFStateAgent(object):
         P_ns = self.get_ns_e_p(
             mus=mus, delta=0, verbosity=False, solver=Solvers.BROYDEN1)
         return (P_ss[2], P_ns[2])
-
-    def get_pressure(self, mus_eff=None, mus=None, delta=None, q=0, dq=0):
-        """return the pressure only"""
-        if mus_eff is None and mus is None:
-            raise ValueError("effective mus and bare mus can be None at the same time")
-        if mus is None:
-            return self.get_ns_mus_e_p(mus_eff=mus_eff, delta=delta, q=q, dq=dq)[3]
-        return self.get_ns_e_p(mus=mus, delta=delta, q=q, dq=dq)[2]
+ 
         
     def SaveToFile(self, data, extra_items=None):
         """
@@ -467,7 +460,7 @@ def label_states(current_dir=None, raw_data=False, verbosity=False):
                                 data["q"]>0.0001 and data["d"]>0.001)):
                         pressures = lda.get_other_pressures(
                             mus_eff=(mu_eff + dmu_eff, mu_eff - dmu_eff),
-                            mus=(mu, dmu), delta=data["d"], dq=data['q'], C=C)
+                            mus=(mu+dmu, mu-dmu), delta=data["d"], dq=data['q'], C=C)
                         if data['p']>pressures[1]:
                             bFFState = True
                 if bFFState and verbosity:

@@ -6,7 +6,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-@pytest.fixture(params=[FunctionalType.ASLDA, FunctionalType.BDG, FunctionalType.SLDA])
+@pytest.fixture(params=[FunctionalType.BDG, FunctionalType.SLDA])
 def functional(request):
     return request.param
 
@@ -34,7 +34,7 @@ def dq(request):
 def create_LDA(mu, dmu, delta):
     LDA = ClassFactory(
         className="LDA",
-        functionalType=FunctionalType.ASLDA,
+        functionalType=FunctionalType.SLDA,
         kernelType=KernelType.HOM)
 
     lda = LDA(mu_eff=mu, dmu_eff=dmu, delta=delta, T=0, dim=3)
@@ -56,7 +56,7 @@ def test_BDG(mu, dmu):
 
     def get_ns_e_p(mu, dmu, update_C=False):
         ns, e, p = lda.get_ns_e_p(
-            mus=(mu, dmu), delta=delta, solver=Solvers.BROYDEN1, verbosity=False)
+            mus=(mu + dmu, mu - dmu), delta=delta, solver=Solvers.BROYDEN1, verbosity=False)
         return ns, e, p
 
     ns_, _, _ = get_ns_e_p(mu=mu, dmu=dmu)
@@ -71,7 +71,7 @@ def test_effective_mus(mu, dmu, dq=0):
     mus_eff = (mu + dmu, mu-dmu)
     res = lda.get_ns_mus_e_p(mus_eff=mus_eff, delta=delta, dq=dq)
     mus_eff_ = lda.get_mus_eff(
-        mus=(sum(res[1])/2.0, (res[1][0]-res[1][1])/2.0),
+        mus=res[1],
         delta=delta, dq=dq, verbosity=False)
     print(mus_eff, mus_eff_)
     assert np.allclose(np.array(mus_eff), np.array(mus_eff_))
@@ -90,11 +90,12 @@ def test_effective_mus_BdG(mu, dmu, dq=0):
     mus_eff = (mu + dmu, mu-dmu)
     res = lda.get_ns_mus_e_p(mus_eff=mus_eff, delta=delta, dq=dq)
     mus_eff_ = lda.get_mus_eff(
-        mus=(sum(res[1])/2.0, (res[1][0]-res[1][1])/2.0),
+        mus=res[1],
         delta=delta, dq=dq, verbosity=False)
     print(mus_eff, mus_eff_)
     assert np.allclose(np.array(mus_eff), np.array(mus_eff_))
     assert np.allclose(np.array(mus_eff), np.array(res[1]))
+
 
 def test_effective_mus_thermodynamic(mu):
     # the thermodynamic is not to high accuracy
@@ -128,7 +129,7 @@ def test_bare_mus(mu, dmu):
     """test the method get_mus_bare"""
     delta = 1
     lda = create_LDA(mu=mu, dmu=0, delta=delta)
-    mus_eff = lda.get_mus_eff(mus=(mu, dmu), delta=delta)
+    mus_eff = lda.get_mus_eff(mus=(mu + dmu, mu - dmu), delta=delta)
     mu_a, mu_b = lda.get_mus_bare(mus_eff=mus_eff, delta=delta)
     print(mu_a, mu + dmu)
     print(mu_b, mu - dmu)
@@ -155,12 +156,12 @@ def test_class_factory(functional, kernel, mu, dmu=1, dim=3):
 
     def get_ns_e_p(mu, dmu, update_C=False, **args):
         ns, e, p = lda.get_ns_e_p(
-            mus=(mu, dmu), delta=delta, N_twist=N_twist, Laplacian_only=True,
+            mus=(mu + dmu, mu - dmu), delta=delta, N_twist=N_twist, Laplacian_only=True,
             update_C=update_C, max_iter=32, solver=Solvers.BROYDEN1,
             verbosity=True, **args)
         return ns, e, p
  
-    # lda.C = lda._get_C(mus=(mu, dmu), delta=0.75)
+    # lda.C = lda._get_C(mus=(mu_a, mu_b), delta=0.75)
     ns, _, _ = get_ns_e_p(mu=mu, dmu=dmu, update_C=True)
     print("-------------------------------------")
     ns1, e1, p1 = get_ns_e_p(mu=mu+dx, dmu=dmu)
@@ -196,10 +197,10 @@ def test_C():
 
 
 if __name__ == "__main__":
-    # test_bare_mus(mu=np.pi, dmu=0.5)
-    # test_effective_mus_thermodynamic(mu=np.pi, dmu=0.1)
-    #test_effective_mus(mu=np.pi, dmu=0.3, dq=0)
-    # test_BDG(mu=5)
-    # test_class_factory(functional=FunctionalType.ASLDA, kernel=KernelType.HOM, mu=np.pi, dim=3)
-    # test_C()
+    #test_bare_mus(mu=np.pi, dmu=0.5)
+    test_effective_mus_thermodynamic(mu=np.pi)
+    test_effective_mus(mu=np.pi, dmu=0.3, dq=0)
+    test_BDG(mu=5, dmu=1)
+    test_class_factory(functional=FunctionalType.ASLDA, kernel=KernelType.HOM, mu=np.pi, dim=3)
+    test_C()
     test_effective_mus_BdG(mu=10, dmu=1)

@@ -94,9 +94,9 @@ class Adapter(object):
         """
         return the effective mus
         ----------------
-        Note: mus is (mu, dmu), not (mu_a, mu_b)
+        Note: mus is (mu_a, mu_b)
         """
-        mu_a, mu_b = mus[0]+mus[1], mus[0]-mus[1]
+        mu_a, mu_b = mus
         V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
         mu_a_eff, mu_b_eff = mu_a - V_a, mu_b - V_b
         x0 = np.array([mu_a_eff, mu_b_eff])
@@ -127,7 +127,7 @@ class Adapter(object):
     def get_g(self, mus, delta, dq=0, ns=None, taus=None, nu=None):
         """
         compute g with given mus and delta
-        Note: mus = (mu, dmu)
+        Note: mus = (mu_a, mu_b)
         """
         mus_eff = self.get_mus_eff(
             mus=mus, delta=delta, dq=dq, ns=ns, taus=taus, nu=nu)
@@ -135,10 +135,10 @@ class Adapter(object):
 
     def _get_C(
             self, delta, mus=None, mus_eff=None, dq=0,
-            ns=None, taus=None, nu=None, verbosity=False):
+            ns=None, taus=None, nu=None, verbosity=False, **args):
         """
         return the C value when computing g
-        Note: NOT the functional get_C(ns), mus = (mu, dmu)
+        Note: NOT the functional get_C(ns), mus = (mu_a, mu_b)
             
         """
         if mus_eff is None:
@@ -166,7 +166,7 @@ class Adapter(object):
             self, mus, delta, fix_delta=False,
             solver=None, x0=None, verbosity=True, rtol=1e-12, **args):
         """
-        use a solver or simple interation to solve the gap equation
+        use a solver or simple iteration to solve the gap equation
         return delta and effective mus
         Parameter
         -------------
@@ -175,8 +175,7 @@ class Adapter(object):
         if delta is None:
             fix_delta = False
             delta = self.delta  # initial guess
-        mu, dmu = mus
-        mu_a, mu_b = mu + dmu, mu - dmu
+        mu_a, mu_b = mus
         V_a, V_b = self.get_Vs()
         mu_a_eff, mu_b_eff = mu_a + V_a, mu_b + V_b
         if fix_delta and len(np.ones_like(sum(self.xyz))) > 1:
@@ -218,8 +217,8 @@ class Adapter(object):
         """solve the gap equation for given effective mus and C"""
         def f(delta):
             res = self.get_densities(
-                    mus_eff=(mu_a_eff, mu_b_eff), delta=delta,
-                    taus_flag=False, nu_flag=False, **args)
+                mus_eff=(mu_a_eff, mu_b_eff), delta=delta,
+                taus_flag=False, nu_flag=False, **args)
             ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
             return (self._get_C(
                 mus_eff=mus_eff, delta=delta, dq=dq, ns=ns,
@@ -245,12 +244,11 @@ class Adapter(object):
         Note:
             the return value also include the pressure and densities
         -------------
-        mus = (mu, dmu)
+        mus = (mu_a, mu_b)
         """
         # fix_delta = (delta is not None)
         args.update(dim=self.dim, k_c=self.k_c, E_c=self.E_c)
-        mu, dmu = mus
-        mu_a, mu_b = mu + dmu, mu - dmu
+        mu_a, mu_b = mus
 
         delta, mu_a_eff, mu_b_eff = self.solve(
             mus=mus, delta=delta, solver=solver, fix_delta=fix_delta, **args)
@@ -295,15 +293,17 @@ class Adapter(object):
             ns=ns, taus=taus, nu=nu, g_eff=g_eff)
         return (ns, (mu_a, mu_b), ) + e_p
 
-    def get_pressure(self, mus_eff, delta, dq=0, solver=Solvers.BROYDEN1, **args):
+    def get_pressure(self, mus_eff=None, mus=None, delta=None, q=0, dq=0, solver=Solvers.BROYDEN1, **args):
         """return the pressure only"""
-        return self.get_ns_mus_e_p(mus_eff, delta, dq=dq, solver=solver, **args)[3]
+        if mus is None:
+            return self.get_ns_mus_e_p(mus_eff, delta, q=q, dq=dq, solver=solver, **args)[3]
+        return self.get_ns_e_p(mus=mus, delta=delta, q=q, dq=dq, solver=solver, **args)[2]
 
 
 def ClassFactory(       
         className="LDA", AgentClass=(),
         functionalType=FunctionalType.SLDA,
-        kernelType=KernelType.HOM, 
+        kernelType=KernelType.HOM,
         functionalIndex=None, kernelIndex=None, args=None):
     """
     A function that create a new class that uses an adapter class
