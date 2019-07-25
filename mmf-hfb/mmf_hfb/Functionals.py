@@ -250,8 +250,8 @@ class FunctionalSLDA(FunctionalBdG):
         # tmp = ((self._G(p) - self.get_alpha(p=p)*((1+p)/2.0)**(5.0/3)
         #         - self.get_alpha(p=-p)*((1-p)/2.0)**(5.0/3))*2**(2/3.0))
 
-        return ((self._G(p) - self._alpha(p)*((1+p)/2.0)**(5.0/3)
-                - self._alpha(-p)*((1-p)/2.0)**(5.0/3))*2**(2/3.0))
+        return ((self._G(p) - self.get_alpha(p)*((1+p)/2.0)**(5.0/3)
+                - self.get_alpha(-p)*((1-p)/2.0)**(5.0/3))*2**(2/3.0))
 
     def _dBeta_dp(self, p):
         """return the derivative 'dD(p)/dp' """

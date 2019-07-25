@@ -110,6 +110,8 @@ def nu_delta_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     E = np.sqrt(e_p**2 + abs(delta)**2)
     w_m, w_p = e_m - E, e_m + E
     f_nu = (f(w_m, T) - f(w_p, T))
+    # if E ==0:  # E may be zero if delta is zero
+    #     return 0
     return -0.5/E*f_nu
 
 @numba.jit(nopython=True)
@@ -443,7 +445,7 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, dim=3,
             k2_a = (kx + q + dq)**2 + kp**2
             k2_b = (kx + q - dq)**2 + kp**2
             assert(kp>=0)
-            return f(k2_a, k2_b, *args) * (kp/4/np.pi**2)
+            return f(k2_a, k2_b, *args)*(kp/4/np.pi**2)
     else:
         raise ValueError(f"Only dim=1, 2, or 3 supported (got dim={dim})")
 

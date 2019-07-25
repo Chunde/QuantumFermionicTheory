@@ -249,7 +249,8 @@ class FFStateAgent(object):
                             auto_incremental = False
                             break
                         continue
-                self.SaveToFile(rets)
+                # add a pending flag indicating state searching is still going on
+                self.SaveToFile(rets, extra_items={"pending":0})  
             if auto_incremental:
                 print("Append 20 more search points")
                 deltas = np.linspace(1, 20, 20)*incremental_step + deltas[-1]
@@ -274,6 +275,9 @@ def compute_pressure_current_worker(jsonData_file):
     data = jsonData['data']
     k_c = jsonData['k_c']
     C = jsonData['C']
+    if 'pending' in jsonData:
+        print(f"Skip a unfinished file: {fileName}")
+        return
     mus_eff = (mu_eff + dmu_eff, mu_eff - dmu_eff)
 
     args = dict(
@@ -281,9 +285,9 @@ def compute_pressure_current_worker(jsonData_file):
         T=0, dim=dim, k_c=k_c, verbosity=False,
         prefix=f"{output_fileName}", timeStamp=False)
     lda = ClassFactory(
-            "LDA", (FFStateAgent,),
-            functionalType=FunctionalType.ASLDA,
-            kernelType=KernelType.HOM, args=args)
+        "LDA", (FFStateAgent,),
+        functionalType=FunctionalType.SLDA,
+        kernelType=KernelType.HOM, args=args)
     C_ = lda._get_C(mus_eff=mus_eff, delta=delta)
     assert np.allclose(C, C_, rtol=1e-16)  # verify the C value
     lda.C= C
@@ -354,22 +358,28 @@ def search_states_worker(mus_delta):
         T=0, dim=3, k_c=50, verbosity=False)
     lda = ClassFactory(
         "LDA", (FFStateAgent,),
-        functionalType=FunctionalType.ASLDA,
+        functionalType=FunctionalType.BDG,
         kernelType=KernelType.HOM, args=args)
     lda.Search(
         delta_N=50, delta_lower=0.001, delta_upper=delta,
-        q_lower=0, q_upper=dmu_eff, q_N=10, auto_incremental=True)
+        q_lower=0, q_upper=dmu_eff, q_N=10, auto_incremental=False)
 
 
-def search_states(mu_eff=10, delta=1):
+def search_states(mu_eff=None, delta=1):
+    e_F = 10
+    mu0 = 0.59060550703283853378393810185221521748413488992993*e_F
+    # delta0 = 0.68640205206984016444108204356564421137062514068346*e_F
+    if mu_eff is None:
+        mu_eff = mu0
     """compute current and pressure"""
     dmus = np.linspace(0.3*delta, 0.7*delta, 10)
+    dmus = [1.0875000000000001]
     mus_deltas = [(mu_eff, dmu, delta) for dmu in dmus]
     if False:  # Debugging
         for item in mus_deltas:
             search_states_worker(item)
     else:
-        PoolHelper.run(search_states_worker, mus_deltas, poolsize=5)
+        PoolHelper.run(search_states_worker, mus_deltas, poolsize=10)
 
 
 def label_states(current_dir=None, raw_data=False, verbosity=False):
@@ -471,6 +481,6 @@ def label_states(current_dir=None, raw_data=False, verbosity=False):
 
         
 if __name__ == "__main__":
-    search_states(delta=0.5)
-    compute_pressure_current()
+    search_states(delta=1.5)
+    # compute_pressure_current()
     # label_states(raw_data=True)

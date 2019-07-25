@@ -142,7 +142,7 @@ class Homogeneous(object):
 
     def get_E(self, mus, delta):
         """Return the energy density."""
-        kappa = self.get_kappa(msus=mus, delta=delta)
+        kappa = self.get_kappa(mus=mus, delta=delta)
         ### Missing Hartree term here
         return kappa - 0
     

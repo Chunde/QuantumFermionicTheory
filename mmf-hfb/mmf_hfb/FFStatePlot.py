@@ -165,6 +165,7 @@ def PlotCurrentPressure(
                             ds, P_, "+",
                             label=f"$\Delta=${delta},$\mu=${float(mu_eff):.2},"
                             + f"$d\mu=${float(dmu_eff):.2},State:{state}")
+                    plt.axhline(p0, linestyle='dashed')
                     return (index, state=="FF")
                 
                 plt.subplot(323)
@@ -226,9 +227,9 @@ def PlotPhaseDiagram(output=None, raw_data=False):
         data from each files(in json format)
     """
     if output is None:
-        output = LabelStates(raw_data=raw_data)
+        output = label_states(raw_data=raw_data)
     xs, xs2, ys, ys2, ys3, ys4, states = [], [], [], [], [], [], []
-    for dic in output:  
+    for dic in output:
         n = dic['na'] + dic['nb']
         mu, dmu, delta = dic['mu'], dic['dmu'], dic['delta']
         k_F = (2.0*mu)**0.5
@@ -270,77 +271,17 @@ def PlotPhaseDiagram(output=None, raw_data=False):
 
 
 if __name__ == "__main__":
-    from mmf_hfb.ClassFactory import ClassFactory, FunctionalType, KernelType, Solvers
-    from mmf_hfb.FFStateAgent import FFStateAgent
-    output = LabelStates(raw_data=True)
-    for dic in output:
-        if dic['state']:
-            data=dic['data']
-            break
-    ret=data
-    dim, mu_eff, dmu_eff, delta, C=ret['dim'], ret['mu_eff'], ret['dmu_eff'], ret['delta'], ret['C']
-    p0 = ret['p0']
-    a_inv = 4.0*np.pi*C  # inverse scattering length
-    data1, data2 = ret['data']
-    data1.extend(data2)
-    dqs1, dqs2, ds1, ds2= [], [], [], []
-    j1, j2, ja1, ja2, jb1, jb2, P1, P2 = [], [], [], [], [], [], [], []
-    for data_ in data1:
-        d, q, p, j, j_a, j_b = (
-            data_['d'], data_['q'], data_['p'], data_['j'], data_['ja'], data_['jb'])
-        ds1.append(d)
-        dqs1.append(q)
-        j1.append(j)
-        ja1.append(j_a)
-        jb1.append(j_b)
-        P1.append(p)
-
-    bFFState = False
-    if len(P1) > 0:
-        index1, value = max(enumerate(P1), key=operator.itemgetter(1))
-        ground_state_data = data1[index1]
-        n_a, n_b = ground_state_data['na'], ground_state_data['nb']
-        mu_a, mu_b = ground_state_data['mu_a'], ground_state_data['mu_b']
-        dq = ground_state_data['q']
-        mu, dmu = (mu_a + mu_b)/2.0, (mu_a - mu_b)/2.0
-        print(f"na={n_a}, nb={n_b}, PF={value}, PN={p0}")
-        if (value > p0) and (
-            not np.allclose(
-                n_a, n_b, rtol=1e-9) and (
-                    ground_state_data["q"]>0.0001 and ground_state_data["d"]>0.001)):
-            bFFState = True
-    if bFFState:
-        print("This is a FF state")
-    dic = dict(
-        mu_eff=mu_eff, dmu_eff=dmu_eff,
-        mu=mu, dmu=dmu, np=n_a + n_b, na=n_a,
-        nb=n_b, ai=a_inv, C=C, delta=delta, state=bFFState)
-
-    delta=ground_state_data['d']
-    mu_a=mu+dmu
-    mu_b=mu-dmu
-    mus=(mu, dmu)
-    mu_a_eff=mu_eff + dmu_eff
-    mu_b_eff=mu_eff - dmu_eff
-    mus_eff=(mu_a_eff, mu_b_eff)
-
-    args = dict(
-        mu_eff=mu_eff, dmu_eff=dmu_eff, delta=1,
-        T=0, dim=3, k_c=50, verbosity=False, C=C)
-    lda = ClassFactory(
-        "LDA", (FFStateAgent,),
-        functionalType=FunctionalType.ASLDA,
-        kernelType=KernelType.HOM, args=args)
+    def filter_state(mu, dmu, delta, C, dim):
+        if dim != 3:
+            return True
     
-    # mu_a_eff_, mu_b_eff_ = lda.get_mus_eff(mus=mus, delta=delta, dq=dq)
-    # mu_eff_=(mu_a_eff_ + mu_b_eff_)/2
-    # dmu_eff_ = (mu_a_eff_-mu_b_eff_)/2
-    # res0 = lda.get_ns_e_p(mus=mus, delta=delta, dq=dq, verbosity=False, solver=Solvers.BROYDEN1)
-    # res1 = lda.get_ns_mus_e_p(mus_eff=(mu_a_eff, mu_b_eff), delta=delta, dq=dq)
-    # lda.delta = delta
-    # res2 = lda.get_ns_mus_e_p(mus_eff=(mu_a_eff, mu_b_eff), delta=None)
-    # print(res1)
-    # print(res2)
-
-    res3 = lda.get_ns_e_p(mus=mus, delta=None, verbosity=False, fix_delta=False, solver=Solvers.BROYDEN1)
-    print(res3)
+        if delta != .5:
+            return True
+        #if dmu > 0.71 or dmu < 0.7:  
+            #return True
+        if not np.allclose(dmu, 0.33, rtol=0.01):
+            return True
+        print(dmu)
+        return False
+    # PlotStates(two_plot=False, filter_fun=filter_state, print_file_name= True)
+    PlotCurrentPressure(filter_fun=filter_state, showLegend=True, FFState_only=False, print_file_name=True)

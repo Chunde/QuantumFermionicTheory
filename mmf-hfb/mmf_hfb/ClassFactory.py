@@ -287,13 +287,17 @@ class Adapter(object):
         ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
         V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
         mu_a, mu_b = mus_eff[0] + V_a, mus_eff[1] + V_b
-        
+        args.update(ns=ns, taus=taus, nu=nu)
         g_eff = self._g_eff(mus_eff=mus_eff, **args)
         #g_eff = 0 if nu==0 else delta/nu
         e_p = self._get_e_p(
             mus=(mu_a, mu_b), mus_eff=mus_eff, delta=delta,
             ns=ns, taus=taus, nu=nu, g_eff=g_eff)
         return (ns, (mu_a, mu_b), ) + e_p
+
+    def get_pressure(self, mus_eff, delta, dq=0, solver=Solvers.BROYDEN1, **args):
+        """return the pressure only"""
+        return self.get_ns_mus_e_p(mus_eff, delta, dq=dq, solver=solver, **args)[3]
 
 
 def ClassFactory(
@@ -335,3 +339,13 @@ def ClassFactory(
     if args is None:
         return new_class
     return new_class(**args)
+
+
+if __name__ == "__main__":
+    mu_eff = 10
+    dmu_eff = 0
+    delta = 1
+    args = dict(mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,T=0, dim=3, k_c=50, verbosity=False)
+    lda = ClassFactory("LDA",functionalType=FunctionalType.BDG, kernelType=KernelType.HOM, args=args)
+    lda._get_C(mus_eff=(mu_eff,0), delta=1)
+    lda.fix_C_BdG(mu=mu_eff,dmu=0, delta=1)

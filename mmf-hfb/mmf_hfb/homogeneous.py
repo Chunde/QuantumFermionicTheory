@@ -204,7 +204,7 @@ class Homogeneous(object):
         --------------
         Note: if dq is in args, that means we try to calculate FF state
         """
-        if 'dq' in args:
+        if 'dq' in args and args['dq'] !=0:
             return self._get_densities_tf(mus_eff=mus_eff, delta=delta, **args)
         kF = np.sqrt(2*max(0, np.max(mus_eff)))
         
@@ -271,7 +271,7 @@ class Homogeneous(object):
                     nu = np.inf
                 else:
                     nu_delta = quad(nu_delta_integrand)
-                    nu = nu_delta * delta
+                    nu = nu_delta*delta
             else:
                 nu_delta = quad(nu_delta_integrand)
                 nu = nu_delta*delta

@@ -110,7 +110,7 @@ class BDG(Homogeneous, FunctionalBdG):
             mus=mus, delta=delta, use_solver=use_solver)
         alpha_a, alpha_b = self.get_alphas(ns=ns)
         D = self.get_D(ns=ns)
-        energy_density = taus[0]/2.0 + taus[1]/2.0 + g_eff*abs(nu)**2
+        energy_density = alpha_a*taus[0]/2.0 + alpha_b*taus[1]/2.0 + g_eff*abs(nu)**2
         if self.T !=0:
             energy_density = (
                 energy_density
@@ -123,18 +123,13 @@ class BDG(Homogeneous, FunctionalBdG):
     
 
 class SLDA(BDG, FunctionalSLDA):
-
+    # pass
     def get_alphas(self, ns, d=0):
         if d==0:
             return (1.0, 1.0)
         elif d==1:
             return (0, 0, 0, 0)
-
-    # def get_D(self, ns, d=0):
-    #     if d==0:
-    #         return 1
-    #     elif d==1:
-    #         return (0, 0)
+   
 
 class ASLDA(SLDA, FunctionalASLDA):
     pass

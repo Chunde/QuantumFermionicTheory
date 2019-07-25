@@ -44,7 +44,7 @@ def create_LDA(mu, dmu, delta):
 def test_BDG(mu, dmu):
     delta = 1
     h = homogeneous.Homogeneous3D()
-    _, ns, _, e = h.get_BCS_v_n_e(mus_eff=(mu + dmu, mu - dmu), delta=delta)
+    _, ns, _, _ = h.get_BCS_v_n_e(mus_eff=(mu + dmu, mu - dmu), delta=delta)
 
     LDA = ClassFactory(
         className="LDA",
@@ -52,14 +52,14 @@ def test_BDG(mu, dmu):
         kernelType=KernelType.HOM)
 
     lda = LDA(mu_eff=mu, dmu_eff=dmu, delta=delta, T=0, dim=3)
-    lda.fix_C(mu=mu, dmu=dmu, delta=delta)
+    lda.C = lda._get_C(mus_eff=(mu, mu), delta=delta)
 
     def get_ns_e_p(mu, dmu, update_C=False):
         ns, e, p = lda.get_ns_e_p(
             mus=(mu, dmu), delta=delta, solver=Solvers.BROYDEN1, verbosity=False)
         return ns, e, p
 
-    ns_, _, _ = get_ns_e_p(mu=mu, dmu=dmu)  
+    ns_, _, _ = get_ns_e_p(mu=mu, dmu=dmu)
     print(ns[0].n, ns_[0])
     print(ns[1].n, ns_[1])
     assert np.allclose(np.array([ns[0].n, ns[1].n]), ns_, rtol=1e-2)
@@ -76,6 +76,25 @@ def test_effective_mus(mu, dmu, dq=0):
     print(mus_eff, mus_eff_)
     assert np.allclose(np.array(mus_eff), np.array(mus_eff_))
 
+
+def test_effective_mus_BdG(mu, dmu, dq=0):
+    """For BDG, effective mus should be the same as bare mus"""
+    delta = 1
+    LDA = ClassFactory(
+        className="LDA",
+        functionalType=FunctionalType.BDG,
+        kernelType=KernelType.HOM)
+
+    lda = LDA(mu_eff=mu, dmu_eff=dmu, delta=delta, T=0, dim=3)
+    lda.C = lda._get_C(mus_eff=(mu, mu), delta=delta)
+    mus_eff = (mu + dmu, mu-dmu)
+    res = lda.get_ns_mus_e_p(mus_eff=mus_eff, delta=delta, dq=dq)
+    mus_eff_ = lda.get_mus_eff(
+        mus=(sum(res[1])/2.0, (res[1][0]-res[1][1])/2.0),
+        delta=delta, dq=dq, verbosity=False)
+    print(mus_eff, mus_eff_)
+    assert np.allclose(np.array(mus_eff), np.array(mus_eff_))
+    assert np.allclose(np.array(mus_eff), np.array(res[1]))
 
 def test_effective_mus_thermodynamic(mu):
     # the thermodynamic is not to high accuracy
@@ -140,11 +159,9 @@ def test_class_factory(functional, kernel, mu, dmu=1, dim=3):
             update_C=update_C, max_iter=32, solver=Solvers.BROYDEN1,
             verbosity=True, **args)
         return ns, e, p
-    # print(f"g={lda.get_g(mus=(mu, dmu), delta=delta)}")
-    # print(f"C={lda._get_C(mus=(mu, dmu), delta=delta)}")
-    # lda.fix_C(mu=mu, dmu=dmu, delta=delta)
-    lda.C = lda._get_C(mus=(mu, dmu), delta=0.75)
-    ns, _, _ = get_ns_e_p(mu=mu, dmu=dmu, update_C=False)
+ 
+    # lda.C = lda._get_C(mus=(mu, dmu), delta=0.75)
+    ns, _, _ = get_ns_e_p(mu=mu, dmu=dmu, update_C=True)
     print("-------------------------------------")
     ns1, e1, p1 = get_ns_e_p(mu=mu+dx, dmu=dmu)
     print("-------------------------------------")
@@ -158,11 +175,31 @@ def test_class_factory(functional, kernel, mu, dmu=1, dim=3):
     assert np.allclose(np.mean(mu_).real, mu, rtol=1e-2)
 
 
+def test_C():
+    """
+    when use BDG functional, the C should reproduce
+    the result from a BdG code
+    """
+    mu_eff = 10
+    dmu_eff = 0
+    delta = 1
+    args = dict(
+        mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
+        T=0, dim=3, k_c=50, verbosity=False)
+    lda = ClassFactory(
+        "LDA",
+        functionalType=FunctionalType.BDG,
+        kernelType=KernelType.HOM, args=args)
+    C = lda._get_C(mus_eff=(mu_eff, mu_eff), delta=delta)
+    lda.fix_C_BdG(mu=mu_eff, dmu=0, delta=delta)
+    assert np.allclose(lda.C, C)
+
+
 if __name__ == "__main__":
     # test_bare_mus(mu=np.pi, dmu=0.5)
     # test_effective_mus_thermodynamic(mu=np.pi, dmu=0.1)
-    test_effective_mus(mu=np.pi, dmu=0.3, dq=0)
+    #test_effective_mus(mu=np.pi, dmu=0.3, dq=0)
     # test_BDG(mu=5)
-    # test_class_factory(
-    #   functional=FunctionalType.ASLDA,
-    #   kernel=KernelType.HOM, mu=10, dim=3)
+    # test_class_factory(functional=FunctionalType.ASLDA, kernel=KernelType.HOM, mu=np.pi, dim=3)
+    # test_C()
+    test_effective_mus_BdG(mu=10, dmu=1)
