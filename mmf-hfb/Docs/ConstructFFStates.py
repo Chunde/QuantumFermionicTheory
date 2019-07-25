@@ -70,6 +70,7 @@ bp.PlotStates(filter_fun=filter)
 # J=\int dk\left[(k+\delta q) f_a + (k - \delta q) f_b\right]
 # $$
 
+plt.figure(figsize(16, 16))
 bp.PlotCurrentPressure(filter_fun=filter, alignLowerBranches=False, alignUpperBranches=False, showLegend=True)
 
 # $$

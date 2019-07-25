@@ -14,10 +14,10 @@
 # ---
 
 from mmf_hfb import vortex_aslda
-from mmf_hfb.xp import xp  # np
+from mmf_hfb.np import np  # np
 from mmf_hfb import homogeneous
 import pytest
-from mmf_hfb.xp import xp 
+from mmf_hfb.np import np 
 
 
 # # Test the ASLDA thermodynamics
@@ -30,9 +30,9 @@ def test_aslda_thermodynamic(dx=1e-3):
     N_twist = 32
     delta = 1.0
     mu=10
-    dmu = 2.1
+    dmu = .1
     b = vortex_aslda.BDG(T=0, Nxyz=[N,N], Lxyz=[L,L]) # you can change the BDG->SLDA or ASLDA, the BDG code works
-    k_c = abs(xp.array(b.kxyz).max())
+    k_c = abs(np.array(b.kxyz).max())
     b.E_c = 3 * (b.hbar*k_c)**2/2/b.m
     def get_ns_e_p(mu, dmu):
         ns, e, p = b.get_ns_e_p(mus_eff=(mu+dmu, mu-dmu), delta=delta, N_twist=N_twist, Laplacian_only=True, max_iter=12)
@@ -46,8 +46,8 @@ def test_aslda_thermodynamic(dx=1e-3):
     print(n_p.max().real, sum(ns).max())
     print(mu_[0].max().real, mu)
     print("-------------------------------------")
-    assert xp.allclose(n_p.max().real, sum(ns), rtol=1e-2)
-    assert xp.allclose(mu_[0].max().real, mu, rtol=1e-2)
+    assert np.allclose(n_p.max().real, sum(ns), rtol=1e-2)
+    assert np.allclose(mu_[0].max().real, mu, rtol=1e-2)
 
 
 test_aslda_thermodynamic()

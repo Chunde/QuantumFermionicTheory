@@ -167,7 +167,7 @@ class FFStateHelper(object):
         if currentdir is None:
             currentdir = os.path.dirname(
                 os.path.abspath(inspect.getfile(inspect.currentframe())))
-        pattern = join(currentdir, "data(BdG)","FFState_[()_0-9]*.json")
+        pattern = join(currentdir, "data(BdG)", "FFState_[()_0-9]*.json")
         files = files=glob.glob(pattern)
 
         jsonObjects = []
@@ -178,7 +178,7 @@ class FFStateHelper(object):
                         (json.load(rf), os.path.splitext(os.path.basename(file))[0]))
         logic_cpu_count = os.cpu_count() - 1
         logic_cpu_count = 1 if logic_cpu_count < 1 else logic_cpu_count
-        if False:  # Debugging
+        if True:  # Debugging
             for item in jsonObjects:
                 FFStateHelper.compute_pressure_current_worker(item)
         with Pool(logic_cpu_count) as Pools:
@@ -396,19 +396,4 @@ if __name__ == "__main__":
     # FFStateHelper.SearchFFState(delta=2.1, mu=10, dmus=dmus, dim=1)
     # Compute the pressure and current
     # ConstructDiagram(delta=0.2)
-    # FFStateHelper.compute_pressure_current()
-
-    def filter1(mu, dmu, delta, g, dim):
-        if dim != 3:
-            return True
-        return False
-
-    currentdir = join(
-        os.path.dirname(
-            os.path.abspath(
-                inspect.getfile(
-                    inspect.currentframe()))), "..", "mmf_hfb", "data(BdG)")    
-    output, fileSet = FFStateHelper.label_states(filter1, currentdir=currentdir)
-    for ret in output:
-        if ret is not None and ret['state']:
-            print(ret['file'])
+    FFStateHelper.compute_pressure_current()

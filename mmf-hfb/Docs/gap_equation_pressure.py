@@ -32,18 +32,32 @@ ff = FFState(mu=mu, dmu=dmu, delta=delta, dim=3, g=g, k_c=k_c, fix_g=True)
 mu_eff, dmu_eff = mu, dmu
 n_a, n_b = ff.get_densities(mu=mu, dmu=dmu, delta=delta)
 print(f"n_a={n_a.n}, n_b={n_b.n}, P={(n_a - n_b).n/(n_a + n_b).n}")
-ds = np.linspace(0.001,3,60)
-dmus = np.linspace(0, 2.0, 5)
+ds = np.linspace(0.001,3,20)
+dmus = np.linspace(0, 1.5, 4)
 plt.figure(figsize(10,6))
 for dmu in dmus:
     ps0 = [ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu, dmu_eff=dmu, delta=d, dq=dq, use_kappa=False).n for d in ds]
-    #ps1 = [ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu, dmu_eff=dmu, delta=d, dq=dq, use_kappa=True).n for d in ds]
+    ps1 = [ff.get_pressure(mu=mu, dmu=dmu, mu_eff=mu, dmu_eff=dmu, delta=d, dq=dq, use_kappa=True).n for d in ds]
 
     delta_max = ff.solve(mu=mu, dmu=dmu, dq=dq)
     print(f"dmu={dmu},g={ff._g},Delta={delta_max}")
     plt.plot(ds, ps0, label=f"$d\mu=${dmu}")
-    #plt.plot(ds, ps1,"--", label=f"$d\mu=${dmu}")
-    #plt.axvline(delta_max)
+    plt.plot(ds, ps1,"--", label=f"$d\mu=${dmu}")
+    plt.axvline(delta_max)
+plt.xlabel(f"$\Delta$")
+plt.ylabel(f"Press")
+plt.legend()
+plt.axvline(delta)
+
+for dmu in dmus:
+    ps0 = [ff.get_energy_density(mu=mu, dmu=dmu,delta=d, dq=dq, use_kappa=False).n for d in ds]
+    ps1 = [ff.get_energy_density(mu=mu, dmu=dmu,delta=d, dq=dq, use_kappa=True).n for d in ds]
+
+    delta_max = ff.solve(mu=mu, dmu=dmu, dq=dq)
+    print(f"dmu={dmu},g={ff._g},Delta={delta_max}")
+    plt.plot(ds, ps0, label=f"$d\mu=${dmu}")
+    plt.plot(ds, ps1,"--", label=f"$d\mu=${dmu}")
+    plt.axvline(delta_max)
 plt.xlabel(f"$\Delta$")
 plt.ylabel(f"Press")
 plt.legend()

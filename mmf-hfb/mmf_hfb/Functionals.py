@@ -2,9 +2,15 @@ import numpy as np
 
 
 class FunctionalBdG(object):
-    m=hbar=1
-
+    """D0 is the factor used to vary the D term weight"""
+    m=hbar=D0=1
+    
     def _gamma(self, p=None):
+        """
+        the gamma term only shows up in C
+        if C is set to constant, it may have 
+        no effect on the result.
+        """
         return -11.11  # -11.039 in Aureal's code
 
     def _get_p(self, ns):
@@ -206,9 +212,9 @@ class FunctionalBdG(object):
     def get_D(self, ns, d=0):
         """IFunctional interface implementation"""
         if d==0:
-            return self._D(ns)
+            return self.D0*self._D(ns)
         elif d==1:
-            return self._dD_dn(ns=ns)
+            return self.D0*np.array(self._dD_dn(ns=ns))
         else:
             raise ValueError(f"d={d} is not supported value")
     

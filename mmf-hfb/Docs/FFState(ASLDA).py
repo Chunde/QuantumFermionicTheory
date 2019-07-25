@@ -17,12 +17,23 @@ import mmf_setup;mmf_setup.nbinit()
 # %pylab inline --no-import-all
 from nbimports import *
 from scipy.optimize import brentq
-
 import mmf_hfb.ClassFactory as cf
 reload(cf)
 from mmf_hfb.ClassFactory import ClassFactory, FunctionalType, KernelType, Solvers
 import warnings
 warnings.filterwarnings("ignore")
+import os
+import inspect
+from os.path import join
+import json
+import glob
+from json import dumps
+import operator
+import mmf_hfb.FFStateAgent as ffa
+reload(ffa)
+import mmf_hfb.FFStatePlot as ffp
+reload(ffp)
+currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","mmf_hfb","data")
 
 mu_eff=10
 dmu_eff=0.5
@@ -109,21 +120,8 @@ plt.axvline(delta, linestyle='dashed')
 
 get_C(dmu_eff=0.3, delta=1), get_C(dmu_eff=1.5, delta=1)
 
+
 # # Visualize Data
-
-import os
-import inspect
-from os.path import join
-import json
-import glob
-from json import dumps
-import operator
-import mmf_hfb.FFStateAgent as ffa
-reload(ffa)
-import mmf_hfb.FFStatePlot as ffp
-reload(ffp)
-currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","mmf_hfb","data")
-
 
 def filter_state(mu, dmu, delta, C, dim):
     if dim != 3:
@@ -134,12 +132,12 @@ def filter_state(mu, dmu, delta, C, dim):
     #return False
     #if g != -3.2:
     #    return True
-    if delta != .5:
+    if delta != 1.5:
         return True
     #if dmu > 0.71 or dmu < 0.7:  
         #return True
-    if not np.allclose(dmu, 0.35, rtol=0.01):
-        return True
+    #if not np.allclose(dmu, 0.35, rtol=0.01):
+    #    return True
     print(dmu)
     return False
 
@@ -266,23 +264,29 @@ def g(e, ns):
     return g
 
 
+# +
 plt.figure(figsize(16,8))
 mu_eff = 10
-nss=[]
-es = []
-gs=[]
-xs = []
+
 dmu_effs = np.linspace(0, mu_eff, 20)
-for dmu_eff in dmu_effs:
-    ns, mus, e, p = lda.get_ns_mus_e_p(mus_eff=(mu_eff + dmu_eff, mu_eff - dmu_eff), delta=0, solver=Solvers.BROYDEN1)
-    nss.append(ns)
-    es.append(e)
-    gs.append(g(e, ns))
-    xs.append(ns[1]/ns[0])
-plt.plot(xs, gs, label=f"$\mu$={mu_eff}")
+Ds = np.linspace(0, 1, 5)
+for D0 in Ds:
+    lda.D0=D0
+    nss=[]
+    es = []
+    gs=[]
+    xs = []
+    for dmu_eff in dmu_effs:
+        ns, mus, e, p = lda.get_ns_mus_e_p(mus_eff=(mu_eff + dmu_eff, mu_eff - dmu_eff), delta=0, solver=Solvers.BROYDEN1)
+        nss.append(ns)
+        es.append(e)
+        gs.append(g(e, ns))
+        xs.append(ns[1]/ns[0])
+    plt.plot(xs, gs, label=f"$D0$={D0}")
 plt.axhline(1, linestyle='dashed')
 plt.axvline(0, linestyle='dashed')
 plt.title(f"g(x)")
 plt.legend()
+# -
 
 
