@@ -358,7 +358,7 @@ def search_states_worker(mus_delta):
         T=0, dim=3, k_c=50, verbosity=False)
     lda = ClassFactory(
         "LDA", (FFStateAgent,),
-        functionalType=FunctionalType.ASLDA,
+        functionalType=FunctionalType.SLDA,
         kernelType=KernelType.HOM, args=args)
     lda.Search(
         delta_N=100, delta_lower=0.0001, delta_upper=delta,

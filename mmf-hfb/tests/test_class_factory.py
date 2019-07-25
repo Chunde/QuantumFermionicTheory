@@ -5,7 +5,7 @@ import pytest
 import warnings
 warnings.filterwarnings("ignore")
 
-
+#  should add ASLDA here to have full test
 @pytest.fixture(params=[FunctionalType.BDG, FunctionalType.SLDA])
 def functional(request):
     return request.param

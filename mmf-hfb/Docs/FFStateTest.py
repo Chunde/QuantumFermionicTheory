@@ -15,7 +15,7 @@
 
 import mmf_setup;mmf_setup.nbinit()
 # %pylab inline --no-import-all
-from nbimports import * 
+from nbimports import *
 from mmf_hfb import tf_completion as tf
 from mmf_hfb.FuldeFerrelState import FFState
 from mmf_hfb.FFStateFinder import FFStateFinder
@@ -26,6 +26,7 @@ from scipy.optimize import brentq
 import operator
 from mmfutils.plot import imcontourf
 import mmf_hfb.BdGPlot as bp
+import numpy as np
 reload(bp)
 clear_output()
 
@@ -100,19 +101,23 @@ lda.get_pressure(mus=(mu_a, mu_b), delta=None)
 
 # ## Plot Pressures vs D0
 
-Ds = np.linspace(0, 1, 10)
+Ds = np.linspace(0, 0.2, 10)
 mu_a, mu_b = lda.get_mus_bare(mus_eff=(mu+dmu, mu-dmu), delta=delta, dq=q)
 P0, P1, P2 = [],[],[]
 for D0 in Ds:
     lda.D0=D0
-    P0.append(lda.get_pressure(mus_eff=(mu+dmu, mu-dmu), delta=delta, dq=q))
-    P1.append(lda.get_pressure(mus=(mu_a, mu_b), delta=0))
-    P2.append(lda.get_pressure(mus=(mu_a, mu_b), delta=None))
+    P0.append(lda.get_pressure(mus_eff=(mu+dmu, mu-dmu), delta=delta, dq=q))  # FF State
+    P1.append(lda.get_pressure(mus=(mu_a, mu_b), delta=0)) # Normal State
+    P2.append(lda.get_pressure(mus=(mu_a, mu_b), delta=None))  # Sysmetric State
 clear_output()
 
 plt.plot(Ds, P0, label="FF State")
 plt.plot(Ds, P1, label="Normal State")
 plt.plot(Ds, P2, label="Sysmetric State")
+plt.legend()
 print(P0[0], P1[0], P2[0])
 
+
+def f_d(D0):
+    return 
 
