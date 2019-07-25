@@ -48,9 +48,13 @@ class FFStateAgent(object):
             mus=mus, delta=0, verbosity=False, solver=Solvers.BROYDEN1)
         return (P_ss[2], P_ns[2])
 
-    def get_pressure(self, mus_eff, delta, q=0, dq=0):
+    def get_pressure(self, mus_eff=None, mus=None, delta=None, q=0, dq=0):
         """return the pressure only"""
-        return self.get_ns_mus_e_p(mus_eff=mus_eff, delta=delta, q=q, dq=dq)[3]
+        if mus_eff is None and mus is None:
+            raise ValueError("effective mus and bare mus can be None at the same time")
+        if mus is None:
+            return self.get_ns_mus_e_p(mus_eff=mus_eff, delta=delta, q=q, dq=dq)[3]
+        return self.get_ns_e_p(mus=mus, delta=delta, q=q, dq=dq)[2]
         
     def SaveToFile(self, data, extra_items=None):
         """
@@ -67,6 +71,8 @@ class FFStateAgent(object):
         output["dmu_eff"] = self.dmu_eff
         output["C"] = self.C
         output["k_c"] = self.k_c
+        output['functional']=self.functional
+        output['kernel']=self.kernel
         if extra_items is not None:
             output.update(extra_items)
         output["data"] = data
@@ -275,6 +281,7 @@ def compute_pressure_current_worker(jsonData_file):
     data = jsonData['data']
     k_c = jsonData['k_c']
     C = jsonData['C']
+    functional_index = jsonData['functional']
     if 'pending' in jsonData:
         print(f"Skip a unfinished file: {fileName}")
         return
@@ -286,7 +293,7 @@ def compute_pressure_current_worker(jsonData_file):
         prefix=f"{output_fileName}", timeStamp=False)
     lda = ClassFactory(
         "LDA", (FFStateAgent,),
-        functionalType=FunctionalType.SLDA,
+        functionalType=ClassFactory(functionalIndex=functional_index),
         kernelType=KernelType.HOM, args=args)
     C_ = lda._get_C(mus_eff=mus_eff, delta=delta)
     assert np.allclose(C, C_, rtol=1e-16)  # verify the C value
@@ -344,7 +351,7 @@ def compute_pressure_current(root=None):
                 jsonObjects.append(
                     (json.load(rf), os.path.splitext(os.path.basename(file))[0]))
  
-    if False:  # Debugging
+    if True:  # Debugging
         for item in jsonObjects:
             compute_pressure_current_worker(item)
     else:
@@ -358,10 +365,10 @@ def search_states_worker(mus_delta):
         T=0, dim=3, k_c=50, verbosity=False)
     lda = ClassFactory(
         "LDA", (FFStateAgent,),
-        functionalType=FunctionalType.BDG,
+        functionalType=FunctionalType.ASLDA,
         kernelType=KernelType.HOM, args=args)
     lda.Search(
-        delta_N=50, delta_lower=0.001, delta_upper=delta,
+        delta_N=100, delta_lower=0.0001, delta_upper=delta,
         q_lower=0, q_upper=dmu_eff, q_N=10, auto_incremental=False)
 
 
@@ -414,7 +421,7 @@ def label_states(current_dir=None, raw_data=False, verbosity=False):
                 ret = json.load(rf)
                 dim, mu_eff, dmu_eff, delta, C=(
                     ret['dim'], ret['mu_eff'], ret['dmu_eff'], ret['delta'], ret['C'])
-                
+                functional_index = ret['functional']
                 p0 = ret['p0']
                 a_inv = 4.0*np.pi*C  # inverse scattering length
 
@@ -446,10 +453,10 @@ def label_states(current_dir=None, raw_data=False, verbosity=False):
                     #  create a lda instance to compute all types of pressure
                     args = dict(
                         mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
-                        T=0, dim=ret['dim'], k_c=ret['k_c'], verbosity=False, C=C)
+                        T=0, dim=dim, k_c=ret['k_c'], verbosity=False, C=C)
                     lda = ClassFactory(
                         "LDA", (FFStateAgent,),
-                        functionalType=FunctionalType.ASLDA,
+                        functionalType=ClassFactory(functionalIndex=functional_index),
                         kernelType=KernelType.HOM, args=args)
                     
                     if verbosity:
@@ -482,5 +489,5 @@ def label_states(current_dir=None, raw_data=False, verbosity=False):
         
 if __name__ == "__main__":
     search_states(delta=1.5)
-    # compute_pressure_current()
+    compute_pressure_current()
     # label_states(raw_data=True)

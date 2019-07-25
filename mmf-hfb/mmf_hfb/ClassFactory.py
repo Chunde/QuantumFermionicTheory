@@ -62,12 +62,12 @@ class Adapter(object):
                 return FunctionalBdG.get_C(self, ns=ns, d=1)
             return (0, 0)
 
-    def get_alpha(self, p, d=0):
-        """override the alpha"""
-        if d==0:
-            return 1.0
-        else:
-            return 0
+    # def get_alpha(self, p, d=0):
+    #     """override the alpha"""
+    #     if d==0:
+    #         return 1.0
+    #     else:
+    #         return 0
 
     def fix_C_BdG(self, mu, dmu, delta, q=0, dq=0, **args):
         """
@@ -230,13 +230,13 @@ class Adapter(object):
 
     def _get_e_p(self, mus, mus_eff, delta, ns, taus, nu, g_eff):
         """return energy  density and pressure"""
-        # alpha_a, alpha_b = self.get_alphas(ns=ns)
+        alpha_a, alpha_b = self.get_alphas(ns=ns)
         energy_density = taus[0]/2.0 + taus[1]/2.0 + g_eff*abs(nu)**2
         if self.T !=0:
             energy_density = (
                 energy_density +self.T*self.get_entropy(mus_eff=mus_eff, delta=delta).n)
         energy_density = energy_density + self.get_D(ns=ns)
-        pressure = ns[0]*mus[0] + ns[1]*mus[1] - energy_density
+        pressure = ns[0]*mus[0]*alpha_a + ns[1]*mus[1]*alpha_b - energy_density
         return (energy_density, pressure)
 
     def get_ns_e_p(self, mus, delta, update_C=False, fix_delta=True, solver=None, **args):
@@ -300,10 +300,11 @@ class Adapter(object):
         return self.get_ns_mus_e_p(mus_eff, delta, dq=dq, solver=solver, **args)[3]
 
 
-def ClassFactory(
-        className, AgentClass=(),
-        functionalType=FunctionalType.ASLDA,
-        kernelType=KernelType.HOM, args=None):
+def ClassFactory(       
+        className="LDA", AgentClass=(),
+        functionalType=FunctionalType.SLDA,
+        kernelType=KernelType.HOM, 
+        functionalIndex=None, kernelIndex=None, args=None):
     """
     A function that create a new class that uses an adapter class
     to connect a functional class with a kernel class, the new class
@@ -324,6 +325,10 @@ def ClassFactory(
     """
     Functionals = [FunctionalBdG, FunctionalSLDA, FunctionalASLDA]
     Kernels = [KernelBCS, KernelHomogeneous]
+    if kernelIndex is not None:
+        return KernelType(kernelIndex)
+    if functionalIndex is not None:
+        return FunctionalType(functionalIndex)
     base_classes = AgentClass + (
         Adapter, Kernels[kernelType.value],
         Functionals[functionalType.value])
@@ -331,6 +336,8 @@ def ClassFactory(
     def __init__(self, **args):
         for base_class in base_classes:
             sig = inspect.signature(base_class.__init__)
+            self.functional=functionalType.value
+            self.kernel = kernelType.value
             if len(sig.parameters) > 3:
                 base_class.__init__(self, **args)
             else:

@@ -330,7 +330,7 @@ class FFState(object):
             mu=mu_eff, dmu=dmu_eff, delta=delta, q=q, dq=dq,
             n_a=n_a, n_b=n_b, use_kappa=use_kappa)
         mu_a, mu_b = mu + dmu, mu - dmu
-        pressure = mu_a * n_a + mu_b * n_b - energy_density
+        pressure = mu_a*n_a + mu_b*n_b - energy_density
         return pressure
         
     def check_superfluidity(self, mu=None, dmu=None, q=0, dq=0):

@@ -33,11 +33,11 @@ clear_output()
 
 e_F = 10
 mu0 = 0.59060550703283853378393810185221521748413488992993 * e_F
-delta0 = 0.68640205206984016444108204356564421137062514068346 * e_F
+#delta0 = 0.68640205206984016444108204356564421137062514068346 * e_F
 mu = mu0 # ~6
-delta = 1.5
+delta0 = 1.5
 dmu = 1.0875000000000001
-ffs = FFState(mu=mu0, dmu=0, delta=delta, dim=3, k_c=50, fix_g=True)
+ffs = FFState(mu=mu0, dmu=0, delta=delta0, dim=3, k_c=50, fix_g=True)
 
 ffs.g
 
@@ -45,9 +45,9 @@ ffs.g
 # $\Delta= 0.12130404040404041, q=0.37325733405245315$
 # * we can check if this is a solution by computing the g value
 
-delta_ = 0.12130404040404041
+delta = 0.12130404040404041
 q=0.37325733405245315
-args=dict(mu=mu0, dmu=dmu, delta=delta_, dq=q)
+args=dict(mu=mu0, dmu=dmu, delta=delta, dq=q)
 assert np.allclose(ffs.get_g(**args), ffs.g)
 
 # * compute the density
@@ -73,16 +73,26 @@ ffs.get_pressure(mu=mu0, dmu=0, delta=None) # symetric state pressure
 ffs.get_densities(mu=mu0, dmu=0, delta=None) # check density
 
 # # ASLDA FF State
+# * In ASLDA case(here I used SLDA because the alpha terms in ASLDA seems not right), if we set the effective mus to the mus we used in the BdG case above, and set the D term to zero by setting the weight of D to zero(D0 is the weight), we should be able to get the same result as that of BdG.
+# * By varying the D0 term, we may be able to see at which value of D0 does the FF state vanish.
 
 import mmf_hfb.ClassFactory as cf; reload(cf)
 from mmf_hfb.ClassFactory import ClassFactory, FunctionalType, KernelType, Solvers
 
-mu_eff = 10
-dmu_eff = 0
-args = dict(mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,T=0, dim=3, k_c=50, verbosity=False)
+args = dict(mu_eff=mu, dmu_eff=dmu, delta=delta0,T=0, dim=3, k_c=50, verbosity=False)
 lda = ClassFactory("LDA",functionalType=FunctionalType.SLDA, kernelType=KernelType.HOM, args=args)
+lda.C=lda._get_C(mus_eff=(mu+dmu, mu - dmu), delta=delta0)
 
-lda.get_pressure(mus_eff=(mu_eff+dmu_eff, mu_eff-dmu_eff), delta=delta)
+# ## Check the pressure of the configuration
+
+lda.D0=0
+lda.get_pressure(mus_eff=(mu+dmu, mu-dmu), delta=delta_, dq=q)
+
+# ## Get the bare mus
+# * To compare with normal state and symetric state, we need to use the same bare mus
+
+mu_a, mu_b = lda.get_mus_bare(mus_eff=(mu+dmu, mu-dmu), delta=delta, dq=q)
+print(mu_a, mu_b)
 
 lda.get_pressure(mus_eff=(mu_eff+dmu_eff, mu_eff-dmu_eff), delta=0)
 
