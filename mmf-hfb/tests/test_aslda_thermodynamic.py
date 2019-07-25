@@ -37,7 +37,7 @@ def test_homogeneous_aslda_thermodynamic(Functional, T, C, dim):
 
     def get_ns_e_p(mu, dmu, delta=delta, update_C=False):
         ns, e, p = lda.get_ns_e_p(
-            mus=(mu, dmu), delta=delta, update_C=update_C, use_solver=True)
+            mus=(mu + dmu, mu - dmu), delta=delta, update_C=update_C, use_solver=True)
         return ns, e, p
 
     ns, _, _ = get_ns_e_p(mu=mu, dmu=dmu, delta=None)
@@ -85,6 +85,7 @@ def test_bcs_aslda_thermodynamic(dx=1e-3):
     print("-------------------------------------")
     assert np.allclose(n_p.max().real, sum(ns), rtol=1e-2)
     assert np.allclose(mu_[0].max().real, mu, rtol=1e-2)
+
 
 if __name__ == "__main__":
     # test_bcs_aslda_thermodynamic()
