@@ -22,7 +22,7 @@ from nbimports import *
 # Let $\phi_1(x), \phi_2(x)\dots \phi_n(x)$ be normlized and orthogonal basis in the Hilbert space $H$, $\{x_\alpha\}=(x_1, x_2, \dots, x_m)$ be a set of grid point in the configuration space of the system on which the coordinate system is based. Define the projector operator as:
 #
 # $$
-# P=\sum_n{\ket{\phi_n}\bra{\phi_n}}
+# P=\sum_n{\ket{\phi_n}\bra{\phi_n}}\qquad \text{It may be easy to prove}:  P^2=P=P^{\dagger}
 # $$
 # Then let:
 # $$
@@ -34,7 +34,7 @@ from nbimports import *
 # \braket{\Delta_\alpha|\Delta_\beta}=N_{\alpha}\delta_{\alpha\beta}\qquad N_\alpha > 0 \tag{1}
 # $$
 #
-# Then we say $(\ket{\Delta_1}, \ket{\Delta_2},\dots, \ket{\Delta_m})$ is the DVR set of the space $S$
+# Then we say $(\ket{\Delta_1}, \ket{\Delta_2},\dots, \ket{\Delta_m})$ is the DVR set of the space $S$, we may also call $\ket{\Delta_{\alpha}}$ a DVR state, and each of such state is associated with a grid point, i.e: $x_{\alpha}$ as it's defined upon.
 
 # ## Example
 
@@ -58,7 +58,7 @@ from nbimports import *
 #
 # where
 # $$
-# N_i=\sum_{n=1}^3{\phi_n^*(x_n)\phi_n(x_n)}
+# N_i=\sum_{n=1}^3{\phi_n^*(x_i)\phi_n(x_i)}
 # $$
 
 # Let:
@@ -69,7 +69,7 @@ from nbimports import *
 # \phi_3(x_1) & \phi_3(x_2) & \phi_3(x_3) &\phi_3(x_4)\\
 # \end{pmatrix}
 # $$
-# Hence, we arive:
+# Hence, we arrive:
 # $$
 # G^{\dagger}G=\mat{G}=\begin{pmatrix}
 # N_1 & 0 & 0 & 0\\
@@ -78,6 +78,60 @@ from nbimports import *
 # 0 & 0 & 0 & N_4
 # \end{pmatrix}
 # $$
+#
+
+# Now let consider the properity of $\braket{x|\Delta_i}$
+# $$
+# \Delta_i(x)=\braket{x|\Delta_i}=\psi^*_1(x_i)\psi_1(x)+\psi^*_2(x_i)\psi_2(x)+\psi^*_3(x_i)\psi_3(x)
+# $$
+#
+# if evaluate the $\Delta_i(x)$ at those grid points, it can be found:
+#
+# $$
+# \Delta_i(x_j)=N_i\delta_{ij}
+# $$
+#
+# This is an interesting property, the DVR state $\ket{\Delta_i}$ is localized at it's own grid point $x_i$, which means, it's only non-zero at it's own grid point. In other words, the DVR states satisfy simultaneously two properties: $Orthogonality$ and $Interpolation.$
+
+# ## Normalized DVR
+# if define:
+# $$
+# \ket{F_{\alpha}}=\frac{1}{\sqrt{N_{\alpha}}}\ket{\Delta_{\alpha}}\qquad\\
+# $$
+#
+# Then
+#
+# $$
+# \braket{F_i|F_j}=\delta_{ij} \qquad (Normalized)
+# $$
+
+# ## Expansion of States
+# For a general state $\ket{\psi}$ in the sub space $\mat{H}$, then it can be expanded exactly in the DVR basis:
+#
+# $$
+# \ket{\psi}=\sum_{n=1}^m\ket{F_n}\braket{F_n|\psi}
+# $$
+#
+# As:
+# $$
+# \ket{F_i}=\frac{1}{\sqrt{N_i}}\ket{\Delta_i}=\frac{1}{\sqrt{N_i}}P\ket{x_i}
+# $$
+
+# So:
+# $$
+# \braket{F_i|\psi}=\frac{1}{\sqrt{N_i}}\bra{x_i}P^{\dagger}\ket{\psi}=\frac{1}{\sqrt{N_i}}\bra{x_i}P\ket{\psi}
+# $$
+
+# Because we assume $\ket{\psi}$ is in the subspace spaned by the basis, then $P\ket{\psi}=\psi$ as it's being projected to the same space.
+# So the result is:
+# $$
+# \braket{F_i|\psi}=\frac{1}{\sqrt{N_i}}\psi(x_i)\\
+# \ket{\psi}=\sum_{n=1}^m\frac{1}{\sqrt{N_i}}\psi(x_i)\ket{F_n}
+# $$
+
+# This result shows that the expansion coefficint of a state is simply connect to its value at grid points.
+
+
 
 # # Direct Sinc-DVR
 
