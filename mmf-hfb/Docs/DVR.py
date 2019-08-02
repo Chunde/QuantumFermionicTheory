@@ -28,13 +28,56 @@ from nbimports import *
 # $$
 # \ket{\Delta_\alpha}=P\ket{x_\alpha}=\sum_n{\ket{\phi_n}\braket{\phi_n| x_\alpha}}=\sum_n{\phi_n^*(x_\alpha)}\ket{\phi_n}
 # $$
-# If these $(\ket{\Delta_1}, \ket{\Delta_2},\dots, \ket{\Delta_n})$ is complete in the subspace $S=PH$, and orthogonal, ie:
+# If these $(\ket{\Delta_1}, \ket{\Delta_2},\dots, \ket{\Delta_m})$ is complete in the subspace $S=PH$, and orthogonal, ie:
 #
 # $$
-# \braket{\Delta_\alpha|\Delta_\beta}=N_{\alpha}\delta_{\alpha\beta}\qquad N_\alpha > 0
+# \braket{\Delta_\alpha|\Delta_\beta}=N_{\alpha}\delta_{\alpha\beta}\qquad N_\alpha > 0 \tag{1}
 # $$
 #
-# Then we say $(\ket{\Delta_1}, \ket{\Delta_2},\dots, \ket{\Delta_n})$ is the DVR set of the space $S$
+# Then we say $(\ket{\Delta_1}, \ket{\Delta_2},\dots, \ket{\Delta_m})$ is the DVR set of the space $S$
+
+# ## Example
+
+# Say we have three function in the basis: $\phi_1(x), \phi_2(x), \phi_3(x)$ accociated with a set of abscissa{$x_n$}={$x_1, x_2, x_3, x_4$}, they are orthogonal,ie:
+# $$
+# \braket{\phi_i|\phi_j}=\int_a^b{\phi^*_i(x)\phi_j(x)}dx=\delta_{ij} \qquad
+# $$
+# Then:
+# $$
+# \ket{\Delta_1}=\sum_{n=1}^3{\phi_n^*(x_1)}\ket{\phi_n}\\
+# \ket{\Delta_2}=\sum_{n=1}^3{\phi_n^*(x_2)}\ket{\phi_n}\\
+# \ket{\Delta_3}=\sum_{n=1}^3{\phi_n^*(x_3)}\ket{\phi_n}\\
+# \ket{\Delta_4}=\sum_{n=1}^3{\phi_n^*(x_4)}\ket{\phi_n}\\
+# $$
+#
+# With the condition (1):
+
+# $$
+# \braket{\Delta_i|\Delta_j}=\phi^*_1(x_i)\phi_1(x_j)+\phi^*_2(x_i)\phi_2(x_j)+\phi^*_3(x_i)\phi_3(x_j)=N_i\delta_{ij}
+# $$
+#
+# where
+# $$
+# N_i=\sum_{n=1}^3{\phi_n^*(x_n)\phi_n(x_n)}
+# $$
+
+# Let:
+# $$
+# \mat{G}=\begin{pmatrix}
+# \phi_1(x_1) & \phi_1(x_2) & \phi_1(x_3) &\phi_1(x_4)\\
+# \phi_2(x_1) & \phi_2(x_2) & \phi_2(x_3) &\phi_2(x_4)\\
+# \phi_3(x_1) & \phi_3(x_2) & \phi_3(x_3) &\phi_3(x_4)\\
+# \end{pmatrix}
+# $$
+# Hence, we arive:
+# $$
+# G^{\dagger}G=\mat{G}=\begin{pmatrix}
+# N_1 & 0 & 0 & 0\\
+# 0 & N_2 & 0 & 0\\
+# 0 & 0 & N_3 & 0\\
+# 0 & 0 & 0 & N_4
+# \end{pmatrix}
+# $$
 
 # # Direct Sinc-DVR
 
