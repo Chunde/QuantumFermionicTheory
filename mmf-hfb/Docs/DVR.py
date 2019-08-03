@@ -129,9 +129,13 @@ from nbimports import *
 # \ket{\psi}=\sum_{n=1}^m\frac{1}{\sqrt{N_i}}\psi(x_i)\ket{F_n}
 # $$
 
-# This result shows that the expansion coefficint of a state is simply connect to its value at grid points.
+# This result shows that the expansion coefficient of a state is simply connect to its value at grid points.
 
-
+# ## Scalar Product
+# To compute integral $\braket{\phi|\psi}$, we insert the unitary relation into the integral to get:
+# $$
+# \braket{\phi|\psi}=\sum_i\braket{\phi|F_i}\braket{F_i|\psi}=\sum_i \frac{1}{N_i}\phi^*(x_i)\psi(x_i)
+# $$
 
 # # Direct Sinc-DVR
 
