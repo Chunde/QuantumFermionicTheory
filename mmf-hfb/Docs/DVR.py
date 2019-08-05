@@ -169,24 +169,27 @@ for i in range(1, len(yss)):
 
 # $$
 # \psi_j(x)=\begin{cases}
-#     \sqrt{2/L}sin(j\pi(x-x_0)/L) & \text{for}  \qquad x_0\leq x\leq L,\\
+#     \sqrt{\frac{2}{L}}sin(\frac{j\pi(x-x_0)}{L}) & \text{for}  \qquad x_0\leq x\leq L,\\
 #     0 & else
 #   \end{cases}
-#   $$
+# $$
 
-L=5
+L=np.pi *2
 x0=0
 xs = np.linspace(0, L, 100)
 def psi(x, j):
     return (2.0/L)**0.5*np.sin(j*np.pi*(x-x0)/L)
 
 
-ys = psi(xs, j=2)
-plt.plot(xs, ys)
+for j in range(1,6):
+    ys = psi(xs, j=j)
+    plt.plot(xs, ys)
 plt.axhline(0, linestyle='dashed')
+plt.xlabel("x")
+plt.ylabel(f"$\phi$")
 
 ys1=psi(xs, j=1)
-ys2=psi(xs, j=2)
+ys2=psi(xs, j=4)
 np.dot(ys1, ys2)
 
 
