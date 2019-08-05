@@ -22,7 +22,7 @@ class BesselDVR(object):
         self.alpha=1.14
         self.beta = -0.55269
         self.gamma = -1/0.090585
-        self.eps = 1.0e-16
+        self.eps = 2.2204e-16
     
     def beta_bar(self):
         """compute beta bar equation 20, PRA 76, 040502(R)(2007)"""

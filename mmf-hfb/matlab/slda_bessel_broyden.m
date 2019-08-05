@@ -77,6 +77,7 @@ eta  = 0.504;
 alpha  =  1.14;
 beta   = -0.55269;
 igamma = -0.090585;
+% beta bar in equation (20)
 bbar   = beta - eta^2*(3*pi^2)^(2/3)*igamma/6; 
 %--------------------------------------------------- 
 
@@ -106,6 +107,7 @@ iz1 = find( Z1 <= Rmax*Kmax);
 % [arXiv:cond-mat/0312258v1]. I have also checked rather extensively 
 % on a number of exact solutions.
 %----------------------------------------------------------------------
+% see equation (7.1)
 for l0 = 0:1
     if l0 == 0
         n0 = iz0';
@@ -113,11 +115,11 @@ for l0 = 0:1
         nu0 = 1/2;
         [m1,m2]  = meshgrid(n0,n0);
         [zz1, zz2] = meshgrid(z0,z0);
-        t0 = (1+2*(nu0^2-1)./z0.^2)/3;
-        t1 = 8*(-1).^(m1-m2).*zz1.*zz2./( (zz1.^2-zz2.^2).^2 + eps );
-        t1 = t1-diag(diag(t1));
+        t0 = (1+2*(nu0^2-1)./z0.^2)/3; % compute diagonal terms
+        t1 = 8*(-1).^(m1-m2).*zz1.*zz2./( (zz1.^2-zz2.^2).^2 + eps ); % compute the off-diagonal terms
+        t1 = t1-diag(diag(t1)); % set the diagonal terms to zero as it's not the right values
         T0    = Kmax^2*(diag(t0) + t1)/2*alpha;
-        zmax0 = z0(end);
+        zmax0 = z0(end); % not used
         r0    = z0/Kmax;
         r0_2  = r0.^2;
         mm0 = size(n0,1);
@@ -131,7 +133,7 @@ for l0 = 0:1
         t1 = 8*(-1).^(m1-m2).*zz1.*zz2./( (zz1.^2-zz2.^2).^2 + eps );
         t1 = t1-diag(diag(t1));
         T1    = Kmax^2*(diag(t0) + t1)/2*alpha;
-        zmax1 = z1(end);
+        zmax1 = z1(end); % not used
         r1    = z1/Kmax;
         r1_2  = r1.^2;
         mm1 = size(n1,1);
@@ -161,7 +163,7 @@ b          = -cos(z0)./sqrt(z0);
 U0_1(:,i1) = 2*sqrt(z1(i1)*z0)./(z0.^2-z1(i1).^2).*b/a;
 C1(i1)     = sqrt(pi/Kmax/(sin(z1(i1)))^2);
 end
-C1_2 = C1.^2;
+C1_2 = C1.^2;  % not used
 %-----------------------------------------------------------------------
 % clear Nzeros nn Z0 Z1 m1 m2 zz1 zz2 iz0 iz1 t0 t1 nu0 a b 
 %-----------------------------------------------------------------------
