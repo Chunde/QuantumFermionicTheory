@@ -49,6 +49,22 @@ class BesselDVR(object):
         
         return (Z0[:i0], Z1[:i1])
 
+    def get_Us(self, zeross=None):
+        """return the coordinate convert matrix"""
+        if zeross is None:
+            zeross =self.get_zeros()
+        z0, z1 = zeross
+        z0, z1 = np.array(z0), np.array(z1)
+        a = np.cos(z0)/np.sqrt(z0)  # dim=49
+        b = np.sin(z1)/np.sqrt(z1)  # dim=48
+        # U10 from dim 49->48 with shape(48, 49)
+        U10 = 2*np.sqrt(z1[:, None]*z0[None, :])/(z1[:, None]**2 - z0[None, :]**2)*b[:, None]/a[None, :]
+        a = np.sin(z1)/np.sqrt(z1)   # dim=48
+        b = -np.cos(z0)/np.sqrt(z0)  # dim=49
+        # U01 from dim 48->49 with shape(49, 48)
+        U01 = 2*np.sqrt(z0[:, None]*z1[None, :])/(z0[:, None]**2 - z1[None, :]**2)*b[:, None]/a[None, :]
+        print(U10, U01)
+
     def _get_K(self, nu, zeros):
         """return kinetic matrix for a given angular momentum $\nu$"""
         zi = np.array(list(range(len(zeros)))) + 1
@@ -60,9 +76,11 @@ class BesselDVR(object):
         T = self.k_c**2*K_off/2.0*self.alpha
         return T
 
-    def get_Ks(self):
+    def get_Ks(self, zeross=None):
         """return kinetic matrix for different angular momentums"""
-        Z0, Z1 = self.get_zeros()
+        if zeross is None:
+            zeross = self.get_zeros()
+        Z0, Z1 = zeross
         K0 = self._get_K(nu=0.5, zeros=Z0)
         K1 = self._get_K(nu=1.5, zeros=Z1)
         return (K0, K1)
@@ -71,6 +89,7 @@ class BesselDVR(object):
 if __name__ == "__main__":
     dvr = BesselDVR()
     dvr.get_Ks()
+    dvr.get_Us()
     
 
 
