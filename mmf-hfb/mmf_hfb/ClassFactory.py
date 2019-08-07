@@ -352,7 +352,11 @@ if __name__ == "__main__":
     mu_eff = 10
     dmu_eff = 0
     delta = 1
-    args = dict(mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,T=0, dim=3, k_c=50, verbosity=False)
-    lda = ClassFactory("LDA",functionalType=FunctionalType.BDG, kernelType=KernelType.HOM, args=args)
-    lda._get_C(mus_eff=(mu_eff,0), delta=1)
-    lda.fix_C_BdG(mu=mu_eff,dmu=0, delta=1)
+    args = dict(
+        mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
+        T=0, dim=3, k_c=50, verbosity=False)
+    lda = ClassFactory(
+        "LDA", functionalType=FunctionalType.BDG,
+        kernelType=KernelType.HOM, args=args)
+    lda._get_C(mus_eff=(mu_eff, 0), delta=1)
+    lda.fix_C_BdG(mu=mu_eff, dmu=0, delta=1)

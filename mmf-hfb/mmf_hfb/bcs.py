@@ -10,6 +10,7 @@ import numpy as np
 from mmfutils.math.integrate import mquad
 from mmf_hfb.ParallelHelper import PoolHelper
 from mmf_hfb.interface import IHFBKernel
+from mmf_hfb.utils import block
 
 
 def mqaud_worker_thread(obj_args):
@@ -33,12 +34,6 @@ def twising_worker_thread(obj_args):
     dens = mquad(f, -k_c, k_c, abs_tol=abs_tol)/2/np.pi
     return dens
 
-
-def block(a11, a12, a21, a22):
-    RowBlock1=np.concatenate((a11, a12), axis=1)
-    RowBlock2=np.concatenate((a21, a22), axis=1)
-    Block=np.concatenate((RowBlock1, RowBlock2), axis=0)
-    return Block
 
 
 class BCS(IHFBKernel):
