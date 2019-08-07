@@ -192,4 +192,31 @@ ys1=psi(xs, j=1)
 ys2=psi(xs, j=4)
 np.dot(ys1, ys2)
 
+# # Aurel's Code
+
+# ## $U_{1\rightarrow 0}$
+# * The U in Aurel's Matlab code lines 152-165 is said to be the coordinate transform matrices, but it's hard to understand
+
+# $$
+# a=\frac{cos(z_0)}{\sqrt{z_0}}\qquad b=\frac{sin(z_1)}{\sqrt{z_1}}\\
+# \begin{align}
+# U_{10}
+# &=\frac{2\sqrt{z_0z_1}b}{(z_1^2-z_0^2)a}\\
+# &=\frac{2z_0sin(z_1)}{(z_1^2-z_0^2)cos(z_0)}
+# \end{align}
+# $$
+
+# Where $z_0$ is zeros in the case when angular momentum $\nu=0$, while $z_1$ is zeros when $\nu=1$
+
+# ## $U_{0\rightarrow1}$
+
+# $$
+# a=\frac{sin(z_1)}{\sqrt{z_1}}\qquad b=-\frac{cos(z_0)}{\sqrt{z_0}}\\
+# \begin{align}
+# U_{01}
+# &=\frac{2\sqrt{z_0z_1}b}{(z_0^2-z_1^2)a}\\
+# &=\frac{2z_1cos(z_0)}{(z_1^2-z_0^2)sin(z_1)}
+# \end{align}
+# $$
+
 
