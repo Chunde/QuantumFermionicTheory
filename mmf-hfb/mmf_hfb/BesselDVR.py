@@ -35,11 +35,7 @@ class BesselDVR(object):
         if E < -E_c:
             return 1
         return 1.0/(1 + np.exp(E/(self.T + self.eps)))
-
-    def beta_bar(self):
-        """compute beta bar equation 20, PRA 76, 040502(R)(2007)"""
-        return self.beta - self.eta**2*(3*np.pi**2)**(2.0/3)/self.gamma/6.0
-    
+  
     def get_zeros(self):
         N_max = 500
         nn = np.array(list(range(0, N_max, 1))) + 1
@@ -139,6 +135,10 @@ class AurelBesselDVR(BesselDVR):
         self.cmix = 1.0
         self.EN_C = 40
 
+    def beta_bar(self):
+        """compute beta bar equation 20, PRA 76, 040502(R)(2007)"""
+        return self.beta - self.eta**2*(3*np.pi**2)**(2.0/3)/self.gamma/6.0
+
     def _get_den(self, H, L, V, D, mus, zs):
         eigen, phi = np.linalg.eigh(H)
         phi = phi.T  # to have same sine as given by matlab
@@ -170,16 +170,22 @@ class AurelBesselDVR(BesselDVR):
                 li = L % 2
                 offset = mms[li]
                 U = Us[li]
-                u0 = phi[i][:offset]/Cs[li]
-                v0 = phi[i][offset:]/Cs[li]
-                u1 = U.dot(u0)
-                v1 = U.dot(v0)
+                if li == 0:
+                    u0 = phi[i][:offset]/Cs[li]
+                    v0 = phi[i][offset:]/Cs[li]
+                    u1 = U.dot(u0)
+                    v1 = U.dot(v0)
+                else:
+                    u1 = phi[i][:offset]/Cs[li]
+                    v1 = phi[i][offset:]/Cs[li]
+                    u0 = U.dot(u1)
+                    v0 = U.dot(v1)
                 den_a = den_a + _den_kappa(fe=fe, fc=fc, u=u0, v=v0)
                 den_b = den_b + _den_kappa(fe=fe, fc=fc, u=u1, v=v1)
                 ev = v0**2*(mu_a - eigen[i] - V) + v0*u0*D
                 eu = u0**2*(mu_b + eigen[i] - V) - v0*u0*D
                 e = e + 4*np.pi*al*sum(((1 - fe)*ev + fe*eu)*Cs[0]**2)*fc
-        print(e)
+        return np.array([den_a, den_b, e])
 
     def get_density(self, N=2, **args):
         """compute the density for particle N"""
@@ -192,10 +198,11 @@ class AurelBesselDVR(BesselDVR):
         zs = self.get_zeros()
         z0, z1 = zs
         bbar = self.beta_bar()
+       
+        r02 = (z0/self.k_c)**2
+        r12 = (z1/self.k_c)**2
 
-        def _get_DV(zs):
-            r = zs/self.k_c
-            r2 = r**2
+        def _get_DV(r2):
             ir = ((2*mu - r2)>0).astype("uint8")
             rho_a = ((2*mu - r2)/(self.alpha*(1+bbar)))**1.5/(6*np.pi**2)*ir
             rho_b = rho_a
@@ -204,8 +211,8 @@ class AurelBesselDVR(BesselDVR):
             V = np.nan_to_num(bbar*(3*np.pi**2*rho)**(2/3.0)/2, 0)
             return (D, V)
         
-        D0, V0 = _get_DV(z0)
-        D1, V1 = _get_DV(z1)
+        D0, V0 = _get_DV(r2=r02)
+        D1, V1 = _get_DV(r2=r12)
         deltas = (D0, D1)
         Vs = (V0, V1)
         Ds = (D0, D1)
@@ -217,14 +224,21 @@ class AurelBesselDVR(BesselDVR):
         dG = x0
         K0 = self.cmix*np.diag(np.ones_like(x0))
         K1 = K0
-
+        ret = 0
         for L in range(self.N_c):
             """L is the angular momentum quantum number"""
             H = self.get_H(
                 delta=deltas[L % 2], mus=(mu_a, mu_b),
                 V=Vs[L % 2], zs=(z0, z1), angular_momentum=L)
-            self._get_den(H=H, L=L, V=Vs[L % 2], D=D0, mus=(mu_a, mu_b), zs=zs)
+            ret = ret + self._get_den(H=H, L=L, V=V0, D=D0, mus=(mu_a, mu_b), zs=zs)
+            print(ret[2])
+        den_a, den_b, e = ret
+        na0, nb0, kappa0 = den_a/r02
+        na1, nb1, kappa1 = den_b/r12
+        n0, n1 = na0 + nb0, na1 + nb1
+        kappa0, kappa1 = kappa0/2.0, kappa1/2.0
 
+        print(n0, n1)
 
 if __name__ == "__main__":
     dvr = AurelBesselDVR()
