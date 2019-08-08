@@ -1,8 +1,11 @@
 import numpy as np
 from enum import Enum
 from mmf_hfb.utils import block
+import warnings
+warnings.filterwarnings("ignore")
 
 def nan0(data):
+    """convert nan to zero"""
     return np.nan_to_num(data, 0)
 
 class DVRBasisType(Enum):
@@ -137,8 +140,8 @@ class BesselDVR(object):
         LL = self.alpha*(L*(L + 1) - L0*(L0 + 1))/2.0
         r2 = (zs[L0]/self.k_c)**2
         V_ = LL /r2
-        H_a = Ts[L0] + np.diag(V_ + V + r2/2 - mu_a)
-        H_b = Ts[L0] + np.diag(V_ + V + r2/2 - mu_b)
+        H_a = Ts[L0] + np.diag(V_ + V + r2/2 - mu_b)
+        H_b = Ts[L0] + np.diag(V_ + V + r2/2 - mu_a)
         H = block(H_a, Delta, Delta.conj(), -H_b)
         return H
 
@@ -161,6 +164,9 @@ class AurelBesselDVR(BesselDVR):
         return self.beta - self.eta**2*(3*np.pi**2)**(2.0/3)/self.gamma/6.0
 
     def get_last_correction(self, D, n, mu=None, r2=None, V=None, k0=None, kc=None):
+        """
+        Some unknown correction, need to be clarified
+        """
         if k0 is None or kc is None:
             assert V is not None
             k0, kc = self._get_k0_kc(mu=mu, r2=r2, V=V)
@@ -168,6 +174,10 @@ class AurelBesselDVR(BesselDVR):
         return last_corr
 
     def _get_den(self, H, L, V, D, mus, zs, Cs):
+        """
+        return density for  particle a and b
+        also return the energy density
+        """
         eigen, phi = np.linalg.eigh(H)
         phi = phi.T  # to have same sine as given by matlab
         al = (2*L + 1)/4.0/np.pi
@@ -216,7 +226,9 @@ class AurelBesselDVR(BesselDVR):
         return np.array([den_a, den_b, e])
 
     def compute(self, N=2, **args):
-        """compute the density for particle N"""
+        """
+        compute the density for particle N
+        """
         N_a = np.ceil(N/2)
         N_b = np.floor(N/2)
         mu = (3.0*N)**(1/3.0)*np.sqrt(self.xi)
@@ -233,11 +245,11 @@ class AurelBesselDVR(BesselDVR):
 
         def _get_DV(r2):
             ir = ((2*mu - r2)>0).astype("uint8")
-            rho_a = ((2*mu - r2)/(self.alpha*(1 + bbar)))**1.5/(6*np.pi**2)*ir
-            rho_b = rho_a
-            rho = rho_a + rho_b
-            D = nan0(self.eta*(3*np.pi**2*rho)**(2/3.0)/2)
-            V = nan0(bbar*(3*np.pi**2*rho)**(2/3.0)/2)
+            na = ((2*mu - r2)/(self.alpha*(1 + bbar)))**1.5/(6*np.pi**2)*ir
+            nb = na
+            n = na + nb
+            D = nan0(self.eta*(3*np.pi**2*n)**(2/3.0)/2)
+            V = nan0(bbar*(3*np.pi**2*n)**(2/3.0)/2)
             return (D, V)
 
         def _update_DV(D, V, r2, mu, n, kappa):
@@ -285,7 +297,7 @@ class AurelBesselDVR(BesselDVR):
             e = e + 0.3*self.beta*(3*np.pi**2)**(2/3.0)*4*np.pi*sum(r02*n0**(5/3.0)*C0**2) - 4*np.pi*sum(r02*D0*kappa0*C02)
             N0_a = 4*np.pi*sum(r0**2*C0**2*na0)
             N0_b = 4*np.pi*sum(r0**2*C0**2*nb0)
-            R2_0 = 4*np.pi*sum(r0**4*C0**2*n0)
+            R2_0 = 4*np.pi*sum(r0**4*C0**2*n0)  # what's this?
             mu_a_ = mu_a + mu_a*(N_a/N0_a - 1)
             mu_b_ = mu_b + mu_b*(N_b/N0_b - 1)
             x = np.hstack([V0, D0, V1, D1, mu_a_, mu_b_])
@@ -309,19 +321,46 @@ class AurelBesselDVR(BesselDVR):
                 G0 = G1
             
             V0, D0, V1, D1, mu_a, mu_b = x0[:mm0], x0[mm0:2*mm0], x0[2*mm0: 2*mm0 + mm1], x0[2*mm0 + mm1:2*mm0 + 2*mm1], x0[-2], x0[-1]
-            mu, dmu = (mu_a + mu_b)/2, (mu_a - mu_b)/2
+            mu = (mu_a + mu_b)/2
             convergence = np.max(np.abs([G0, dx]))
-            print(f"convergence={convergence}")
+            # print(f"convergence={convergence}")
             if convergence < 1.0e-9:
                 print(e)
                 break
+        return (e, R2_0)
 
+
+def compute_particle(N):
+    dvr = AurelBesselDVR()
+    return dvr.compute(N=N)
+
+
+def AurelPlot():
+    import matplotlib.pyplot as plt
+    from mmf_hfb.ParallelHelper import PoolHelper
+    En = [1.37,]
+    R2 = [1.37,]
+    Nn = [1]
+
+    Ns = list(range(2, 31))
+    rets = PoolHelper.run(compute_particle, Ns)
+    Nn.extend(Ns)
+    for ret in rets:
+        En.append(ret[0])
+        R2.append(ret[1])
+    np0 = np.array(list(range(1, 23, 1)))
+    en0 = np.array([1.5, 2.01, 4.28, 5.1, 7.6, 8.7, 11.3, 12.6, 15.6, 17.2, 19.9, 21.5, 25.2, 26.6, 30.0, 31.9, 35.4, 37.4, 41.1, 43.2, 46.9, 49.3])
+    den0 = np.array([0, 0.02, 0.04, 0.1, 0.1, 0.1, 0.1, 0.1, 0.2, 0.2, 0.2, 0.3, 0.2, 0.4, 0.1, 0.3, 0.2, 0.3, 0.3, 0.4, 0.2, 0.1])
+
+    np1 = list(range(1, 31, 1))  
+    en1 = [1.5, 2.002, 4.281, 5.051, 7.610, 8.639, 11.362, 12.573, 15.691, 16.806, 20.102, 21.278, 24.787, 25.923, 29.593, 30.876, 34.634, 35.971, 39.820, 41.302, 45.474, 46.889, 51.010, 52.624, 56.846, 58.545, 63.238, 64.388, 69.126, 70.927]
+    den1 = [0.0, 0.0, 0.004, 0.009, 0.01, 0.03, 0.02, 0.03, 0.05, 0.04, 0.07, 0.05, 0.09, 0.05, 0.1, 0.06, 0.12, 0.07, 0.15, 0.08, 0.15, 0.09, 0.18, 0.20, 0.22, 0.18, 0.22, 0.31, 0.31, 0.3]
+    plt.plot(Nn, En, label="SLDA")
+    plt.plot(np0, en0, label="GFMC")
+    plt.plot(np1, en1, label="FN-DMC")
+    plt.legend()
+    plt.show()
 
 
 if __name__ == "__main__":
-    dvr = AurelBesselDVR()
-    #dvr.get_Ks()
-    #dvr.get_Us()
-    dvr.compute()
-
-
+    AurelPlot()

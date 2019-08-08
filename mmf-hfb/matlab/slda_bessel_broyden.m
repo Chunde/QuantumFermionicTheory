@@ -170,251 +170,255 @@ C1_2 = C1.^2;  % not used
 % this concludes the determination of various quantities needed for DVR
 %-----------------------------------------------------------------------
 
-Number_Density = [];
+Number_Density = []; % not used
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 for  N = 2:30          % total particle number
     
-tic
+    tic % tic starts a stopwatch timer
 
-N_a     = ceil(N/2);   % number of spin-up particles
-N_b     = floor(N/2);  % number of spin-down particles
+    N_a     = ceil(N/2);   % number of spin-up particles
+    N_b     = floor(N/2);  % number of spin-down particles
 
-%----------------------------------------------------------------------
-% Start iterations
-%
-% The intial guesses for densities, fields and chemical potentials
-% are rather crude. Note that the particle numbers obtained from these 
-% initial guess for number densities are rather far from the desired
-% values (almost by a factor of two sometimes), but that has little
-% effect on the convergence 
-%
-%
-%----------------------------------------------------------------------
+    %----------------------------------------------------------------------
+    % Start iterations
+    %
+    % The intial guesses for densities, fields and chemical potentials
+    % are rather crude. Note that the particle numbers obtained from these 
+    % initial guess for number densities are rather far from the desired
+    % values (almost by a factor of two sometimes), but that has little
+    % effect on the convergence 
+    %
+    %
+    %----------------------------------------------------------------------
 
-mu      = (3*N)^(1/3)*sqrt(xi);
-mu_a    = mu;                      % chemical potential for spin-up
-mu_b    = mu;                      % chemical potential for spin-down
-mu0     = mu;                      
-E0      = (3*N)^(4/3)/4*sqrt(xi); % useless
-ir_0    = ( (2*mu - r0_2)>0 );
-rho_0_a = ( (2*mu - r0_2)/(alpha*(1+bbar)) ).^1.5/(6*pi^2).*ir_0;
-rho_0_b = ( (2*mu - r0_2)/(alpha*(1+bbar)) ).^1.5/(6*pi^2).*ir_0;
-rho_0   = rho_0_a + rho_0_b;
-D_0     =  eta*(3*pi^2*rho_0).^(2/3)/2.*ir_0;  
-V_0     =  bbar*(3*pi^2*rho_0).^(2/3)/2.*ir_0;
-ir_1    = ( (2*mu - r1_2)>0 );
-rho_1_a = ( (2*mu - r1_2)/(alpha*(1+bbar)) ).^1.5/(6*pi^2).*ir_1;
-rho_1_b = ( (2*mu - r1_2)/(alpha*(1+bbar)) ).^1.5/(6*pi^2).*ir_1;
-rho_1   = rho_1_a + rho_1_b;
-D_1     =  eta*(3*pi^2*rho_1).^(2/3)/2.*ir_1;  
-V_1     =  bbar*(3*pi^2*rho_1).^(2/3)/2.*ir_1;
+    mu      = (3*N)^(1/3)*sqrt(xi);
+    mu_a    = mu;                      % chemical potential for spin-up
+    mu_b    = mu;                      % chemical potential for spin-down
+    mu0     = mu;                      
+    E0      = (3*N)^(4/3)/4*sqrt(xi); % useless
+    ir_0    = ( (2*mu - r0_2)>0 );
+    rho_0_a = ( (2*mu - r0_2)/(alpha*(1+bbar)) ).^1.5/(6*pi^2).*ir_0;
+    rho_0_b = ( (2*mu - r0_2)/(alpha*(1+bbar)) ).^1.5/(6*pi^2).*ir_0;
+    rho_0   = rho_0_a + rho_0_b;
+    D_0     =  eta*(3*pi^2*rho_0).^(2/3)/2.*ir_0;  
+    V_0     =  bbar*(3*pi^2*rho_0).^(2/3)/2.*ir_0;
+    ir_1    = ( (2*mu - r1_2)>0 );
+    rho_1_a = ( (2*mu - r1_2)/(alpha*(1+bbar)) ).^1.5/(6*pi^2).*ir_1;
+    rho_1_b = ( (2*mu - r1_2)/(alpha*(1+bbar)) ).^1.5/(6*pi^2).*ir_1;
+    rho_1   = rho_1_a + rho_1_b;
+    D_1     =  eta*(3*pi^2*rho_1).^(2/3)/2.*ir_1;  
+    V_1     =  bbar*(3*pi^2*rho_1).^(2/3)/2.*ir_1;
 
-x0 = [V_0;D_0;V_1;D_1;mu_a;mu_b];
-x1 = x0;
-dx = x0;
-G0 = x0;
-G1 = x0;
-dG = x0;
-K0 = cmix*eye(size(x0,1));
-K1 = K0;
+    x0 = [V_0;D_0;V_1;D_1;mu_a;mu_b];
+    x1 = x0;
+    dx = x0;
+    G0 = x0;
+    G1 = x0;
+    dG = x0;
+    K0 = cmix*eye(size(x0,1));
+    K1 = K0;
 
-convergence = 1;
-iter    = 0;
-while convergence > convergence_limit
-%--------------------------------------    
-iter    = iter + 1;
-Etot    = 0;
-Eqs     = [];
-Ll      = [];
-% nocc_a  = [];
-% nocc_b  = [];
-rho_0_a = zeros(mm0,1);
-rho_0_b = zeros(mm0,1);
-kappa_0 = zeros(mm0,1);
-rho_1_a = zeros(mm1,1);
-rho_1_b = zeros(mm1,1);
-kappa_1 = zeros(mm1,1);
-%--------------------------------------
-for l=0:Nmax         % angular momentum 
-    
-    l0 = mod(l,2);
-    if l0 == 0
-        ll   = alpha*(l*(l+1) - l0*(l0+1))/2;
-        Vl   = ll./r0_2;
-        Hh_a = T0 + diag(Vl + V_0 + r0_2/2-mu_b);
-        Hh_b = T0 + diag(Vl + V_0 + r0_2/2-mu_a);
-        Dh   = diag(D_0);
-        HH   = [[Hh_a,Dh];[Dh,-Hh_b]];
-     elseif l0 == 1
-        ll    = alpha*(l*(l+1) - l0*(l0+1))/2;
-        Vl    = ll./r1_2;
-        Hh_a  = T1 + diag(Vl + V_1 + r1_2/2-mu_b);
-        Hh_b  = T1 + diag(Vl + V_1 + r1_2/2-mu_a);
-        Dh  = diag(D_1);
-        HH = [[Hh_a,Dh];[Dh,-Hh_b]];
-    end
-    [phi, eigen] = eig(HH);
-    ener = diag(eigen);
-    al =   (2*l+1)/four_pi;  
-        for ie = 1:size(ener,1)
-            en_t    = ener(ie)/(Temp+eps);
-            if en_t > 40
-                fe = 0;
-            elseif en_t < -40
-                fe = 1;
-            else
-                fe      = 1/(1+exp(en_t));
+    convergence = 1;
+    iter    = 0;
+    while convergence > convergence_limit
+        %--------------------------------------    
+        iter    = iter + 1;
+        Etot    = 0;
+        Eqs     = [];
+        Ll      = [];
+        % nocc_a  = [];
+        % nocc_b  = [];
+        rho_0_a = zeros(mm0,1);
+        rho_0_b = zeros(mm0,1);
+        kappa_0 = zeros(mm0,1);
+        rho_1_a = zeros(mm1,1);
+        rho_1_b = zeros(mm1,1);
+        kappa_1 = zeros(mm1,1);
+        %--------------------------------------
+        for l=0:Nmax         % angular momentum 
+
+            l0 = mod(l,2);
+            if l0 == 0
+                ll   = alpha*(l*(l+1) - l0*(l0+1))/2;
+                Vl   = ll./r0_2;
+                Hh_a = T0 + diag(Vl + V_0 + r0_2/2-mu_b);
+                Hh_b = T0 + diag(Vl + V_0 + r0_2/2-mu_a);
+                Dh   = diag(D_0);
+                HH   = [[Hh_a,Dh];[Dh,-Hh_b]];
+             elseif l0 == 1
+                ll    = alpha*(l*(l+1) - l0*(l0+1))/2;
+                Vl    = ll./r1_2;
+                Hh_a  = T1 + diag(Vl + V_1 + r1_2/2-mu_b);
+                Hh_b  = T1 + diag(Vl + V_1 + r1_2/2-mu_a);
+                Dh  = diag(D_1);
+                HH = [[Hh_a,Dh];[Dh,-Hh_b]];
             end
-            en_c    = (abs(ener(ie))-Ec)/dEc;
-            if en_c > 40
-                fc = 0;
-            elseif en_c < -40
-                fc = 1;
-            else
-                fc      = 1/(1+exp(en_c));
-            end
-            if fc > 0
-                if l0 == 0
-                    ur0     = phi(    1:  mm0,ie)./C0;
-                    vr0     = phi(mm0+1:2*mm0,ie)./C0;
-                    vr1     = U1_0*vr0;
-                    ur1     = U1_0*ur0;
-                elseif l0 == 1
-                    ur1     = phi(    1:  mm1,ie)./C1;
-                    vr1     = phi(mm1+1:2*mm1,ie)./C1;
-                    vr0     = U0_1*vr1;
-                    ur0     = U0_1*ur1;
+            [phi, eigen] = eig(HH);
+            ener = diag(eigen);
+            al =   (2*l+1)/four_pi;  
+            e = 0;
+                for ie = 1:size(ener,1)
+                    en_t    = ener(ie)/(Temp+eps);
+                    if en_t > 40
+                        fe = 0;
+                    elseif en_t < -40
+                        fe = 1;
+                    else
+                        fe      = 1/(1+exp(en_t));
+                    end
+                    en_c    = (abs(ener(ie))-Ec)/dEc;
+                    if en_c > 40
+                        fc = 0;
+                    elseif en_c < -40
+                        fc = 1;
+                    else
+                        fc      = 1/(1+exp(en_c));
+                    end
+                    if fc > 0
+                        if l0 == 0
+                            ur0     = phi(    1:  mm0,ie)./C0;
+                            vr0     = phi(mm0+1:2*mm0,ie)./C0;
+                            vr1     = U1_0*vr0;
+                            ur1     = U1_0*ur0;
+                        elseif l0 == 1
+                            ur1     = phi(    1:  mm1,ie)./C1;
+                            vr1     = phi(mm1+1:2*mm1,ie)./C1;
+                            vr0     = U0_1*vr1;
+                            ur0     = U0_1*ur1;
+                        end
+
+                        rho_0_a = rho_0_a +   (1-fe)*fc*al*vr0.*vr0;
+                        rho_0_b = rho_0_b +       fe*fc*al*ur0.*ur0;
+                        kappa_0 = kappa_0 + (1-2*fe)*fc*al*vr0.*ur0;
+
+                        rho_1_a = rho_1_a +   (1-fe)*fc*al*vr1.*vr1;
+                        rho_1_b = rho_1_b +       fe*fc*al*ur1.*ur1;
+                        kappa_1 = kappa_1 + (1-2*fe)*fc*al*vr1.*ur1;
+
+                        ev      = vr0.^2.*(mu_a-ener(ie)-V_0) + vr0.*ur0.*D_0;
+                        eu      = ur0.^2.*(mu_b+ener(ie)-V_0) - vr0.*ur0.*D_0;
+                        e = e + four_pi*al*sum(((1-fe)*ev+fe*eu).*C0_2)*fc;
+                        
+                    end
+        %             nocc_a    = [nocc_a, (1-fe)*fc];
+        %             nocc_b    = [nocc_b,     fe*fc];
                 end
+          Etot    = Etot + e;
 
-                rho_0_a = rho_0_a +   (1-fe)*fc*al*vr0.*vr0;
-                rho_0_b = rho_0_b +       fe*fc*al*ur0.*ur0;
-                kappa_0 = kappa_0 + (1-2*fe)*fc*al*vr0.*ur0;
+          Eqs = [Eqs, ener'];
+          Ll  = [Ll,  l*ones(size(ener))']; 
 
-                rho_1_a = rho_1_a +   (1-fe)*fc*al*vr1.*vr1;
-                rho_1_b = rho_1_b +       fe*fc*al*ur1.*ur1;
-                kappa_1 = kappa_1 + (1-2*fe)*fc*al*vr1.*ur1;
+        end       % ------------ end l loop
 
-                ev      = vr0.^2.*(mu_a-ener(ie)-V_0) + vr0.*ur0.*D_0;
-                eu      = ur0.^2.*(mu_b+ener(ie)-V_0) - vr0.*ur0.*D_0;
-                Etot    = Etot + four_pi*al*sum(((1-fe)*ev+fe*eu).*C0_2)*fc;
+        rho_0_a = rho_0_a./r0_2;
+        rho_0_b = rho_0_b./r0_2;
+        rho_0   = rho_0_a + rho_0_b;   
+        kappa_0 = kappa_0./r0_2/2;
+
+        rho_1_a = rho_1_a./r1_2;
+        rho_1_b = rho_1_b./r1_2;
+        rho_1   = rho_1_a + rho_1_b;
+        kappa_1 = kappa_1./r1_2/2;
+
+        %--------------------------------------------------------------
+        %        l=0 sites 
+        %--------------------------------------------------------------
+        k0  = sqrt(2*(mu - r0_2/2 - V_0)/alpha);
+        kc  = sqrt(2*(Ec + mu  - r0_2/2 - V_0)/alpha);
+        Lc  = real( (kc-k0/2.*log((kc+k0)./(kc-k0)))/(2*pi^2*alpha) );
+        g_eff     = 1./( rho_0.^(1/3)*igamma - Lc + eps);
+        last_corr = 1 - D_0.^2/(6*pi^2*alpha^2) ...
+                 .*real( log((kc+k0)./(kc-k0))./(k0.*rho_0+eps) );
+
+        D_0 = -g_eff.*kappa_0;                           % pairing field
+        V_0 =  beta*(3*pi^2*rho_0).^(2/3)/2 -  ...
+                D_0.^2*igamma./(3*(rho_0+eps).^(2/3));   % meanfield
+        V_0 = V_0./last_corr;
+        %------------------------------------------------------------------------
+        Etot = Etot   ... 
+         + 0.3*beta*(3*pi^2)^(2/3)*four_pi*sum(r0_2.*rho_0.^(5/3).*C0_2) ...
+                                 - four_pi*sum(r0_2.*D_0.*kappa_0.*C0_2);
+        %------------------------------------------------------------------------                    
+        %--------------------------------------------------------------
+        %        l=1 sites 
+        %--------------------------------------------------------------
+        k0  = sqrt(2*(mu - r1_2/2 - V_1)/alpha);
+        kc  = sqrt(2*(Ec + mu - r1_2/2 - V_1)/alpha);
+        Lc  = real( (kc-k0/2.*log((kc+k0)./(kc-k0)))/(2*pi^2*alpha) );
+        g_eff     = 1./( rho_1.^(1/3)*igamma - Lc + eps);
+        last_corr = 1 - D_1.^2/(6*pi^2*alpha^2) ...
+                 .*real( log((kc+k0)./(kc-k0))./(k0.*rho_1+eps) );
+
+        D_1 = -g_eff.*kappa_1;                           % pairing field
+        V_1 =  beta*(3*pi^2*rho_1).^(2/3)/2 -  ...
+                D_1.^2*igamma./(3*(rho_1+eps).^(2/3));   % meanfield
+        V_1 = V_1./last_corr;
+
+        %-------------------------------------------------------------------   
+        N0_a =  four_pi*sum(r0.^2.*C0.^2.*rho_0_a);
+        N0_b =  four_pi*sum(r0.^2.*C0.^2.*rho_0_b);
+        R2_0 =  four_pi*sum(r0.^4.*C0.^2.*rho_0);
+        %-------------------------------------------------------------------
+        % This is where Broyden method is applied to perform the update
+        % Notice that the meanfield (V_0,V_1), the pairing field (D_0, D_1)
+        % and the chemical potentials (mu_a, mu_b)are updated, until 
+        % convergence is acheived for the desired values of specific particle 
+        % numbers (N_a, N_b) and accuracy. The first update (iter==1) 
+        % is simple, apart from weight, which is of little relevance.
+        % Notice also that one can run the program with the simple linear 
+        % mixing by choosing Niter >0 accordingly.
+        %-------------------------------------------------------------------
+        if iter == 1
+            G0 = x0 - [V_0;D_0;V_1;D_1; ...
+                       mu_a+mu_a*(N_a/N0_a-1);mu_b+mu_b*(N_b/N0_b-1)];
+        %     G0 = x0 - [V_0;D_0;V_1;D_1; ...
+        %                mu_a+mu0*(N_a/N0_a-1);mu_b+mu0*(N_b/N0_b-1)];
+            x1 = x0 - amix*G0;
+            dx = x1 - x0;
+            x0 = x1;
+        elseif iter > 1
+            G1  = x0 - [V_0;D_0;V_1;D_1;  ...
+                       mu_a+mu_a*(N_a/N0_a-1);mu_b+mu_b*(N_b/N0_b-1)];
+        %    G1  = x0 - [V_0;D_0;V_1;D_1;  ...
+        %               mu_a+mu0*(N_a/N0_a-1);mu_b+mu0*(N_b/N0_b-1)];
+            dG  = G1 - G0;
+            ket = dx - K0*dG;
+            ket = ket.*(abs(ket)>deps*(abs(G0)+abs(G1)));
+            bra = dx'*K0;
+            inorm = bmix/(bra*dG);
+            K1  = K0 + ket*bra*inorm;
+            if iter < Niter
+                x1  = x0 - amix* G1;     % linear mixing
+            else
+                x1  = x0 - K1*G1;
             end
-%             nocc_a    = [nocc_a, (1-fe)*fc];
-%             nocc_b    = [nocc_b,     fe*fc];
+            K0  = K1;
+            dx  = x1 - x0;
+            x0  = x1;
+            G0  = G1;
         end
-    
-  Eqs = [Eqs, ener'];
-  Ll  = [Ll,  l*ones(size(ener))']; 
-  
-end       % ------------ end l loop
 
-rho_0_a = rho_0_a./r0_2;
-rho_0_b = rho_0_b./r0_2;
-rho_0   = rho_0_a + rho_0_b;   
-kappa_0 = kappa_0./r0_2/2;
+        V_0  = x0(          1:  mm0,1);
+        D_0  = x0(  mm0    +1:2*mm0,1);
+        V_1  = x0(2*mm0    +1:2*mm0+  mm1,1);
+        D_1  = x0(2*mm0+mm1+1:2*mm0+2*mm1,1);
+        mu_a = x0(end-1);
+        mu_b = x0(end  );
+        mu   = (mu_a+mu_b)/2;
+        dmu  = (mu_a-mu_b)/2;
+        convergence = max(abs([G0;dx]))
+        
 
-rho_1_a = rho_1_a./r1_2;
-rho_1_b = rho_1_b./r1_2;
-rho_1   = rho_1_a + rho_1_b;
-kappa_1 = kappa_1./r1_2/2;
+    end    % --------- end iterations
 
-%--------------------------------------------------------------
-%        l=0 sites 
-%--------------------------------------------------------------
-k0  = sqrt(2*(mu - r0_2/2 - V_0)/alpha);
-kc  = sqrt(2*(Ec + mu  - r0_2/2 - V_0)/alpha);
-Lc  = real( (kc-k0/2.*log((kc+k0)./(kc-k0)))/(2*pi^2*alpha) );
-g_eff     = 1./( rho_0.^(1/3)*igamma - Lc + eps);
-last_corr = 1 - D_0.^2/(6*pi^2*alpha^2) ...
-         .*real( log((kc+k0)./(kc-k0))./(k0.*rho_0+eps) );
+    [N, toc, iter, Nmax, Etot, R2_0, mu, dmu*(abs(dmu)>ddmu)]   
 
-D_0 = -g_eff.*kappa_0;                           % pairing field
-V_0 =  beta*(3*pi^2*rho_0).^(2/3)/2 -  ...
-        D_0.^2*igamma./(3*(rho_0+eps).^(2/3));   % meanfield
-V_0 = V_0./last_corr;
-%------------------------------------------------------------------------
-Etot = Etot   ... 
- + 0.3*beta*(3*pi^2)^(2/3)*four_pi*sum(r0_2.*rho_0.^(5/3).*C0_2) ...
-                         - four_pi*sum(r0_2.*D_0.*kappa_0.*C0_2);
-%------------------------------------------------------------------------                    
-%--------------------------------------------------------------
-%        l=1 sites 
-%--------------------------------------------------------------
-k0  = sqrt(2*(mu - r1_2/2 - V_1)/alpha);
-kc  = sqrt(2*(Ec + mu - r1_2/2 - V_1)/alpha);
-Lc  = real( (kc-k0/2.*log((kc+k0)./(kc-k0)))/(2*pi^2*alpha) );
-g_eff     = 1./( rho_1.^(1/3)*igamma - Lc + eps);
-last_corr = 1 - D_1.^2/(6*pi^2*alpha^2) ...
-         .*real( log((kc+k0)./(kc-k0))./(k0.*rho_1+eps) );
+    En(N) = Etot;
+    R2(N) = R2_0;
+    Nn(N) = N;
 
-D_1 = -g_eff.*kappa_1;                           % pairing field
-V_1 =  beta*(3*pi^2*rho_1).^(2/3)/2 -  ...
-        D_1.^2*igamma./(3*(rho_1+eps).^(2/3));   % meanfield
-V_1 = V_1./last_corr;
-
-%-------------------------------------------------------------------   
-N0_a =  four_pi*sum(r0.^2.*C0.^2.*rho_0_a);
-N0_b =  four_pi*sum(r0.^2.*C0.^2.*rho_0_b);
-R2_0 =  four_pi*sum(r0.^4.*C0.^2.*rho_0);
-%-------------------------------------------------------------------
-% This is where Broyden method is applied to perform the update
-% Notice that the meanfield (V_0,V_1), the pairing field (D_0, D_1)
-% and the chemical potentials (mu_a, mu_b)are updated, until 
-% convergence is acheived for the desired values of specific particle 
-% numbers (N_a, N_b) and accuracy. The first update (iter==1) 
-% is simple, apart from weight, which is of little relevance.
-% Notice also that one can run the program with the simple linear 
-% mixing by choosing Niter >0 accordingly.
-%-------------------------------------------------------------------
-if iter == 1
-    G0 = x0 - [V_0;D_0;V_1;D_1; ...
-               mu_a+mu_a*(N_a/N0_a-1);mu_b+mu_b*(N_b/N0_b-1)];
-%     G0 = x0 - [V_0;D_0;V_1;D_1; ...
-%                mu_a+mu0*(N_a/N0_a-1);mu_b+mu0*(N_b/N0_b-1)];
-    x1 = x0 - amix*G0;
-    dx = x1 - x0;
-    x0 = x1;
-elseif iter > 1
-    G1  = x0 - [V_0;D_0;V_1;D_1;  ...
-               mu_a+mu_a*(N_a/N0_a-1);mu_b+mu_b*(N_b/N0_b-1)];
-%    G1  = x0 - [V_0;D_0;V_1;D_1;  ...
-%               mu_a+mu0*(N_a/N0_a-1);mu_b+mu0*(N_b/N0_b-1)];
-    dG  = G1 - G0;
-    ket = dx - K0*dG;
-    ket = ket.*(abs(ket)>deps*(abs(G0)+abs(G1)));
-    bra = dx'*K0;
-    inorm = bmix/(bra*dG);
-    K1  = K0 + ket*bra*inorm;
-    if iter < Niter
-        x1  = x0 - amix* G1;     % linear mixing
-    else
-        x1  = x0 - K1*G1;
-    end
-    K0  = K1;
-    dx  = x1 - x0;
-    x0  = x1;
-    G0  = G1;
-end
-
-V_0  = x0(          1:  mm0,1);
-D_0  = x0(  mm0    +1:2*mm0,1);
-V_1  = x0(2*mm0    +1:2*mm0+  mm1,1);
-D_1  = x0(2*mm0+mm1+1:2*mm0+2*mm1,1);
-mu_a = x0(end-1);
-mu_b = x0(end  );
-mu   = (mu_a+mu_b)/2;
-dmu  = (mu_a-mu_b)/2;
-convergence = max(abs([G0;dx]));
-
-end    % --------- end iterations
-  
-[N, toc, iter, Nmax, Etot, R2_0, mu, dmu*(abs(dmu)>ddmu)]   
-   
-En(N) = Etot;
-R2(N) = R2_0;
-Nn(N) = N;
-
-Number_Density = [Number_Density, N*ones(size(r0)), r0, rho_0_a, rho_0_b]; 
+    Number_Density = [Number_Density, N*ones(size(r0)), r0, rho_0_a, rho_0_b]; 
 
 end    % loop on particle number
 
@@ -440,14 +444,14 @@ den_0 = [0, 0.02, 0.04, 0.1, 0.1, 0.1, 0.1, 0.1, 0.2, 0.2, 0.2, 0.3, 0.2, ...
         0.4, 0.1, 0.3, 0.2, 0.3, 0.3, 0.4, 0.2, 0.1];     
 np_v = [2, 3, 8, 14, 20];
 en_v = [ 1.9463, 4.1944, 11.914, 25.965, 40.765];
-en_vv= (3*np_v).^(4/3)/4*sqrt(xi); 
+en_vv= (3*np_v).^(4/3)/4*sqrt(xi);  % not used
 %--------------------------------------------------------------------------
 
 in = 0;
 for N = 3:2:21
    in = in + 1;
-   Gap_slda(in) = En(N)  -(En(N+1)   + En(N-1))/2;
-   Gap_gfmc(in) = en_0(N)-(en_0(N+1) + en_0(N-1))/2;
+   Gap_slda(in) = En(N)  -(En(N+1)   + En(N-1))/2; % not used
+   Gap_gfmc(in) = en_0(N)-(en_0(N+1) + en_0(N-1))/2;  %not used
 end
 %--------------------------------------------------------------------------
 % J. von Stecher, C.H. Greene, and D. Blume, 
