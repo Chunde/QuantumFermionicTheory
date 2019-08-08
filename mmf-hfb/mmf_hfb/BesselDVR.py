@@ -2,6 +2,8 @@ import numpy as np
 from enum import Enum
 from mmf_hfb.utils import block
 
+def nan0(data):
+    return np.nan_to_num(data, 0)
 
 class DVRBasisType(Enum):
     """Types of DVR basis"""
@@ -100,6 +102,25 @@ class BesselDVR(object):
         K0 = self._get_K(nu=0.5, zeros=z0)
         K1 = self._get_K(nu=1.5, zeros=z1)
         return (K0, K1)
+    
+    def get_Lambda(self, k0, kc, n):
+        """compute the lambda for dim=3"""
+        Lc = (kc - k0/2.0*np.log((kc + k0)/(kc - k0)))/(2*np.pi**2*self.alpha)
+        # Lambda = kc*(1.0 - k0/kc/2.0*np.log((kc + k0)/(kc - k0)))/(2*np.pi**2*self.alpha)
+        return nan0(Lc)
+    
+    def _get_k0_kc(self, mu, r2, V):
+        k0 = np.sqrt(2*(mu - r2/2.0 - V)/self.alpha + 0*1j)
+        kc = np.sqrt(2*(self.E_c + mu - r2/2 - V)/self.alpha + 0*1j)
+        return (k0, kc)
+
+    def get_g_eff(self, mu, r2, V, n, k0=None, kc=None):
+        """compute the effective g"""
+        if k0 is None or kc is None:
+            k0, kc = self._get_k0_kc(mu=mu, r2=r2, V=V)
+        Lc = self.get_Lambda(k0=k0, kc=kc, n=n)
+        g_eff = 1.0/(n**(1/3.0)/self.gamma - Lc + self.eps)
+        return g_eff
 
     def get_H(self, delta, mus, V, zs=None, Ts=None, angular_momentum=0):
         """return the Hamiltonian"""
@@ -110,7 +131,6 @@ class BesselDVR(object):
 
         # zero = np.zeros_like(sum(self.xyz))
         Delta = np.diag(delta)
-        T_a, T_b = Ts
         mu_a, mu_b = mus
         L = angular_momentum
         L0 = L % 2
@@ -134,16 +154,24 @@ class AurelBesselDVR(BesselDVR):
         self.bmix = 1.0
         self.cmix = 1.0
         self.EN_C = 40
+        self.deps = 1.0e-15
 
     def beta_bar(self):
         """compute beta bar equation 20, PRA 76, 040502(R)(2007)"""
         return self.beta - self.eta**2*(3*np.pi**2)**(2.0/3)/self.gamma/6.0
 
-    def _get_den(self, H, L, V, D, mus, zs):
+    def get_last_correction(self, D, n, mu=None, r2=None, V=None, k0=None, kc=None):
+        if k0 is None or kc is None:
+            assert V is not None
+            k0, kc = self._get_k0_kc(mu=mu, r2=r2, V=V)
+        last_corr = 1 - nan0(D**2/(6*np.pi**2*self.alpha**2)*np.log((kc + k0)/(kc - k0))/(k0*n + self.eps))
+        return last_corr
+
+    def _get_den(self, H, L, V, D, mus, zs, Cs):
         eigen, phi = np.linalg.eigh(H)
         phi = phi.T  # to have same sine as given by matlab
         al = (2*L + 1)/4.0/np.pi
-        Cs = self.get_Cs(zs=zs)
+        
         Us = self.get_Us(zs=zs)
         mms = (len(zs[0]), len(zs[1]))
         mu_a, mu_b = mus
@@ -187,63 +215,113 @@ class AurelBesselDVR(BesselDVR):
                 e = e + 4*np.pi*al*sum(((1 - fe)*ev + fe*eu)*Cs[0]**2)*fc
         return np.array([den_a, den_b, e])
 
-    def get_density(self, N=2, **args):
+    def compute(self, N=2, **args):
         """compute the density for particle N"""
         N_a = np.ceil(N/2)
         N_b = np.floor(N/2)
         mu = (3.0*N)**(1/3.0)*np.sqrt(self.xi)
-        mu0 = mu_a = mu_b = mu
-        E0 = (3.0*N)**(4/3.0)/4/np.sqrt(self.xi)
+        mu_a = mu_b = mu
+        # E0 = (3.0*N)**(4/3.0)/4/np.sqrt(self.xi)
 
         zs = self.get_zeros()
         z0, z1 = zs
+        mm0, mm1= len(z0), len(z1)
         bbar = self.beta_bar()
-       
-        r02 = (z0/self.k_c)**2
+        r0 = z0/self.k_c
+        r02 = r0**2
         r12 = (z1/self.k_c)**2
 
         def _get_DV(r2):
             ir = ((2*mu - r2)>0).astype("uint8")
-            rho_a = ((2*mu - r2)/(self.alpha*(1+bbar)))**1.5/(6*np.pi**2)*ir
+            rho_a = ((2*mu - r2)/(self.alpha*(1 + bbar)))**1.5/(6*np.pi**2)*ir
             rho_b = rho_a
             rho = rho_a + rho_b
-            D = np.nan_to_num(self.eta*(3*np.pi**2*rho)**(2/3.0)/2, 0)
-            V = np.nan_to_num(bbar*(3*np.pi**2*rho)**(2/3.0)/2, 0)
+            D = nan0(self.eta*(3*np.pi**2*rho)**(2/3.0)/2)
+            V = nan0(bbar*(3*np.pi**2*rho)**(2/3.0)/2)
             return (D, V)
-        
+
+        def _update_DV(D, V, r2, mu, n, kappa):
+            k0, kc = self._get_k0_kc(mu=mu, r2=r2, V=V)
+            g_eff = self.get_g_eff(mu=mu, r2=r2, V=V, n=n, k0=k0, kc=kc)
+            last_corr = self.get_last_correction(D=D, n=n, V=V, k0=k0, kc=kc)
+            D = -g_eff*kappa
+            V = self.beta*(3*np.pi**2*n)**(2/3.0)/2.0 - D**2/self.gamma/(3*(n + self.eps)**(2/3.0))
+            V = V / last_corr.real
+            return (D.real, V.real)
+
         D0, V0 = _get_DV(r2=r02)
         D1, V1 = _get_DV(r2=r12)
-        deltas = (D0, D1)
-        Vs = (V0, V1)
-        Ds = (D0, D1)
+        Cs = self.get_Cs(zs=zs)
+        C0, C1=Cs
+        C02 = C0**2
+        
         x0 = np.hstack([V0, D0, V1, D1, mu_a, mu_b])
-        x1 = x0
-        dx = x0
-        G0 = x0
-        G1 = x0
-        dG = x0
+        x1, dx, G0, G1, dG, = x0, x0, x0, x0, x0
         K0 = self.cmix*np.diag(np.ones_like(x0))
         K1 = K0
-        ret = 0
-        for L in range(self.N_c):
-            """L is the angular momentum quantum number"""
-            H = self.get_H(
-                delta=deltas[L % 2], mus=(mu_a, mu_b),
-                V=Vs[L % 2], zs=(z0, z1), angular_momentum=L)
-            ret = ret + self._get_den(H=H, L=L, V=V0, D=D0, mus=(mu_a, mu_b), zs=zs)
-            print(ret[2])
-        den_a, den_b, e = ret
-        na0, nb0, kappa0 = den_a/r02
-        na1, nb1, kappa1 = den_b/r12
-        n0, n1 = na0 + nb0, na1 + nb1
-        kappa0, kappa1 = kappa0/2.0, kappa1/2.0
+        iter = 0
 
-        print(n0, n1)
+        while(True):  # start iteration
+            iter = iter + 1
+            ret = 0
+            Ds = (D0, D1)
+            Vs = (V0, V1)
+            for L in range(self.N_c):
+                """L is the angular momentum quantum number"""
+                H = self.get_H(
+                    delta=Ds[L % 2], mus=(mu_a, mu_b),
+                    V=Vs[L % 2], zs=(z0, z1), angular_momentum=L)
+                ret = ret + self._get_den(H=H, L=L, V=V0, D=D0, mus=(mu_a, mu_b), zs=zs, Cs=Cs)
+            # print(ret[2])
+            den_a, den_b, e = ret
+            na0, nb0, kappa0 = den_a/r02
+            na1, nb1, kappa1 = den_b/r12
+            n0, n1 = na0 + nb0, na1 + nb1
+            kappa0, kappa1 = kappa0/2.0, kappa1/2.0
+            # Update parameters at angular momentum = 0 site
+            D0, V0 = _update_DV(D=D0, V=V0, r2=r02, mu=mu, n=n0, kappa=kappa0)
+            # Update parameters at angular momentum = 1 site
+            D1, V1 = _update_DV(D=D1, V=V1, r2=r12, mu=mu, n=n1, kappa=kappa1)
+            e = e + 0.3*self.beta*(3*np.pi**2)**(2/3.0)*4*np.pi*sum(r02*n0**(5/3.0)*C0**2) - 4*np.pi*sum(r02*D0*kappa0*C02)
+            N0_a = 4*np.pi*sum(r0**2*C0**2*na0)
+            N0_b = 4*np.pi*sum(r0**2*C0**2*nb0)
+            R2_0 = 4*np.pi*sum(r0**4*C0**2*n0)
+            mu_a_ = mu_a + mu_a*(N_a/N0_a - 1)
+            mu_b_ = mu_b + mu_b*(N_b/N0_b - 1)
+            x = np.hstack([V0, D0, V1, D1, mu_a_, mu_b_])
+            if iter == 1:
+                G0 = x0 - x
+                x1 = x0 - self.amix*G0
+                dx = x1 - x0
+                x0 = x1
+            else:
+                G1 = x0 - x
+                dG = G1 - G0
+                ket = dx - K0.dot(dG)
+                ket = ket*(abs(ket)>self.deps*(abs(G0) + abs(G1))).astype("uint8")
+                bra = dx.dot(K0)
+                inorm = self.bmix/bra.dot(dG)
+                K1 = K0 + ket[:, None]*bra[None, :]*inorm
+                x1 = x0 - K1.dot(G1)
+                K0 = K1
+                dx = x1 - x0
+                x0 = x1
+                G0 = G1
+            
+            V0, D0, V1, D1, mu_a, mu_b = x0[:mm0], x0[mm0:2*mm0], x0[2*mm0: 2*mm0 + mm1], x0[2*mm0 + mm1:2*mm0 + 2*mm1], x0[-2], x0[-1]
+            mu, dmu = (mu_a + mu_b)/2, (mu_a - mu_b)/2
+            convergence = np.max(np.abs([G0, dx]))
+            print(f"convergence={convergence}")
+            if convergence < 1.0e-9:
+                print(e)
+                break
+
+
 
 if __name__ == "__main__":
     dvr = AurelBesselDVR()
     #dvr.get_Ks()
     #dvr.get_Us()
-    dvr.get_density()
+    dvr.compute()
 
 
