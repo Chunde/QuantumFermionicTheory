@@ -35,7 +35,6 @@ def twising_worker_thread(obj_args):
     return dens
 
 
-
 class BCS(IHFBKernel):
     """Simple implementation of the BCS equations in a periodic box.
 

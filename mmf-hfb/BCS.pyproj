@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>d96035f2-d7ba-4540-adc5-a336a7b7a91f</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>mmf_hfb\FFStateAgent.py</StartupFile>
+    <StartupFile>mmf_hfb\BesselDVR.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -41,12 +41,14 @@
     <Compile Include="Docs\bdg-equations-in-1d.py" />
     <Compile Include="Docs\BdG-Rotating-Frame-Transform.py" />
     <Compile Include="Docs\ConstructFFStates.py" />
+    <Compile Include="Docs\DVR.py" />
     <Compile Include="Docs\EulerRelation.py" />
     <Compile Include="Docs\FFState%28ASLDA%29.py" />
     <Compile Include="Docs\FFStateTest.py" />
     <Compile Include="Docs\FuldeFerrelVortex.py" />
     <Compile Include="Docs\gap_equation_pressure.py" />
     <Compile Include="Docs\nbimports.py" />
+    <Compile Include="Docs\ScatteringTutorial.py" />
     <Compile Include="Docs\ThermodynamicRelations.py" />
     <Compile Include="Docs\tmp.py" />
     <Compile Include="Docs\Vortex.py" />
@@ -54,6 +56,7 @@
     <Compile Include="mmf_hfb\bcs.py" />
     <Compile Include="mmf_hfb\bcs_aslda.py" />
     <Compile Include="mmf_hfb\BdGPlot.py" />
+    <Compile Include="mmf_hfb\BesselDVR.py" />
     <Compile Include="mmf_hfb\Broyden.py" />
     <Compile Include="mmf_hfb\FFStateAgent.py" />
     <Compile Include="mmf_hfb\FFStateFinder.py" />
@@ -80,6 +83,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="mmf_hfb\tf_completion.py" />
+    <Compile Include="mmf_hfb\utils.py" />
     <Compile Include="mmf_hfb\VortexState.py">
       <SubType>Code</SubType>
     </Compile>
