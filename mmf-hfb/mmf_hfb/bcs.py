@@ -83,8 +83,7 @@ class BCS(IHFBKernel):
         self.E_c = E_c
         self.T = T
 
-        # External potential
-        self.v_ext = self.get_v_ext()
+       
 
     @property
     def dim(self):
@@ -361,11 +360,20 @@ class BCS(IHFBKernel):
             j_b = j_b + j_b_
         return (j_a/N_twist/np.prod(self.dxyz), j_b/N_twist/np.prod(self.dxyz))
     
+    def get_U_V(self, H, UV=None, transpose=False):
+        """return U and V"""
+        if UV is None:
+            _, UV = np.linalg.eigh(H)
+        U_V_shape = (2,) + tuple(self.Nxyz) + UV.shape[1:]
+        U, V = UV.reshape(U_V_shape)
+        if transpose:
+            return (U.T, V.T)
+        return (U, V)
+
     def _get_densities_H(self, H, twists):
         """return densities for a given H"""
         d, UV = np.linalg.eigh(H)
-        U_V_shape = (2,) + tuple(self.Nxyz) + UV.shape[1:]
-        U, V = U_V = UV.reshape(U_V_shape)  # U = us.T, V=vs.T
+        U, V = U_V = self.get_U_V(H=H, UV=UV)
         dU_Vs = self._Del(U_V, twists=twists)
         dUs, dVs = dU_Vs[:, 0, ...], dU_Vs[:, 1, ...]
         f_p, f_m = self.f(d), self.f(-d)
@@ -476,4 +484,3 @@ class BCS(IHFBKernel):
             taus[0] + taus[1])*self.hbar**2/2/self.m - g_eff*kappa.T.conj()*kappa
         pressure = ns[0]*mus[0] + ns[1]*mus[1] - energy_density
         return (ns, energy_density, pressure)
-        
