@@ -79,11 +79,8 @@ class BCS(IHFBKernel):
         self.dxyz = dxyz
         self.Nxyz = Nxyz
         self.Lxyz = Lxyz
-
         self.E_c = E_c
         self.T = T
-
-       
 
     @property
     def dim(self):
@@ -125,14 +122,14 @@ class BCS(IHFBKernel):
             return Densities(
                 n_a=n_a, n_b=n_b,
                 tau_a=tau_a, tau_b=tau_b,
-                nu=nu_real + 1j * nu_imag,
+                nu=nu_real + 1j*nu_imag,
                 j_a=j_a, j_b=j_b)
 
         n_a, n_b, tau_a, tau_b, nu_real, nu_imag = (dens[0:6])
-        kappa_ = (nu_real+ 1j*nu_imag)
+        nu = (nu_real+ 1j*nu_imag)
         js = (dens[6:]).reshape((2, len(self.Nxyz)) + tuple(self.Nxyz))
         tau_a, tau_b = self._get_modified_taus(taus=(tau_a, tau_b), js=js)
-        return (np.array([n_a, n_b]), np.array([tau_a, tau_b]), js, kappa_)
+        return (np.array([n_a, n_b]), np.array([tau_a, tau_b]), js, nu)
 
     def _get_K(self, k_p=0, twists=0, **kw):
         """Return the kinetic energy matrix."""
@@ -370,7 +367,7 @@ class BCS(IHFBKernel):
             return (U.T, V.T)
         return (U, V)
 
-    def _get_densities_H(self, H, twists):
+    def _get_densities_H(self, H, twists=0):
         """return densities for a given H"""
         d, UV = np.linalg.eigh(H)
         U, V = U_V = self.get_U_V(H=H, UV=UV)
@@ -405,6 +402,14 @@ class BCS(IHFBKernel):
            N_twist==np.inf.
         abs_tol : float
            Absolute tolerance if performing twist averaging.
+        unpack: bool
+            unpack the result(array) to components(ns, js, taus, nu)
+            if False, a stacked 1d array will be returned, this is 
+            useful for integration and iteration routines
+        struct: bool
+            specify if the way of unpack, if struct is True,
+            the result would be organized a named structure,
+            otherwise a list of component array will be returned
         """
         # Here we use the notation Rp = R = f(M) and Rm = f(-M) = 1-R
         def get_dens(twists):

@@ -4,7 +4,6 @@ two-species Fermi gas with short-range interaction.
 """
 from mmf_hfb.bcs import BCS
 import numpy as np
-import scipy.optimize
 
 
 class KernelBCS(BCS):
@@ -89,8 +88,7 @@ class KernelBCS(BCS):
         else:
             C = self.C.flat[0]
         print(
-            f"mu_a_eff={mu_a_eff.flat[0].real},\tmu_b_eff={mu_b_eff.flat[0].real},\tdelta={delta.flat[0].real}"
-            +f"\tC={C},\tg={g_eff.flat[0].real},"
-            +f"\tn={ns[0].flat[0].real},\ttau={taus[0].flat[0].real},\tnu={nu.flat[0].real}")
-
-    
+            f"mu_a_eff={mu_a_eff.flat[0].real},\tmu_b_eff={mu_b_eff.flat[0].real},"
+            +f"\tdelta={delta.flat[0].real}\tC={C},\tg={g_eff.flat[0].real},"
+            +f"\tn={ns[0].flat[0].real},\ttau={taus[0].flat[0].real},"
+            +f"\tnu={nu.flat[0].real}")
