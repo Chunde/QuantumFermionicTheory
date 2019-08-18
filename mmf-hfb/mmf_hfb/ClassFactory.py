@@ -230,7 +230,7 @@ class Adapter(object):
     def _get_e_p(self, mus, mus_eff, delta, ns, taus, nu, g_eff):
         """return energy  density and pressure"""
         alpha_a, alpha_b = self.get_alphas(ns=ns)
-        energy_density = taus[0]/2.0 + taus[1]/2.0 + g_eff*abs(nu)**2
+        energy_density = alpha_a*taus[0]/2.0 + alpha_b*taus[1]/2.0 + g_eff*abs(nu)**2
         if self.T !=0:
             energy_density = (
                 energy_density +self.T*self.get_entropy(mus_eff=mus_eff, delta=delta).n)
