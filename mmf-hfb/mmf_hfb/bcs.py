@@ -222,6 +222,7 @@ class BCS(IHFBKernel):
             return f
         mask = 0.5 * (numpy.sign(abs(E_c)-abs(E)) + 1)
         return f * mask
+        return f
 
     def get_H(self, mus_eff, delta, twists=0, vs=None, **kw):
         """Return the single-particle Hamiltonian with pairing.
