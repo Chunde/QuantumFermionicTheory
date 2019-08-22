@@ -137,86 +137,20 @@ from nbimports import *
 # \braket{\phi|\psi}=\sum_i\braket{\phi|F_i}\braket{F_i|\psi}=\sum_i \frac{1}{N_i}\phi^*(x_i)\psi(x_i)
 # $$
 
-# # Direct Sinc-DVR
+# # Example: 2D Harmonic
 
-# $$
-# x_\alpha=x_0+\alpha\Delta x, \qquad \alpha=...,-1,0, 1, 2,...\\
-# \chi_\alpha(x)=\frac{(\Delta x)^{1/2}}{\pi}\frac{sin\frac{\pi}{\Delta x}(x-x_\alpha)}{x-x_\alpha}
-# $$
+from scipy.integrate import quad
+from mmfutils.math import bessel
 
-dx=1
-x0=0
-def chi(x, alpha):
-    x_alpha = x0+alpha*dx
-    if x-x_alpha == 0:
-        return dx**(-0.5)
-    return dx**0.5/np.pi*np.sin(np.pi/dx*(x-x_alpha))/(x-x_alpha)
-
-
-plt.figure(figsize(16,8))
-xs = np.linspace(-10, 10, 501)
-alphas = list(range(-5,5))
-yss = []
-for alpha in alphas:
-    ys = [chi(x, alpha=alpha) for x in xs]
-    yss.append(ys)
-    plt.plot(xs,ys)
-
-for i in range(1, len(yss)):
-    print(np.dot(yss[i], yss[i-1]))
-
-# # Sine-DVR
-
-# $$
-# \psi_j(x)=\begin{cases}
-#     \sqrt{\frac{2}{L}}sin(\frac{j\pi(x-x_0)}{L}) & \text{for}  \qquad x_0\leq x\leq L,\\
-#     0 & else
-#   \end{cases}
-# $$
-
-L=np.pi *2
-x0=0
-xs = np.linspace(0, L, 100)
-def psi(x, j):
-    return (2.0/L)**0.5*np.sin(j*np.pi*(x-x0)/L)
-
-
-for j in range(1,6):
-    ys = psi(xs, j=j)
-    plt.plot(xs, ys)
+plt.figure(figsize(12,4))
+xs = np.linspace(0, 10*np.pi, 500)
+for nu in range(4):
+    js = bessel.J(nu, 0)(xs)
+    plt.plot(xs,js)
 plt.axhline(0, linestyle='dashed')
-plt.xlabel("x")
-plt.ylabel(f"$\phi$")
 
-ys1=psi(xs, j=1)
-ys2=psi(xs, j=4)
-np.dot(ys1, ys2)
+bessel.j_root(nu=0, N=20)
 
-# # Aurel's Code
-
-# ## $U_{1\rightarrow 0}$
-# * The U in Aurel's Matlab code lines 152-165 is said to be the coordinate transform matrices, but it's hard to understand
-
-# $$
-# a=\frac{cos(z_0)}{\sqrt{z_0}}\qquad b=\frac{sin(z_1)}{\sqrt{z_1}}\\
-# \begin{align}
-# U_{10}
-# &=\frac{2\sqrt{z_0z_1}b}{(z_1^2-z_0^2)a}\\
-# &=\frac{2z_0sin(z_1)}{(z_1^2-z_0^2)cos(z_0)}
-# \end{align}
-# $$
-
-# Where $z_0$ is zeros in the case when angular momentum $\nu=0$, while $z_1$ is zeros when $\nu=1$
-
-# ## $U_{0\rightarrow1}$
-
-# $$
-# a=\frac{sin(z_1)}{\sqrt{z_1}}\qquad b=-\frac{cos(z_0)}{\sqrt{z_0}}\\
-# \begin{align}
-# U_{01}
-# &=\frac{2\sqrt{z_0z_1}b}{(z_0^2-z_1^2)a}\\
-# &=\frac{2z_1cos(z_0)}{(z_1^2-z_0^2)sin(z_1)}
-# \end{align}
-# $$
+7./3 - 4./3 -1
 
 

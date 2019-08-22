@@ -1,19 +1,12 @@
 import numpy as np
-from enum import Enum
 from mmf_hfb.utils import block
 import warnings
 warnings.filterwarnings("ignore")
 
+
 def nan0(data):
     """convert nan to zero"""
     return np.nan_to_num(data, 0)
-
-class DVRBasisType(Enum):
-    """Types of DVR basis"""
-    POLYNOMIAL = 0
-    BESSEL = 1
-    SINC = 2
-    AIRY = 3
 
 
 class BesselDVR(object):
@@ -37,7 +30,7 @@ class BesselDVR(object):
             E_c = self.E_c
         if E > E_c:
             return 0
-        if E < -E_c:
+        if E < -1*E_c:
             return 1
         return 1.0/(1 + np.exp(E/(self.T + self.eps)))
   
@@ -79,19 +72,21 @@ class BesselDVR(object):
         a = np.cos(z0)/np.sqrt(z0)  # dim=49
         b = np.sin(z1)/np.sqrt(z1)  # dim=48
         # U10 from dim 49->48 with shape(48, 49)
-        U10 = 2*np.sqrt(z1[:, None]*z0[None, :])/(z1[:, None]**2 - z0[None, :]**2)*b[:, None]/a[None, :]
+        U10 = 2*np.sqrt(
+            z1[:, None]*z0[None, :])/(z1[:, None]**2 - z0[None, :]**2)*b[:, None]/a[None, :]
         a = np.sin(z1)/np.sqrt(z1)   # dim=48
         b = -np.cos(z0)/np.sqrt(z0)  # dim=49
         # U01 from dim 48->49 with shape(49, 48)
-        U01 = 2*np.sqrt(z0[:, None]*z1[None, :])/(z0[:, None]**2 - z1[None, :]**2)*b[:, None]/a[None, :]
+        U01 = 2*np.sqrt(
+            z0[:, None]*z1[None, :])/(z0[:, None]**2 - z1[None, :]**2)*b[:, None]/a[None, :]
         return (U10, U01)
 
-    def _get_K(self, nu, zeros):
+    def _get_K(self, nu, zs):
         """return kinetic matrix for a given angular momentum $\nu$"""
-        zi = np.array(list(range(len(zeros)))) + 1
+        zi = np.array(list(range(len(zs)))) + 1
         xx, yy = np.meshgrid(zi, zi, sparse=False, indexing='ij')
-        zx, zy = np.meshgrid(zeros, zeros, sparse=False, indexing='ij')
-        K_diag = (1+2*(nu**2 - 1)/zeros**2)/3.0
+        zx, zy = np.meshgrid(zs, zs, sparse=False, indexing='ij')
+        K_diag = (1+2*(nu**2 - 1)/zs**2)/3.0
         K_off = 8*(-1)**(abs(xx - yy))*zx*zy/(zx**2 - zy**2)**2+self.eps
         np.fill_diagonal(K_off, K_diag)
         T = self.k_c**2*K_off/2.0*self.alpha
@@ -102,14 +97,13 @@ class BesselDVR(object):
         if zs is None:
             zs = self.get_zeros()
         z0, z1 = zs
-        K0 = self._get_K(nu=0.5, zeros=z0)
-        K1 = self._get_K(nu=1.5, zeros=z1)
+        K0 = self._get_K(nu=0.5, zs=z0)
+        K1 = self._get_K(nu=1.5, zs=z1)
         return (K0, K1)
     
     def get_Lambda(self, k0, kc, n):
         """compute the lambda for dim=3"""
         Lc = (kc - k0/2.0*np.log((kc + k0)/(kc - k0)))/(2*np.pi**2*self.alpha)
-        # Lambda = kc*(1.0 - k0/kc/2.0*np.log((kc + k0)/(kc - k0)))/(2*np.pi**2*self.alpha)
         return nan0(Lc)
     
     def _get_k0_kc(self, mu, r2, V):
@@ -125,7 +119,7 @@ class BesselDVR(object):
         g_eff = 1.0/(n**(1/3.0)/self.gamma - Lc + self.eps)
         return g_eff
 
-    def get_H(self, delta, mus, V, zs=None, Ts=None, angular_momentum=0):
+    def get_H(self, delta, mus, V, zs=None, Ts=None, nu=0):
         """return the Hamiltonian"""
         if zs is None:
             zs = self.get_zeros()
@@ -135,7 +129,7 @@ class BesselDVR(object):
         # zero = np.zeros_like(sum(self.xyz))
         Delta = np.diag(delta)
         mu_a, mu_b = mus
-        L = angular_momentum
+        L = nu
         L0 = L % 2
         LL = self.alpha*(L*(L + 1) - L0*(L0 + 1))/2.0
         r2 = (zs[L0]/self.k_c)**2
@@ -170,7 +164,8 @@ class AurelBesselDVR(BesselDVR):
         if k0 is None or kc is None:
             assert V is not None
             k0, kc = self._get_k0_kc(mu=mu, r2=r2, V=V)
-        last_corr = 1 - nan0(D**2/(6*np.pi**2*self.alpha**2)*np.log((kc + k0)/(kc - k0))/(k0*n + self.eps))
+        last_corr = 1 - nan0(D**2/(6*np.pi**2*self.alpha**2)*np.log(
+            (kc + k0)/(kc - k0))/(k0*n + self.eps))
         return last_corr
 
     def _get_den(self, H, L, V, D, mus, zs, Cs):
@@ -257,7 +252,9 @@ class AurelBesselDVR(BesselDVR):
             g_eff = self.get_g_eff(mu=mu, r2=r2, V=V, n=n, k0=k0, kc=kc)
             last_corr = self.get_last_correction(D=D, n=n, V=V, k0=k0, kc=kc)
             D = -g_eff*kappa
-            V = self.beta*(3*np.pi**2*n)**(2/3.0)/2.0 - D**2/self.gamma/(3*(n + self.eps)**(2/3.0))
+            V = (
+                self.beta*(3*np.pi**2*n)**(2/3.0)/2.0
+                - D**2/self.gamma/(3*(n + self.eps)**(2/3.0)))
             V = V / last_corr.real
             return (D.real, V.real)
 
@@ -282,8 +279,9 @@ class AurelBesselDVR(BesselDVR):
                 """L is the angular momentum quantum number"""
                 H = self.get_H(
                     delta=Ds[L % 2], mus=(mu_a, mu_b),
-                    V=Vs[L % 2], zs=(z0, z1), angular_momentum=L)
-                ret = ret + self._get_den(H=H, L=L, V=V0, D=D0, mus=(mu_a, mu_b), zs=zs, Cs=Cs)
+                    V=Vs[L % 2], zs=(z0, z1), nu=L)
+                ret = ret + self._get_den(
+                    H=H, L=L, V=V0, D=D0, mus=(mu_a, mu_b), zs=zs, Cs=Cs)
             # print(ret[2])
             den_a, den_b, e = ret
             na0, nb0, kappa0 = den_a/r02
@@ -294,7 +292,8 @@ class AurelBesselDVR(BesselDVR):
             D0, V0 = _update_DV(D=D0, V=V0, r2=r02, mu=mu, n=n0, kappa=kappa0)
             # Update parameters at angular momentum = 1 site
             D1, V1 = _update_DV(D=D1, V=V1, r2=r12, mu=mu, n=n1, kappa=kappa1)
-            e = e + 0.3*self.beta*(3*np.pi**2)**(2/3.0)*4*np.pi*sum(r02*n0**(5/3.0)*C0**2) - 4*np.pi*sum(r02*D0*kappa0*C02)
+            e = e + 0.3*self.beta*(3*np.pi**2)**(2/3.0)*4*np.pi*sum(
+                r02*n0**(5/3.0)*C0**2) - 4*np.pi*sum(r02*D0*kappa0*C02)
             N0_a = 4*np.pi*sum(r0**2*C0**2*na0)
             N0_b = 4*np.pi*sum(r0**2*C0**2*nb0)
             R2_0 = 4*np.pi*sum(r0**4*C0**2*n0)  # what's this?
@@ -320,7 +319,9 @@ class AurelBesselDVR(BesselDVR):
                 x0 = x1
                 G0 = G1
             
-            V0, D0, V1, D1, mu_a, mu_b = x0[:mm0], x0[mm0:2*mm0], x0[2*mm0: 2*mm0 + mm1], x0[2*mm0 + mm1:2*mm0 + 2*mm1], x0[-2], x0[-1]
+            V0, D0, V1, D1, mu_a, mu_b = (
+                x0[:mm0], x0[mm0:2*mm0], x0[2*mm0: 2*mm0 + mm1],
+                x0[2*mm0 + mm1:2*mm0 + 2*mm1], x0[-2], x0[-1])
             mu = (mu_a + mu_b)/2
             convergence = np.max(np.abs([G0, dx]))
             # print(f"convergence={convergence}")
