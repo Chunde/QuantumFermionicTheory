@@ -5,26 +5,37 @@ import matplotlib.pyplot as plt
 
 
 class HarmonicDVR(object):
+    # set m=hbar=1
     eps = 7./3 - 4./3 -1  # machine accuracy
 
-    def __init__(self, N_max=100, R_max=10.0, N_nu=1, K_max=12, omega=1, dim=2):
+    def __init__(self, N_root=500, R_max=10.0, N_nu=1, K_max=12, omega=1, dim=2):
         """
         omega: float
             angular frequency of the external potential
+        N_nu: int
+            number of angular momentum used for calculation
+        N_root: int
+            max number of zero roots
+        R_max: float
+            range of the system
+        K_max: float
+            momentum cutoff
+        omega: external potential angular frequency
         """
         self.N_nu = N_nu
-        self.N_max = N_max
+        self.N_root = N_root
         self.R_max = R_max
         self.K_max = K_max
         self.omega = omega
 
     def get_V(self, zs):
         """return the external potential"""
-        return self.omega*zs**2
+        r2 = (zs/self.K_max)**2
+        return self.omega**2*r2/2
 
     def get_zs(self, nu=0):
         """return the zero root for a given bessel function"""
-        zs = bessel.j_root(nu=nu, N=self.N_max)
+        zs = bessel.j_root(nu=nu, N=self.N_root)
         z_max = self.K_max*self.R_max
         for i in range(len(zs)):
             if zs[i] > z_max:
@@ -64,5 +75,3 @@ if __name__ == "__main__":
     plt.plot(phis[0])
     plt.show()
     print(Es)
-
-    
