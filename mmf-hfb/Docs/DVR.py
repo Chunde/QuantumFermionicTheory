@@ -137,6 +137,43 @@ from nbimports import *
 # \braket{\phi|\psi}=\sum_i\braket{\phi|F_i}\braket{F_i|\psi}=\sum_i \frac{1}{N_i}\phi^*(x_i)\psi(x_i)
 # $$
 
+# # Schrodinger Equaiton in Spherical Coordinates
+
+# In spherical coordinates, the Laplancian can be put:
+# $$
+# \begin{aligned} \nabla^{2} f=\frac{1}{r^{2}} \frac{\partial}{\partial r} &\left(r^{2} \frac{\partial f}{\partial r}\right)+\frac{1}{r^{2} \sin \theta} \frac{\partial}{\partial \theta}\left(\sin \theta \frac{\partial f}{\partial \theta}\right) +\frac{1}{r^{2} \sin ^{2} \theta}\left(\frac{\partial^{2} f}{\partial \phi^{2}}\right) \end{aligned}
+# $$
+#
+# After some manipulation:
+#
+# $$
+# {\frac{d^{2} \Phi}{d \phi^{2}}=-m^{2} \Phi} \\ 
+# {\sin \theta \frac{d}{d \theta}\left(\sin \theta \frac{d \Theta}{d \theta}\right)+l(l+1) \sin ^{2} \theta \Theta=m^{2} \Theta} \\
+# {\frac{d}{d r}\left(r^{2} \frac{d R}{d r}\right)-\frac{2 m r^{2}}{\hbar^{2}}[V(r)-E] R=l(l+1) R}
+# $$
+#
+# where $m^2$ and $l(l+1)$ are constants
+
+# The eqaution for radia wavefunction can be simplified by define $u(r)=rR(r)$:
+#
+# $$
+# -\frac{\hbar^{2}}{2 m} \frac{d^{2} u}{d r^{2}}+\left[V+\frac{\hbar^{2}}{2 m} \frac{l(l+1)}{r^{2}}\right] u=E u
+# $$
+
+# ## Dimensionality $d\ne 3$
+# $$
+#   \nabla^2\psi(r, \Omega) 
+#   = \frac{Y_l^m(\uvect{x})}{r^{(d-1)/2}}\left[
+#     \diff[2]{}{r} - \frac{\nu_{d,l}^2 - 1/4}{r^2}
+#   \right]u(r), \qquad
+#   \nu_{d,l} = l + \frac{d}{2} - 1.
+# $$
+# where
+#
+# $$
+#   \psi(\vect{x}) = \frac{1}{r^{(d-1)/2}}u(r)Y_l^m(\uvect{x}),
+# $$
+
 # # Example: 2D Harmonic
 
 from scipy.integrate import quad
@@ -155,5 +192,6 @@ h = HarmonicDVR()
 H = h.get_H()
 Es, phis = np.linalg.eigh(H)
 plt.plot(phis[0])
+print(Es)
 
 
