@@ -1,7 +1,7 @@
 """
 This file contains classes used for creating ASLDA related class
 factory. The Adater class glues functional and Kernel(BCS or Homognesouse)
-as a brand new class used for all kind of calculation. 
+as a brand new class used for all kind of calculation.
 """
 from mmf_hfb.Functionals import FunctionalBdG, FunctionalSLDA, FunctionalASLDA
 from mmf_hfb.KernelHomogeneouse import KernelHomogeneous
@@ -300,7 +300,7 @@ class Adapter(object):
         return self.get_ns_e_p(mus=mus, delta=delta, q=q, dq=dq, solver=solver, **args)[2]
 
 
-def ClassFactory(       
+def ClassFactory(
         className="LDA", AgentClass=(),
         functionalType=FunctionalType.SLDA,
         kernelType=KernelType.HOM,
@@ -360,3 +360,4 @@ if __name__ == "__main__":
         kernelType=KernelType.HOM, args=args)
     lda._get_C(mus_eff=(mu_eff, 0), delta=1)
     lda.fix_C_BdG(mu=mu_eff, dmu=0, delta=1)
+    

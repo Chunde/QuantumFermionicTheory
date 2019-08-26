@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>d96035f2-d7ba-4540-adc5-a336a7b7a91f</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>mmf_hfb\BesselDVR.py</StartupFile>
+    <StartupFile>mmf_hfb\CylindricalBasis.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -57,7 +57,7 @@
     <Compile Include="mmf_hfb\bcs_aslda.py" />
     <Compile Include="mmf_hfb\BdGPlot.py" />
     <Compile Include="mmf_hfb\BesselDVR.py" />
-    <Compile Include="mmf_hfb\Broyden.py" />
+    <Compile Include="mmf_hfb\CylindricalBasis.py" />
     <Compile Include="mmf_hfb\FFStateAgent.py" />
     <Compile Include="mmf_hfb\FFStateFinder.py" />
     <Compile Include="mmf_hfb\FFStateHelper.py" />

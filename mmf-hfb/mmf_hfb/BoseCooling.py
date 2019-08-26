@@ -99,7 +99,7 @@ if __name__ == "__main__":
     eg = eg_VK = CoolingBose()
     eg_K = CoolingBose(beta_0=1, beta_V=0.0)
     eg_V = CoolingBose(beta_0=1, beta_K=0.0)
-    #psi = np.random.random(eg.N) + 1j*np.random.random(eg.N) - 0.5 - 0.5j
+    # psi = np.random.random(eg.N) + 1j*np.random.random(eg.N) - 0.5 - 0.5j
     psi0 = 0*eg.x + 1 + 1.0*np.exp(-eg.x**2/2)
     psi_ground = 0*psi0 + np.sqrt((abs(psi0)**2).mean())
     E0, N0 = eg.get_E_N(psi_ground)

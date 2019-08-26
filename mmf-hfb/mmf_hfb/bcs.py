@@ -405,7 +405,7 @@ class BCS(IHFBKernel):
            Absolute tolerance if performing twist averaging.
         unpack: bool
             unpack the result(array) to components(ns, js, taus, nu)
-            if False, a stacked 1d array will be returned, this is 
+            if False, a stacked 1d array will be returned, this is
             useful for integration and iteration routines
         struct: bool
             specify if the way of unpack, if struct is True,

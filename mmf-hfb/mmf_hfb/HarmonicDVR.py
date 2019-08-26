@@ -4,13 +4,47 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+class Basis(object):
+    pass
+
+
+class CylindricalBasis(Basis):
+    eps = 7./3 - 4./3 -1
+
+    def __init__(self, N_root=None, R_max=None, K_max=None, a0=None):
+        if N_root is None or R_max is None or K_max is None:
+            self._init(a0=a0)
+        else:
+            self.N_root = N_root
+            self.R_max = R_max
+            self.K_max = K_max
+
+    def _init(self, a0=None):
+        if a0 is None:
+            a0 = 1
+        self.R_max = np.sqrt(-2*a0**2*np.log(self.eps))
+        self.K_max = np.sqrt(-np.log(self.eps)/a0**2)
+        self.N_root = int(np.ceil(self.K_max*2*self.R_max/np.pi))
+        self.K_max = (self.N_root - 0.25)*np.pi/self.R_max
+
+    def get_zs(self, nu=0):
+        zs = bessel.j_root(nu=nu, N=self.N_root)
+        return zs
+
+    def get_rs(self, zs=None):
+        if zs is None:
+            zs = self.get_zs()
+        return zs/self.K_max
+
+
 class HarmonicDVR(object):
     # set m=hbar=1
+    m=hbar=w=1
     eps = 7./3 - 4./3 -1  # machine accuracy
 
-    def __init__(self, N_root=500, R_max=10.0, N_nu=1, K_max=12, omega=1, dim=2):
+    def __init__(self, N_root=500, R_max=10.0, N_nu=1, K_max=12, w=1, dim=2):
         """
-        omega: float
+        w: float
             angular frequency of the external potential
         N_nu: int
             number of angular momentum used for calculation
@@ -20,26 +54,26 @@ class HarmonicDVR(object):
             range of the system
         K_max: float
             momentum cutoff
-        omega: external potential angular frequency
         """
         self.N_nu = N_nu
         self.N_root = N_root
         self.R_max = R_max
         self.K_max = K_max
-        self.omega = omega
+        self.w = w
+        a0 = np.sqrt(self.hbar/self.m/self.w)
+        self.R_max = np.sqrt(-2*a0**2*np.log(self.eps))
+        self.K_max = np.sqrt(-np.log(self.eps)/a0**2)
+        self.N_root = int(np.ceil(self.K_max*2*self.R_max/np.pi))
+        self.K_max = (self.N_root - 0.25)*np.pi/self.R_max
 
     def get_V(self, zs):
         """return the external potential"""
         r2 = (zs/self.K_max)**2
-        return self.omega**2*r2/2
+        return self.w**2*r2/2
 
     def get_zs(self, nu=0):
         """return the zero root for a given bessel function"""
         zs = bessel.j_root(nu=nu, N=self.N_root)
-        z_max = self.K_max*self.R_max
-        for i in range(len(zs)):
-            if zs[i] > z_max:
-                return zs[:i]
         return zs
     
     def get_K(self, zs, nu=0):
@@ -58,8 +92,9 @@ class HarmonicDVR(object):
     def get_H(self, nu=0):
         zs = self.get_zs(nu=nu)
         K = self.get_K(zs=zs, nu=nu)
+        r = zs/self.K_max
+        r2 = r**2
         V = self.get_V(zs=zs)
-        r2 = (zs/self.K_max)**2
         #  centrifugal potential ?
         nu0 = nu % 2
         V_ = (nu*(nu + 1) - nu0*(nu + 1))/r2/2.0
