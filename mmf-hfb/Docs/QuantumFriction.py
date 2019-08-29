@@ -107,7 +107,7 @@ class BCSCooling(BCS):
         return psi
 
     def get_UV_E(self, H, UV=None, transpose=True):
-        """return U and V"""
+        """return Us and Vs and energy"""
         if UV is None:
             Es, UV = np.linalg.eigh(H)
         U_V_shape = (2,) + tuple(self.Nxyz) + UV.shape[1:]
@@ -116,11 +116,11 @@ class BCSCooling(BCS):
             return (U.T, V.T, Es)
         return (U, V, Es)
 
-    def evolve(self, n=1):
-        self.V0 = 1
-        Vs = self.get_v_ext()
-        Us = self.UV0
-        for U, V in zip(Us, Vs):
+    def evolve(self, UV, Vs=None, n=1):
+        """Evolve all stats"""
+        if Vs is None:
+            Vs = self.get_v_ext()
+        for U, V in zip(UV, Vs):
             for i in range(len(U)):
                 U[i] = self.step(psi=U[i], V=V, n=n)
 
@@ -136,13 +136,13 @@ class BCSCooling(BCS):
 
 # -
 
-# ## Test
+# ## Test a single State
 
 Nx = 64
 Lx = 4
 bcs = BCSCooling(N=Nx, L=Lx)
 
-# ### Free Fermionic Gas
+# ### Free Fermionic Hamiltonian
 
 H0 = bcs.get_H(mus_eff=(0, 0), delta=0)
 
@@ -150,8 +150,8 @@ H0 = bcs.get_H(mus_eff=(0, 0), delta=0)
 
 np.random.seed(1)
 E0 = 0.1*(np.pi/bcs.Lxyz[0])**2
-V = E0*np.random.random(bcs.Nxyz[0])
-H1 = bcs.get_H(mus_eff=(0, 0), delta=0, Vs=(V,V))
+V_ = E0*np.random.random(bcs.Nxyz[0])
+H1 = bcs.get_H(mus_eff=(0, 0), delta=0, Vs=(V_,V_))
 
 U0, V0, Es0 = bcs.get_UV_E(H0)
 
@@ -162,6 +162,11 @@ psi0 = V0[index]
 psi = V1[index]
 plt.plot(psi0)
 plt.plot(psi)
+plt.show()
+
+Es0[bcs.Nxyz[0] + index]
+
+eg.get_E_N(psi)
 
 eg = eg_VK = BCSCooling(N=Nx, L=Lx)
 eg_K = BCSCooling(N=Nx, L=Lx, beta_0=1, beta_V=0.0)
@@ -176,13 +181,13 @@ Es = [[], [], []]
 psis = [psi, psi, psi]
 egs = [eg_K]
 Ndata = 100
-Nstep = 300
-steps = list(range(100))
+Nstep = 10
+steps = list(range(Ndata))
 for _n in range(Ndata):
     for n, eg in enumerate(egs):
-        psis[n] = eg.step(psis[n], V=V, n=Nstep)
+        psis[n] = eg.step(psis[n], V=0, n=Nstep)
         E, N = eg.get_E_N(psis[n])
-        Es[n].append(E - E0)
+        Es[n].append(abs(E - E0))
     for n, eg in enumerate(egs):
         plt.plot(x, psis[n])
     plt.plot(x, psi0, '--')
