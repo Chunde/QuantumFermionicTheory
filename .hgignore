@@ -16,3 +16,7 @@ mmf-hfb\.leu
 Misc/
 mmf-hfb/mmf_hfb/data/
 mmf-hfb/.vscode/
+mmf-hfb/mmf_hfb/data(BdG)/
+PhaseDiagramData/.git/
+PhaseDiagramData/
+mmf-hfb/tests/.vs/

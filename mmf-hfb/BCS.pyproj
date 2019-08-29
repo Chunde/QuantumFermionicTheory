@@ -53,10 +53,10 @@
     <Compile Include="Docs\tmp.py" />
     <Compile Include="Docs\Vortex.py" />
     <Compile Include="Docs\Vortex3D.py" />
+    <Compile Include="mmf_hfb\AurelBesselDVR.py" />
     <Compile Include="mmf_hfb\bcs.py" />
     <Compile Include="mmf_hfb\bcs_aslda.py" />
     <Compile Include="mmf_hfb\BdGPlot.py" />
-    <Compile Include="mmf_hfb\BesselDVR.py" />
     <Compile Include="mmf_hfb\CylindricalBasis.py" />
     <Compile Include="mmf_hfb\FFStateAgent.py" />
     <Compile Include="mmf_hfb\FFStateFinder.py" />

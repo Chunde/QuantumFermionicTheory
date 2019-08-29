@@ -62,15 +62,17 @@ class CylindricalBasis(Basis):
         zs = bessel.j_root(nu=nu, N=self.N_root)
         return zs
 
-    def get_rs(self, zs=None):
+    def get_rs(self, zs=None, nu=0):
         """
         return cooridnate in postition space
         """
         if zs is None:
-            zs = self.get_zs()
+            zs = self.get_zs(nu=nu)
         return zs/self.K_max
 
     def get_scale_rs(self, zs=None):
+        if zs is None:
+            zs = self.zs
         rs = self.get_rs(zs=zs)
         rs_ = rs**((self.dim - 1)/2.0)
         return rs_
@@ -82,6 +84,7 @@ class CylindricalBasis(Basis):
         return u
     
     def get_psi(self, u):
+        """convert u to psi"""
         rs_ = self.get_scale_rs()
         psi = u/rs_
         return psi

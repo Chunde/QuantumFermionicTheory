@@ -224,7 +224,7 @@ class BCS(IHFBKernel):
         return f * mask
         return f
 
-    def get_H(self, mus_eff, delta, twists=0, vs=None, **kw):
+    def get_H(self, mus_eff, delta, twists=0, Vs=None, **kw):
         """Return the single-particle Hamiltonian with pairing.
 
         Arguments
@@ -240,10 +240,10 @@ class BCS(IHFBKernel):
         zero = np.zeros_like(sum(self.xyz))
         Delta = np.diag((delta + zero).ravel())
         K_a, K_b = self.get_Ks(twists=twists, **kw)
-        if vs is None:
+        if Vs is None:
             v_a, v_b = self.get_v_ext(**kw)
         else:
-            v_a, v_b = vs
+            v_a, v_b = Vs
         mu_a, mu_b = mus_eff
         mu_a += zero
         mu_b += zero

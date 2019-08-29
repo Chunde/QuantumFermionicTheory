@@ -7,14 +7,8 @@ class BCSCooling(BCS):
     """
     1d Local Quamtum Friction class
     """
-    def get_v_ext(self, V0=None, **kw):
-        """Return the external potential."""
-        if V0 is None:
-            V0 = self.V0
-        V = V0*np.array(self.xyz)**2
-        return (V, V)
 
-    def __init__(self, N=64, L=0.46, beta_0=1.0, beta_V=1.0, beta_K=1.0, dt_Emax=1.0):
+    def __init__(self, N=256, L=32, beta_0=1.0, beta_V=1.0, beta_K=1.0, dt_Emax=1.0):
         """
         Arguments
         ---------
@@ -25,15 +19,13 @@ class BCSCooling(BCS):
         beta_K : float
            Portion of the momentum cooling potential K_c.
         """
-        self.V0 = 0
-        self.Vs = None
         BCS.__init__(self, Nxyz=(N,), Lxyz=(L,))
         self.beta_0 = beta_0
         self.beta_V = beta_V
         self.beta_K = beta_K
         self._K2 = (self.hbar*np.array(self.kxyz))**2/2/self.m
         Emax = self._K2.max()
-        self.dt = dt_Emax * self.hbar/Emax
+        self.dt = dt_Emax*self.hbar/Emax
         # initial U, V for the free fermions
         self.H0 = self.get_H(mus_eff=(0, 0), delta=0)
         self.UV0 = self.get_U_V(H=self.H0, transpose=True)
@@ -84,6 +76,8 @@ class BCSCooling(BCS):
             psi = self.apply_expK(psi=psi, V=V)
         psi = self.apply_expK(psi=psi, V=V, factor=-0.5)
         return psi
+
+    
 
     def evolve(self, n=1):
         self.V0 = 1
