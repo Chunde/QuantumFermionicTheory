@@ -125,12 +125,12 @@ class BCSCooling(BCS):
                 U[i] = self.step(psi=U[i], V=V, n=n)
 
    
-    def get_E_N(self, psi):
+    def get_E_N(self, psi, V):
         """Return the energy and particle number `(E,N)`."""
         dx = self.dV
         n = abs(psi)**2
         K = abs(np.fft.ifft(self.hbar*self.kxyz[0]*np.fft.fft(psi)))**2/2/self.m
-        E = (K.sum()*dx).real
+        E = ((V + K).sum()*dx).real
         N = n.sum()*dx
         return E, N
 
@@ -148,6 +148,10 @@ H0 = bcs.get_H(mus_eff=(0, 0), delta=0)
 
 # ### Add some noise as pertubation
 
+psi_ = np.exp(-bcs.xyz[0]**2/2)/np.pi**0.25
+
+plt.plot(psi_)
+
 np.random.seed(1)
 E0 = 0.1*(np.pi/bcs.Lxyz[0])**2
 V_ = E0*np.random.random(bcs.Nxyz[0])
@@ -157,42 +161,50 @@ U0, V0, Es0 = bcs.get_UV_E(H0)
 
 U1, V1, Es0 = bcs.get_UV_E(H1)
 
-index = 50
+index = 60
 psi0 = V0[index]
 psi = V1[index]
 plt.plot(psi0)
 plt.plot(psi)
 plt.show()
 
-Es0[bcs.Nxyz[0] + index]
+psi = V1[index]
+psi = (psi_ + psi)
+psi = psi/(psi.dot(psi.conj()))**0.5
 
-eg.get_E_N(psi)
+plt.plot(psi), psi.dot(psi.conj())
 
 eg = eg_VK = BCSCooling(N=Nx, L=Lx)
 eg_K = BCSCooling(N=Nx, L=Lx, beta_0=1, beta_V=0.0)
-eg_V = BCSCooling(N=Nx, L=Lx, beta_0=1, beta_K=0.0)
+eg_V = BCSCooling(N=Nx, L=Lx, beta_0=1, beta_V = 1, beta_K=0.0)
 x = eg.xyz[0]
+
+V = x**2
+plt.plot(x, V)
 
 # +
 from IPython.display import display, clear_output
 
-E0, N0 = eg.get_E_N(psi0)
+E0, N0 = eg.get_E_N(psi0, V=V)
+
 Es = [[], [], []]
 psis = [psi, psi, psi]
-egs = [eg_K]
-Ndata = 100
+egs = [eg_V]
+Ndata = 1000
 Nstep = 10
 steps = list(range(Ndata))
 for _n in range(Ndata):
     for n, eg in enumerate(egs):
-        psis[n] = eg.step(psis[n], V=0, n=Nstep)
-        E, N = eg.get_E_N(psis[n])
-        Es[n].append(abs(E - E0))
+        psis[n] = eg.step(psis[n], V=V, n=Nstep)
+        E, N = eg.get_E_N(psis[n], V=V)
+        Es[n].append(abs(E - E0)/E0)
     for n, eg in enumerate(egs):
         plt.plot(x, psis[n])
     plt.plot(x, psi0, '--')
     plt.legend(['V+K', 'K', 'V'])
+    plt.title(f"E0={E0},E={E}")
     plt.show()
+    
     clear_output(wait=True)
 
 
@@ -204,5 +216,9 @@ plt.xlabel("Step")
 plt.ylabel("E-E0")
 plt.legend(['V+K', 'K', 'V'])
 plt.show()
+
+E0
+
+E
 
 

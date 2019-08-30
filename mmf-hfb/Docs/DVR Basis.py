@@ -15,8 +15,8 @@
 # ---
 
 # + {"init_cell": true}
-import mmf_setup;
-mmf_setup.nbinit()
+import mmf_setup;mmf_setup.nbinit()
+# %pylab inline --no-import-all
 # -
 
 # # Background
@@ -336,6 +336,72 @@ n_2D = np.sqrt(np.pi)*r0/2*(r0**2+2*ys**2)*np.exp(-(x**2+ys**2)/r0**2)
 print("{}% max error".format(
     100 * abs(basis.integrate2(n, y=ys) - n_2D).max()/n_2D.max()))
 # -
+
+# ### Harmonic Oscillator
+
+# Here we check the basis for a 2D Harmonic oscillator.  The exact results are:
+#
+# $$
+#   E_n = \hbar \omega (n + 1).
+# $$
+#
+# The ground state wave-function is:
+#
+# $$
+#   \psi(r) \propto e^{-r^2/2a_0^2}, \qquad
+#   \psi_k \propto e^{-k^2a_0^2}, \qquad
+#   a_0 = \sqrt{\frac{\hbar}{m\omega}}.
+# $$
+
+# +
+from mmf_hfb.CylindricalBasis import CylindricalBasis
+eps = np.finfo(float).eps
+hbar = m = w = 1
+a0 = np.sqrt(hbar/m/w)
+R = np.sqrt(-2*a0**2*np.log(eps))
+k_max = np.sqrt(-np.log(eps)/a0**2)
+Nr = int(np.ceil(k_max * 2*R / np.pi))
+
+basis = CylindricalBasis(Nxr=(1, Nr), Lxr=(1.0, R))
+
+def get_V(r):
+    return m*w**2*r**2/2
+
+Vs = []
+Ks = []
+Hs = []
+Es = []
+for l in range(4):
+    r = basis._r(Nr, l=l)
+    V = get_V(r)
+    K = basis._get_K(l=l)[0]   # Without factors of sqrt(r)
+    H = K/2 + np.diag(V)
+    assert np.allclose(H, H.T.conj())
+    E = np.linalg.eigvalsh(H)
+    Vs.append(V)
+    Ks.append(K)
+    Hs.append(H)
+    Es.append(E)
+
+Es_ = sorted(sum((E.tolist() for E in Es), []))
+
+# +
+l = 0
+l0 = 0
+nu0 = basis.nu(l=l0)
+nu = basis.nu(l=l)
+
+r = basis._r(Nr, l=l0)
+K = basis._get_K(l=l0)[0]   # Without factors of sqrt(r)
+
+V = get_V(r) # + (nu**2 - nu0**2)/r**2 * hbar**2/2/m
+H = K/2 + np.diag(V)
+assert np.allclose(H, H.T.conj())
+E,psi = np.linalg.eigh(H)
+E
+# -
+
+plt.plot(psi[0]/r**0.5)
 
 # ## Spherical Basis
 

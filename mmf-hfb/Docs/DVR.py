@@ -188,10 +188,18 @@ plt.axhline(0, linestyle='dashed')
 
 from mmf_hfb.HarmonicDVR import HarmonicDVR
 
-h = HarmonicDVR()
-H = h.get_H()
-Es, phis = np.linalg.eigh(H)
-plt.plot(phis[0])
-print(Es)
+
+def spectrum(nu=0):
+    h = HarmonicDVR(nu=nu,dim=2)
+    H = h.get_H()
+    Es, us = np.linalg.eigh(H)
+    plt.plot(h.rs,us[1]/h.rs_scale)
+    #plt.show()
+    print(Es)
+
+
+spectrum(1)
+
+spectrum(6)
 
 
