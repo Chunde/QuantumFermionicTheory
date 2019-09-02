@@ -222,7 +222,11 @@ class BCS(IHFBKernel):
             return f
         mask = 0.5 * (numpy.sign(abs(E_c)-abs(E)) + 1)
         return f * mask
-        return f
+        
+    def _get_H(self, mu_eff, twists=0, V=0, **kw):
+        K = self._get_K(twists=twists, **kw)
+        mu_eff = np.zeros_like(sum(self.xyz)) + mu_eff
+        return K - np.diag((mu_eff - V).ravel())
 
     def get_H(self, mus_eff, delta, twists=0, Vs=None, **kw):
         """Return the single-particle Hamiltonian with pairing.
@@ -248,7 +252,7 @@ class BCS(IHFBKernel):
         mu_a += zero
         mu_b += zero
         Mu_a, Mu_b = np.diag((mu_a - v_a).ravel()), np.diag((mu_b - v_b).ravel())
-        H = block(K_a-Mu_a, Delta, Delta.conj(), -(K_b - Mu_b))
+        H = block(K_a - Mu_a, Delta, Delta.conj(), -(K_b - Mu_b))
         return H
 
     def get_R(self, mus_eff, delta, N_twist=1, twists=None):
