@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 
 # +
 from mmf_hfb.bcs import BCS
+from scipy.integrate import solve_ivp
 import numpy as np
 import scipy as sp
 
@@ -66,9 +67,14 @@ class BCSCooling(BCS):
         self._K2 = (self.hbar*np.array(self.kxyz[0]))**2/2/self.m
         Emax = self._K2.max()
         self.dt = dt_Emax*self.hbar/Emax      
-
+        self.g = 0
+    
+    def get_V(self, psi, V):
+        return self.g*abs(psi)**2 + V
+    
     def apply_H(self, psi, V):
         """compute dy/dt"""
+        V = self.get_V(psi, V=V)
         psi_k = np.fft.fft(psi)
         Kpsi = self._K2*psi_k
         Vpsi = V*psi
@@ -92,8 +98,7 @@ class BCSCooling(BCS):
         len0 = psi.dot(psi.conj())
         psi_k = np.fft.fft(psi)
         Kc = self.beta_K*self.get_Kc(psi=psi, V=V)
-        psi = np.fft.ifft(
-            np.exp(-1j*self.dt*factor*(self.beta_0*self._K2 + Kc))*psi_k)
+        psi = np.fft.ifft(np.exp(-1j*self.dt*factor*(self.beta_0*self._K2 + Kc))*psi_k)
         len1 = psi.dot(psi.conj())
         Assert(len0, len1)
         return psi
@@ -130,9 +135,9 @@ class BCSCooling(BCS):
        
     def compute_dy_dt(self, t, psi, subtract_mu=True):
         """Return dy/dt for ODE integration."""
-        Hpsi = self.apply_Hc(psi)
+        Hpsi = self.apply_Hc(psi, V=self.V)
         if subtract_mu:
-            Hpsi -= self.dotc(psi, Hpsi)/self.dotc(psi, psi)*psi
+            Hpsi -= psi.dot(Hpsi.conj())/psi.dot(psi.conj())*psi
         return Hpsi/(1j*self.hbar)
     
     def get_U_E(self, H, transpose=False):
@@ -143,17 +148,18 @@ class BCSCooling(BCS):
         return (U, Es)
 
     def evolve(self, Us, V, n=1):
-        """Evolve all stats"""       
+        """Evolve all stats"""  
+        us = []
         for i in range(len(Us)):
-            Us[i] = self.step(psi=Us[i], V=V, n=n)
-        return Us
+            us.append(self.step(psi=Us[i], V=V, n=n))
+        return us
     
-    def solve(self, psi0, T, **kw):
-        y0 = self.pack(psi0)
-        res = solve_ivp(fun=self.compute_dy_dt, t_span=(0, T), y0=y0, **kw)
+    def solve(self, psi0, T, V, **kw):
+        self.V = V
+        res = solve_ivp(fun=self.compute_dy_dt, t_span=(0, T), y0=psi0, **kw)
         if not res.success:
             raise Exception(res.message)
-        return(res.t, list(map(self.unpack, res.y.T)))
+        return(res.t, list(res.y.T))
             
     def get_E_N(self, psi, V):
         """Return the energy and particle number `(E,N)`."""
@@ -175,41 +181,42 @@ class BCSCooling(BCS):
 
 # -
 
-# ### Play the class
+# ## Analytical vs Numerical
 
-Nx = 128
+Nx = 256
 Lx = 4
 transpose=True
-bcs = BCSCooling(N=Nx, L=Lx)
+bcs = BCSCooling(N=Nx, L=Lx, beta_0=1j, beta_K=0, beta_V=0)
 np.random.seed(1)
 psi_ = np.exp(-bcs.xyz[0]**2/2)/np.pi**0.25
 
-H0 = bcs._get_H(mu_eff=0, V=0) # free particle
-E0 = 0.1*(np.pi/bcs.Lxyz[0])**2
+H0 = bcs._get_H(mu_eff=0, V=0)  # free particle
 x = bcs.xyz[0]
 V = x**2/2
-H1 = bcs._get_H(mu_eff=0, V=V) # harmonic trap
+H1 = bcs._get_H(mu_eff=0, V=V)  # harmonic trap
 U0, Es0 = bcs.get_U_E(H0, transpose=transpose)
 U1, Es1 = bcs.get_U_E(H1, transpose=transpose)
 
 index = 0
-psi1, psi2 = U0[:index], U0[:index + 1]
-psi1_, psi2_  = U1[:index], U1[:index + 1]
+psi1, psi2 = U0[index], U0[index + 1]
+psi1_, psi2_ = U1[index], U1[index + 1]
 
 u0 = np.exp(-x**2/2)/np.pi**4
+u0 = u0/u0.dot(u0.conj())**0.5
 u1=(np.sqrt(2)*x*np.exp(-x**2/2))/np.pi**4
+u1 = u1/u1.dot(u1.conj())**0.5
 ax1, = plt.plot(x, u0, '--')
 ax2, = plt.plot(x, u1, '--')
-plt.plot(x, U1[0], c=ax1.get_c())
-plt.plot(x, U1[1], c=ax2.get_c())
+plt.plot(x, U1[index], c=ax1.get_c())
+plt.plot(x, U1[index+1], c=ax2.get_c())
 
 ax1, = plt.plot(psi1)
 plt.plot(psi2, c=ax1.get_c())
 ax2, = plt.plot(psi1_, '--')
-plt.plot(psi2_,'--', c=ax2.get_c())
+plt.plot(psi2_, '--', c=ax2.get_c())
 plt.show()
 
-assert_orth([psi1, psi2])
+# ## Check Energy
 
 eg = eg_VK = BCSCooling(N=Nx, L=Lx)
 eg_K = BCSCooling(N=Nx, L=Lx, beta_0=1, beta_V=0.0, beta_K=1.0)
@@ -218,39 +225,69 @@ eg_V = BCSCooling(N=Nx, L=Lx, beta_0=1, beta_V = 1, beta_K=0.0)
 index = 0
 psi1, psi2 = U0[index], U0[index + 1]
 psi1_, psi2_  = U1[index], U1[index + 1]
-bcs.get_E_Ns(U0[:2], V=V)[0], bcs.get_E_Ns(U1[:2], V=V)[0], bcs.get_E_Ns(U0[:2], V=0)[0],bcs.get_E_Ns(U0[:2], V=0)[0]
+bcs.get_E_Ns(U0[:2], V=0)[0], bcs.get_E_Ns(U0[:2], V=V)[0], bcs.get_E_Ns(U1[:2], V=0)[0],bcs.get_E_Ns(U1[:2], V=V)[0]
 
 H_exp(H0, psi1), H_exp(H0, psi2), H_exp(H1, psi1_), H_exp(H1, psi2_)
 
-Es0[:2], Es1[:2], bcs.get_E_N(psi2, V=V)[0]/bcs.dV
+Es0[:2], Es1[:2], bcs.get_E_N(psi2, V=V)[0]
+
+# ## Evolve in Time
+
+# +
+plt.figure(figsize=(10,5))
+ax1 = plt.subplot(121)
+ax2 = plt.subplot(122)
+for Nx in [128, 256, 512]:
+    s = BCSCooling(N=Nx, L=Lx, beta_0=-1j, beta_K=0, beta_V=0)
+    s.g = -1
+    r2 = sum(_x**2 for _x in s.xyz)
+    V = s.xyz[0]**2/2
+    psi_0 = np.exp(-r2/2.0)*np.exp(1j*s.xyz[0])
+    ts, psis = s.solve(psi_0, T=20, rtol=1e-5, atol=1e-6, V=V, method='BDF')
+    psi0 = psis[-1]
+    E0, N0 = s.get_E_N(psi0)
+    Es = [s.get_E_N(_psi)[0] for _psi in psis]
+    line, = ax1.semilogy(ts[:-2], (Es[:-2] - E0)/abs(E0), label=f"Nx={Nx}")
+    plt.sca(ax2)
+    s.plot(psi0, c=line.get_c(), alpha=0.5)
+
+plt.sca(ax1)
+plt.legend()
+plt.xlabel('t')
+plt.ylabel('abs((E-E0)/E0)');
+# -
+
+bcs.solve(psi0=u1, T=20, V=V)
 
 from IPython.display import display, clear_output
+psi1, psi2 = U0[index], U0[index + 1]
+psi1_, psi2_  = U1[index], U1[index + 1]
 psis0 = [psi1_, psi2_]
 E0, N0 = eg.get_E_Ns(psis0, V=V)
 Es = [[], [], []]
-psi2 = [psi1, psi2]
-psis = [psi2, psi2, psi2]
+psi2_ = [psi1, psi2]
+psis = [psi2_, psi2_, psi2_]
 egs = [eg_K]
-Ndata = 300
+Ndata = 50
 Nstep = 100
 steps = list(range(Ndata))
 step=0
 for _n in range(Ndata):
     for n, eg in enumerate(egs):
         step = step + 1
-        error = psis[n][0].dot(psis[n][1].conj())
         psis[n] = eg.evolve(psis[n], V=V, n=Nstep)
         E, N = eg.get_E_Ns(psis[n], V=V)
         Es[n].append(abs(E - E0)/E0)
     for n, eg in enumerate(egs):
         ax, = plt.plot(x, psis[n][0])
         plt.plot(x, psis[n][1], c=ax.get_c())
-    ax,= plt.plot(x, psis0[0], '--')
+    ax, = plt.plot(x, psis0[0], '--')
     plt.plot(x, psis0[1], c=ax.get_c())
     plt.legend(['V+K', 'K', 'V'])
     plt.title(f"E0={E0},E={E}")
     plt.show()
     clear_output(wait=True)
+
 
 for n, eg in enumerate(egs):
     plt.plot(steps, Es[n])

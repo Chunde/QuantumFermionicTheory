@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>d96035f2-d7ba-4540-adc5-a336a7b7a91f</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>mmf_hfb\CylindricalBasis.py</StartupFile>
+    <StartupFile>mmf_hfb\QuantumFriction.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -79,6 +79,8 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="mmf_hfb\ParallelHelper.py" />
+    <Compile Include="mmf_hfb\QuantumFriction.py" />
+    <Compile Include="mmf_hfb\quantum_friction.py" />
     <Compile Include="mmf_hfb\scratch.py">
       <SubType>Code</SubType>
     </Compile>

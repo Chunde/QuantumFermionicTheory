@@ -1,16 +1,25 @@
-import matplotlib.pyplot as plt
 from mmf_hfb.bcs import BCS
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
 import numpy as np
-
-
-
-def assert_orth(psis):
-    y1, y2 = psis
-    assert np.allclose(y1.dot(y2.conj()), 0, rtol=1e-16)
+import scipy as sp
 
 
 def Assert(a, b, rtol=1e-10):
     assert np.allclose(a, b, rtol=rtol)
+
+    
+def assert_orth(psis):
+    y1, y2 = psis
+    inner_prod = y1.dot(y2.conj())
+    ret = np.allclose(inner_prod, 0, rtol=1e-16)
+    if not ret:
+        print(inner_prod)
+    assert ret
+
+    
+def H_exp(H, psi):
+    return H.dot(psi).dot(psi.conj()).real
 
     
 class BCSCooling(BCS):
@@ -18,7 +27,7 @@ class BCSCooling(BCS):
     1d Local Quamtum Friction class
     """
 
-    def __init__(self, N=256, L=32, beta_0=1.0, beta_V=1.0, beta_K=1.0, dt_Emax=1.0):
+    def __init__(self, N=256, L=None, dx=0.1, beta_0=1.0, beta_V=1.0, beta_K=1.0, dt_Emax=1.0):
         """
         Arguments
         ---------
@@ -29,18 +38,25 @@ class BCSCooling(BCS):
         beta_K : float
            Portion of the momentum cooling potential K_c.
         """
+        if L is None:
+            L = N*dx
         BCS.__init__(self, Nxyz=(N,), Lxyz=(L,))
         self.beta_0 = beta_0
         self.beta_V = beta_V
         self.beta_K = beta_K
         self._K2 = (self.hbar*np.array(self.kxyz[0]))**2/2/self.m
         Emax = self._K2.max()
-        self.dt = dt_Emax*self.hbar/Emax
-
+        self.dt = dt_Emax*self.hbar/Emax      
+        self.g = 0
+    
+    def get_V(self, psi, V):
+        return self.g*abs(psi)**2 + V
+    
     def apply_H(self, psi, V):
         """compute dy/dt"""
+        V = self.get_V(psi, V=V)
         psi_k = np.fft.fft(psi)
-        Kpsi = self._K2*psi_k
+        Kpsi = self.ifft(self._K2*psi_k)
         Vpsi = V*psi
         return Kpsi + Vpsi
 
@@ -62,8 +78,7 @@ class BCSCooling(BCS):
         len0 = psi.dot(psi.conj())
         psi_k = np.fft.fft(psi)
         Kc = self.beta_K*self.get_Kc(psi=psi, V=V)
-        psi = np.fft.ifft(
-            np.exp(-1j*self.dt*factor*(self.beta_0*self._K2 + Kc))*psi_k)
+        psi = np.fft.ifft(np.exp(-1j*self.dt*factor*(self.beta_0*self._K2 + Kc))*psi_k)
         len1 = psi.dot(psi.conj())
         Assert(len0, len1)
         return psi
@@ -71,7 +86,7 @@ class BCSCooling(BCS):
     def apply_expV(self, psi, V, factor=1):
         len0 = psi.dot(psi.conj())
         Vc = self.beta_V*self.get_Vc(psi, V=V)
-        psi = np.exp(-1j*self.dt*factor*(self.beta_0*V + Vc)) * psi
+        psi = np.exp(-1j*self.dt*factor*(self.beta_0*V + Vc))*psi
         len1 = psi.dot(psi.conj())
         Assert(len0, len1)
         return psi
@@ -84,27 +99,8 @@ class BCSCooling(BCS):
         H_psi = self.apply_H(psi, V=V)
         Vc_psi = self.get_Vc(psi, V=V)*psi
         Kc_psi = self.ifft(self.get_Kc(psi, V=V)*self.fft(psi))
-        return (self.beta_0 * H_psi + self.beta_V * Vc_psi + self.beta_K * Kc_psi)
+        return (self.beta_0*H_psi + self.beta_V*Vc_psi + self.beta_K*Kc_psi)
     
-# old implementation
-#     def get_Vc(self, psi):
-#         psi2=(abs(psi)**2).max()
-#         if psi2 == 0:
-#             return psi
-#         psi_k = np.fft.fft(psi)
-#         Kpsi = np.fft.ifft(self._K2*psi_k)
-#         Vc = 2*(psi.conj()*Kpsi).imag/psi2
-#         return self.beta_V*Vc
-
-#     def get_Kc(self, psi, V):
-#         psi2=(abs(psi)**2).max()
-#         if psi2 == 0:
-#             return psi
-#         psi_k = np.fft.fft(psi)
-#         Vpsi_k = np.fft.fft(V*psi)
-#         Kc = 2*(psi_k.conj()*Vpsi_k).imag/psi2
-#         return self.beta_K*Kc
-
     def step(self, psi, V, n=1):
         """
         Evolve the state psi by applying n steps of the
@@ -117,11 +113,11 @@ class BCSCooling(BCS):
         psi = self.apply_expK(psi=psi, V=V, factor=-0.5)
         return psi
        
-    def compute_dy_dt(self, t, psi, V, subtract_mu=True):
+    def compute_dy_dt(self, t, psi, subtract_mu=True):
         """Return dy/dt for ODE integration."""
-        Hpsi = self.apply_Hc(psi, V=V)
+        Hpsi = self.apply_Hc(psi, V=self.V)
         if subtract_mu:
-            Hpsi -= self.dotc(psi, Hpsi)/self.dotc(psi, psi)*psi
+            Hpsi -= psi.conj().dot(Hpsi)/psi.dot(psi.conj())*psi
         return Hpsi/(1j*self.hbar)
     
     def get_U_E(self, H, transpose=False):
@@ -132,10 +128,26 @@ class BCSCooling(BCS):
         return (U, Es)
 
     def evolve(self, Us, V, n=1):
-        """Evolve all stats"""
+        """Evolve all stats""" 
+        us = []
         for i in range(len(Us)):
-            Us[i] = self.step(psi=Us[i], V=V, n=n)
-        return Us
+            us.append(self.step(psi=Us[i], V=V, n=n))
+        return us
+    
+    def solve(self, psi0, T, V, **kw):
+        self.V = V
+        res = solve_ivp(fun=self.compute_dy_dt, t_span=(0, T), y0=psi0, **kw)
+        if not res.success:
+            raise Exception(res.message)
+        return(res.t, list(res.y.T))
+            
+    def get_E_N(self, psi, V):
+        """Return the energy and particle number `(E,N)`."""
+        K = psi.conj().dot(self.ifft(self._K2*self.fft(psi)))
+        n = abs(psi)**2
+        E = (K + sum(V*n)).real*self.dV
+        N = sum(n)*self.dV
+        return E, N
     
     def get_E_Ns(self, psis, V):
         E = 0
@@ -145,51 +157,39 @@ class BCSCooling(BCS):
             E = E + E_
             N = N + N_
         return E, N
-    
-    def get_E_N(self, psi, V):
-        """Return the energy and particle number `(E,N)`."""
-        dx = self.dV
-        n = abs(psi)**2
-        K = abs(np.fft.ifft(self.hbar*self.kxyz[0]*np.fft.fft(psi)))**2/2/self.m
-        E = ((V + K).sum()*dx).real
-        N = n.sum()*dx
-        return E, N
 
-
-
-
+    def plot(self, psi, V, **kw):
+        if self.dim == 1:
+            x = self.xyz[0].ravel()
+            plt.plot(x, abs(psi)**2, **kw)
+        elif self.dim == 2:
+            from mmfutils import plot as mmfplt
+            x, y = self.xyz
+            mmfplt.imcontourf(x, y, self.get_density(psi))
+            plt.colorbar()
+        E, N = self.get_E_N(psi, V=V)
+        plt.title(f"E={E:.4f}, N={N:.4f}")
+        return plt.gcf()
 
 if __name__ == "__main__":
-    eg = eg_VK = BCSCooling(N=256)
-    psi, psi0, V = eg.get_configuration(id=257)
-    eg_K = BCSCooling(N=256, beta_0=1, beta_V=0.0)
-    eg_V = BCSCooling(N=256, beta_0=1, beta_K=0.0)
-    x = eg.xyz[0]
-    # psi = np.random.random(eg.N) + 1j*np.random.random(eg.N) - 0.5 - 0.5j
-    psi = 0*eg.xyz[0] + 1 + 1.0*np.exp(-eg.xyz[0]**2/2)
-    #psi_ground = 0*psi0 + np.sqrt((abs(psi0)**2).mean())
-    plt.plot(x, psi)
-    plt.plot(x, psi0, '--')
-    plt.show()
-    E0, N0 = eg.get_E_N(psi0, V=V)
-    Es = [[], [], []]
-    psis = [psi, psi, psi]
-    egs = [eg_VK, eg_K, eg_V]
-    Ndata = 100
-    Nstep = 100
-    steps = list(range(100))
-    for _n in range(Ndata):
-        for n, eg in enumerate(egs):
-            psis[n] = eg.step(psis[n], V=V, n=Nstep)
-            E, N = eg.get_E_N(psis[n], V=V)
-            Es[n].append(E - E0)
-        for n, eg in enumerate(egs):
-            plt.plot(x, psis[n][0])
-        plt.show()
-    
-    for n, eg in enumerate(egs):
-        plt.plot(steps, Es[n])
-    plt.xlabel("Step")
-    plt.ylabel("E-E0")
-    plt.legend(['V+K', 'K', 'V'])
+    ax1 = plt.subplot(121)
+    ax2 = plt.subplot(122)
+    for Nx in [128]:
+        s = BCSCooling(N=Nx, dx=0.1,  beta_0=-1j, beta_K=0, beta_V=0)
+        s.g = -1
+        r2 = sum(_x**2 for _x in s.xyz)
+        V = 0 # 0.1 * s.xyz[0]**2/2
+        psi_0 = np.exp(-r2/2.0)*np.exp(1j*s.xyz[0])
+        ts, psis = s.solve(psi_0, T=20, rtol=1e-5, atol=1e-6, V=V, method='BDF')
+        psi0 = psis[-1]
+        E0, N0 = s.get_E_N(psi0, V=V)
+        Es = [s.get_E_N(_psi, V=V)[0] for _psi in psis]
+        line, = ax1.semilogy(ts[:-2], (Es[:-2] - E0)/abs(E0), label=f"Nx={Nx}")
+        #plt.sca(ax2)
+        #s.plot(psi0, V=V, c=line.get_c(), alpha=0.5)
+
+    plt.sca(ax1)
+    plt.legend()
+    plt.xlabel('t')
+    plt.ylabel('abs((E-E0)/E0)')
     plt.show()
