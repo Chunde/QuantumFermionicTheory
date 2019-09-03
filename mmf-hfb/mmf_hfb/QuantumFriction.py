@@ -17,11 +17,7 @@ def assert_orth(psis):
         print(inner_prod)
     assert ret
 
-    
-def H_exp(H, psi):
-    return H.dot(psi).dot(psi.conj()).real
-
-    
+        
 class BCSCooling(BCS):
     """
     1d Local Quamtum Friction class
@@ -145,7 +141,8 @@ class BCSCooling(BCS):
         """Return the energy and particle number `(E,N)`."""
         K = psi.conj().dot(self.ifft(self._K2*self.fft(psi)))
         n = abs(psi)**2
-        E = (K + sum(V*n)).real*self.dV
+        V = (self.g*n**2/2 + V*n).sum()
+        E = (K + V).real*self.dV
         N = sum(n)*self.dV
         return E, N
     
@@ -178,15 +175,15 @@ if __name__ == "__main__":
         s = BCSCooling(N=Nx, dx=0.1,  beta_0=-1j, beta_K=0, beta_V=0)
         s.g = -1
         r2 = sum(_x**2 for _x in s.xyz)
-        V = 0 # 0.1 * s.xyz[0]**2/2
+        V = 0  # 0.1*s.xyz[0]**2/2
         psi_0 = np.exp(-r2/2.0)*np.exp(1j*s.xyz[0])
         ts, psis = s.solve(psi_0, T=20, rtol=1e-5, atol=1e-6, V=V, method='BDF')
         psi0 = psis[-1]
         E0, N0 = s.get_E_N(psi0, V=V)
         Es = [s.get_E_N(_psi, V=V)[0] for _psi in psis]
         line, = ax1.semilogy(ts[:-2], (Es[:-2] - E0)/abs(E0), label=f"Nx={Nx}")
-        #plt.sca(ax2)
-        #s.plot(psi0, V=V, c=line.get_c(), alpha=0.5)
+        plt.sca(ax2)
+        s.plot(psi0, V=V, c=line.get_c(), alpha=0.5)
 
     plt.sca(ax1)
     plt.legend()
