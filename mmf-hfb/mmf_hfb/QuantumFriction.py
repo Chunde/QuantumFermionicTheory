@@ -154,19 +154,7 @@ class BCSCooling(BCS):
             E = E + E_
             N = N + N_
         return E, N
-
-    def plot(self, psi, V, **kw):
-        if self.dim == 1:
-            x = self.xyz[0].ravel()
-            plt.plot(x, abs(psi)**2, **kw)
-        elif self.dim == 2:
-            from mmfutils import plot as mmfplt
-            x, y = self.xyz
-            mmfplt.imcontourf(x, y, self.get_density(psi))
-            plt.colorbar()
-        E, N = self.get_E_N(psi, V=V)
-        plt.title(f"E={E:.4f}, N={N:.4f}")
-        return plt.gcf()
+  
 
 if __name__ == "__main__":
     ax1 = plt.subplot(121)

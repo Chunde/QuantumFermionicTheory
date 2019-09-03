@@ -23,14 +23,14 @@ import matplotlib.pyplot as plt
 from mmf_hfb.QuantumFriction import BCSCooling
 def H_exp(H, psi):
     return H.dot(psi).dot(psi.conj()).real
+def Normalize(psi):
+    return psi/psi.dot(psi.conj())**0.5
 
 
 # ## Analytical vs Numerical
 
-Nx = 256
-Lx = 4
-transpose=True
-bcs = BCSCooling(N=Nx, L=Lx, beta_0=1j, beta_K=0, beta_V=0)
+Nx = 128
+bcs = BCSCooling(N=Nx, L=None, dx=0.1, beta_0=1j, beta_K=0, beta_V=0)
 np.random.seed(1)
 psi_ = np.exp(-bcs.xyz[0]**2/2)/np.pi**0.25
 
@@ -38,8 +38,8 @@ H0 = bcs._get_H(mu_eff=0, V=0)  # free particle
 x = bcs.xyz[0]
 V = x**2/2
 H1 = bcs._get_H(mu_eff=0, V=V)  # harmonic trap
-U0, Es0 = bcs.get_U_E(H0, transpose=transpose)
-U1, Es1 = bcs.get_U_E(H1, transpose=transpose)
+U0, Es0 = bcs.get_U_E(H0, transpose=True)
+U1, Es1 = bcs.get_U_E(H1, transpose=True)
 
 index = 0
 psi1, psi2 = U0[index], U0[index + 1]
@@ -62,10 +62,6 @@ plt.show()
 
 # ## Check Energy
 
-eg = eg_VK = BCSCooling(N=Nx, L=Lx)
-eg_K = BCSCooling(N=Nx, L=Lx, beta_0=1, beta_V=0.0, beta_K=1.0)
-eg_V = BCSCooling(N=Nx, L=Lx, beta_0=1, beta_V = 1, beta_K=0.0)
-
 index = 0
 psi1, psi2 = U0[index], U0[index + 1]
 psi1_, psi2_  = U1[index], U1[index + 1]
@@ -77,32 +73,39 @@ Es0[:2], Es1[:2], bcs.get_E_N(psi2, V=V)[0]
 
 # ## Evolve in Time
 
-# +
 ax1 = plt.subplot(121)
 ax2 = plt.subplot(122)
 for Nx in [128]:
     s = BCSCooling(N=Nx, dx=0.1,  beta_0=-1j, beta_K=1, beta_V=1)
-    s.g = -1
-    r2 = sum(_x**2 for _x in s.xyz)
-    V = s.xyz[0]**2/2
-    psi_0 = np.exp(-r2/2.0)*np.exp(1j*s.xyz[0])
-    ts, psis = s.solve(psi_0, T=20, rtol=1e-5, atol=1e-6, V=V, method='BDF')
+    s.g = 0# -1
+    x = s.xyz[0]
+    r2 = x**2
+    V = x**2/2
+    psi_0 = Normalize(V*0 + 1) # np.exp(-r2/2.0)*np.exp(1j*s.xyz[0])
+    ts, psis = s.solve(psi_0, T=10, rtol=1e-5, atol=1e-6, V=V, method='BDF')
     psi0 = psis[-1]
     E0, N0 = s.get_E_N(psi0, V=V)
     Es = [s.get_E_N(_psi, V=V)[0] for _psi in psis]
     line, = ax1.semilogy(ts[:-2], (Es[:-2] - E0)/abs(E0), label=f"Nx={Nx}")
     plt.sca(ax2)
-    s.plot(psi0, V=V, c=line.get_c(), alpha=0.5)
-    plt.plot(s.xyz[0],psi_0, '--')
-
+    plt.plot(x, psi0)
+    plt.plot(x,psi_0, '--')
+    plt.plot(x, u0, '+')
+    E, N = s.get_E_N(psi0, V=V)
+    plt.title(f"E={E:.4f}, N={N:.4f}")
 plt.sca(ax1)
 plt.legend()
 plt.xlabel('t')
 plt.ylabel('abs((E-E0)/E0)')
 plt.show()
-# -
 
 plt.plot(ts, Es)
+
+# ## Split-operator method
+
+eg = eg_VK = BCSCooling(N=Nx, L=Lx)
+eg_K = BCSCooling(N=Nx, L=Lx, beta_0=1, beta_V=0.0, beta_K=1.0)
+eg_V = BCSCooling(N=Nx, L=Lx, beta_0=1, beta_V = 1, beta_K=0.0)
 
 from IPython.display import display, clear_output
 psi1, psi2 = U0[index], U0[index + 1]
