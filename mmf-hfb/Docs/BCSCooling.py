@@ -99,15 +99,14 @@ plt.xlabel('t')
 plt.ylabel('abs((E-E0)/E0)')
 plt.show()
 
-plt.plot(ts, Es)
-
 # ## Split-operator method
 
-eg = eg_VK = BCSCooling(N=Nx, L=Lx)
-eg_K = BCSCooling(N=Nx, L=Lx, beta_0=1, beta_V=0.0, beta_K=1.0)
-eg_V = BCSCooling(N=Nx, L=Lx, beta_0=1, beta_V = 1, beta_K=0.0)
+
+
+plt.plot(x, abs(psi2)**2)
 
 from IPython.display import display, clear_output
+eg = BCSCooling(N=Nx, dx=0.1, beta_0=1, beta_V=0.95, beta_K=.001)
 psi1, psi2 = U0[index], U0[index + 1]
 psi1_, psi2_  = U1[index], U1[index + 1]
 psis0 = [psi1_, psi2_]
@@ -115,9 +114,9 @@ E0, N0 = eg.get_E_Ns(psis0, V=V)
 Es = [[], [], []]
 psi2_ = [psi1, psi2]
 psis = [psi2_, psi2_, psi2_]
-egs = [eg_K]
-Ndata = 50
-Nstep = 100
+egs = [eg]
+Ndata = 100
+Nstep = 250
 steps = list(range(Ndata))
 step=0
 for _n in range(Ndata):
@@ -127,10 +126,10 @@ for _n in range(Ndata):
         E, N = eg.get_E_Ns(psis[n], V=V)
         Es[n].append(abs(E - E0)/E0)
     for n, eg in enumerate(egs):
-        ax, = plt.plot(x, psis[n][0])
-        plt.plot(x, psis[n][1], c=ax.get_c())
-    ax, = plt.plot(x, psis0[0], '--')
-    plt.plot(x, psis0[1], c=ax.get_c())
+        ax, = plt.plot(x, abs(psis[n][0])**2)
+        plt.plot(x, abs(psis[n][1])**2, c=ax.get_c())
+    ax, = plt.plot(x, abs(psis0[0])**2, '--')
+    plt.plot(x, abs(psis0[1])**2,'--', c=ax.get_c())
     plt.legend(['V+K', 'K', 'V'])
     plt.title(f"E0={E0},E={E}")
     plt.show()
