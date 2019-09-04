@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 
 # # BCS Cooling Class
 
-from mmf_hfb.QuantumFriction import BCSCooling
+from mmf_hfb.BCSCooling import BCSCooling
 def H_exp(H, psi):
     return H.dot(psi).dot(psi.conj()).real
 def Normalize(psi):
@@ -69,9 +69,9 @@ bcs.get_E_Ns(U0[:2], V=0)[0], bcs.get_E_Ns(U0[:2], V=V)[0], bcs.get_E_Ns(U1[:2],
 
 H_exp(H0, psi1), H_exp(H0, psi2), H_exp(H1, psi1_), H_exp(H1, psi2_)
 
-Es0[:2], Es1[:2], bcs.get_E_N(psi2, V=V)[0]
+Es0[:2], Es1[:2], bcs.get_E_Ns([psi2], V=V)[0]
 
-# ## Evolve in Time
+# ## Evolve in Imaginary Time
 
 ax1 = plt.subplot(121)
 ax2 = plt.subplot(122)
@@ -82,7 +82,7 @@ for Nx in [128]:
     r2 = x**2
     V = x**2/2
     psi_0 = Normalize(V*0 + 1) # np.exp(-r2/2.0)*np.exp(1j*s.xyz[0])
-    ts, psis = s.solve(psi_0, T=10, rtol=1e-5, atol=1e-6, V=V, method='BDF')
+    ts, psis = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, V=V, method='BDF')
     psi0 = psis[-1]
     E0, N0 = s.get_E_N(psi0, V=V)
     Es = [s.get_E_N(_psi, V=V)[0] for _psi in psis]
@@ -99,9 +99,9 @@ plt.xlabel('t')
 plt.ylabel('abs((E-E0)/E0)')
 plt.show()
 
+# %debug
+
 # ## Split-operator method
-
-
 
 plt.plot(x, abs(psi2)**2)
 
@@ -115,14 +115,14 @@ Es = [[], [], []]
 psi2_ = [psi1, psi2]
 psis = [psi2_, psi2_, psi2_]
 egs = [eg]
-Ndata = 100
-Nstep = 250
+Ndata = 150
+Nstep = 500
 steps = list(range(Ndata))
 step=0
 for _n in range(Ndata):
     for n, eg in enumerate(egs):
         step = step + 1
-        psis[n] = eg.evolve(psis[n], V=V, n=Nstep)
+        psis[n] = eg.step(psis[n], V=V, n=Nstep)
         E, N = eg.get_E_Ns(psis[n], V=V)
         Es[n].append(abs(E - E0)/E0)
     for n, eg in enumerate(egs):
