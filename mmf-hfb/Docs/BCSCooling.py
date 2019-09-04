@@ -99,35 +99,28 @@ plt.xlabel('t')
 plt.ylabel('abs((E-E0)/E0)')
 plt.show()
 
-# %debug
-
 # ## Split-operator method
 
-plt.plot(x, abs(psi2)**2)
-
 from IPython.display import display, clear_output
-eg = BCSCooling(N=Nx, dx=0.1, beta_0=1, beta_V=0.95, beta_K=.001)
+eg = BCSCooling(N=Nx, dx=0.1, beta_0=1, beta_V=0.95, beta_K=0)
 psi1, psi2 = U0[index], U0[index + 1]
 psi1_, psi2_  = U1[index], U1[index + 1]
 psis0 = [psi1_, psi2_]
 E0, N0 = eg.get_E_Ns(psis0, V=V)
-Es = [[], [], []]
-psi2_ = [psi1, psi2]
-psis = [psi2_, psi2_, psi2_]
+Es = []
+psis = [psi1, psi2]
 egs = [eg]
-Ndata = 150
-Nstep = 500
+Ndata = 10
+Nstep = 25
 steps = list(range(Ndata))
 step=0
 for _n in range(Ndata):
-    for n, eg in enumerate(egs):
-        step = step + 1
-        psis[n] = eg.step(psis[n], V=V, n=Nstep)
-        E, N = eg.get_E_Ns(psis[n], V=V)
-        Es[n].append(abs(E - E0)/E0)
-    for n, eg in enumerate(egs):
-        ax, = plt.plot(x, abs(psis[n][0])**2)
-        plt.plot(x, abs(psis[n][1])**2, c=ax.get_c())
+    step = step + 1
+    psis = eg.step(psis, V=V, n=Nstep)
+    E, N = eg.get_E_Ns(psis, V=V)
+    Es.append(abs(E - E0)/E0)
+    ax, = plt.plot(x, abs(psis[0])**2)
+    plt.plot(x, abs(psis[1])**2, c=ax.get_c())
     ax, = plt.plot(x, abs(psis0[0])**2, '--')
     plt.plot(x, abs(psis0[1])**2,'--', c=ax.get_c())
     plt.legend(['V+K', 'K', 'V'])
@@ -136,11 +129,42 @@ for _n in range(Ndata):
     clear_output(wait=True)
 
 
-for n, eg in enumerate(egs):
-    plt.plot(steps, Es[n])
+plt.plot(steps, Es)
 plt.xlabel("Step")
 plt.ylabel("E-E0/E0")
 plt.legend(['V+K', 'K', 'V'])
 plt.show()
+
+from IPython.core.debugger import set_trace
+
+eg = BCSCooling(N=Nx, dx=0.1, beta_0=1, beta_V=1.95, beta_K=0)
+N_psi = 2
+psis0 = U1[:N_psi]
+E0, N0 = eg.get_E_Ns(psis0, V=V)
+Es = []
+psis = U0[:N_psi]
+egs = [eg]
+Ndata = 50
+Nstep = 500
+steps = list(range(Ndata))
+plt.figure(figsize(16,8))
+cs = []
+for _n in range(Ndata):
+    psis = eg.step(psis, V=V, n=Nstep)
+    print(psis[0].dot(psis[1].conj()))
+    assert np.allclose(psis[0].dot(psis[1].conj()), 0)
+    E, N = eg.get_E_Ns(psis, V=V)
+    Es.append(abs(E - E0)/E0)
+    for psi in psis:
+        ax, = plt.plot(x, abs(psi)**2)
+        cs.append(ax.get_c())
+    for i, psi in enumerate(psis0):
+        plt.plot(x, abs(psi)**2,'--', c=cs[i])
+    plt.legend(['V+K', 'K', 'V'])
+    plt.title(f"E0={E0},E={E}")
+    plt.show()
+    clear_output(wait=True)
+
+print(psis[0].dot(psis[1].conj()))
 
 

@@ -182,31 +182,25 @@ def Normalize(psi):
 
 
 if __name__ == "__main__":
+    N_psi = 2
     eg = BCSCooling(N=128, dx=0.1, beta_0=1, beta_V=0.95, beta_K=.001)
-    H0 = eg._get_H(mu_eff=0, V=0)  # free particle
-    x = eg.xyz[0]
-    V = x**2/2
-    H1 = eg._get_H(mu_eff=0, V=V)  # harmonic trap
-    U0, Es0 = eg.get_U_E(H0, transpose=True)
-    U1, Es1 = eg.get_U_E(H1, transpose=True)
-    index = 0
-    psi1, psi2 = U0[index], U0[index + 1]
-    psi1_, psi2_  = U1[index], U1[index + 1]
-    psis0 = [psi1_, psi2_]
+    psis0 = U0[:N_psi]
     E0, N0 = eg.get_E_Ns(psis0, V=V)
     Es = [[], [], []]
-    psi2_ = [psi1, psi2]
+    psi2_ = U1[:N_psi]
     psis = [psi2_, psi2_, psi2_]
     egs = [eg]
-    Ndata = 1
-    Nstep = 1
+    Ndata = 50
+    Nstep = 50
     steps = list(range(Ndata))
     step=0
     for _n in range(Ndata):
         for n, eg in enumerate(egs):
             step = step + 1
-            psis[n] = eg.evolve(psis[n], V=V, n=Nstep)
+            psis[n] = eg.step(psis[n], V=V, n=Nstep)
             E, N = eg.get_E_Ns(psis[n], V=V)
             Es[n].append(abs(E - E0)/E0)
+        
+       
 
     
