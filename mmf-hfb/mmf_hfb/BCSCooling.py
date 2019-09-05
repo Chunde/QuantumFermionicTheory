@@ -23,9 +23,9 @@ class BCSCooling(BCS):
     """
 
     def __init__(
-        self, N=256, L=None, dx=0.1,
-        beta_0=1.0, beta_V=1.0, beta_K=1.0,
-        dt_Emax=1.0, g=0):
+            self, N=256, L=None, dx=0.1,
+            beta_0=1.0, beta_V=1.0, beta_K=1.0,
+            dt_Emax=1.0, g=0):
         """
         Arguments
         ---------
@@ -136,12 +136,11 @@ class BCSCooling(BCS):
     
     def get_U_E(self, H, transpose=False):
         """return Us and Vs and energy"""
-        Es, U = sp.linalg.eigh(H)
+        Es, U = np.linalg.eigh(H)
         if transpose:
             return (U.T, Es)
         return (U, Es)
 
-      
     def solve(self, psis, T, V, **kw):
         self.V = V  # external potential
         self.psis = psis  # all single particle states
@@ -182,25 +181,28 @@ def Normalize(psi):
 
 
 if __name__ == "__main__":
-    N_psi = 2
-    eg = BCSCooling(N=128, dx=0.1, beta_0=1, beta_V=0.95, beta_K=.001)
-    psis0 = U0[:N_psi]
-    E0, N0 = eg.get_E_Ns(psis0, V=V)
-    Es = [[], [], []]
-    psi2_ = U1[:N_psi]
-    psis = [psi2_, psi2_, psi2_]
-    egs = [eg]
-    Ndata = 50
-    Nstep = 50
-    steps = list(range(Ndata))
-    step=0
-    for _n in range(Ndata):
-        for n, eg in enumerate(egs):
-            step = step + 1
-            psis[n] = eg.step(psis[n], V=V, n=Nstep)
-            E, N = eg.get_E_Ns(psis[n], V=V)
-            Es[n].append(abs(E - E0)/E0)
-        
-       
-
-    
+    import matplotlib.pyplot as plt
+    ax1 = plt.subplot(121)
+    ax2 = plt.subplot(122)
+    Nx = 128
+    s = BCSCooling(N=Nx, dx=0.1, beta_0=-1j, beta_K=1, beta_V=1)
+    s.g = 0  # -1
+    x = s.xyz[0]
+    r2 = x**2
+    V = x**2/2
+    psi_0 = Normalize(V*0 + 1)  # np.exp(-r2/2.0)*np.exp(1j*s.xyz[0])
+    ts, psis = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, V=V, method='BDF')
+    psi0 = psis[0][-1]
+    E0, N0 = s.get_E_Ns([psi0], V=V)
+    Es = [s.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]
+    line, = ax1.semilogy(ts[0][:-2], (Es[:-2] - E0)/abs(E0), label=f"Nx={Nx}")
+    plt.sca(ax2)
+    plt.plot(x, psi0)
+    plt.plot(x,psi_0, '--')
+    E, N = s.get_E_Ns([psi0], V=V)
+    plt.title(f"E={E:.4f}, N={N:.4f}")
+    plt.sca(ax1)
+    plt.legend()
+    plt.xlabel('t')
+    plt.ylabel('abs((E-E0)/E0)')
+    plt.show()

@@ -20,12 +20,20 @@ import matplotlib.pyplot as plt
 
 # # BCS Cooling Class
 
+# +
 from mmf_hfb.BCSCooling import BCSCooling
+
 def H_exp(H, psi):
     return H.dot(psi).dot(psi.conj()).real
+
 def Normalize(psi):
     return psi/psi.dot(psi.conj())**0.5
 
+def Prob(psi):
+    return np.abs(psi)**2
+
+
+# -
 
 # ## Analytical vs Numerical
 
@@ -60,6 +68,8 @@ ax2, = plt.plot(psi1_, '--')
 plt.plot(psi2_, '--', c=ax2.get_c())
 plt.show()
 
+psi1.dot(psi2.conj()), psi2.dot(psi1.conj())
+
 # ## Check Energy
 
 index = 0
@@ -75,24 +85,23 @@ Es0[:2], Es1[:2], bcs.get_E_Ns([psi2], V=V)[0]
 
 ax1 = plt.subplot(121)
 ax2 = plt.subplot(122)
-for Nx in [128]:
-    s = BCSCooling(N=Nx, dx=0.1,  beta_0=-1j, beta_K=1, beta_V=1)
-    s.g = 0# -1
-    x = s.xyz[0]
-    r2 = x**2
-    V = x**2/2
-    psi_0 = Normalize(V*0 + 1) # np.exp(-r2/2.0)*np.exp(1j*s.xyz[0])
-    ts, psis = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, V=V, method='BDF')
-    psi0 = psis[-1]
-    E0, N0 = s.get_E_N(psi0, V=V)
-    Es = [s.get_E_N(_psi, V=V)[0] for _psi in psis]
-    line, = ax1.semilogy(ts[:-2], (Es[:-2] - E0)/abs(E0), label=f"Nx={Nx}")
-    plt.sca(ax2)
-    plt.plot(x, psi0)
-    plt.plot(x,psi_0, '--')
-    plt.plot(x, u0, '+')
-    E, N = s.get_E_N(psi0, V=V)
-    plt.title(f"E={E:.4f}, N={N:.4f}")
+s = BCSCooling(N=Nx, dx=0.1, beta_0=-1j, beta_K=1, beta_V=1)
+s.g = 0# -1
+x = s.xyz[0]
+r2 = x**2
+V = x**2/2
+psi_0 = Normalize(V*0 + 1) # np.exp(-r2/2.0)*np.exp(1j*s.xyz[0])
+ts, psis = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, V=V, method='BDF')
+psi0 = psis[0][-1]
+E0, N0 = s.get_E_Ns([psi0], V=V)
+Es = [s.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]
+line, = ax1.semilogy(ts[0][:-2], (Es[:-2] - E0)/abs(E0), label=f"Nx={Nx}")
+plt.sca(ax2)
+plt.plot(x, psi0)
+plt.plot(x,psi_0, '--')
+plt.plot(x, u0, '+')
+E, N = s.get_E_Ns([psi0], V=V)
+plt.title(f"E={E:.4f}, N={N:.4f}")
 plt.sca(ax1)
 plt.legend()
 plt.xlabel('t')
@@ -102,69 +111,41 @@ plt.show()
 # ## Split-operator method
 
 from IPython.display import display, clear_output
-eg = BCSCooling(N=Nx, dx=0.1, beta_0=1, beta_V=0.95, beta_K=0)
-psi1, psi2 = U0[index], U0[index + 1]
-psi1_, psi2_  = U1[index], U1[index + 1]
-psis0 = [psi1_, psi2_]
-E0, N0 = eg.get_E_Ns(psis0, V=V)
-Es = []
-psis = [psi1, psi2]
-egs = [eg]
-Ndata = 10
-Nstep = 25
-steps = list(range(Ndata))
-step=0
-for _n in range(Ndata):
-    step = step + 1
-    psis = eg.step(psis, V=V, n=Nstep)
-    E, N = eg.get_E_Ns(psis, V=V)
-    Es.append(abs(E - E0)/E0)
-    ax, = plt.plot(x, abs(psis[0])**2)
-    plt.plot(x, abs(psis[1])**2, c=ax.get_c())
-    ax, = plt.plot(x, abs(psis0[0])**2, '--')
-    plt.plot(x, abs(psis0[1])**2,'--', c=ax.get_c())
-    plt.legend(['V+K', 'K', 'V'])
-    plt.title(f"E0={E0},E={E}")
-    plt.show()
-    clear_output(wait=True)
-
-
-plt.plot(steps, Es)
-plt.xlabel("Step")
-plt.ylabel("E-E0/E0")
-plt.legend(['V+K', 'K', 'V'])
-plt.show()
-
 from IPython.core.debugger import set_trace
 
-eg = BCSCooling(N=Nx, dx=0.1, beta_0=1, beta_V=1.95, beta_K=0)
+
+def PlayCooling(psis0, psis, N_data=10, N_step=100, beta_0=1, beta_V=1, beta_K=0):
+    eg = BCSCooling(N=len(psis0[0]), dx=0.1, beta_0=beta_0, beta_V=beta_V, beta_K=beta_K)   
+    E0, N0 = eg.get_E_Ns(psis0, V=V)
+    Es, cs, steps = [], [], list(range(N_data))
+    plt.figure(figsize(16,8))
+    for _n in range(N_data):
+        psis = eg.step(psis, V=V, n=N_step)
+       # assert np.allclose(psis[0].dot(psis[1].conj()), 0)
+        E, N = eg.get_E_Ns(psis, V=V)
+        Es.append(abs(E - E0)/E0)
+        for psi in psis:
+            ax, = plt.plot(x, abs(psi)**2)
+            cs.append(ax.get_c())
+        for i, psi in enumerate(psis0):
+            plt.plot(x, abs(psi)**2,'--', c=cs[i])
+        plt.legend(['V+K', 'K', 'V'])
+        plt.title(f"E0={E0},E={E}")
+        plt.show()
+        clear_output(wait=True)
+
+
 N_psi = 2
 psis0 = U1[:N_psi]
-E0, N0 = eg.get_E_Ns(psis0, V=V)
-Es = []
 psis = U0[:N_psi]
-egs = [eg]
-Ndata = 50
-Nstep = 500
-steps = list(range(Ndata))
-plt.figure(figsize(16,8))
-cs = []
-for _n in range(Ndata):
-    psis = eg.step(psis, V=V, n=Nstep)
-    print(psis[0].dot(psis[1].conj()))
-    assert np.allclose(psis[0].dot(psis[1].conj()), 0)
-    E, N = eg.get_E_Ns(psis, V=V)
-    Es.append(abs(E - E0)/E0)
-    for psi in psis:
-        ax, = plt.plot(x, abs(psi)**2)
-        cs.append(ax.get_c())
-    for i, psi in enumerate(psis0):
-        plt.plot(x, abs(psi)**2,'--', c=cs[i])
-    plt.legend(['V+K', 'K', 'V'])
-    plt.title(f"E0={E0},E={E}")
-    plt.show()
-    clear_output(wait=True)
+PlayCooling(psis0=psis0, psis=psis, N_data=50, N_step=250, beta_0=1, beta_V=0.95, beta_K=0)
 
-print(psis[0].dot(psis[1].conj()))
+# ## Zero Current Case
+# * We can comstruct a ground state with zero current by put two particles in two planewave with opposite signs
+
+psis = [np.exp(-1j*x), np.exp(1j*x)]
+plt.plot(x, abs(psis[0])**2)
+
+PlayCooling(psis0=psis0[:2], psis=psis, N_data=100, N_step=100)
 
 
