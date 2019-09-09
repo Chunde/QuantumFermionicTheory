@@ -121,3 +121,30 @@ print(P0[0], P1[0], P2[0])
 def f_d(D0):
     return 
 
+
+mu=5
+delta = 1
+args = dict(mu_eff=mu, dmu_eff=0, delta=delta,T=0, dim=3, k_c=50, verbosity=False)
+lda = ClassFactory("LDA",functionalType=FunctionalType.SLDA, kernelType=KernelType.HOM, args=args)
+def f(dmu=0, dq=0.1): 
+    args = dict(mus_eff=(mu + dmu, mu - dmu),delta=delta, dq=dq)
+    js = lda.get_current(**args)
+    dens = lda.get_densities(**args)
+    ns = dens.n_a + dens.n_b
+    j0 = ns*dq
+    j = js[3]
+    P = abs(dens.n_a - dens.n_b)/(dens.n_a + dens.n_b)
+    return abs(j/j0).n, P
+
+
+dmus = np.linspace(0, 5, 100)
+js = []
+Ps = []
+for dmu in dmus:
+    j, P = f(dmu=dmu)
+    js.append(j)
+    Ps.append(P)
+
+plt.plot(Ps, js)
+
+
