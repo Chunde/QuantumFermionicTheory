@@ -49,6 +49,15 @@ H1 = bcs._get_H(mu_eff=0, V=V)  # harmonic trap
 U0, Es0 = bcs.get_U_E(H0, transpose=True)
 U1, Es1 = bcs.get_U_E(H1, transpose=True)
 
+# ### Double check the derivative
+
+y = np.cos(x)
+plt.plot(x, y)
+dy = bcs.Del(y, n=1)
+plt.plot(x, dy)
+plt.plot(x, -np.sin(x), '+')
+plt.ylim(-1, 1)
+
 index = 0
 psi1, psi2 = U0[index], U0[index + 1]
 psi1_, psi2_ = U1[index], U1[index + 1]
@@ -115,7 +124,7 @@ from IPython.core.debugger import set_trace
 
 
 def PlayCooling(psis0, psis, N_data=10, N_step=100, beta_0=1, beta_V=1, beta_K=0):
-    eg = BCSCooling(N=len(psis0[0]), dx=0.1, beta_0=beta_0, beta_V=beta_V, beta_K=beta_K)   
+    eg = BCSCooling(N=len(psis0[0]), dx=0.1, beta_0=beta_0, beta_V=beta_V, beta_K=beta_K, divs=(0,1))   
     E0, N0 = eg.get_E_Ns(psis0, V=V)
     Es, cs, steps = [], [], list(range(N_data))
     plt.figure(figsize(16,8))
@@ -133,12 +142,14 @@ def PlayCooling(psis0, psis, N_data=10, N_step=100, beta_0=1, beta_V=1, beta_K=0
         plt.title(f"E0={E0},E={E}")
         plt.show()
         clear_output(wait=True)
+    return psis
 
 
 N_psi = 2
 psis0 = U1[:N_psi]
 psis = U0[:N_psi]
-PlayCooling(psis0=psis0, psis=psis, N_data=50, N_step=250, beta_0=1, beta_V=0.95, beta_K=0)
+
+psis=PlayCooling(psis0=psis0, psis=psis, N_data=50, N_step=250, beta_0=1, beta_V=0.95, beta_K=0)
 
 # ## Zero Current Case
 # * We can comstruct a ground state with zero current by put two particles in two planewave with opposite signs
@@ -146,6 +157,6 @@ PlayCooling(psis0=psis0, psis=psis, N_data=50, N_step=250, beta_0=1, beta_V=0.95
 psis = [np.exp(-1j*x), np.exp(1j*x)]
 plt.plot(x, abs(psis[0])**2)
 
-PlayCooling(psis0=psis0[:2], psis=psis, N_data=100, N_step=100)
+psis=PlayCooling(psis0=psis0[:2], psis=psis, N_data=100, N_step=100)
 
 

@@ -25,7 +25,7 @@ class BCSCooling(BCS):
     def __init__(
             self, N=256, L=None, dx=0.1,
             beta_0=1.0, beta_V=1.0, beta_K=1.0,
-            dt_Emax=1.0, g=0):
+            dt_Emax=1.0, g=0, divs=None):
         """
         Arguments
         ---------
@@ -45,6 +45,7 @@ class BCSCooling(BCS):
         self._K2 = (self.hbar*np.array(self.kxyz[0]))**2/2/self.m
         self.dt = dt_Emax*self.hbar/self._K2.max()
         self.g = g
+        self.divs = divs
 
     def get_V(self, psis, V):
         return sum(self.g*np.abs(psis)**2) + V
@@ -53,13 +54,19 @@ class BCSCooling(BCS):
         """compute dy/dt"""
         V = self.get_V(psis, V=V)
         Hpsis = []
-        for  psi in psis:
+        for psi in psis:
             psi_k = np.fft.fft(psi)
             Kpsi = self.ifft(self._K2*psi_k)
             Vpsi = V*psi
             Hpsis.append(Kpsi + Vpsi)
         return Hpsis
     
+    def Del(self, psi, n):
+        """Now only support 1D function, should be genenilzed later"""
+        for _ in range(n):
+            psi = self._Del(alpha=(np.array([psi]).T,))[:, 0, ...][0].T[0]
+        return psi
+
     def get_N(self, psis):
         N = 0
         for psi in psis:
@@ -70,8 +77,19 @@ class BCSCooling(BCS):
         N = self.get_N(psis)
         Hpsis = self.apply_H(psis, V=V)
         Vc = 0
-        for i, psi in enumerate(psis):
-            Vc = Vc + 2*(psi.conj()*Hpsis[i]).imag*self.dV/N
+        if self.divs is None:
+            Hpsis = self.apply_H(psis, V=V)
+            for i, psi in enumerate(psis):
+                Vc = Vc + 2*(psi.conj()*Hpsis[i]).imag*self.dV/N
+        else:  # Departure from locality
+            da, db = self.divs
+            psis_a = [self.Del(psi, n=da) for psi in psis]
+            psis_b = [self.Del(psi, n=db) for psi in psis]
+            Hpsis_a = self.apply_H(psis_a, V=V)
+            Hpsis_b = self.apply_H(psis_b, V=V)
+            for i in range(len(psis)):
+                Vc = Vc + (
+                    (psis_a[i]*Hpsis_b[i].conj()) + Hpsis_a[i]*psis_b[i].conj())*self.dV/N
         return Vc
 
     def get_Kc(self, psis, V):
@@ -182,27 +200,11 @@ def Normalize(psi):
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    ax1 = plt.subplot(121)
-    ax2 = plt.subplot(122)
     Nx = 128
-    s = BCSCooling(N=Nx, dx=0.1, beta_0=-1j, beta_K=1, beta_V=1)
-    s.g = 0  # -1
-    x = s.xyz[0]
-    r2 = x**2
-    V = x**2/2
-    psi_0 = Normalize(V*0 + 1)  # np.exp(-r2/2.0)*np.exp(1j*s.xyz[0])
-    ts, psis = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, V=V, method='BDF')
-    psi0 = psis[0][-1]
-    E0, N0 = s.get_E_Ns([psi0], V=V)
-    Es = [s.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]
-    line, = ax1.semilogy(ts[0][:-2], (Es[:-2] - E0)/abs(E0), label=f"Nx={Nx}")
-    plt.sca(ax2)
-    plt.plot(x, psi0)
-    plt.plot(x,psi_0, '--')
-    E, N = s.get_E_Ns([psi0], V=V)
-    plt.title(f"E={E:.4f}, N={N:.4f}")
-    plt.sca(ax1)
-    plt.legend()
-    plt.xlabel('t')
-    plt.ylabel('abs((E-E0)/E0)')
-    plt.show()
+    bcs = BCSCooling(N=Nx, L=None, dx=0.1, beta_0=1j, beta_K=0, beta_V=0)
+    x = bcs.xyz[0]
+
+    y = np.cos(bcs.xyz)
+    plt.plot(x, y[0])
+    dy = bcs.Del((y.T,), n=1)
+    plt.plot(x, dy[:, 0,...][0])

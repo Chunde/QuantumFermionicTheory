@@ -173,18 +173,24 @@ class BCS(IHFBKernel):
                 1j*sum(_k for _k in ks)[bcast]*self.fft(K))).reshape(mat_shape)
         return K
 
-    def _Del(self, aplha, twists=0):
+    def _Del(self, alpha, twists=0):
         """
         Apply the Del, or Nabla operation on a function alpha
         -------
         Note:
             Here we compute the first derivatives and pack them so that
             the first component is the derivative in x, y, z, etc.
+        Structure of alpha
+        --------
+            The alpha has shape of [spin=2, d1, d2,...dn, N]
+            where first dim is the spin degree of freedom
+            d1, d2..dn are sizes of a wavefunction in n dimemstion
+            N is the number of wavefunctions
         """
         ks_bloch = numpy.divide(twists, self.Lxyz)
         ks = [_k + _kb for _k, _kb in zip(self.kxyz, ks_bloch)]
         axes = range(1, self.dim + 1)
-        aplha_t = self.fft(aplha, axes=axes)
+        aplha_t = self.fft(alpha, axes=axes)
         return np.stack(
             [self.ifft(1j*_k[None, ..., None]*aplha_t, axes=axes) for _k in ks])
 
