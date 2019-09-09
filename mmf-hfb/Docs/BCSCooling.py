@@ -17,7 +17,7 @@ import mmf_setup;mmf_setup.nbinit()
 # %pylab inline --no-import-all
 from nbimports import *
 import matplotlib.pyplot as plt
-
+import numpy as np
 # # BCS Cooling Class
 
 # +
@@ -123,11 +123,11 @@ from IPython.display import display, clear_output
 from IPython.core.debugger import set_trace
 
 
-def PlayCooling(psis0, psis, N_data=10, N_step=100, beta_0=1, beta_V=1, beta_K=0):
-    eg = BCSCooling(N=len(psis0[0]), dx=0.1, beta_0=beta_0, beta_V=beta_V, beta_K=beta_K, divs=(0,1))   
+def PlayCooling(psis0, psis, N_data=10, N_step=100, beta_0=1, beta_V=1, beta_K=0, divs=(0,0)):
+    eg = BCSCooling(N=len(psis0[0]), dx=0.1, beta_0=beta_0, beta_V=beta_V, beta_K=beta_K, divs=divs)   
     E0, N0 = eg.get_E_Ns(psis0, V=V)
     Es, cs, steps = [], [], list(range(N_data))
-    plt.figure(figsize(16,8))
+    # plt.figure(figsize(16,8))
     for _n in range(N_data):
         psis = eg.step(psis, V=V, n=N_step)
        # assert np.allclose(psis[0].dot(psis[1].conj()), 0)
@@ -138,7 +138,6 @@ def PlayCooling(psis0, psis, N_data=10, N_step=100, beta_0=1, beta_V=1, beta_K=0
             cs.append(ax.get_c())
         for i, psi in enumerate(psis0):
             plt.plot(x, abs(psi)**2,'--', c=cs[i])
-        plt.legend(['V+K', 'K', 'V'])
         plt.title(f"E0={E0},E={E}")
         plt.show()
         clear_output(wait=True)
@@ -149,7 +148,7 @@ N_psi = 2
 psis0 = U1[:N_psi]
 psis = U0[:N_psi]
 
-psis=PlayCooling(psis0=psis0, psis=psis, N_data=50, N_step=250, beta_0=1, beta_V=0.95, beta_K=0)
+psis=PlayCooling(psis0=psis0, psis=psis, N_data=100, N_step=200, beta_0=1, beta_V=0.95, beta_K=0, divs=(1, 0))
 
 # ## Zero Current Case
 # * We can comstruct a ground state with zero current by put two particles in two planewave with opposite signs
@@ -157,6 +156,6 @@ psis=PlayCooling(psis0=psis0, psis=psis, N_data=50, N_step=250, beta_0=1, beta_V
 psis = [np.exp(-1j*x), np.exp(1j*x)]
 plt.plot(x, abs(psis[0])**2)
 
-psis=PlayCooling(psis0=psis0[:2], psis=psis, N_data=100, N_step=100)
+psis=PlayCooling(psis0=psis0[:2], psis=psis, N_data=10, N_step=100)
 
 

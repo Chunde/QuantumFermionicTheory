@@ -63,6 +63,8 @@ class BCSCooling(BCS):
     
     def Del(self, psi, n):
         """Now only support 1D function, should be genenilzed later"""
+        if n <=0:
+            return psi
         for _ in range(n):
             psi = self._Del(alpha=(np.array([psi]).T,))[:, 0, ...][0].T[0]
         return psi
@@ -84,12 +86,17 @@ class BCSCooling(BCS):
         else:  # Departure from locality
             da, db = self.divs
             psis_a = [self.Del(psi, n=da) for psi in psis]
-            psis_b = [self.Del(psi, n=db) for psi in psis]
             Hpsis_a = self.apply_H(psis_a, V=V)
-            Hpsis_b = self.apply_H(psis_b, V=V)
+            if da == db:
+                psis_b = psis_a
+                Hpsis_b = Hpsis_a
+            else:
+                psis_b = [self.Del(psi, n=db) for psi in psis]
+                Hpsis_b = self.apply_H(psis_b, V=V)
             for i in range(len(psis)):
                 Vc = Vc + (
-                    (psis_a[i]*Hpsis_b[i].conj()) + Hpsis_a[i]*psis_b[i].conj())*self.dV/N
+                    (Hpsis_a[i]*psis_b[i].conj()
+                    - psis_a[i]*Hpsis_b[i].conj())).imag*self.dV/N
         return Vc
 
     def get_Kc(self, psis, V):
