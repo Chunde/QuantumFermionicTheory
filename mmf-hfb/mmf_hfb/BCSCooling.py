@@ -1,7 +1,6 @@
 from scipy.integrate import solve_ivp
 from mmf_hfb.bcs import BCS
 import numpy as np
-import scipy as sp
 
 
 def Assert(a, b, rtol=1e-10):
@@ -12,11 +11,17 @@ def assert_orth(psis):
     y1, y2 = psis
     inner_prod = y1.dot(y2.conj())
     ret = np.allclose(inner_prod, 0, rtol=1e-16)
-    if not ret:
-        print(inner_prod)
     assert ret
 
-        
+
+def H_exp(H, psi):
+    return H.dot(psi).dot(psi.conj()).real
+
+
+def Normalize(psi):
+    return psi/psi.dot(psi.conj())**0.5
+
+
 class BCSCooling(BCS):
     """
     1d Local Quamtum Friction class
@@ -96,7 +101,7 @@ class BCSCooling(BCS):
             for i in range(len(psis)):
                 Vc = Vc + (
                     (Hpsis_a[i]*psis_b[i].conj()
-                    - psis_a[i]*Hpsis_b[i].conj())).imag*self.dV/N
+                        -psis_a[i]*Hpsis_b[i].conj())).imag*self.dV/N
         return Vc
 
     def get_Kc(self, psis, V):
@@ -114,7 +119,8 @@ class BCSCooling(BCS):
         for i, psi in enumerate(psis):
             len0 = psi.dot(psi.conj())
             psi_k = np.fft.fft(psi)
-            psi = np.fft.ifft(np.exp(-1j*self.dt*factor*(self.beta_0*self._K2 + Kc))*psi_k)
+            psi = np.fft.ifft(
+                np.exp(-1j*self.dt*factor*(self.beta_0*self._K2 + Kc))*psi_k)
             len1 = psi.dot(psi.conj())
             Assert(len0, len1)
             psis[i] = psi
@@ -135,9 +141,11 @@ class BCSCooling(BCS):
         Apply the cooling Hamiltonian.
         or, compute dy/dt w.r.t to Hc
         """
-        H_psi = self.apply_H(psis=[psi], V=V)[0]
-        Vc_psi = self.get_Vc(psis=[psi], V=V)[0]*psi
-        Kc_psi = self.ifft(self.get_Kc([psi], V=V)[0]*self.fft(psi))
+        H_psi = self.apply_H(psis=[psi], V=V)[0] if self.beta_0 !=0 else 0
+        Vc_psi = self.get_Vc(psis=[psi], V=V)[0]*psi if self.beta_V !=0 else 0
+        Kc_psi = (
+            self.ifft(self.get_Kc([psi], V=V)[0]*self.fft(psi))
+            if self.beta_K !=0 else 0)
         return (self.beta_0*H_psi + self.beta_V*Vc_psi + self.beta_K*Kc_psi)
     
     def step(self, psis, V, n=1):
@@ -169,8 +177,7 @@ class BCSCooling(BCS):
     def solve(self, psis, T, V, **kw):
         self.V = V  # external potential
         self.psis = psis  # all single particle states
-        ts = []
-        ys = []
+        ts, ys = [], []
         for psi0 in psis:  # can be parallelized
             res = solve_ivp(fun=self.compute_dy_dt, t_span=(0, T), y0=psi0, **kw)
             if not res.success:
@@ -195,23 +202,3 @@ class BCSCooling(BCS):
             E = E + K.real*self.dV
         E = E + V*self.dV
         return E, N
-  
-
-def H_exp(H, psi):
-    return H.dot(psi).dot(psi.conj()).real
-
-
-def Normalize(psi):
-    return psi/psi.dot(psi.conj())**0.5
-
-
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    Nx = 128
-    bcs = BCSCooling(N=Nx, L=None, dx=0.1, beta_0=1j, beta_K=0, beta_V=0)
-    x = bcs.xyz[0]
-
-    y = np.cos(bcs.xyz)
-    plt.plot(x, y[0])
-    dy = bcs.Del((y.T,), n=1)
-    plt.plot(x, dy[:, 0,...][0])
