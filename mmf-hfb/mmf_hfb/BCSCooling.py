@@ -1,7 +1,7 @@
 from scipy.integrate import solve_ivp
 from mmf_hfb.bcs import BCS
 import numpy as np
-
+from scipy import signal as sg
 
 def Assert(a, b, rtol=1e-10):
     assert np.allclose(a, b, rtol=rtol)
@@ -30,7 +30,7 @@ class BCSCooling(BCS):
     def __init__(
             self, N=256, L=None, dx=0.1,
             beta_0=1.0, beta_V=1.0, beta_K=1.0,
-            dt_Emax=1.0, g=0, divs=None):
+            dt_Emax=1.0, g=0, divs=None, smooth=False):
         """
         Arguments
         ---------
@@ -51,6 +51,7 @@ class BCSCooling(BCS):
         self.dt = dt_Emax*self.hbar/self._K2.max()
         self.g = g
         self.divs = divs
+        self.smooth = smooth
 
     def get_V(self, psis, V):
         return sum(self.g*np.abs(psis)**2) + V
@@ -72,6 +73,8 @@ class BCSCooling(BCS):
             return psi
         for _ in range(n):
             psi = self._Del(alpha=(np.array([psi]).T,))[:, 0, ...][0].T[0]
+            if self.smooth:
+                psi = sg.savgol_filter(psi, 5, 2, mode='nearest')
         return psi
 
     def get_N(self, psis):

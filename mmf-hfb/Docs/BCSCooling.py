@@ -18,7 +18,6 @@ import mmf_setup;mmf_setup.nbinit()
 from nbimports import *
 import matplotlib.pyplot as plt
 import numpy as np
-# # BCS Cooling Class
 
 # +
 from mmf_hfb.BCSCooling import BCSCooling
@@ -100,7 +99,7 @@ from IPython.core.debugger import set_trace
 
 
 def PlayCooling(psis0, psis, N_data=10, N_step=100, beta_0=1, beta_V=1, beta_K=0, divs=(0,0)):
-    bcs = BCSCooling(N=len(psis0[0]), dx=0.1, beta_0=beta_0, beta_V=beta_V, beta_K=beta_K, divs=divs)
+    bcs = BCSCooling(N=len(psis0[0]), dx=0.1, beta_0=beta_0, beta_V=beta_V, beta_K=beta_K, divs=divs, smooth=True)
     bcs.dt = bcs.dt
     E0, N0 = bcs.get_E_Ns(psis0, V=V)
     Es, cs, steps = [], [], list(range(N_data))
@@ -113,7 +112,10 @@ def PlayCooling(psis0, psis, N_data=10, N_step=100, beta_0=1, beta_V=1, beta_K=0
             ax, = plt.plot(x, abs(psi)**2)
             cs.append(ax.get_c())
         for i, psi in enumerate(psis0):
-            plt.plot(x, abs(psi)**2,'--', c=cs[i])
+            plt.plot(x, abs(psi)**2,'+', c=cs[i])
+        #for i, psi in enumerate(psis):
+        #    dpsi = bcs.Del(psi, n=1)
+        #    plt.plot(x, abs(dpsi)**2,'--', c=cs[i])
         plt.title(f"E0={E0},E={E}")
         plt.show()
         clear_output(wait=True)
@@ -127,7 +129,15 @@ U1, Es1 = bcs.get_U_E(H1, transpose=True)
 psis0 = U1[:2]
 psis = U0[:2]
 
-psis=PlayCooling(psis0=psis0, psis=psis, N_data=10, N_step=10, beta_0=1, beta_V=1, beta_K=1)
+psis=PlayCooling(psis0=psis0, psis=psis, N_data=100, N_step=10, beta_0=1, beta_V=1, beta_K=1, divs=(1, 2))
+
+psis=PlayCooling(psis0=psis0, psis=psis, N_data=100, N_step=10, beta_0=1, beta_V=1, beta_K=1, divs=(2, 2))
+
+psis=PlayCooling(psis0=psis0, psis=psis, N_data=100, N_step=10, beta_0=1, beta_V=1, beta_K=1, divs=(1, 1))
+
+psis=PlayCooling(psis0=psis0, psis=psis, N_data=100, N_step=10, beta_0=1, beta_V=1, beta_K=1, divs=None)
+
+psis=PlayCooling(psis0=psis0, psis=psis, N_data=100, N_step=10, beta_0=1, beta_V=1, beta_K=1, divs=(1,0))
 
 # ## Zero Current Case
 # * We can comstruct a ground state with zero current by put two particles in two planewave with opposite signs
