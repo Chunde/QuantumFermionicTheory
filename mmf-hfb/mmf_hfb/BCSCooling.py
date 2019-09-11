@@ -117,7 +117,20 @@ class BCSCooling(BCS):
             Vpsi_k = np.fft.fft(Hpsis[i])*self.dV
             Kc = Kc + 2*(psi_k.conj()*Vpsi_k).imag/N*self.dV/np.prod(self.Lxyz)
         return Kc
- 
+
+    def get_Hc(self, psis, V):
+        """Return the full cooling Hamiltonian in position space."""
+        size = np.prod(self.Nxyz)
+        Hc = 0
+        Hpsis = self.apply_H(psis, V=V)
+        for _, (psi, Hpsi) in enumerate(zip(psis, Hpsis)):
+            Hc_ = (1j*psi.reshape(size)[:, None]*Hpsi.conj().reshape(size)[None, :])
+            Hc_ += Hc_.conj().T
+            Hc = Hc + Hc_
+        N = self.get_N(psis)
+        Hc /= N
+        return Hc
+
     def apply_expK(self, psis, V, factor=1):
         Kc = self.beta_K*self.get_Kc(psis=psis, V=V)
         for i, psi in enumerate(psis):
@@ -206,3 +219,26 @@ class BCSCooling(BCS):
             E = E + K.real*self.dV
         E = E + V*self.dV
         return E, N
+
+
+if __name__ == "__main__":
+
+    for Nx in [64, 128, 256]:
+        s = BCSCooling(N=Nx, dx=0.1, beta_0=-1j, beta_K=1, beta_V=1)
+        s.g = 0# -1
+        x = s.xyz[0]
+        r2 = x**2
+        V = x**2/2
+        u0 = np.exp(-x**2/2)/np.pi**4
+        u0 = u0/u0.dot(u0.conj())**0.5
+        u1=(np.sqrt(2)*x*np.exp(-x**2/2))/np.pi**4
+        u1 = u1/u1.dot(u1.conj())**0.5
+    
+        psi_0 = Normalize(V*0 + 1) # np.exp(-r2/2.0)*np.exp(1j*s.xyz[0])
+        ts, psis = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, V=V, method='BDF')
+        psi0 = psis[0][-1]
+        E0, N0 = s.get_E_Ns([psi0], V=V)
+        Es = [s.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]
+
+        E, N = s.get_E_Ns([psi0], V=V)
+        Vc = s.get_Vc([psi0], V=V)

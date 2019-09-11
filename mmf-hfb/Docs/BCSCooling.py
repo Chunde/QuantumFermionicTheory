@@ -19,6 +19,8 @@ from nbimports import *
 import matplotlib.pyplot as plt
 import numpy as np
 
+# ## Some Helper Functions
+
 # +
 from mmf_hfb.BCSCooling import BCSCooling
 
@@ -50,7 +52,19 @@ H1 = bcs._get_H(mu_eff=0, V=V)  # harmonic trap
 U0, Es0 = bcs.get_U_E(H0, transpose=True)
 U1, Es1 = bcs.get_U_E(H1, transpose=True)
 
-# ### Double check the derivative
+# ## Check relation of $V_c(x)$, $K_c(k)$ with $H_c$
+# * By defination, $V_c$ should be equal to the diagonal terms of $H_c$ in position space while $K_c$ in momentum space
+
+np.random.seed(2)
+psi = [np.random.random(np.prod(bcs.Nxyz)) - 0.5]
+Vc = bcs.get_Vc(psi, V=0)
+Kc = bcs.get_Kc(psi, V=0)
+Hc = bcs.get_Hc(psi, V=0)
+Hc_k = np.fft.ifft(np.fft.fft(Hc, axis=0), axis=1)
+np.allclose(np.diag(Hc_k).real - Kc, 0), np.allclose(np.diag(Hc) - Vc, 0)
+
+# ## Check Derivatives
+# * As derivatitves will be used, we need to make sure the numerical method works by comparing its results to analytical ones
 
 y = np.cos(x)**2
 plt.subplot(211)
@@ -65,34 +79,63 @@ plt.plot(x, -2*np.cos(2*x), '+')
 
 # ## Evolve with Imaginary Time
 
-u0 = np.exp(-x**2/2)/np.pi**4
-u0 = u0/u0.dot(u0.conj())**0.5
-u1=(np.sqrt(2)*x*np.exp(-x**2/2))/np.pi**4
-u1 = u1/u1.dot(u1.conj())**0.5
-ax1 = plt.subplot(121)
-ax2 = plt.subplot(122)
-s = BCSCooling(N=Nx, dx=dx,  beta_0=-1j, beta_K=1, beta_V=1)
-s.g = 0# -1
-x = s.xyz[0]
-r2 = x**2
-V = x**2/2
-psi_0 = Normalize(V*0 + 1) # np.exp(-r2/2.0)*np.exp(1j*s.xyz[0])
-ts, psis = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, V=V, method='BDF')
-psi0 = psis[0][-1]
-E0, N0 = s.get_E_Ns([psi0], V=V)
-Es = [s.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]
-line, = ax1.semilogy(ts[0][:-2], (Es[:-2] - E0)/abs(E0), label=f"Nx={Nx}")
-plt.sca(ax2)
-plt.plot(x, psi0)
-plt.plot(x,psi_0, '--')
-plt.plot(x, u0, '+')
-E, N = s.get_E_Ns([psi0], V=V)
-plt.title(f"E={E:.4f}, N={N:.4f}")
-plt.sca(ax1)
+# +
+plt.figure(figsize(16,8))
+ax1 = plt.subplot(131)
+ax2 = plt.subplot(132)
+ax3 = plt.subplot(133)
+for Nx in [64, 128, 256]:
+    s = BCSCooling(N=Nx, dx=dx,  beta_0=-1j, beta_K=1, beta_V=1)
+    s.g = 0# -1
+    x = s.xyz[0]
+    r2 = x**2
+    V = x**2/2
+    u0 = np.exp(-x**2/2)/np.pi**4
+    u0 = u0/u0.dot(u0.conj())**0.5
+    u1=(np.sqrt(2)*x*np.exp(-x**2/2))/np.pi**4
+    u1 = u1/u1.dot(u1.conj())**0.5
+ 
+    psi_0 = Normalize(V*0 + 1) # np.exp(-r2/2.0)*np.exp(1j*s.xyz[0])
+    ts, psis = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, V=V, method='BDF')
+    psi0 = psis[0][-1]
+    E0, N0 = s.get_E_Ns([psi0], V=V)
+    Es = [s.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]
+    line, = ax1.semilogy(ts[0][:-2], (Es[:-2] - E0)/abs(E0), label=f"Nx={Nx}")
+    plt.sca(ax2)
+    plt.plot(x, psi0)  # ground state
+    plt.plot(x, psi_0, '--')  # initial state
+    plt.plot(x, u0, '+')  # desired ground state
+    E, N = s.get_E_Ns([V], V=V)
+    plt.title(f"E={E:.4f}, N={N:.4f}")
+    plt.sca(ax3)
+    Vc = s.get_Vc([psi0], V=V) 
+    l, = plt.plot(x, Vc)  
+    plt.sca(ax1)
+    
 plt.legend()
 plt.xlabel('t')
 plt.ylabel('abs((E-E0)/E0)')
+plt.sca(ax2)
+plt.xlim(-5,5)
+plt.sca(ax3)
+plt.xlim(-5,5)
 plt.show()
+# -
+
+for Nx in [64, 128, 256]:
+    s = BCSCooling(N=Nx, dx=dx,  beta_0=-1j, beta_K=1, beta_V=1)
+    s.g = 0# -1
+    x = s.xyz[0]
+    r2 = x**2
+    V = x**2/2
+    H1 = s._get_H(mu_eff=0, V=V)  # harmonic trap
+    U1, _ = bcs.get_U_E(H1, transpose=True)
+    psi0 = U1[0]   
+    plt.subplot(121)
+    plt.plot(x, Prob(psi0))
+    plt.subplot(122)
+    Vc = s.get_Vc([psi0], V=V) 
+    l, = plt.plot(x, Vc)  
 
 # ## Split-operator method
 
@@ -107,7 +150,6 @@ def PlayCooling(psis0, psis, N_data=10, N_step=100, **kw):
     Es, cs, steps = [], [], list(range(N_data))
     for _n in range(N_data):
         psis = bcs.step(psis, V=V, n=N_step)
-       # assert np.allclose(psis[0].dot(psis[1].conj()), 0)
         E, N = bcs.get_E_Ns(psis, V=V)
         Es.append(abs(E - E0)/E0)
         for psi in psis:
@@ -124,11 +166,9 @@ def PlayCooling(psis0, psis, N_data=10, N_step=100, **kw):
     return psis
 
 
-H0 = bcs._get_H(mu_eff=0, V=0)  # free particle
-H1 = bcs._get_H(mu_eff=0, V=V)  # harmonic trap
-U0, Es0 = bcs.get_U_E(H0, transpose=True)
-U1, Es1 = bcs.get_U_E(H1, transpose=True)
-plt.plot(x, np.log10(abs(U1[0])))
+H = bcs._get_H(mu_eff=0, V=V)  # harmonic trap
+Us, Es = bcs.get_U_E(H, transpose=True)
+plt.plot(x, np.log10(abs(Us[0])))
 
 
 def Cooling(beta_0=1, N=1, **args):

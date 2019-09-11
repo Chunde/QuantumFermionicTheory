@@ -45,6 +45,6 @@ if __name__ == "__main__":
     Nx = 64
     L = 23.0
     dx = L/Nx
-    bcs = BCSCooling(N=Nx, L=None, dx=dx, beta_0=1, beta_V=1, beta_K=0, smooth=True, divs=(1, 1))
+    bcs = BCSCooling(N=Nx, L=None, dx=dx, beta_0=1, beta_V=1, beta_K=0, smooth=True) #, divs=(1, 1))
     bcs.erase_max_ks()
     Cooling(bcs=bcs, N_data=10, N_step=100)
