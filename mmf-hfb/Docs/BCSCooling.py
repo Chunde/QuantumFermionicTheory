@@ -80,10 +80,9 @@ plt.plot(x, -2*np.cos(2*x), '+')
 # ## Evolve with Imaginary Time
 
 # +
-plt.figure(figsize(16,8))
-ax1 = plt.subplot(131)
-ax2 = plt.subplot(132)
-ax3 = plt.subplot(133)
+plt.figure(figsize(16, 8))
+ax1 = plt.subplot(121)
+ax2 = plt.subplot(122)
 for Nx in [64, 128, 256]:
     s = BCSCooling(N=Nx, dx=dx,  beta_0=-1j, beta_K=1, beta_V=1)
     s.g = 0# -1
@@ -107,35 +106,53 @@ for Nx in [64, 128, 256]:
     plt.plot(x, u0, '+')  # desired ground state
     E, N = s.get_E_Ns([V], V=V)
     plt.title(f"E={E:.4f}, N={N:.4f}")
-    plt.sca(ax3)
-    Vc = s.get_Vc([psi0], V=V) 
-    l, = plt.plot(x, Vc)  
-    plt.sca(ax1)
     
 plt.legend()
 plt.xlabel('t')
 plt.ylabel('abs((E-E0)/E0)')
 plt.sca(ax2)
 plt.xlim(-5,5)
-plt.sca(ax3)
-plt.xlim(-5,5)
+clear_output()
 plt.show()
+
+
 # -
 
-for Nx in [64, 128, 256]:
-    s = BCSCooling(N=Nx, dx=dx,  beta_0=-1j, beta_K=1, beta_V=1)
-    s.g = 0# -1
-    x = s.xyz[0]
-    r2 = x**2
-    V = x**2/2
-    H1 = s._get_H(mu_eff=0, V=V)  # harmonic trap
-    U1, _ = bcs.get_U_E(H1, transpose=True)
-    psi0 = U1[0]   
+# ## Demostrate the $V_c$ and $K_c$ are Independent of Box Size
+# * with fixed $dx$
+
+# $$
+# \hat{R}=\sum_n \ket{\psi_n}\bra{\psi_n}\qquad
+# \hat{V}_c(x)=\int dx V_c(x) \ket{x}\bra{x} \qquad\\
+# N=\braket{\psi|\psi}=\int dx\psi(x)^*\psi(x)\qquad
+# V_c(x) =\braket{x|H_c|x}
+# $$
+
+def Check_Vc():
+    for Nx in [64, 128, 256]:
+        offset = np.log(Nx)*0.1
+        s = BCSCooling(N=Nx, dx=dx,  beta_0=-1j, beta_K=1, beta_V=1)
+        s.g = -1
+        x = s.xyz[0]
+        V_ext = x**2/2
+        psi0 = np.exp(-x**2/2.0)*np.exp(1j*x)
+    #     H1 = s._get_H(mu_eff=0, V=V)  # harmonic trap
+    #     U1, _ = bcs.get_U_E(H1, transpose=True)
+    #     psi0 = U1[0] 
+        plt.subplot(121)
+        plt.plot(x, Prob(psi0) + offset)
+        plt.subplot(122)
+        Vc = s.get_Vc(s.apply_H([psi0], V=V_ext), V=V_ext) 
+        l, = plt.plot(x, Vc + offset)  # add some offset in y direction to seperate plots
     plt.subplot(121)
-    plt.plot(x, Prob(psi0))
+    plt.xlim(-10, 10)
     plt.subplot(122)
-    Vc = s.get_Vc([psi0], V=V) 
-    l, = plt.plot(x, Vc)  
+    plt.xlim(-10,10)
+    plt.xlabel("x"); plt.ylabel(f"$V_c$");
+    clear_output()
+
+
+Check_Vc()
 
 # ## Split-operator method
 
@@ -144,8 +161,7 @@ from IPython.core.debugger import set_trace
 
 
 def PlayCooling(psis0, psis, N_data=10, N_step=100, **kw):
-    bcs = BCSCooling(N=len(psis0[0]), dx=dx, **kw)
-    bcs.dt = bcs.dt
+    bcs = BCSCooling(N=Nx, L=None, dx=dx, **kw)
     E0, N0 = bcs.get_E_Ns(psis0, V=V)
     Es, cs, steps = [], [], list(range(N_data))
     for _n in range(N_data):
@@ -160,12 +176,13 @@ def PlayCooling(psis0, psis, N_data=10, N_step=100, **kw):
         #for i, psi in enumerate(psis):
         #    dpsi = bcs.Del(psi, n=1)
         #   plt.plot(x, abs(dpsi)**2,'--', c=cs[i])
-        plt.title(f"E0={E0},E={E}")
+        plt.title(f"E0={E0},E={E}, beta_0={bcs.beta_0}, beta_V={bcs.beta_V}, beta_K={bcs.beta_K}")
         plt.show()
         clear_output(wait=True)
     return psis
 
 
+bcs = BCSCooling(N=Nx, L=None, dx=dx, beta_0=1, beta_V=1, beta_K=0, smooth=True) 
 H = bcs._get_H(mu_eff=0, V=V)  # harmonic trap
 Us, Es = bcs.get_U_E(H, transpose=True)
 plt.plot(x, np.log10(abs(Us[0])))
@@ -187,13 +204,13 @@ Cooling(N_data=10, N_step=100, beta_V=0, beta_K=0,divs=(0, 0))
 
 # ### With $V_c$ Only
 
-Cooling(N_data=10, N_step=100, beta_V=1, beta_K=0,divs=(0, 0))
-
-# ### With $V_c$ and $K_c$
-
-Cooling(beta_V=1, beta_K=3, divs=(0, 0))
+Cooling(N_data=100, N_step=1, beta_V=100, beta_K=0, divs=(0, 0))
 
 # ### With $K_c$ only
+
+Cooling(beta_V=0, beta_K=1, divs=(0, 0))
+
+# ### With $V_c$ and $K_c$
 
 Cooling(beta_V=0, beta_K=1, divs=(0, 0))
 
@@ -245,7 +262,7 @@ def Cooling(bcs, N=1, **args):
     psis0 = U1[:N]
     psis = U0[:N]
     psis=PlayCooling(bcs=bcs, psis0=psis0, psis=psis, V=V, **args)
-    
+
 
 # -
 
