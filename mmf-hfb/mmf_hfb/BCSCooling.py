@@ -104,7 +104,7 @@ class BCSCooling(BCS):
             for i in range(len(psis)):
                 Vc = Vc + (
                     (Hpsis_a[i]*psis_b[i].conj()
-                        -psis_a[i]*Hpsis_b[i].conj())).imag*self.dV/N
+                        -psis_a[i]*Hpsis_b[i].conj())).imag*self.dV/N  # may not need he dv term here
         return Vc
 
     def get_Kc(self, psis, V):
@@ -114,7 +114,7 @@ class BCSCooling(BCS):
         for i, psi in enumerate(psis):
             psi_k = np.fft.fft(psi)*self.dV
             Vpsi_k = np.fft.fft(Hpsis[i])*self.dV
-            Kc = Kc + 2*(psi_k.conj()*Vpsi_k).imag/N /self.dV
+            Kc = Kc + 2*(psi_k.conj()*Vpsi_k).imag/N*self.dV/np.prod(self.Lxyz)
         return Kc
  
     def apply_expK(self, psis, V, factor=1):

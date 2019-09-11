@@ -36,8 +36,14 @@ def Prob(psi):
 
 # ## Analytical vs Numerical
 
-Nx = 128
-bcs = BCSCooling(N=Nx, L=None, dx=0.1, beta_0=1j, beta_K=0, beta_V=0)
+dx**2/L
+
+23/64
+
+Nx = 64
+L = 23.0
+dx = L/Nx
+bcs = BCSCooling(N=Nx, L=None, dx=dx, beta_0=1j, beta_K=0, beta_V=0)
 np.random.seed(1)
 psi_ = np.exp(-bcs.xyz[0]**2/2)/np.pi**0.25
 
@@ -69,7 +75,7 @@ u1=(np.sqrt(2)*x*np.exp(-x**2/2))/np.pi**4
 u1 = u1/u1.dot(u1.conj())**0.5
 ax1 = plt.subplot(121)
 ax2 = plt.subplot(122)
-s = BCSCooling(N=Nx, dx=0.1, beta_0=-1j, beta_K=1, beta_V=1)
+s = BCSCooling(N=Nx, dx=dx,  beta_0=-1j, beta_K=1, beta_V=1)
 s.g = 0# -1
 x = s.xyz[0]
 r2 = x**2
@@ -98,8 +104,8 @@ from IPython.display import display, clear_output
 from IPython.core.debugger import set_trace
 
 
-def PlayCooling(psis0, psis, N_data=10, N_step=100, beta_0=1, beta_V=1, beta_K=0, divs=(0,0)):
-    bcs = BCSCooling(N=len(psis0[0]), dx=0.1, beta_0=beta_0, beta_V=beta_V, beta_K=beta_K, divs=divs, smooth=True)
+def PlayCooling(psis0, psis, N_data=10, N_step=100, beta_0=1, beta_V=1, beta_K=0, **kw):
+    bcs = BCSCooling(N=len(psis0[0]), dx=dx, beta_0=beta_0, beta_V=beta_V, beta_K=beta_K, **kw)
     bcs.dt = bcs.dt
     E0, N0 = bcs.get_E_Ns(psis0, V=V)
     Es, cs, steps = [], [], list(range(N_data))
@@ -115,7 +121,7 @@ def PlayCooling(psis0, psis, N_data=10, N_step=100, beta_0=1, beta_V=1, beta_K=0
             plt.plot(x, abs(psi)**2,'+', c=cs[i])
         #for i, psi in enumerate(psis):
         #    dpsi = bcs.Del(psi, n=1)
-        #    plt.plot(x, abs(dpsi)**2,'--', c=cs[i])
+        #   plt.plot(x, abs(dpsi)**2,'--', c=cs[i])
         plt.title(f"E0={E0},E={E}")
         plt.show()
         clear_output(wait=True)
@@ -126,18 +132,32 @@ H0 = bcs._get_H(mu_eff=0, V=0)  # free particle
 H1 = bcs._get_H(mu_eff=0, V=V)  # harmonic trap
 U0, Es0 = bcs.get_U_E(H0, transpose=True)
 U1, Es1 = bcs.get_U_E(H1, transpose=True)
-psis0 = U1[:2]
-psis = U0[:2]
+plt.plot(x, np.log10(abs(U1[0])))
 
-psis=PlayCooling(psis0=psis0, psis=psis, N_data=100, N_step=10, beta_0=1, beta_V=1, beta_K=1, divs=(1, 2))
 
-psis=PlayCooling(psis0=psis0, psis=psis, N_data=100, N_step=10, beta_0=1, beta_V=1, beta_K=1, divs=(2, 2))
+def Cooling(beta_0=1, beta_V=1, beta_K=1, N=1, divs=None, smooth=False):
+    H0 = bcs._get_H(mu_eff=0, V=0)  # free particle
+    H1 = bcs._get_H(mu_eff=0, V=V)  # harmonic trap
+    U0, Es0 = bcs.get_U_E(H0, transpose=True)
+    U1, Es1 = bcs.get_U_E(H1, transpose=True)
+    psis0 = U1[:N]
+    psis = U0[:N]
+    psis=PlayCooling(psis0=psis0, psis=psis, N_data=100, N_step=100, beta_0=beta_0, beta_V=beta_V, beta_K=beta_K, divs=divs, smooth=smooth)
 
-psis=PlayCooling(psis0=psis0, psis=psis, N_data=100, N_step=10, beta_0=1, beta_V=1, beta_K=1, divs=(1, 1))
 
-psis=PlayCooling(psis0=psis0, psis=psis, N_data=100, N_step=10, beta_0=1, beta_V=1, beta_K=1, divs=None)
+Cooling(beta_V=0, beta_K=0,divs=(0, 0))
 
-psis=PlayCooling(psis0=psis0, psis=psis, N_data=100, N_step=10, beta_0=1, beta_V=1, beta_K=1, divs=(1,0))
+Cooling(beta_V=1, beta_K=0,divs=(0, 0))
+
+Cooling(beta_V=1, beta_K=0, divs=(0, 0))
+
+Cooling(beta_V=0, beta_K=1, divs=(0, 0))
+
+Cooling(beta_V=0, beta_K=0, divs=(0, 1))
+
+Cooling(beta_V=0.001, beta_K=0, divs=(1, 1))
+
+Cooling(beta_V=1, beta_K=1, divs=(1, 1))
 
 # ## Zero Current Case
 # * We can comstruct a ground state with zero current by put two particles in two planewave with opposite signs
