@@ -90,6 +90,20 @@ class BCS(IHFBKernel):
     def dV(self):
         return numpy.prod(self.dxyz)
 
+    def erase_max_ks(self):
+        """set the max abs(ks) to zero as they may cause problems"""
+        self.max_ks = []
+        for i in range(self.dim):
+            self.max_ks.append(self.kxyz[i][self.Nxyz[i]//2])
+            if self.Nxyz[i] % 2 == 0:
+                self.kxyz[i][self.Nxyz[i]//2]=0
+
+    def restore_max_ks(self):
+        """restore the original max ks"""
+        for i in range(self.dim):
+            if self.Nxyz[i] % 2 == 0 and self.kxyz[i][self.Nxyz[i]//2] == 0:
+                self.kxyz[i][self.Nxyz[i]//2] = self.max_ks[i]
+
     def _get_twistss(self, N_twist):
         """return twistss for given twisting Number"""
         twistss = itertools.product(*(np.arange(0, N_twist)*2*np.pi/N_twist,)*self.dim)

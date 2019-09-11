@@ -3,6 +3,7 @@ from mmf_hfb.bcs import BCS
 import numpy as np
 from scipy import signal as sg
 
+
 def Assert(a, b, rtol=1e-10):
     assert np.allclose(a, b, rtol=rtol)
 

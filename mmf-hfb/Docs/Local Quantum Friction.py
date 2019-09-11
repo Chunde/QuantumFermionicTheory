@@ -13,10 +13,6 @@
 #     name: python3
 # ---
 
-import mmf_setup;mmf_setup.nbinit()
-# %pylab inline --no-import-all
-from nbimports import *
-
 # # Local Quantum Friction
 
 # ## Introduction
@@ -119,15 +115,9 @@ from nbimports import *
 
 # Run the following simulation of a highly-excited superfluid and explore the effect of the cooling phase.  The simulation starts with a BEC in a cylindrical trap rotating with a high angular velocity.  You can addjust the cooling parameter $\epsilon$ with the first slider.  For large amounts of cooling, you should see the system rapidly lose energy to form a set of orbiting vortices.
 
-# + {"language": "javascript"}
-# IPython.OutputArea.prototype._should_scroll = function(lines) { return false; }
-# -
-
-# Does not work on CoLab yet
-from mmf_setup.set_path import hgroot
-from importlib import reload
-#from super_hydro.client import notebook;reload(notebook)
-#notebook.run(model='gpe.BEC', Nx=64, Ny=64)
+import mmf_setup;mmf_setup.nbinit()
+# %pylab inline --no-import-all
+from nbimports import *
 
 # ### Quantum Friction
 
@@ -260,11 +250,6 @@ from importlib import reload
 # The if the density is increasing at $x$ due to converging current, then the cooling potential will increase at this point to slow the converging flow, thereby removing kinetic energy from the system.  The interpretation for $V_K(k)$ is similar in the dual space, though less conventional.
 
 # Here are some explicit formulae:
-# $$
-# V_c(x)=\dot{n(x)}=\frac{d n(x)}{dt}=\frac{d \braket{\psi|\psi}}{d t}=\braket{\dot{\psi}|\psi}+\braket{\psi|\dot{\psi}}\\
-# =\frac{2\braket{\psi|\op{H}|\psi}}{i\hbar}=2\Im{\braket{\psi|\op{H}|\psi}}=2\Im{\braket{\psi|x}\braket{x|\op{H}|\psi}}=2\Im{\left(\psi^*(x)\braket{x|\op{H}|\psi}\right)}2\Im{\left(\psi^*(x)\braket{x|\op{K}|\psi}\right)}
-# $$
-# Then:
 #
 # $$
 #   V_c(x) = 2\Im\Bigl(\psi^*(x)\braket{x|\op{K}|\psi}\Bigr)
@@ -491,14 +476,13 @@ for Nx in [128, 256, 512]:
 plt.sca(ax1)
 plt.legend()
 plt.xlabel('t')
-plt.ylabel('abs((E-E0)/E0)');
+plt.ylabel('abs((E-E0)/E0)')
 # -
 
 # This demonstrates that for a bright soliton, imaginary time cooling cools at the same rate, independent of the box size.
 
 # +
 from mmf_setup.set_path import hgroot
-from super_hydro.contexts import NoInterrupt
 from IPython.display import clear_output
 from importlib import reload
 import quantum_friction;reload(quantum_friction)
@@ -540,8 +524,8 @@ Hc = s.get_Hc(psi)
 Hc_k = np.fft.ifft(np.fft.fft(Hc, axis=0), axis=1)
 np.diag(Hc_k).real - Kc
 
-reload(quantum_friction)
-from quantum_friction import StateBase
+# +
+
 s = StateBase(Nxyz=(32, 32), beta_0=-1.0j, beta_V=0.0, beta_K=0.0)
 #s = StateBase(Nxyz=(32, 32), beta_0=-1j)
 x, y = s.xyz
@@ -551,6 +535,7 @@ psi0 = 1.0*np.exp(1j*np.angle(phase))
 ts, psis = s.solve(psi0, T=1.0, rtol=1e-5, atol=1e-6)
 display(s.plot(psis[-1]));
 
+# -
 
 NoInterrupt.unregister()
 with NoInterrupt() as interrupted:

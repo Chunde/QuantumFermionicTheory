@@ -36,10 +36,6 @@ def Prob(psi):
 
 # ## Analytical vs Numerical
 
-dx**2/L
-
-23/64
-
 Nx = 64
 L = 23.0
 dx = L/Nx
@@ -67,7 +63,7 @@ dy = bcs.Del(y, n=2)
 plt.plot(x, dy)
 plt.plot(x, -2*np.cos(2*x), '+')
 
-# ## Evolve in Imaginary Time
+# ## Evolve with Imaginary Time
 
 u0 = np.exp(-x**2/2)/np.pi**4
 u0 = u0/u0.dot(u0.conj())**0.5
@@ -104,8 +100,8 @@ from IPython.display import display, clear_output
 from IPython.core.debugger import set_trace
 
 
-def PlayCooling(psis0, psis, N_data=10, N_step=100, beta_0=1, beta_V=1, beta_K=0, **kw):
-    bcs = BCSCooling(N=len(psis0[0]), dx=dx, beta_0=beta_0, beta_V=beta_V, beta_K=beta_K, **kw)
+def PlayCooling(psis0, psis, N_data=10, N_step=100, **kw):
+    bcs = BCSCooling(N=len(psis0[0]), dx=dx, **kw)
     bcs.dt = bcs.dt
     E0, N0 = bcs.get_E_Ns(psis0, V=V)
     Es, cs, steps = [], [], list(range(N_data))
@@ -135,36 +131,89 @@ U1, Es1 = bcs.get_U_E(H1, transpose=True)
 plt.plot(x, np.log10(abs(U1[0])))
 
 
-def Cooling(beta_0=1, beta_V=1, beta_K=1, N=1, divs=None, smooth=False):
+def Cooling(beta_0=1, N=1, **args):
     H0 = bcs._get_H(mu_eff=0, V=0)  # free particle
     H1 = bcs._get_H(mu_eff=0, V=V)  # harmonic trap
     U0, Es0 = bcs.get_U_E(H0, transpose=True)
     U1, Es1 = bcs.get_U_E(H1, transpose=True)
     psis0 = U1[:N]
     psis = U0[:N]
-    psis=PlayCooling(psis0=psis0, psis=psis, N_data=100, N_step=100, beta_0=beta_0, beta_V=beta_V, beta_K=beta_K, divs=divs, smooth=smooth)
+    psis=PlayCooling(psis0=psis0, psis=psis, **args)
 
 
-Cooling(beta_V=0, beta_K=0,divs=(0, 0))
+# ### Evolve with Original Harmitonian
 
-Cooling(beta_V=1, beta_K=0,divs=(0, 0))
+Cooling(N_data=10, N_step=100, beta_V=0, beta_K=0,divs=(0, 0))
 
-Cooling(beta_V=1, beta_K=0, divs=(0, 0))
+# ### With $V_c$ Only
+
+Cooling(N_data=10, N_step=100, beta_V=1, beta_K=0,divs=(0, 0))
+
+# ### With $V_c$ and $K_c$
+
+Cooling(beta_V=1, beta_K=3, divs=(0, 0))
+
+# ### With $K_c$ only
 
 Cooling(beta_V=0, beta_K=1, divs=(0, 0))
 
-Cooling(beta_V=0, beta_K=0, divs=(0, 1))
+# ### With Derivatives
 
-Cooling(beta_V=0.001, beta_K=0, divs=(1, 1))
+Cooling(N_data=1, N_step=100,beta_V=0.1, beta_K=0, divs=(1, 1))
 
-Cooling(beta_V=1, beta_K=1, divs=(1, 1))
+# ### Test code
 
-# ## Zero Current Case
-# * We can comstruct a ground state with zero current by put two particles in two planewave with opposite signs
+# +
+from mmf_hfb.BCSCooling import BCSCooling
+import matplotlib.pyplot as plt
 
-psis = [np.exp(-1j*x), np.exp(1j*x)]
-plt.plot(x, abs(psis[0])**2)
 
-psis=PlayCooling(psis0=psis0[:2], psis=psis, N_data=10, N_step=100)
+def get_V(x):
+    return x**2/2
+
+def PlayCooling(bcs, psis0, psis, V=None, N_data=10, N_step=100, **kw):
+    x = bcs.xyz[0]
+    if V is None:
+        V = get_V(x)
+    E0, _ = bcs.get_E_Ns(psis0, V=V)
+    Es, cs= [], []
+    for _n in range(N_data):
+        psis = bcs.step(psis, V=V, n=N_step)
+        # assert np.allclose(psis[0].dot(psis[1].conj()), 0)
+        E, N = bcs.get_E_Ns(psis, V=V)
+        Es.append(abs(E - E0)/E0)
+        for psi in psis:
+            ax, = plt.plot(x, abs(psi)**2)
+            cs.append(ax.get_c())
+        for i, psi in enumerate(psis0):
+            plt.plot(x, abs(psi)**2, '+', c=cs[i])
+        # for i, psi in enumerate(psis):
+        #    dpsi = bcs.Del(psi, n=1)
+        #   plt.plot(x, abs(dpsi)**2,'--', c=cs[i])
+        plt.title(f"E0={E0},E={E}")
+        plt.show()
+        clear_output(wait=True)
+    return psis
+
+
+def Cooling(bcs, N=1, **args):
+    V = get_V(bcs.xyz[0])
+    H0 = bcs._get_H(mu_eff=0, V=0)  # free particle
+    H1 = bcs._get_H(mu_eff=0, V=V)  # harmonic trap
+    U0, _ = bcs.get_U_E(H0, transpose=True)
+    U1, _ = bcs.get_U_E(H1, transpose=True)
+    psis0 = U1[:N]
+    psis = U0[:N]
+    psis=PlayCooling(bcs=bcs, psis0=psis0, psis=psis, V=V, **args)
+    
+
+# -
+
+Nx = 64
+L = 23.0
+dx = L/Nx
+bcs = BCSCooling(N=Nx, L=None, dx=dx, beta_0=1, beta_V=0.2, beta_K=0, divs=(1, 1), smooth=True)
+#bcs.erase_max_ks()
+Cooling(bcs=bcs, N_data=100, N_step=100)
 
 
