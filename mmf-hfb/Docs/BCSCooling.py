@@ -38,7 +38,7 @@ def Prob(psi):
 
 # ## Analytical vs Numerical
 
-Nx = 64
+Nx = 128
 L = 23.0
 dx = L/Nx
 bcs = BCSCooling(N=Nx, L=None, dx=dx, beta_0=1j, beta_K=0, beta_V=0)
@@ -77,46 +77,48 @@ dy = bcs.Del(y, n=2)
 plt.plot(x, dy)
 plt.plot(x, -2*np.cos(2*x), '+')
 
+
 # ## Evolve with Imaginary Time
 
-# +
-plt.figure(figsize(16, 8))
-ax1 = plt.subplot(121)
-ax2 = plt.subplot(122)
-for Nx in [64, 128, 256]:
-    s = BCSCooling(N=Nx, dx=dx,  beta_0=-1j, beta_K=1, beta_V=1)
-    s.g = 0# -1
-    x = s.xyz[0]
-    r2 = x**2
-    V = x**2/2
-    u0 = np.exp(-x**2/2)/np.pi**4
-    u0 = u0/u0.dot(u0.conj())**0.5
-    u1=(np.sqrt(2)*x*np.exp(-x**2/2))/np.pi**4
-    u1 = u1/u1.dot(u1.conj())**0.5
- 
-    psi_0 = Normalize(V*0 + 1) # np.exp(-r2/2.0)*np.exp(1j*s.xyz[0])
-    ts, psis = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, V=V, method='BDF')
-    psi0 = psis[0][-1]
-    E0, N0 = s.get_E_Ns([psi0], V=V)
-    Es = [s.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]
-    line, = ax1.semilogy(ts[0][:-2], (Es[:-2] - E0)/abs(E0), label=f"Nx={Nx}")
+def ImaginaryCooling():
+    plt.figure(figsize(16, 8))
+    ax1 = plt.subplot(121)
+    ax2 = plt.subplot(122)
+    for Nx in [64, 128, 256]:
+        s = BCSCooling(N=Nx, dx=dx,  beta_0=-1j, beta_K=1, beta_V=1)
+        s.g = 0# -1
+        x = s.xyz[0]
+        r2 = x**2
+        V = x**2/2
+        u0 = np.exp(-x**2/2)/np.pi**4
+        u0 = u0/u0.dot(u0.conj())**0.5
+        u1=(np.sqrt(2)*x*np.exp(-x**2/2))/np.pi**4
+        u1 = u1/u1.dot(u1.conj())**0.5
+
+        psi_0 = Normalize(V*0 + 1) # np.exp(-r2/2.0)*np.exp(1j*s.xyz[0])
+        ts, psis = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, V=V, method='BDF')
+        psi0 = psis[0][-1]
+        E0, N0 = s.get_E_Ns([psi0], V=V)
+        Es = [s.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]
+        line, = ax1.semilogy(ts[0][:-2], (Es[:-2] - E0)/abs(E0), label=f"Nx={Nx}")
+        plt.sca(ax2)
+        plt.plot(x, psi0)  # ground state
+        plt.plot(x, psi_0, '--')  # initial state
+        plt.plot(x, u0, '+')  # desired ground state
+        E, N = s.get_E_Ns([V], V=V)
+        plt.title(f"E={E:.4f}, N={N:.4f}")
+
+    plt.legend()
+    plt.xlabel('t')
+    plt.ylabel('abs((E-E0)/E0)')
     plt.sca(ax2)
-    plt.plot(x, psi0)  # ground state
-    plt.plot(x, psi_0, '--')  # initial state
-    plt.plot(x, u0, '+')  # desired ground state
-    E, N = s.get_E_Ns([V], V=V)
-    plt.title(f"E={E:.4f}, N={N:.4f}")
-    
-plt.legend()
-plt.xlabel('t')
-plt.ylabel('abs((E-E0)/E0)')
-plt.sca(ax2)
-plt.xlim(-5,5)
-clear_output()
-plt.show()
+    plt.xlim(-5,5)
+    clear_output()
+    plt.show()
 
 
-# -
+ImaginaryCooling()
+
 
 # ## Demostrate the $V_c$ and $K_c$ are Independent of Box Size
 # * with fixed $dx$
@@ -161,12 +163,12 @@ from IPython.core.debugger import set_trace
 
 
 def PlayCooling(psis0, psis, N_data=10, N_step=100, **kw):
-    bcs = BCSCooling(N=Nx, L=None, dx=dx, **kw)
+    b = BCSCooling(N=Nx, L=None, dx=dx, **kw)
     E0, N0 = bcs.get_E_Ns(psis0, V=V)
     Es, cs, steps = [], [], list(range(N_data))
     for _n in range(N_data):
-        psis = bcs.step(psis, V=V, n=N_step)
-        E, N = bcs.get_E_Ns(psis, V=V)
+        psis = b.step(psis, V=V, n=N_step)
+        E, N = b.get_E_Ns(psis, V=V)
         Es.append(abs(E - E0)/E0)
         for psi in psis:
             ax, = plt.plot(x, abs(psi)**2)
@@ -176,7 +178,7 @@ def PlayCooling(psis0, psis, N_data=10, N_step=100, **kw):
         #for i, psi in enumerate(psis):
         #    dpsi = bcs.Del(psi, n=1)
         #   plt.plot(x, abs(dpsi)**2,'--', c=cs[i])
-        plt.title(f"E0={E0},E={E}, beta_0={bcs.beta_0}, beta_V={bcs.beta_V}, beta_K={bcs.beta_K}")
+        plt.title(f"E0={E0},E={E}, $" + r"\beta_0$" +f"={b.beta_0}, "+r"$\beta_V$"+f"={b.beta_V}, "+r" $\beta_K$" +f"={b.beta_K}")
         plt.show()
         clear_output(wait=True)
     return psis
@@ -204,26 +206,25 @@ Cooling(N_data=10, N_step=100, beta_V=0, beta_K=0,divs=(0, 0))
 
 # ### With $V_c$ Only
 
-Cooling(N_data=100, N_step=1, beta_V=100, beta_K=0, divs=(0, 0))
+Cooling(N_data=10, N_step=1000, beta_V=1, beta_K=0, divs=(0, 0))
 
 # ### With $K_c$ only
 
-Cooling(beta_V=0, beta_K=1, divs=(0, 0))
+Cooling(N_data=10, N_step=1000, beta_V=0, beta_K=2, divs=(0, 0))
 
 # ### With $V_c$ and $K_c$
 
-Cooling(beta_V=0, beta_K=1, divs=(0, 0))
+Cooling(N_data=10, N_step=1000,beta_V=1, beta_K=1, divs=(0, 0))
 
 # ### With Derivatives
 
-Cooling(N_data=1, N_step=100,beta_V=0.1, beta_K=0, divs=(1, 1))
+Cooling(N_data=30, N_step=1000, beta_V=0.01, beta_K=0, divs=(1, 1))
 
 # ### Test code
 
 # +
 from mmf_hfb.BCSCooling import BCSCooling
 import matplotlib.pyplot as plt
-
 
 def get_V(x):
     return x**2/2
@@ -253,7 +254,7 @@ def PlayCooling(bcs, psis0, psis, V=None, N_data=10, N_step=100, **kw):
     return psis
 
 
-def Cooling(bcs, N=1, **args):
+def CoolingEx(bcs, N=1, **args):
     V = get_V(bcs.xyz[0])
     H0 = bcs._get_H(mu_eff=0, V=0)  # free particle
     H1 = bcs._get_H(mu_eff=0, V=V)  # harmonic trap
@@ -266,11 +267,11 @@ def Cooling(bcs, N=1, **args):
 
 # -
 
-Nx = 64
+Nx = 128
 L = 23.0
 dx = L/Nx
 bcs = BCSCooling(N=Nx, L=None, dx=dx, beta_0=1, beta_V=0.2, beta_K=0, divs=(1, 1), smooth=True)
-#bcs.erase_max_ks()
-Cooling(bcs=bcs, N_data=100, N_step=100)
+bcs.erase_max_ks()
+CoolingEx(bcs=bcs, N_data=100, N_step=100)
 
 
