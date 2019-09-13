@@ -38,7 +38,7 @@ def Prob(psi):
 
 # ## Analytical vs Numerical
 
-Nx = 128
+Nx = 64
 L = 23.0
 dx = L/Nx
 bcs = BCSCooling(N=Nx, L=None, dx=dx, beta_0=1j, beta_K=0, beta_V=0)
@@ -86,8 +86,9 @@ def ImaginaryCooling():
     ax2 = plt.subplot(122)
     for Nx in [64, 128, 256]:
         labels = ["IR", "UV"]
-        ir = BCSCooling(N=Nx, dx=dx, beta_0=-1j, beta_K=1, beta_V=1) # dx fixed, L changes, IR
-        uv = BCSCooling(N=Nx, dx=dx*64.0/Nx, beta_0=-1j, beta_K=1, beta_V=1) # dx changes, L fixed: UV
+        args = dict(N=Nx, beta_0=-1j, beta_K=0, beta_V=0)
+        ir = BCSCooling(dx=dx, **args) # dx fixed, L changes, IR
+        uv = BCSCooling(dx=dx*64.0/Nx, **args) # dx changes, L fixed: UV
         for i, s in enumerate([ir, uv]):
             ir.g = 0# -1
             x = s.xyz[0]
@@ -124,20 +125,84 @@ def ImaginaryCooling():
 ImaginaryCooling()
 
 
+# # Cooling Hamiltonian
+
+# Start with Schrodinger Equation:
+#
+# $$
+#   \I\hbar \ket{\dot{\psi}} \equiv \I\hbar \pdiff{\ket{\psi}}{t}
+#   = \op{H}\ket{\psi}.
+# $$
+#
+# Assume the original Hamiltonian does not depend on time explicitly, then the change of energy can be computed as:
+# $$
+# \dot{E}=\dot{\braket{H}}=\dot{\bra{\psi}}H\ket{\psi} + \bra{\psi}H\dot{\ket{\psi}}
+# $$
+# Here is we evolve the wavefunction with original hamiltonian, the energy will be conserved, so we need to find a different hamiltonian $H_c$ so that
+# $$
+# H_c\ket{\psi}=i\hbar\dot{\ket{\psi}}\qquad \dot{\ket{\psi}}=-\frac{i}{\hbar} H_c\ket{\psi}
+# $$
+# Then
+# $$
+# \dot{E}=\dot{\bra{\psi}}H\ket{\psi} + \bra{\psi}H\dot{\ket{\psi}}=\frac{i}{\hbar} \braket{\psi |H_c H|\psi} -\frac{i}{\hbar}  \braket{\psi |H_c H|\psi}=\frac{i}{\hbar}\braket{\psi [H_c, H]\psi}=\frac{\braket{\psi [H, H_c]\psi}}{i\hbar}
+# $$
+#
+# If we can choose $\op{H}_c$ to ensure that the last term is negative-definite, then we have a cooling procedure.  The last term can be more usefully expressed in terms of the normalized density operator $\op{R} = \ket{\psi}\bra{\psi}/\braket{\psi|\psi}$ and using the cyclic property of the trace:
+#
+# $$
+#   \frac{\braket{\psi|[\op{H},\op{H}_c]|\psi}}{\braket{\psi|\psi}} 
+#   = \Tr\left(\op{R}[\op{H},\op{H}_c]\right)
+#   = \Tr\left(\op{H}_c[\op{R},\op{H}]\right),\qquad
+#   \hbar\dot{E} = -\braket{\psi|\psi}\Tr\left(\I[\op{R},\op{H}]\op{H}_c\right).
+# $$
+#
+# This gives the optimal choice:
+#
+# $$
+#   \op{H}_c = \left(\I[\op{R},\op{H}]\right)^{\dagger}
+#            = \I[\op{R},\op{H}], \qquad
+#   \hbar\dot{E} = -\braket{\psi|\psi}\Tr(\op{H}_c^\dagger\op{H}_c),\tag{1}
+# $$
+#
+
+# ## Units
+
+# First, $\braket{\psi|\psi}$ is dimentionless because is the particle number, the matrix $R=\sum_{\psi}\ket{\psi}\bra{\psi}$ should has not unit in all bases to satisifed $R^n=R$ for pure state. In $\ket{\psi}$ basis:
+#
+# $$
+# R_{mn}=\braket{\psi_m|R|\psi_n}=\sum_l \braket{\psi_m|\psi_l}\braket{\psi_l|\psi_n}=\sum_l \delta_{lm}\delta_{ln}=\delta_{mn}\qquad \text{(dimensionless)}
+# $$
+#
+# Then from the relation in (1), we can see $H_c$ and $H$ should have same unit.
+#
+# Since $H\ket{\psi}=E\ket{\psi}$, the $H$ must have unit of energy, its matrix elemet in bais of $\psi$ can be derived as:
+# $$
+# H_{mn}=\braket{\psi_m|H|\psi_n}=\int dx dx'\braket{\psi_m|x}\braket{x|H|x'}\braket{x'|\psi_n}=\int dx dx'\psi^*_m(x)\psi(x')\braket{x|H|x'}
+# $$
+# It's well known that the wave function $\psi(x)$ has unit of $\frac{1}{\sqrt{V}}$($V$ is the spatial volumn), and $\psi^*_m(x)\psi_n(x')$ has unit of $\frac{1}{V}$, $dx$ and $dx'$ are with unit $V$, then the units for the matrix element of Hamiltonian in basis $\psi$ and $x$ are different and connected by:
+# $$
+# [\braket{\psi|H|\psi}=\frac{[\braket{x|H|x}]}{V}
+# $$
+# That means the matrix elements of an operator would be different in different bases.
+
+# The Hamiltonian matrx in a basis applied on a vector in that the space spaned by that basis will yield a new vector,
+
+# Start with relations:
+#
+# $$
+# R = \sum_n \ket{\psi_n}\bra{\psi_n}\qquad H_c = i[R, H]\\
+# \dot{N}=\frac{d}{dt}\braket{\psi|\psi}=\braket{\dot{\psi}|\psi}+\braket{\psi|\dot{\psi}}=0\\
+# V_c(x)=i\braket{x|H_c|x}=i\braket{x|[R, H]|x}=-\hbar\dot{n(x)}
+# $$
+#
+
 # ## Demostrate the $V_c$ and $K_c$ are Independent of Box Size
 # * with fixed $dx$
 
-# $$
-# \hat{R}=\sum_n \ket{\psi_n}\bra{\psi_n}\qquad
-# \hat{V}_c(x)=\int dx V_c(x) \ket{x}\bra{x} \qquad\\
-# N=\braket{\psi|\psi}=\int dx\psi(x)^*\psi(x)\qquad
-# V_c(x) =\braket{x|H_c|x}
-# $$
-
 def Check_Vc():
     for Nx in [64, 128, 256]:
-        offset = np.log(Nx)*0.1
-        s = BCSCooling(N=Nx, dx=dx,  beta_0=-1j, beta_K=1, beta_V=1)
+        offset = np.log(Nx)*0
+        s = BCSCooling(N=Nx, dx=dx*64/Nx,  beta_0=-1j, beta_K=1, beta_V=1)
         s.g = -1
         x = s.xyz[0]
         V_ext = x**2/2

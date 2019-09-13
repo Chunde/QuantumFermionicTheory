@@ -91,7 +91,7 @@ class BCSCooling(BCS):
         if self.divs is None:
             Hpsis = self.apply_H(psis, V=V)
             for i, psi in enumerate(psis):
-                Vc = Vc + 2*(psi.conj()*Hpsis[i]).imag*self.dV/N
+                Vc = Vc + 2*(psi.conj()*Hpsis[i]).imag/N
         else:  # Departure from locality
             da, db = self.divs
             psis_a = [self.Del(psi, n=da) for psi in psis]
@@ -105,7 +105,7 @@ class BCSCooling(BCS):
             for i in range(len(psis)):
                 Vc = Vc + (
                     (Hpsis_a[i]*psis_b[i].conj()
-                        -psis_a[i]*Hpsis_b[i].conj())).imag*self.dV/N  # may not need he dv term here
+                        -psis_a[i]*Hpsis_b[i].conj())).imag/N  # may not need he dv term here
         return Vc
 
     def get_Kc(self, psis, V):
