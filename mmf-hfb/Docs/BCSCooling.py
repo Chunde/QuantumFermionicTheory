@@ -85,33 +85,37 @@ def ImaginaryCooling():
     ax1 = plt.subplot(121)
     ax2 = plt.subplot(122)
     for Nx in [64, 128, 256]:
-        s = BCSCooling(N=Nx, dx=dx,  beta_0=-1j, beta_K=1, beta_V=1)
-        s.g = 0# -1
-        x = s.xyz[0]
-        r2 = x**2
-        V = x**2/2
-        u0 = np.exp(-x**2/2)/np.pi**4
-        u0 = u0/u0.dot(u0.conj())**0.5
-        u1=(np.sqrt(2)*x*np.exp(-x**2/2))/np.pi**4
-        u1 = u1/u1.dot(u1.conj())**0.5
+        labels = ["IR", "UV"]
+        ir = BCSCooling(N=Nx, dx=dx, beta_0=-1j, beta_K=1, beta_V=1) # dx fixed, L changes, IR
+        uv = BCSCooling(N=Nx, dx=dx*64.0/Nx, beta_0=-1j, beta_K=1, beta_V=1) # dx changes, L fixed: UV
+        for i, s in enumerate([ir, uv]):
+            ir.g = 0# -1
+            x = s.xyz[0]
+            r2 = x**2
+            V = x**2/2
+            u0 = np.exp(-x**2/2)/np.pi**4
+            u0 = u0/u0.dot(u0.conj())**0.5
+            u1=(np.sqrt(2)*x*np.exp(-x**2/2))/np.pi**4
+            u1 = u1/u1.dot(u1.conj())**0.5
 
-        psi_0 = Normalize(V*0 + 1) # np.exp(-r2/2.0)*np.exp(1j*s.xyz[0])
-        ts, psis = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, V=V, method='BDF')
-        psi0 = psis[0][-1]
-        E0, N0 = s.get_E_Ns([psi0], V=V)
-        Es = [s.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]
-        line, = ax1.semilogy(ts[0][:-2], (Es[:-2] - E0)/abs(E0), label=f"Nx={Nx}")
-        plt.sca(ax2)
-        plt.plot(x, psi0)  # ground state
-        plt.plot(x, psi_0, '--')  # initial state
-        plt.plot(x, u0, '+')  # desired ground state
-        E, N = s.get_E_Ns([V], V=V)
-        plt.title(f"E={E:.4f}, N={N:.4f}")
-
+            psi_0 = Normalize(V*0 + 1) # np.exp(-r2/2.0)*np.exp(1j*s.xyz[0])
+            ts, psis = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, V=V, method='BDF')
+            psi0 = psis[0][-1]
+            E0, N0 = s.get_E_Ns([psi0], V=V)
+            Es = [s.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]
+            line, = ax1.semilogy(ts[0][:-2], (Es[:-2] - E0)/abs(E0), label=labels[i] + f":Nx={Nx}")
+            plt.sca(ax2)
+            l, = plt.plot(x, psi0)  # ground state
+            plt.plot(x, psi_0, '--', c=l.get_c(), label=labels[i] + f":Nx={Nx}")  # initial state
+            plt.plot(x, u0, '+', c=l.get_c())  # desired ground state
+            E, N = s.get_E_Ns([V], V=V)
+            # plt.title(f"E={E:.4f}, N={N:.4f}")
+    plt.sca(ax1)
     plt.legend()
     plt.xlabel('t')
     plt.ylabel('abs((E-E0)/E0)')
     plt.sca(ax2)
+    plt.legend()
     plt.xlim(-5,5)
     clear_output()
     plt.show()
@@ -178,7 +182,9 @@ def PlayCooling(psis0, psis, N_data=10, N_step=100, **kw):
         #for i, psi in enumerate(psis):
         #    dpsi = bcs.Del(psi, n=1)
         #   plt.plot(x, abs(dpsi)**2,'--', c=cs[i])
-        plt.title(f"E0={E0},E={E}, $" + r"\beta_0$" +f"={b.beta_0}, "+r"$\beta_V$"+f"={b.beta_V}, "+r" $\beta_K$" +f"={b.beta_K}")
+        plt.title(
+            f"E0={E0:5.4},E={E:5.4}, $" + r"\beta_0$" +f"={b.beta_0}, "
+            +r"$\beta_V$"+f"={b.beta_V}, "+r" $\beta_K$" +f"={b.beta_K}")
         plt.show()
         clear_output(wait=True)
     return psis
@@ -190,13 +196,13 @@ Us, Es = bcs.get_U_E(H, transpose=True)
 plt.plot(x, np.log10(abs(Us[0])))
 
 
-def Cooling(beta_0=1, N=1, **args):
+def Cooling(beta_0=1, N_state=1, **args):
     H0 = bcs._get_H(mu_eff=0, V=0)  # free particle
     H1 = bcs._get_H(mu_eff=0, V=V)  # harmonic trap
     U0, Es0 = bcs.get_U_E(H0, transpose=True)
     U1, Es1 = bcs.get_U_E(H1, transpose=True)
-    psis0 = U1[:N]
-    psis = U0[:N]
+    psis0 = U1[:N_state]
+    psis = U0[:N_state]
     psis=PlayCooling(psis0=psis0, psis=psis, **args)
 
 
@@ -215,6 +221,8 @@ Cooling(N_data=10, N_step=1000, beta_V=0, beta_K=2, divs=(0, 0))
 # ### With $V_c$ and $K_c$
 
 Cooling(N_data=10, N_step=1000,beta_V=1, beta_K=1, divs=(0, 0))
+
+Cooling(N_state=2, N_data=10, N_step=1000,beta_V=1, beta_K=0)
 
 # ### With Derivatives
 

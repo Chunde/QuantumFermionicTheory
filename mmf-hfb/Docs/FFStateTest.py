@@ -146,5 +146,9 @@ for dmu in dmus:
     Ps.append(P)
 
 plt.plot(Ps, js)
+plt.xlabel("P")
+plt.ylabel(r"$\frac{J_s}{J}$")
+
+plt.plot(dmus, js)
 
 
