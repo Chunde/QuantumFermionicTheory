@@ -6,11 +6,11 @@
 #       extension: .py
 #       format_name: light
 #       format_version: '1.4'
-#       jupytext_version: 1.1.3
+#       jupytext_version: 1.2.3
 #   kernelspec:
-#     display_name: Python [conda env:_3dqt]
+#     display_name: Python 3
 #     language: python
-#     name: conda-env-_3dqt-py
+#     name: python3
 # ---
 
 # # Check Critical Polarization At Unitary
@@ -25,6 +25,10 @@ from mmf_hfb.ClassFactory import ClassFactory, FunctionalType, KernelType, Solve
 # * The latest code unifies the old code, which supports both Homogeneous and BCS, different functionals can be chosen. The factory function is defnied in file 'ClassFactory.py'
 
 def create_lda(mu, dmu, delta):
+    """
+    Functional Type: BDG/SLDA/ASLDA
+    Kernel Type:HOM/BCS
+    """    
     LDA = ClassFactory(className="LDA", functionalType=FunctionalType.SLDA, kernelType=KernelType.HOM)
     lda = LDA(mu_eff=mu, dmu_eff=dmu, delta=delta, T=0, dim=3)
     lda.C = 0 #lda._get_C(mus_eff=(mu+dmu, mu-dmu), delta=delta)  # unitary case
@@ -32,13 +36,13 @@ def create_lda(mu, dmu, delta):
 
 
 # +
-def get_p(lda, mus_eff, delta=None):
+def get_p(lda, mus_eff, delta=None, dq=0):
     """return polarization"""
     if delta is None:
         delta = lda.solve_delta(mus_eff = mus_eff)
-    res = lda.get_densities(mus_eff=mus_eff, delta=delta,taus_flag=False, nu_flag=False)
-    ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
-    p = min(ns)/max(ns)
+    res = lda.get_densities(mus_eff=mus_eff, delta=delta, dq=dq, taus_flag=False, nu_flag=False)
+    na, nb= (res.n_a, res.n_b)
+    p = (na-nb)/(na+nb)
     return p
 
 def f(delta, mus_eff, dq=0):
@@ -99,47 +103,12 @@ def Plot_C(dmu=2, delta0=1e-8, n=20):
     #plt.axvline(delta, linestyle='dashed')
 Plot_C(dmu=5, n=10)
 
-Plot_C(dmu=6.7, n=20)
+Plot_C(dmu=6.65, n=50)
 
-lda = create_lda(mu=mu, dmu=6.7, delta)
-lda
+dmu = 6.65
+delta = 1e-8
+get_p(lda, mus_eff=(mu + dmu, mu - dmu), delta=delta, dq=0.42)
 
-
-def Plot_C(dmu=2, a=0, b=1.5, n=20):
-    mus_eff=(mu+dmu, mu-dmu)
-    ds = np.linspace(a*delta, b*delta, n)
-    fs = [f(d, mus_eff=mus_eff) for d in ds]
-    plt.plot(ds, fs)
-    plt.xlabel(f"$\Delta$")
-    plt.ylabel("C")
-    plt.axhline(0, linestyle='dashed')
-    plt.axvline(delta, linestyle='dashed')
-
-
-Plot_C(dmu=7)
-
-# ### Polarized Case $d\mu > \Delta$
-
-Plot_C(dmu=5.5, n=20)
-
-# $P_c$ is the polarization at the point where the FF solution to the gap equation begins with $\Delta_{FF} = 0$.  Here I solve for this and then compute the critical polarization.
-
-from scipy.optimize import brentq
-def f1(dmu, delta=1e-8):
-    mus_eff = (mu+dmu, mu-dmu)
-    res = lda.get_densities(mus_eff=mus_eff, delta=delta, taus_flag=False, nu_flag=False)
-    ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
-    return lda._get_C(mus_eff=mus_eff, delta=delta, dq=0, ns=ns,taus=taus, nu=nu) - lda.C
-def get_Pc():
-    dmu = brentq(f1, 0, delta)
-    mus_eff = (mu+dmu, mu-dmu)
-    res = lda.get_densities(mus_eff=mus_eff, delta=1e-8, taus_flag=False, nu_flag=False)
-    na, nb = res.n_a, res.n_b
-    x = nb/na
-    P = (na-nb)/(na+nb)
-    return P
-get_Pc()
-
-# According to the paper, this should be 0.834 so something is wrong.  Please check that this is insensitive to regularization etc.
+# $P_c$ is the polarization at the point where the FF solution to the gap equation begins with $\Delta_{FF} = 0$.  Here I solve for this and then compute the critical polarization.According to the paper, this should be 0.834 so something is wrong.  Please check that this is insensitive to regularization etc.
 
 
