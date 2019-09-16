@@ -41,16 +41,17 @@ def get_p(lda, mus_eff, delta=None):
     p = min(ns)/max(ns)
     return p
 
-def f(delta, mus_eff):
+def f(delta, mus_eff, dq=0):
     """
     we fixed C=0(unitary)
     then compute new C' for given delta and mus_eff
     return dC=C' - C
     if C'==C, we have a solution 
     """
-    res = lda.get_densities(mus_eff=mus_eff, delta=delta, taus_flag=False, nu_flag=False)
+    res = lda.get_densities(mus_eff=mus_eff, delta=delta, dq=dq,
+                            taus_flag=False, nu_flag=False)
     ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
-    return (lda._get_C(mus_eff=mus_eff, delta=delta, dq=0, ns=ns,taus=taus, nu=nu) - lda.C)
+    return (lda._get_C(mus_eff=mus_eff, delta=delta, dq=dq, ns=ns,taus=taus, nu=nu) - lda.C)
 
 
 # -
@@ -86,6 +87,24 @@ for i in range(len(ds)):
 
 # ## Check Solution
 
+def Plot_C(dmu=2, delta0=1e-8, n=20):
+    mus_eff=(mu+dmu, mu-dmu)
+    k0 = np.sqrt(2*mu)
+    dqs = np.linspace(0, k0, n)
+    fs = [f(delta0, mus_eff=mus_eff, dq=dq) for dq in dqs]
+    plt.plot(dqs/k0, fs)
+    plt.xlabel(f"$q$")
+    plt.ylabel("C")
+    plt.axhline(0, linestyle='dashed')
+    #plt.axvline(delta, linestyle='dashed')
+Plot_C(dmu=5, n=10)
+
+Plot_C(dmu=6.7, n=20)
+
+lda = create_lda(mu=mu, dmu=6.7, delta)
+lda
+
+
 def Plot_C(dmu=2, a=0, b=1.5, n=20):
     mus_eff=(mu+dmu, mu-dmu)
     ds = np.linspace(a*delta, b*delta, n)
@@ -97,7 +116,7 @@ def Plot_C(dmu=2, a=0, b=1.5, n=20):
     plt.axvline(delta, linestyle='dashed')
 
 
-Plot_C(dmu=2)
+Plot_C(dmu=7)
 
 # ### Polarized Case $d\mu > \Delta$
 
