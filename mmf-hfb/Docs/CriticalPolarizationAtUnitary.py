@@ -136,7 +136,7 @@ ff.solve(mu=mu, dmu=0)
 
 # $$
 # C=\frac{m}{4 \pi \hbar^{2} a}=\frac{1}{g}+\frac{1}{2} \int \frac{\mathrm{d}^{3} \mathbf{k}}{(2 \pi)^{3}} \frac{1}{\frac{h^{2} k^{2}}{2 m}+\mathrm{i} 0^{+}}=\frac{1}{g}+\Lambda\\
-# \Lambda=\frac{m}{\hbar^{2}} \frac{k_{c}}{2 \pi^{2}}\left\{1-\frac{k_{0}}{2 k_{c}} \ln \frac{k_{c}+k_{0}}{k_{c}-k_{0}}\right\}
+# \Lambda=\frac{m}{\hbar^{2}} \frac{k_{c}}{2 \pi^{2}}\left\{1-\frac{k_{0}}{2 k_{c}} \ln \frac{k_{c}+k_{0}}{k_{c}-k_{0}}\right\}=\frac{m}{\hbar^{2}} \frac{k_{c}}{2 \pi^{2}}\bigl{|}_{k_0/k_c\rightarrow 0}
 # $$
 
 # **if assume** 
@@ -159,7 +159,7 @@ ff.solve(mu=mu, dmu=0)
 # Then if $C$ is treated as a funtion of $q$：
 # $$
 # \begin{align}
-# C(q)
+# C(q,\mu)
 # &=\frac{1}{g(q)}+\Lambda\\
 # &=\frac{1}{2}\int \frac{\d{k}}{2\pi}\frac{\Delta}{E_k}\bigl(f(\omega_-)-f(\omega_+)\bigr) + \Lambda\\
 # \end{align}
@@ -168,8 +168,37 @@ ff.solve(mu=mu, dmu=0)
 
 # To determine the extremum of $C(q)$, we just need to compute the derivative of it:
 # $$
-# \frac{\partial C}{\partial q}=\frac{\Delta}{2}\int \frac{\d{k}}{2\pi} 
-# \frac{\partial}{\partial q}\left[\frac{f(\omega_-)-f(\omega_+)}{E_k}\right]=0
+# \frac{\partial C}{\partial q}=\left\{\frac{\Delta}{2}\int \frac{\d{k}}{2\pi} 
+# \frac{\partial}{\partial q}\left[\frac{f(\omega_-)-f(\omega_+)}{E_k}\right]\right\}\bigl{|}_{\mu}=0\\
 # $$
+# $$
+# \int \frac{\d{k}}{2\pi}\frac{\partial}{\partial q}\left[\frac{f(\omega_-)-f(\omega_+)}{E_k}\right]\bigl{|}_{\mu}=0
+# $$
+
+# The above will minimizes $C(q,\mu)$ with minimized value $C_m$, the $P_c$ happens when $C_m$ is zero for a cetern $\mu$
+
+# +
+# %pylab inline --no-import-all
+from ipywidgets import interact
+m = mu = eF = 1.0
+pF = np.sqrt(2*m*eF)
+delta = 0.5*mu
+p_max = 2*pF
+p_x = np.linspace(0, p_max, 25)
+p_perp = 0
+
+@interact(dq=(-2, 2, 0.1), dmu=(-1.0, 1.0, 0.1), delta=(0, 1, 0.1),q=(0, 2, 0.2))
+def plot_regions(q=0, dq=0, dmu=0.4, delta=0.2):
+    delta = np.abs(delta)
+    mu_a = mu + dmu
+    mu_b = mu - dmu
+    e_a = ((p_x + q + dq)**2 + p_perp**2)/2/m - mu_a
+    e_b = ((p_x + q - dq)**2 + p_perp**2)/2/m - mu_b
+    e_p, e_m = (e_a + e_b)/2.0, (e_a-e_b)/2.0
+    E = np.sqrt(e_p**2 + delta**2)
+    w_p, w_m = e_m + E, e_m - E
+    plt.plot(p_x, w_p)
+    plt.plot(p_x, w_m)
+# -
 
 
