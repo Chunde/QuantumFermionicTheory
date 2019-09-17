@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # ---
 # jupyter:
 #   jupytext:
@@ -17,7 +18,8 @@
 
 import mmf_setup;mmf_setup.nbinit()
 # %pylab inline --no-import-all
-from nbimports import * 
+from nbimports import *
+import numpy as np
 
 from mmf_hfb.ClassFactory import ClassFactory, FunctionalType, KernelType, Solvers
 
@@ -29,7 +31,7 @@ def create_lda(mu, dmu, delta):
     Functional Type: BDG/SLDA/ASLDA
     Kernel Type:HOM/BCS
     """    
-    LDA = ClassFactory(className="LDA", functionalType=FunctionalType.SLDA, kernelType=KernelType.HOM)
+    LDA = ClassFactory(className="LDA", functionalType=FunctionalType.BDG, kernelType=KernelType.HOM)
     lda = LDA(mu_eff=mu, dmu_eff=dmu, delta=delta, T=0, dim=3)
     lda.C = 0 #lda._get_C(mus_eff=(mu+dmu, mu-dmu), delta=delta)  # unitary case
     return lda
@@ -74,41 +76,100 @@ lda.C
 mus_eff = (mu + dmu, mu-dmu)
 lda.solve_delta(mus_eff=mus_eff)
 
-# ## No Polarization Case: $d\mu<\Delta$
-
-dmus = np.linspace(0, mu, 10)
-ds = []
-for dmu in dmus:
-    try:
-        ds.append(lda.solve_delta(mus_eff=(mu+dmu, mu-dmu)))
-    except:
-        break
-
-for i in range(len(ds)):
-    dmu = dmus[i]
-    print(dmu, get_p(lda, mus_eff=(mu+dmu, mu-dmu)))
-
-
 # ## Check Solution
+# $P_c$ is the polarization at the point where the FF solution to the gap equation begins with $\Delta_{FF} = 0$.  Here I solve for this and then compute the critical polarization.According to the paper, this should be 0.834 so something is wrong.  Please check that this is insensitive to regularization etc.
 
+k0 = np.sqrt(2*mu)
 def Plot_C(dmu=2, delta0=1e-8, n=20):
     mus_eff=(mu+dmu, mu-dmu)
-    k0 = np.sqrt(2*mu)
-    dqs = np.linspace(0, k0, n)
+    dqs = np.linspace(0.3*k0, 0.5*k0, n)
     fs = [f(delta0, mus_eff=mus_eff, dq=dq) for dq in dqs]
     plt.plot(dqs/k0, fs)
     plt.xlabel(f"$q$")
     plt.ylabel("C")
     plt.axhline(0, linestyle='dashed')
     #plt.axvline(delta, linestyle='dashed')
-Plot_C(dmu=5, n=10)
 
-Plot_C(dmu=6.65, n=50)
 
-dmu = 6.65
+Plot_C(dmu=6.8, n=10)
+
+Plot_C(dmu=6.775, n=50)
+
+dmu = 6.775
 delta = 1e-8
-get_p(lda, mus_eff=(mu + dmu, mu - dmu), delta=delta, dq=0.42)
+get_p(lda, mus_eff=(mu + dmu, mu - dmu), delta=delta, dq=0.39*k0)
 
-# $P_c$ is the polarization at the point where the FF solution to the gap equation begins with $\Delta_{FF} = 0$.  Here I solve for this and then compute the critical polarization.According to the paper, this should be 0.834 so something is wrong.  Please check that this is insensitive to regularization etc.
+# * The result is very accurate
+
+# # Use FFState Code
+# * The non-ASLDA FFState class fixs $g$ instead of $C$
+
+from mmf_hfb.FuldeFerrelState import FFState
+mu=10
+delta = 11.62200561790012570995259741628790656202543181557689
+ff = FFState(mu=mu, dmu=0, delta=delta,dim=3, k_c=100, fix_g=False)
+
+ff._C
+
+ff.solve(mu=mu, dmu=0)
+
+# # Formulation
+
+# Here we consider integration of the BdG equations at $T=0$.  In particular, we identify when the integrands might have kinks in order to specify points of integration.  We start with the quasi-particle dispersion relationships which define the occupation numbers.  We allow for Fulde-Ferrell states with momentum $q$ along the $x$ axis. Kinks occur when these change sign:
+#
+# $$
+#   \omega_{\pm} = \epsilon_{\pm} \pm E, \qquad
+#   E = \sqrt{\epsilon_+^2+\abs{\Delta}^2},\\
+#   \epsilon_{\pm} = \frac{\epsilon_a \pm \epsilon_b}{2}, \qquad
+#   \epsilon_{a, b} = \frac{(p_x \pm q)^2 + p_\perp^2}{2m} - \mu_{a,b}.
+# $$
+#
+# Simplifying, we have:
+#
+# $$
+#   \epsilon_{-} = \frac{qp_x}{m} - \mu_{-}, \qquad
+#   \epsilon_{+} = \frac{p_x^2 + p_\perp^2}{2m} - \Bigl(\overbrace{\mu_{+} - \frac{q^2}{2m}}^{\mu_q}\Bigr), 
+#   \qquad
+#   \mu_{\pm} = \frac{\mu_{a} \pm \mu_{b}}{2}.
+# $$
+#
+
+# $$
+# C=\frac{m}{4 \pi \hbar^{2} a}=\frac{1}{g}+\frac{1}{2} \int \frac{\mathrm{d}^{3} \mathbf{k}}{(2 \pi)^{3}} \frac{1}{\frac{h^{2} k^{2}}{2 m}+\mathrm{i} 0^{+}}=\frac{1}{g}+\Lambda\\
+# \Lambda=\frac{m}{\hbar^{2}} \frac{k_{c}}{2 \pi^{2}}\left\{1-\frac{k_{0}}{2 k_{c}} \ln \frac{k_{c}+k_{0}}{k_{c}-k_{0}}\right\}
+# $$
+
+# **if assume** 
+# $
+# \epsilon_k^{\uparrow} =\epsilon_{-k}^{\downarrow}
+# $, **then** $\omega_- = -\omega_+$
+#
+#  **Let $n_+$ is the total particle number, while $n_-$ is the number difference**
+#
+# $$
+# \begin{align}
+# n_+ &= n(\epsilon_+)+n(\epsilon_-)= \int\frac{\d{k}}{2\pi}\left(1 - \frac{\epsilon^+_k}{E_k}\bigl(f(\omega_-) - f(\omega_+)\bigr)\right),\\
+# n_- &= n(\epsilon_+)-n(\epsilon_-)= \int\frac{\d{k}}{2\pi}\bigl(f(\omega_+) - f(-\omega_-)\bigr),\\
+# \Delta&= \frac{v}{2}\int \frac{\d{k}}{2\pi}\frac{\Delta}{E_k}\bigl(f(\omega_-)-f(\omega_+)\bigr),\\
+# \frac{1}{v}&= \frac{1}{2}\int \frac{\d{k}}{2\pi}\frac{1}{E_k}\bigl(f(\omega_-)-f(\omega_+)\bigr).\\
+# \Delta&=g\nu \qquad g=\frac{\Delta}{\nu} \qquad \frac{1}{g}=\frac{\nu}{\Delta}=\frac{1}{2}\int \frac{\d{k}}{2\pi}\frac{\Delta}{E_k}\bigl(f(\omega_-)-f(\omega_+)\bigr).\\
+# \end{align}
+# $$
+
+# Then if $C$ is treated as a funtion of $q$：
+# $$
+# \begin{align}
+# C(q)
+# &=\frac{1}{g(q)}+\Lambda\\
+# &=\frac{1}{2}\int \frac{\d{k}}{2\pi}\frac{\Delta}{E_k}\bigl(f(\omega_-)-f(\omega_+)\bigr) + \Lambda\\
+# \end{align}
+# $$
+#
+
+# To determine the extremum of $C(q)$, we just need to compute the derivative of it:
+# $$
+# \frac{\partial C}{\partial q}=\frac{\Delta}{2}\int \frac{\d{k}}{2\pi} 
+# \frac{\partial}{\partial q}\left[\frac{f(\omega_-)-f(\omega_+)}{E_k}\right]=0
+# $$
 
 

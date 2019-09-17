@@ -62,12 +62,6 @@ class Adapter(object):
                 return FunctionalBdG.get_C(self, ns=ns, d=1)
             return (0, 0)
 
-    # def get_alpha(self, p, d=0):
-    #     """override the alpha"""
-    #     if d==0:
-    #         return 1.0
-    #     else:
-    #         return 0
 
     def fix_C_BdG(self, mu, dmu, delta, q=0, dq=0, **args):
         """
