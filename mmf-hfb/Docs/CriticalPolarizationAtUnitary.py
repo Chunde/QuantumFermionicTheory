@@ -178,28 +178,26 @@ get_p(lda, mus_eff=(mu + dmu, mu - dmu), delta=delta, dq=0.39*k0)
 # 0&=\int \frac{d^3k}{2\pi}\frac{\partial}{\partial q}\left[\frac{f(\omega_-)-f(\omega_+)}{E_k}\right]\bigl{|}_{\mu}\\
 # &=\int d^3k \left[-\frac{f(\omega_-)-f(\omega_+)}{E_k^2}\frac{\partial E_k}{\partial q} + \frac{\delta(\omega_-)}{E_k}\frac{\partial \omega_-}{\partial q}+ \frac{\delta(\omega_+)}{E_k}\frac{\partial \omega_+}{\partial q} \right]\\
 # &=-\int d^3k \frac{f(\omega_-)-f(\omega_+)}{E_k^2}\frac{\partial E_k}{\partial q}\\
-# &=\int d^3k \frac{f(\omega_-)-f(\omega_+)}{mE_k^3}q
+# &=\int d^3k \frac{f(\omega_-)-f(\omega_+)}{mE_k^3}q\epsilon_+
 # \end{align}
 # $$
 #
 # The condition to have minimum for $C$ is:
-# $$\int d^3k \frac{f(\omega_-)-f(\omega_+)}{mE_k^3}=0$$
+# $$\int d^3k \frac{f(\omega_-)-f(\omega_+)}{E_k^3}\epsilon_+=0$$
 
 # In above dervivate, the fact $\omega_+>0$ and $\omega_-<0$, which means $\delta(\omega_+)$ and $\delta(\omega_-)$ are zero and that enables us to simplify above calculation.
 
 from mmf_hfb import tf_completion as tf
+reload(tf)
 def dC(dmu, dq):
-    args = dict(m_a=1, m_b=1, mu_a=mu + dmu, mu_b=mu-dmu, delta=delta, dim=3, hbar=1, T=0, k_c=100, dq=dq)
-    return tf.integrate_q(tf.qc_integrand, **args).n
+    args = dict(m_a=1, m_b=1, mu_a=mu + dmu, mu_b=mu-dmu, delta=delta, dim=3, hbar=1, T=0, k_c=1000, dq=dq)
+    return tf.integrate_q(tf.dC_dq_integrand, **args).n
 
-
-dC(dmu=6.675, dq=)
 
 dqs = np.linspace(0, k0, 20)
 dCs = [dC(dmu=6.775, dq=dq) for dq in dqs]
 
 plt.plot(dqs, dCs)
-plt.axvline(0.4*k0)
 
 0.0026386812989356375+/-1.134755618967907e-08
 

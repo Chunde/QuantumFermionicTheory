@@ -57,7 +57,7 @@ def dC_dq_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     E = np.sqrt(e_p**2 + abs(delta)**2)
     w_m, w_p = e_m - E, e_m + E
     f_nu = (f(w_m, T) - f(w_p, T))
-    qc = f_nu/m_a/E**3
+    qc = f_nu*e_p/m_a/E**3
     return qc
 
 @numba.jit(nopython=True)
