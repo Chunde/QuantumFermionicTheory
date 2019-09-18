@@ -109,8 +109,6 @@ mu=10
 delta = 11.62200561790012570995259741628790656202543181557689
 ff = FFState(mu=mu, dmu=0, delta=delta,dim=3, k_c=100, fix_g=False)
 
-ff._C
-
 ff.solve(mu=mu, dmu=0)
 
 # # Formulation
@@ -134,17 +132,31 @@ ff.solve(mu=mu, dmu=0)
 # $$
 #
 
+# ## Derivative
+
+# $$
+# \frac{\partial \epsilon_-}{\partial q}=\frac{p_x}{m} \qquad \frac{\partial \epsilon_+}{\partial q}=\frac{q}{m} \qquad
+# \frac{\partial E}{\partial q}=\frac{\epsilon_+}{E}\frac{\partial \epsilon_+}{\partial q}=\frac{\epsilon_+}{E}\frac{q}{m}
+# $$
+
+# $$
+# \frac{\partial \omega_+}{\partial q}=\frac{\partial \epsilon_+}{\partial q}+\frac{\partial E}{\partial q}=\frac{q}{m}-\frac{\epsilon_+}{E}\frac{q}{m}\\
+# \frac{\partial \omega_-}{\partial q}=\frac{\partial \epsilon_-}{\partial q}-\frac{\partial E}{\partial q}=\frac{p_x}{m}-\frac{\epsilon_+}{E}\frac{q}{m}
+# $$
+
+# ## Indendities
+
 # $$
 # C=\frac{m}{4 \pi \hbar^{2} a}=\frac{1}{g}+\frac{1}{2} \int \frac{\mathrm{d}^{3} \mathbf{k}}{(2 \pi)^{3}} \frac{1}{\frac{h^{2} k^{2}}{2 m}+\mathrm{i} 0^{+}}=\frac{1}{g}+\Lambda\\
 # \Lambda=\frac{m}{\hbar^{2}} \frac{k_{c}}{2 \pi^{2}}\left\{1-\frac{k_{0}}{2 k_{c}} \ln \frac{k_{c}+k_{0}}{k_{c}-k_{0}}\right\}=\frac{m}{\hbar^{2}} \frac{k_{c}}{2 \pi^{2}}\bigl{|}_{k_0/k_c\rightarrow 0}
 # $$
 
-# **if assume** 
+# Assume
 # $
 # \epsilon_k^{\uparrow} =\epsilon_{-k}^{\downarrow}
-# $, **then** $\omega_- = -\omega_+$
+# $, then $\omega_- = -\omega_+$
 #
-#  **Let $n_+$ is the total particle number, while $n_-$ is the number difference**
+# $n_+$ is the total particle number, while $n_-$ is the number difference
 #
 # $$
 # \begin{align}
@@ -166,14 +178,23 @@ ff.solve(mu=mu, dmu=0)
 # $$
 #
 
-# To determine the extremum of $C(q)$, we just need to compute the derivative of it:
+# To determine the extremum of $C(q,\mu)$, we just need to compute the derivative of it with $T=0$, so $f(x)$ is a step function and its derivative is just $\delta(x)$:
+#
 # $$
 # \frac{\partial C}{\partial q}=\left\{\frac{\Delta}{2}\int \frac{\d{k}}{2\pi} 
 # \frac{\partial}{\partial q}\left[\frac{f(\omega_-)-f(\omega_+)}{E_k}\right]\right\}\bigl{|}_{\mu}=0\\
 # $$
 # $$
-# \int \frac{\d{k}}{2\pi}\frac{\partial}{\partial q}\left[\frac{f(\omega_-)-f(\omega_+)}{E_k}\right]\bigl{|}_{\mu}=0
+# \begin{align}
+# 0&=\int \frac{d^3k}{2\pi}\frac{\partial}{\partial q}\left[\frac{f(\omega_-)-f(\omega_+)}{E_k}\right]\bigl{|}_{\mu}\\
+# &=\int d^3k \left[-\frac{f(\omega_-)-f(\omega_+)}{E_k^2}\frac{\partial E_k}{\partial q} + \frac{\delta(\omega_-)}{E_k}\frac{\partial \omega_-}{\partial q}+ \frac{\delta(\omega_+)}{E_k}\frac{\partial \omega_+}{\partial q} \right]\\
+# &=-\int d^3k \frac{f(\omega_-)-f(\omega_+)}{E_k^2}\frac{\partial E_k}{\partial q}\\
+# &=\int d^3k \frac{f(\omega_-)-f(\omega_+)}{mE_k^3}q
+# \end{align}
 # $$
+
+# In above dervivate, the fact $\omega_+>0$ and $\omega_-<0$, which means $\delta(\omega_+)$ and $\delta(\omega_-)$ are zero and that enables us to simplify above calculation.
+# * Since  $q\ne0$, and the demominor is postive, $f(x)$ is non-negative defined.
 
 # The above will minimizes $C(q,\mu)$ with minimized value $C_m$, the $P_c$ happens when $C_m$ is zero for a cetern $\mu$
 
@@ -184,7 +205,7 @@ m = mu = eF = 1.0
 pF = np.sqrt(2*m*eF)
 delta = 0.5*mu
 p_max = 2*pF
-p_x = np.linspace(0, p_max, 25)
+p_x = np.linspace(-p_max, p_max, 50)
 p_perp = 0
 
 @interact(dq=(-2, 2, 0.1), dmu=(-1.0, 1.0, 0.1), delta=(0, 1, 0.1),q=(0, 2, 0.2))

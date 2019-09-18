@@ -1,6 +1,6 @@
 """
 This file contains classes used for creating ASLDA related class
-factory. The Adater class glues functional and Kernel(BCS or Homognesouse)
+factory. The Adater class glues functional and Kernel(BCS or Homogenous)
 as a brand new class used for all kind of calculation.
 """
 from mmf_hfb.Functionals import FunctionalBdG, FunctionalSLDA, FunctionalASLDA
@@ -61,7 +61,6 @@ class Adapter(object):
             if self.C is None:
                 return FunctionalBdG.get_C(self, ns=ns, d=1)
             return (0, 0)
-
 
     def fix_C_BdG(self, mu, dmu, delta, q=0, dq=0, **args):
         """
@@ -287,7 +286,9 @@ class Adapter(object):
             ns=ns, taus=taus, nu=nu, g_eff=g_eff)
         return (ns, (mu_a, mu_b), ) + e_p
 
-    def get_pressure(self, mus_eff=None, mus=None, delta=None, q=0, dq=0, solver=Solvers.BROYDEN1, **args):
+    def get_pressure(
+            self, mus_eff=None, mus=None, delta=None, q=0, dq=0,
+            solver=Solvers.BROYDEN1, **args):
         """return the pressure only"""
         if mus is None:
             return self.get_ns_mus_e_p(mus_eff, delta, q=q, dq=dq, solver=solver, **args)[3]
@@ -354,4 +355,3 @@ if __name__ == "__main__":
         kernelType=KernelType.HOM, args=args)
     lda._get_C(mus_eff=(mu_eff, 0), delta=1)
     lda.fix_C_BdG(mu=mu_eff, dmu=0, delta=1)
-    
