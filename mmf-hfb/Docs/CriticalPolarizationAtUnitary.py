@@ -71,7 +71,6 @@ mu=10
 dmu = 0
 delta = 11.62200561790012570995259741628790656202543181557689
 lda = create_lda(mu=mu, dmu=dmu, delta=delta)
-lda.C
 
 mus_eff = (mu + dmu, mu-dmu)
 lda.solve_delta(mus_eff=mus_eff)
@@ -101,16 +100,6 @@ get_p(lda, mus_eff=(mu + dmu, mu - dmu), delta=delta, dq=0.39*k0)
 
 # * The result is very accurate
 
-# # Use FFState Code
-# * The non-ASLDA FFState class fixs $g$ instead of $C$
-
-from mmf_hfb.FuldeFerrelState import FFState
-mu=10
-delta = 11.62200561790012570995259741628790656202543181557689
-ff = FFState(mu=mu, dmu=0, delta=delta,dim=3, k_c=100, fix_g=False)
-
-ff.solve(mu=mu, dmu=0)
-
 # # Formulation
 
 # Here we consider integration of the BdG equations at $T=0$.  In particular, we identify when the integrands might have kinks in order to specify points of integration.  We start with the quasi-particle dispersion relationships which define the occupation numbers.  We allow for Fulde-Ferrell states with momentum $q$ along the $x$ axis. Kinks occur when these change sign:
@@ -132,7 +121,7 @@ ff.solve(mu=mu, dmu=0)
 # $$
 #
 
-# ## Derivative
+# ## Derivatives
 
 # $$
 # \frac{\partial \epsilon_-}{\partial q}=\frac{p_x}{m} \qquad \frac{\partial \epsilon_+}{\partial q}=\frac{q}{m} \qquad
@@ -192,9 +181,27 @@ ff.solve(mu=mu, dmu=0)
 # &=\int d^3k \frac{f(\omega_-)-f(\omega_+)}{mE_k^3}q
 # \end{align}
 # $$
+#
+# The condition to have minimum for $C$ is:
+# $$\int d^3k \frac{f(\omega_-)-f(\omega_+)}{mE_k^3}=0$$
 
 # In above dervivate, the fact $\omega_+>0$ and $\omega_-<0$, which means $\delta(\omega_+)$ and $\delta(\omega_-)$ are zero and that enables us to simplify above calculation.
-# * Since  $q\ne0$, and the demominor is postive, $f(x)$ is non-negative defined.
+
+from mmf_hfb import tf_completion as tf
+def dC(dmu, dq):
+    args = dict(m_a=1, m_b=1, mu_a=mu + dmu, mu_b=mu-dmu, delta=delta, dim=3, hbar=1, T=0, k_c=100, dq=dq)
+    return tf.integrate_q(tf.qc_integrand, **args).n
+
+
+dC(dmu=6.675, dq=)
+
+dqs = np.linspace(0, k0, 20)
+dCs = [dC(dmu=6.775, dq=dq) for dq in dqs]
+
+plt.plot(dqs, dCs)
+plt.axvline(0.4*k0)
+
+0.0026386812989356375+/-1.134755618967907e-08
 
 # The above will minimizes $C(q,\mu)$ with minimized value $C_m$, the $P_c$ happens when $C_m$ is zero for a cetern $\mu$
 

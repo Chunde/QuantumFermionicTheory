@@ -44,6 +44,23 @@ def get_ws(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     return e_m, e_p, E, w_m, w_p
 
 @numba.jit(nopython=True)
+def dC_dq_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
+    """
+    The partial derivative of C over dq at T=0, for determine
+    the critical polarization
+    Check the notebook [CriticalPolarizationAtUnitary.py]
+    """
+    assert T==0
+    e = hbar**2/2
+    e_a, e_b = e*ka2/m_a - mu_a, e*kb2/m_b - mu_b
+    e_m, e_p = (e_a - e_b)/2, (e_a + e_b)/2
+    E = np.sqrt(e_p**2 + abs(delta)**2)
+    w_m, w_p = e_m - E, e_m + E
+    f_nu = (f(w_m, T) - f(w_p, T))
+    qc = f_nu/m_a/E**3
+    return qc
+
+@numba.jit(nopython=True)
 def n_p_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     e = hbar**2/2
     e_a, e_b = e*ka2/m_a - mu_a, e*kb2/m_b - mu_b
@@ -294,7 +311,6 @@ def compute_current(mu_a, mu_b, delta, m_a=1, m_b=1, dim=3, hbar=1.0, T=0.0,
     """compute the overall current"""
     k_inf = np.inf if k_c is None else k_c
     
-
     if dim == 1:
         def integrand(k):
             k2_a = (k + q + dq)**2
@@ -338,7 +354,6 @@ def compute_current(mu_a, mu_b, delta, m_a=1, m_b=1, dim=3, hbar=1.0, T=0.0,
 
     elif dim == 3:
         def integrand(kx, kp):
-            # print(kx, kp)
             k2_a = (kx + q + dq)**2 + kp**2
             k2_b = (kx + q - dq)**2 + kp**2
             f_p, f_m = f_p_m(k2_a, k2_b, mu_a, mu_b, delta, m_a, m_b, hbar, T)
@@ -449,5 +464,6 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, dim=3,
     else:
         raise ValueError(f"Only dim=1, 2, or 3 supported (got dim={dim})")
 
-    return do_integration(integrand, delta=delta, mu_a=mu_a, mu_b=mu_b, m_a=m_a, m_b=m_b,
-                   dim=dim, q=q, dq=dq, hbar=hbar, k_0=k_0, k_inf=k_inf, limit=limit)
+    return do_integration(
+        integrand, delta=delta, mu_a=mu_a, mu_b=mu_b, m_a=m_a, m_b=m_b,
+        dim=dim, q=q, dq=dq, hbar=hbar, k_0=k_0, k_inf=k_inf, limit=limit)
