@@ -72,9 +72,6 @@ dmu = 0
 delta = 11.62200561790012570995259741628790656202543181557689
 lda = create_lda(mu=mu, dmu=dmu, delta=delta)
 
-mus_eff = (mu + dmu, mu-dmu)
-lda.solve_delta(mus_eff=mus_eff)
-
 # ## Check Solution
 # $P_c$ is the polarization at the point where the FF solution to the gap equation begins with $\Delta_{FF} = 0$.  Here I solve for this and then compute the critical polarization.According to the paper, this should be 0.834 so something is wrong.  Please check that this is insensitive to regularization etc.
 

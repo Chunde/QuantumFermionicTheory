@@ -5,8 +5,8 @@
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.3'
-#       jupytext_version: 1.0.3
+#       format_version: '1.4'
+#       jupytext_version: 1.2.3
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -17,6 +17,7 @@
 import mmf_setup;mmf_setup.nbinit()
 # %pylab inline --no-import-all
 from nbimports import *                # Conveniences like clear_output
+
 
 # -
 
@@ -78,7 +79,7 @@ plt.colorbar()
 
 # # MMF Notes
 
-# Here is how one computes the second derivative with the FFT.
+# Here is how one computes the second order derivative with the FFT.
 
 # +
 from mmfutils.plot import imcontourf

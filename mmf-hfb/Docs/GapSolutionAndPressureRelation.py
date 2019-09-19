@@ -5,8 +5,8 @@
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.3'
-#       jupytext_version: 1.0.3
+#       format_version: '1.4'
+#       jupytext_version: 1.2.3
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -21,6 +21,9 @@ from mmf_hfb.FuldeFerrelState import FFState
 from mmf_hfb.FFStateFinder import FFStateFinder
 from scipy.optimize import brentq
 from mmfutils.plot import imcontourf
+
+# # Gap Equation and Pressure
+# * Understanding how solution of gap equation yield max pressure
 
 mu=10
 dmu=0
