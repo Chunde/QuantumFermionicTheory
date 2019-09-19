@@ -31,7 +31,7 @@ def create_lda(mu, dmu, delta):
     Functional Type: BDG/SLDA/ASLDA
     Kernel Type:HOM/BCS
     """    
-    LDA = ClassFactory(className="LDA", functionalType=FunctionalType.BDG, kernelType=KernelType.HOM)
+    LDA = ClassFactory(className="LDA", functionalType=FunctionalType.ASLDA, kernelType=KernelType.HOM)
     lda = LDA(mu_eff=mu, dmu_eff=dmu, delta=delta, T=0, dim=3)
     lda.C = 0 #lda._get_C(mus_eff=(mu+dmu, mu-dmu), delta=delta)  # unitary case
     return lda
@@ -79,26 +79,32 @@ lda.solve_delta(mus_eff=mus_eff)
 # $P_c$ is the polarization at the point where the FF solution to the gap equation begins with $\Delta_{FF} = 0$.  Here I solve for this and then compute the critical polarization.According to the paper, this should be 0.834 so something is wrong.  Please check that this is insensitive to regularization etc.
 
 k0 = np.sqrt(2*mu)
-def Plot_C(dmu=2, delta0=1e-8, n=20):
+def Plot_C(dmu=2, delta0=1e-8, n=20, a=0, b=1):
     mus_eff=(mu+dmu, mu-dmu)
-    dqs = np.linspace(0.3*k0, 0.5*k0, n)
+    dqs = np.linspace(a, b, n)*k0
     fs = [f(delta0, mus_eff=mus_eff, dq=dq) for dq in dqs]
     plt.plot(dqs/k0, fs)
     plt.xlabel(f"$q$")
     plt.ylabel("C")
     plt.axhline(0, linestyle='dashed')
-    #plt.axvline(delta, linestyle='dashed')
+    min_index = 0
+    min_value = fs[0]
+    for i in range(1, len(fs)):
+        if fs[i] < min_value:
+            min_value = fs[i]
+            min_index = i
+    print(min_value)
+    plt.axvline(dqs[min_index]/k0, linestyle='dashed')
+    return dqs[min_index]
 
 
-Plot_C(dmu=6.8, n=10)
+Plot_C(dmu=3.5, n=10)
 
-Plot_C(dmu=6.775, n=50)
+dq = Plot_C(dmu=4.025, n=20, a=0.2, b=0.3)
 
-dmu = 6.775
+dmu = 4.025
 delta = 1e-8
-get_p(lda, mus_eff=(mu + dmu, mu - dmu), delta=delta, dq=0.39*k0)
-
-# * The result is very accurate
+get_p(lda, mus_eff=(mu + dmu, mu - dmu), delta=delta, dq=dq)
 
 # # Formulation
 
@@ -133,7 +139,7 @@ get_p(lda, mus_eff=(mu + dmu, mu - dmu), delta=delta, dq=0.39*k0)
 # \frac{\partial \omega_-}{\partial q}=\frac{\partial \epsilon_-}{\partial q}-\frac{\partial E}{\partial q}=\frac{p_x}{m}-\frac{\epsilon_+}{E}\frac{q}{m}
 # $$
 
-# ## Indendities
+# ## Indentities
 
 # $$
 # C=\frac{m}{4 \pi \hbar^{2} a}=\frac{1}{g}+\frac{1}{2} \int \frac{\mathrm{d}^{3} \mathbf{k}}{(2 \pi)^{3}} \frac{1}{\frac{h^{2} k^{2}}{2 m}+\mathrm{i} 0^{+}}=\frac{1}{g}+\Lambda\\
@@ -186,6 +192,7 @@ get_p(lda, mus_eff=(mu + dmu, mu - dmu), delta=delta, dq=0.39*k0)
 # $$\int d^3k \frac{f(\omega_-)-f(\omega_+)}{E_k^3}\epsilon_+=0$$
 
 # In above dervivate, the fact $\omega_+>0$ and $\omega_-<0$, which means $\delta(\omega_+)$ and $\delta(\omega_-)$ are zero and that enables us to simplify above calculation.
+# * Be careful, the above statement in not true in gneneral when $\Delta$ is close to zero
 
 from mmf_hfb import tf_completion as tf
 reload(tf)
@@ -198,8 +205,6 @@ dqs = np.linspace(0, k0, 20)
 dCs = [dC(dmu=6.775, dq=dq) for dq in dqs]
 
 plt.plot(dqs, dCs)
-
-0.0026386812989356375+/-1.134755618967907e-08
 
 # The above will minimizes $C(q,\mu)$ with minimized value $C_m$, the $P_c$ happens when $C_m$ is zero for a cetern $\mu$
 
@@ -225,6 +230,7 @@ def plot_regions(q=0, dq=0, dmu=0.4, delta=0.2):
     w_p, w_m = e_m + E, e_m - E
     plt.plot(p_x, w_p)
     plt.plot(p_x, w_m)
+    plt.axhline(0, linestyle='dashed')
 # -
 
 
