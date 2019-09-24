@@ -5,8 +5,8 @@
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.3'
-#       jupytext_version: 1.0.3
+#       format_version: '1.4'
+#       jupytext_version: 1.2.3
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -17,9 +17,9 @@ import mmf_setup;mmf_setup.nbinit()
 # %pylab inline --no-import-all
 from nbimports import *
 
-# # Defination of DVR
+# # Definition of DVR
 
-# Let $\phi_1(x), \phi_2(x)\dots \phi_n(x)$ be normlized and orthogonal basis in the Hilbert space $H$, $\{x_\alpha\}=(x_1, x_2, \dots, x_m)$ be a set of grid point in the configuration space of the system on which the coordinate system is based. Define the projector operator as:
+# Let $\phi_1(x), \phi_2(x)\dots \phi_n(x)$ be normalized and orthogonal basis in the Hilbert space $H$, $\{x_\alpha\}=(x_1, x_2, \dots, x_m)$ be a set of grid point in the configuration space of the system on which the coordinate system is based. Define the projector operator as:
 #
 # $$
 # P=\sum_n{\ket{\phi_n}\bra{\phi_n}}\qquad \text{It may be easy to prove}:  P^2=P=P^{\dagger}
@@ -38,7 +38,7 @@ from nbimports import *
 
 # ## Example
 
-# Say we have three function in the basis: $\phi_1(x), \phi_2(x), \phi_3(x)$ accociated with a set of abscissa{$x_n$}={$x_1, x_2, x_3, x_4$}, they are orthogonal,ie:
+# Say we have three function in the basis: $\phi_1(x), \phi_2(x), \phi_3(x)$ associated with a set of abscissa{$x_n$}={$x_1, x_2, x_3, x_4$}, they are orthogonal,ie:
 # $$
 # \braket{\phi_i|\phi_j}=\int_a^b{\phi^*_i(x)\phi_j(x)}dx=\delta_{ij} \qquad
 # $$
@@ -154,7 +154,7 @@ from nbimports import *
 #
 # where $m^2$ and $l(l+1)$ are constants
 
-# The eqaution for radia wavefunction can be simplified by define $u(r)=rR(r)$:
+# The equation for radial wavefunction can be simplified by define $u(r)=rR(r)$:
 #
 # $$
 # -\frac{\hbar^{2}}{2 m} \frac{d^{2} u}{d r^{2}}+\left[V+\frac{\hbar^{2}}{2 m} \frac{l(l+1)}{r^{2}}\right] u=E u

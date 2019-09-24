@@ -3,6 +3,7 @@ This test file used to check the g(x) function defined
 in the Fig. 14 of the book chapter. Here the g(x) given
 by SLDA and ASLDA should be identical even the alpha terms
 are different. [2019/08/18]
+The above statement may be wrong![2019/09/23]
 """
 from mmf_hfb.ClassFactory import ClassFactory, FunctionalType, KernelType, Solvers
 import numpy as np

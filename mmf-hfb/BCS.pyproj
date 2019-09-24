@@ -35,22 +35,25 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Docs\2D Vortex.py" />
-    <Compile Include="Docs\2d-kinetic-matrix.py" />
-    <Compile Include="Docs\aslda-ff-state.py" />
-    <Compile Include="Docs\ASLDA_thermodynamics.py" />
+    <Compile Include="Docs\BCSCooling.py" />
     <Compile Include="Docs\bdg-equations-in-1d.py" />
-    <Compile Include="Docs\BdG-Rotating-Frame-Transform.py" />
     <Compile Include="Docs\ConstructFFStates.py" />
+    <Compile Include="Docs\CriticalPolarizationAtUnitary.py" />
+    <Compile Include="Docs\DVR Basis.py" />
     <Compile Include="Docs\DVR.py" />
     <Compile Include="Docs\EulerRelation.py" />
     <Compile Include="Docs\FFState%28ASLDA%29.py" />
     <Compile Include="Docs\FFStateTest.py" />
     <Compile Include="Docs\FuldeFerrelVortex.py" />
-    <Compile Include="Docs\gap_equation_pressure.py" />
+    <Compile Include="Docs\KineticMatrixDerivation.py" />
+    <Compile Include="Docs\KineticMatrixDerivation2D.py" />
+    <Compile Include="Docs\LatticeNumericalSimulation.py" />
+    <Compile Include="Docs\Local Quantum Friction.py" />
     <Compile Include="Docs\nbimports.py" />
+    <Compile Include="Docs\RotatingFrameTransform%28BdG%29.py" />
     <Compile Include="Docs\ScatteringTutorial.py" />
     <Compile Include="Docs\ThermodynamicRelations.py" />
-    <Compile Include="Docs\tmp.py" />
+    <Compile Include="Docs\ThermodynamicsTestDemo%28ASLDA%29.py" />
     <Compile Include="Docs\Vortex.py" />
     <Compile Include="Docs\Vortex3D.py" />
     <Compile Include="mmf_hfb\AurelBesselDVR.py" />
