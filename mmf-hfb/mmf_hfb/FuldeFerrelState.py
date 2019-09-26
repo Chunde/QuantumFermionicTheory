@@ -346,7 +346,7 @@ class FFState(object):
         """
         assert (mu is None) == (dmu is None)
         if mu is None:
-           mu_a, mu_b = self.mu
+           mu_a, mu_b = self.mus
            mu, dmu = (mu_a + mu_b)/2.0, (mu_a - mu_b)/2.0
         oldFlag = self.bStateSentinel
         self.bStateSentinel = False
@@ -365,7 +365,7 @@ class FFState(object):
         """
         assert (mu is None) == (dmu is None)
         if mu is None:
-            mu_a, mu_b = self.mu
+            mu_a, mu_b = self.mus
             mu, dmu = (mu_a + mu_b)/2.0, (mu_a - mu_b)/2.0
 
         if a is None:
