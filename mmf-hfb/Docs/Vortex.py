@@ -5,8 +5,8 @@
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.3'
-#       jupytext_version: 1.0.3
+#       format_version: '1.4'
+#       jupytext_version: 1.2.3
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -326,6 +326,71 @@ FFVortex(v1)
 FFVortex(v2)
 
 FFVortex(v3)
+
+
+def HomogeneousVortx(mu, dmu, delta, k_c=50):
+    k_F = np.sqrt(2*mu)   
+    E_c=k_c**2/2
+    dx = 1
+    args = dict(mu=mu, dmu=dmu, delta=delta, dim=3, k_c=k_c)
+    f = FuldeFerrelState.FFState(fix_g=True, **args)
+    rs = np.linspace(0.0001,1, 30)
+    rs = np.append(rs, np.linspace(1.1, 4, 10))
+
+    ds = [f.solve(mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
+    ps = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=d, dq=0.5/r, use_kappa=False).n for r, d in zip(rs,ds)]
+    ps0 = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=1e-12,q=0, dq=0, use_kappa=False).n for r, d in zip(rs,ds)]
+
+    
+    plt.figure(figsize(16,8))
+    plt.subplot(321)
+    plt.plot(rs/dx, np.array(ds)/mu, label="Homogeneous")
+    plt.legend()
+    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize)
+    plt.ylabel(r'$\Delta/E_F$', fontsize=fontsize)
+    plt.subplot(322)
+    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize)
+    plt.ylabel(r"Pressure/$E_F$", fontsize=fontsize)
+    plt.plot(rs/dx, ps, label="FF State/Superfluid State Pressure")
+    plt.plot(rs/dx, ps0,'--', label="Normal State pressure")
+    plt.legend()
+
+    na = np.array([])
+    nb = np.array([])
+    for i in range(len(rs)):
+        na_, nb_ = f.get_densities(delta=ds[i], dq=0.5/rs[i], mu=mu, dmu=dmu)
+        na = np.append(na, na_.n)
+        nb = np.append(nb, nb_.n)   
+    plt.subplot(323)
+    n_p = na + nb
+    plt.plot(rs/dx, n_p/k_F, label="Homogeneous")
+    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$n_p/k_F$", fontsize=fontsize)
+    #plt.title("Total Density")
+    plt.legend()
+    plt.subplot(324)
+    n_m = na - nb
+    plt.plot(rs/dx, n_m/k_F, label="Homogeneous")
+    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$n_m/k_F$", fontsize=20)#,plt.title("Density Difference")
+    plt.legend()
+
+    ja = []
+    jb = []
+    js = [f.get_current(mu=mu, dmu=dmu, delta=d,dq=0.5/r) for r, d in zip(rs,ds)]
+    for j in js:
+        ja.append(j[0].n)
+        jb.append(j[1].n)
+    ja, jb = np.array(ja), np.array(jb)
+    j_p, j_m = -(ja + jb), ja - jb
+    plt.subplot(325)
+    plt.plot(rs/dx, j_m, label="Homogeneous")
+    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$j_p$", fontsize=fontsize)#,plt.title("Total Current")
+    plt.legend()
+    plt.subplot(326)
+    plt.plot(rs/dx, j_p, label="Homogeneous")
+    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$j_m$", fontsize=fontsize)#,plt.title("Current Difference")
+    plt.ylim(0,15)
+    plt.legend()
+    clear_output()
 
 mu=5
 dmu=0

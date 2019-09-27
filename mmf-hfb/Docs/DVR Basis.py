@@ -6,8 +6,8 @@
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.3'
-#       jupytext_version: 1.0.3
+#       format_version: '1.4'
+#       jupytext_version: 1.2.3
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -314,7 +314,7 @@ k_x, k_r = basis.k_max
 # +
 # %pylab inline --no-import-all
 import numpy as np
-from mmfutils.math.bases import CylindricalBasis
+from  mmf_hfb.CylindricalBasis import CylindricalBasis
 from mmfutils.math.bases.tests import test_bases
 basis = CylindricalBasis(Nxr=(64, 32), Lxr=(25.0,5.0))
 x, r = basis.xyz
@@ -390,7 +390,7 @@ l = 0
 l0 = 0
 nu0 = basis.nu(l=l0)
 nu = basis.nu(l=l)
-
+basis._d = 3
 r = basis._r(Nr, l=l0)
 K = basis._get_K(l=l0)[0]   # Without factors of sqrt(r)
 

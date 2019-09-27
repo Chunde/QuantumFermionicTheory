@@ -1,6 +1,5 @@
-from mmfutils.math import bessel
-import numpy as np
 from mmf_hfb.CylindricalDVRBasis import CylindricalBasis
+import numpy as np
 
 
 class HarmonicDVR(CylindricalBasis):
@@ -8,18 +7,6 @@ class HarmonicDVR(CylindricalBasis):
     eps = 7./3 - 4./3 -1  # machine accuracy
 
     def __init__(self, w=1, nu=0, dim=2):
-        """
-        w: float
-            angular frequency of the external potential
-        N_nu: int
-            number of angular momentum used for calculation
-        N_root: int
-            max number of zero roots
-        R_max: float
-            range of the system
-        K_max: float
-            momentum cutoff
-        """
         CylindricalBasis.__init__(self, nu=nu, dim=dim)
         self.w = w
 

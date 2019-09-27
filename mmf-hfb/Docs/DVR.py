@@ -190,7 +190,7 @@ from mmf_hfb.HarmonicDVR import HarmonicDVR
 
 
 def spectrum(nu=0):
-    h = HarmonicDVR(nu=nu,dim=2)
+    h = HarmonicDVR(nu=nu, dim=2)
     H = h.get_H()
     Es, us = np.linalg.eigh(H)
     plt.plot(h.rs,us[1]/h.rs_scale)

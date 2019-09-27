@@ -3,6 +3,7 @@ from mmfutils.math import bessel
 import math
 import scipy as sp
 
+
 def prod(x):
     """Equivalent of sum but with multiplication."""
     # http://stackoverflow.com/a/595396/1088938
@@ -79,7 +80,6 @@ def idst(F, axis=-1):
     N = F.shape[-1]
     args = dict(type=2, axis=axis)
     return sp.fftpack.dst(F, **args)/(2.0*N)
-
 
 
 class CylindricalBasis(object):

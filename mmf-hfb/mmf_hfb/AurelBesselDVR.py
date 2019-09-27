@@ -119,7 +119,7 @@ class BesselDVR(object):
         g_eff = 1.0/(n**(1/3.0)/self.gamma - Lc + self.eps)
         return g_eff
 
-    def get_H(self, delta, mus, V, zs=None, Ts=None, nu=0):
+    def get_H(self, delta, mus, V, zs=None, Ts=None, l=0):
         """return the Hamiltonian"""
         if zs is None:
             zs = self.get_zeros()
@@ -129,13 +129,12 @@ class BesselDVR(object):
         # zero = np.zeros_like(sum(self.xyz))
         Delta = np.diag(delta)
         mu_a, mu_b = mus
-        L = nu
-        L0 = L % 2
-        LL = self.alpha*(L*(L + 1) - L0*(L0 + 1))/2.0
-        r2 = (zs[L0]/self.k_c)**2
+        l0 = l % 2
+        LL = self.alpha*(l*(l + 1) - l0*(l0 + 1))/2.0
+        r2 = (zs[l0]/self.k_c)**2
         V_ = LL /r2
-        H_a = Ts[L0] + np.diag(V_ + V + r2/2 - mu_b)
-        H_b = Ts[L0] + np.diag(V_ + V + r2/2 - mu_a)
+        H_a = Ts[l0] + np.diag(V_ + V + r2/2 - mu_b)
+        H_b = Ts[l0] + np.diag(V_ + V + r2/2 - mu_a)
         H = block(H_a, Delta, Delta.conj(), -H_b)
         return H
 
@@ -168,14 +167,14 @@ class AurelBesselDVR(BesselDVR):
             (kc + k0)/(kc - k0))/(k0*n + self.eps))
         return last_corr
 
-    def _get_den(self, H, L, V, D, mus, zs, Cs):
+    def _get_den(self, H, l, V, D, mus, zs, Cs):
         """
         return density for  particle a and b
         also return the energy density
         """
         eigen, phi = np.linalg.eigh(H)
         phi = phi.T  # to have same sine as given by matlab
-        al = (2*L + 1)/4.0/np.pi
+        al = (2*l + 1)/4.0/np.pi
         
         Us = self.get_Us(zs=zs)
         mms = (len(zs[0]), len(zs[1]))
@@ -200,7 +199,7 @@ class AurelBesselDVR(BesselDVR):
                 fc = 1/(1.0 + np.exp(En_c))
             
             if fc > 0:
-                li = L % 2
+                li = l % 2
                 offset = mms[li]
                 U = Us[li]
                 if li == 0:
@@ -275,13 +274,13 @@ class AurelBesselDVR(BesselDVR):
             ret = 0
             Ds = (D0, D1)
             Vs = (V0, V1)
-            for L in range(self.N_c):
-                """L is the angular momentum quantum number"""
+            for l in range(self.N_c):
+                """l is the angular momentum quantum number"""
                 H = self.get_H(
-                    delta=Ds[L % 2], mus=(mu_a, mu_b),
-                    V=Vs[L % 2], zs=(z0, z1), nu=L)
+                    delta=Ds[l % 2], mus=(mu_a, mu_b),
+                    V=Vs[l % 2], zs=(z0, z1), l=l)
                 ret = ret + self._get_den(
-                    H=H, L=L, V=V0, D=D0, mus=(mu_a, mu_b), zs=zs, Cs=Cs)
+                    H=H, l=l, V=V0, D=D0, mus=(mu_a, mu_b), zs=zs, Cs=Cs)
             # print(ret[2])
             den_a, den_b, e = ret
             na0, nb0, kappa0 = den_a/r02
@@ -339,8 +338,8 @@ def compute_particle(N):
 def AurelPlot():
     import matplotlib.pyplot as plt
     from mmf_hfb.ParallelHelper import PoolHelper
-    En = [1.37,]
-    R2 = [1.37,]
+    En = [1.37, ]
+    R2 = [1.37, ]
     Nn = [1]
 
     Ns = list(range(2, 31))
