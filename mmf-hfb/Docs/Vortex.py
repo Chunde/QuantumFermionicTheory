@@ -232,65 +232,20 @@ def FFVortex(bcs_vortex, mus=None, delta=None, plot_tf=True):
 
 
 mu = 5
-delta = 2**1.5 * mu
+delta = 2**1.5*mu
 v0 = VortexState(mu=mu, dmu=0.0, delta=delta, Nxyz=(32, 32))
 v0.solve(plot=True)
 
 FFVortex(v0)
 
-FFVortex(v0)
-
 mu = 5
-delta = 2**1.5 * mu
-v1 = VortexState(mu=mu, dmu=0.5* delta, delta=delta, Nxyz=(32, 32))
+delta = 2**1.5*mu
+v1 = VortexState(mu=mu, dmu=0.5*delta, delta=delta, Nxyz=(32, 32))
 v1.solve(plot=True)
 
 FFVortex(v1)
 
 FFVortex(v1, plot_tf=False)
-
-mu = 20
-delta = 0.75*delta
-v2 = VortexState(mu=mu, dmu=0.0, delta=delta, Nxyz=(32, 32), Lxyz=(3.2,3.2))
-v2.solve(plot=True)
-
-    
-    plt.figure(figsize(16,8))
-    plt.subplot(321)
-    plt.plot(rs/dx, np.array(ds)/mu, label="Homogeneous")
-    plt.legend()
-    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize)
-    plt.ylabel(r'$\Delta/E_F$', fontsize=fontsize)
-    plt.subplot(322)
-    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize)
-    plt.ylabel(r"Pressure/$E_F$", fontsize=fontsize)
-    plt.plot(rs/dx, ps, label="FF State/Superfluid State Pressure")
-    plt.plot(rs/dx, ps0,'--', label="Normal State pressure")
-    plt.legend()
-
-mu = 10
-delta = 7.5
-v3 = VortexState(mu=mu, dmu=4.5, delta=delta, Nxyz=(32, 32), Lxyz=(8,8))
-v3.solve(plot=True)
-
-    ja = []
-    jb = []
-    js = [f.get_current(mu=mu, dmu=dmu, delta=d,dq=0.5/r) for r, d in zip(rs,ds)]
-    for j in js:
-        ja.append(j[0].n)
-        jb.append(j[1].n)
-    ja, jb = np.array(ja), np.array(jb)
-    j_p, j_m = -(ja + jb), ja - jb
-    plt.subplot(325)
-    plt.plot(rs/dx, j_m, label="Homogeneous")
-    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$j_p$", fontsize=fontsize)#,plt.title("Total Current")
-    plt.legend()
-    plt.subplot(326)
-    plt.plot(rs/dx, j_p, label="Homogeneous")
-    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$j_m$", fontsize=fontsize)#,plt.title("Current Difference")
-    plt.ylim(0,15)
-    plt.legend()
-    clear_output()
 
 mu = 10
 delta = 7.5

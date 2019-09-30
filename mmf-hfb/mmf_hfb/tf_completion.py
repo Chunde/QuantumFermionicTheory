@@ -176,8 +176,8 @@ def entropy_integrand(ka2, kb2, mu_a, mu_b, delta, m_a, m_b, hbar, T):
     e_m, e_p = (e_a - e_b)/2, (e_a + e_b)/2
     E = np.sqrt(e_p**2 + abs(delta)**2)
     w_m, w_p = e_m - E, e_m + E
-    R_p = f(w_p)
-    R_m = f(w_m)
+    R_p = f(w_p, T=T)
+    R_m = f(w_m, T=T)
     R = 0
     if R_p > 0 and R_p < 1:
         R = R + R_p*np.log(R_p) + (1-R_p)*np.log(1-R_p)
@@ -244,8 +244,9 @@ def compute_C(mu_a, mu_b, delta, m_a, m_b, dim=3, hbar=1.0, T=0.0,
     return C
 
 
-def do_integration(integrand, mu_a, mu_b, delta, m_a, m_b, dim=3,
-                q=0, dq=0.0, hbar=1.0, k_0=0, k_inf=None, limit=None):
+def do_integration(
+        integrand, mu_a, mu_b, delta, m_a, m_b, dim=3,
+        q=0, dq=0.0, hbar=1.0, k_0=0, k_inf=None, limit=None):
     mu = (mu_a + mu_b)/2
     dmu = (mu_a - mu_b)/2
     minv = (1/m_a + 1/m_b)/2
@@ -254,15 +255,15 @@ def do_integration(integrand, mu_a, mu_b, delta, m_a, m_b, dim=3,
     m = 1./minv
     if limit is None:
         limit = MAX_DIVISION
-    #kF = math.sqrt(2*mu/minv)/hbar
+    # kF = math.sqrt(2*mu/minv)/hbar
 
     # The following conditions were derived from w(kx, kp) = 0 and
     # similar conditions which are now w(kx+q, kp) = 0.  If the old
     # solutions were kp(kx) and kx, then new solutions should be
     # kp(kx+q) and kx - q.
-    p_x_special = (np.ma.divide(m*(dmu - np.array([delta, -delta])),
-                                dq).filled(np.nan)
-                    - q).tolist()
+    p_x_special = (
+        np.ma.divide(m*(dmu - np.array([delta, -delta])),
+        dq).filled(np.nan) - q).tolist()
 
     # Quartic polynomial for special points.  See Docs/Integrate.ipynb
     P = [1, 0, -4*(m*mu_q + dq**2),
@@ -273,7 +274,6 @@ def do_integration(integrand, mu_a, mu_b, delta, m_a, m_b, dim=3,
         integrand = numba.cfunc(numba.float64(numba.float64))(integrand)
         integrand = sp.LowLevelCallable(integrand.ctypes)
         return quad(func=integrand, a=-1*k_inf, b=k_inf, points=points, limit=limit)
-        #return quad(func=integrand, a=k_0, b=k_inf, points=points, limit=limit)
 
     def kp0(kx):
         # k**2 = kx**2 + kp**2 > k_0**2
@@ -298,12 +298,11 @@ def do_integration(integrand, mu_a, mu_b, delta, m_a, m_b, dim=3,
         return (cmath.sqrt(A + 2*m*cmath.sqrt(D)).real/hbar,
                 cmath.sqrt(A - 2*m*cmath.sqrt(D)).real/hbar)
     return dquad(
-                func=integrand,
-                x0=-k_inf, x1=k_inf,
-                y0_x=kp0, y1_x=kp1,
-                points_x=points,
-                points_y_x=kp_special,
-                limit=limit)
+        func=integrand, x0=-1*k_inf, x1=k_inf,
+        y0_x=kp0, y1_x=kp1,
+        points_x=points,
+        points_y_x=kp_special,
+        limit=limit)
 
 
 def compute_current(mu_a, mu_b, delta, m_a=1, m_b=1, dim=3, hbar=1.0, T=0.0,
@@ -312,11 +311,6 @@ def compute_current(mu_a, mu_b, delta, m_a=1, m_b=1, dim=3, hbar=1.0, T=0.0,
     k_inf = np.inf if k_c is None else k_c
     
     if dim == 1:
-        def integrand(k):
-            k2_a = (k + q + dq)**2
-            k2_b = (k + q - dq)**2
-            f_p, f_m = f_p_m(k2_a, k2_b, mu_a, mu_b, delta, m_a, m_b, hbar, T)
-            return (k * f_p + dq * f_m) / 2 / np.pi
 
         def ja_integrand(k):
             k2_a = (k + q + dq)**2
@@ -332,11 +326,6 @@ def compute_current(mu_a, mu_b, delta, m_a=1, m_b=1, dim=3, hbar=1.0, T=0.0,
             f_b = (f_p - f_m)/2
             return (k - dq) * f_b / 2 / np.pi
     elif dim == 2:
-        def integrand(kx, kp):
-            k2_a = (kx + q + dq)**2 + kp**2
-            k2_b = (kx + q - dq)**2 + kp**2
-            f_p, f_m = f_p_m(k2_a, k2_b, mu_a, mu_b, delta, m_a, m_b, hbar, T)
-            return (kx * f_p + dq * f_m) / (2*np.pi**2)
 
         def ja_integrand(kx, kp):
             k2_a = (kx + q + dq)**2 + kp**2
@@ -353,11 +342,6 @@ def compute_current(mu_a, mu_b, delta, m_a=1, m_b=1, dim=3, hbar=1.0, T=0.0,
             return (kx - dq) * f_b / (2*np.pi**2)
 
     elif dim == 3:
-        def integrand(kx, kp):
-            k2_a = (kx + q + dq)**2 + kp**2
-            k2_b = (kx + q - dq)**2 + kp**2
-            f_p, f_m = f_p_m(k2_a, k2_b, mu_a, mu_b, delta, m_a, m_b, hbar, T)
-            return (kx * f_p + dq * f_m) * (kp/4/np.pi**2)
 
         def ja_integrand(kx, kp):
             k2_a = (kx + q + dq)**2 + kp**2

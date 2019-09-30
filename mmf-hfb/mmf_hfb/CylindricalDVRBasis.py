@@ -8,6 +8,7 @@ class Basis(object):
 
 class CylindricalBasis(Basis):
     eps = 7./3 - 4./3 -1  # machine precision
+    m = hbar = 1
 
     def __init__(self, N_root=None, R_max=None, K_max=None, a0=None, nu=0, dim=3, **args):
         """
@@ -55,17 +56,21 @@ class CylindricalBasis(Basis):
         """
         self.K_max = (self.N_root - 0.25)*np.pi/self.R_max
     
-    def get_zs(self, nu=0):
+    def get_zs(self, nu=None):
         """
         return roots for order $\nu$
         """
+        if nu is None:
+            nu = self.nu
         zs = bessel.j_root(nu=nu, N=self.N_root)
         return zs
 
-    def get_rs(self, zs=None, nu=0):
+    def get_rs(self, zs=None, nu=None):
         """
         return cooridnate in postition space
         """
+        if nu is None:
+            nu = self.nu
         if zs is None:
             zs = self.get_zs(nu=nu)
         return zs/self.K_max
@@ -89,13 +94,15 @@ class CylindricalBasis(Basis):
         psi = u/rs_
         return psi
 
-    def get_nu(self, nu=0):
+    def get_nu(self, nu=None):
         """
          `nu + d/2 - 1` for the centrifugal term
          Note:
             the naming convention use \nu as angular momentum quantum number
             but it's also being used as the order number of bessel function
          """
+        if nu is None:
+            nu = self.nu
         return nu + self.dim/2.0 - 1
 
     def get_K(self, zs=None, nu=None):
@@ -112,7 +119,7 @@ class CylindricalBasis(Basis):
         zx, zy = np.meshgrid(zs, zs, sparse=False, indexing='ij')
         nu = self.get_nu(nu)  # see get_nu(...)
         K_diag = (1+2*(nu**2 - 1)/zs**2)/3.0  # diagonal terms
-        K_off = 8*(-1)**(abs(xx - yy))*zx*zy/(zx**2 - zy**2)**2+self.eps
+        K_off = 8*(-1)**(abs(xx - yy))*zx*zy/(zx**2 - zy**2 + self.eps)**2
         np.fill_diagonal(K_off, K_diag)
         K = self.K_max**2*K_off/2.0  # factor of 1/2 include
         return K
@@ -123,4 +130,13 @@ class CylindricalBasis(Basis):
         to its representation in the target basis
         """
         assert basis_target.dim == self.dim
-        
+
+    def get_V_correction(self, nu):
+        """
+            if nu is not the same as the basis, a piece of correction
+            should be made to the centrifugal potential
+        """
+        return (nu**2 - self.nu**2)*self.hbar**2/2.0/self.rs**2
+
+    def get_V_mean_field(self, nu):
+        return 0

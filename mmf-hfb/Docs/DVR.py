@@ -198,7 +198,7 @@ def spectrum(nu=0):
     print(Es)
 
 
-spectrum(1)
+spectrum(6)
 
 spectrum(6)
 

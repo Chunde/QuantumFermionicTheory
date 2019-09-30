@@ -119,7 +119,7 @@ class BesselDVR(object):
         g_eff = 1.0/(n**(1/3.0)/self.gamma - Lc + self.eps)
         return g_eff
 
-    def get_H(self, delta, mus, V, zs=None, Ts=None, l=0):
+    def get_H(self, delta, mus, V_mean, zs=None, Ts=None, l=0):
         """return the Hamiltonian"""
         if zs is None:
             zs = self.get_zeros()
@@ -129,12 +129,17 @@ class BesselDVR(object):
         # zero = np.zeros_like(sum(self.xyz))
         Delta = np.diag(delta)
         mu_a, mu_b = mus
+
+        # the correction term for centrifugal potential if l !=\nu
+        # But seem it should be l^2 - l0^2, so the follow code may
+        # only be accurate when l = l0 ?
         l0 = l % 2
-        LL = self.alpha*(l*(l + 1) - l0*(l0 + 1))/2.0
+        ll = self.alpha*(l*(l + 1) - l0*(l0 + 1))/2.0
         r2 = (zs[l0]/self.k_c)**2
-        V_ = LL /r2
-        H_a = Ts[l0] + np.diag(V_ + V + r2/2 - mu_b)
-        H_b = Ts[l0] + np.diag(V_ + V + r2/2 - mu_a)
+        V_corr = ll/r2
+
+        H_a = Ts[l0] + np.diag(V_corr + V_mean + r2/2 - mu_b)
+        H_b = Ts[l0] + np.diag(V_corr + V_mean + r2/2 - mu_a)
         H = block(H_a, Delta, Delta.conj(), -H_b)
         return H
 
@@ -246,16 +251,16 @@ class AurelBesselDVR(BesselDVR):
             V = nan0(bbar*(3*np.pi**2*n)**(2/3.0)/2)
             return (D, V)
 
-        def _update_DV(D, V, r2, mu, n, kappa):
-            k0, kc = self._get_k0_kc(mu=mu, r2=r2, V=V)
-            g_eff = self.get_g_eff(mu=mu, r2=r2, V=V, n=n, k0=k0, kc=kc)
-            last_corr = self.get_last_correction(D=D, n=n, V=V, k0=k0, kc=kc)
+        def _update_DV(D, V_mean, r2, mu, n, kappa):
+            k0, kc = self._get_k0_kc(mu=mu, r2=r2, V=V_mean)
+            g_eff = self.get_g_eff(mu=mu, r2=r2, V=V_mean, n=n, k0=k0, kc=kc)
+            last_corr = self.get_last_correction(D=D, n=n, V=V_mean, k0=k0, kc=kc)
             D = -g_eff*kappa
-            V = (
+            V_mean = (
                 self.beta*(3*np.pi**2*n)**(2/3.0)/2.0
                 - D**2/self.gamma/(3*(n + self.eps)**(2/3.0)))
-            V = V / last_corr.real
-            return (D.real, V.real)
+            V_mean = V_mean / last_corr.real
+            return (D.real, V_mean.real)
 
         D0, V0 = _get_DV(r2=r02)
         D1, V1 = _get_DV(r2=r12)
@@ -278,7 +283,7 @@ class AurelBesselDVR(BesselDVR):
                 """l is the angular momentum quantum number"""
                 H = self.get_H(
                     delta=Ds[l % 2], mus=(mu_a, mu_b),
-                    V=Vs[l % 2], zs=(z0, z1), l=l)
+                    V_mean=Vs[l % 2], zs=(z0, z1), l=l)
                 ret = ret + self._get_den(
                     H=H, l=l, V=V0, D=D0, mus=(mu_a, mu_b), zs=zs, Cs=Cs)
             # print(ret[2])
@@ -288,9 +293,9 @@ class AurelBesselDVR(BesselDVR):
             n0, n1 = na0 + nb0, na1 + nb1
             kappa0, kappa1 = kappa0/2.0, kappa1/2.0
             # Update parameters at angular momentum = 0 site
-            D0, V0 = _update_DV(D=D0, V=V0, r2=r02, mu=mu, n=n0, kappa=kappa0)
+            D0, V0 = _update_DV(D=D0, V_mean=V0, r2=r02, mu=mu, n=n0, kappa=kappa0)
             # Update parameters at angular momentum = 1 site
-            D1, V1 = _update_DV(D=D1, V=V1, r2=r12, mu=mu, n=n1, kappa=kappa1)
+            D1, V1 = _update_DV(D=D1, V_mean=V1, r2=r12, mu=mu, n=n1, kappa=kappa1)
             e = e + 0.3*self.beta*(3*np.pi**2)**(2/3.0)*4*np.pi*sum(
                 r02*n0**(5/3.0)*C0**2) - 4*np.pi*sum(r02*D0*kappa0*C02)
             N0_a = 4*np.pi*sum(r0**2*C0**2*na0)

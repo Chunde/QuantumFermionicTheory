@@ -93,7 +93,7 @@ class FFState(object):
         """return the inverse of scattering length"""
         assert (mu is None) == (dmu is None)
         if mu is None:
-            mu_a, mu_b = self.mu
+            mu_a, mu_b = self.mus
             mu, dmu = (mu_a + mu_b)/2.0, (mu_a - mu_b)/2.0
         if k_c is None:
             k_c = self.k_c
@@ -112,7 +112,7 @@ class FFState(object):
         """
         assert (mu is None) == (dmu is None)
         if mu is None:
-            mu_a, mu_b = self.mu
+            mu_a, mu_b = self.mus
             mu, dmu = (mu_a + mu_b)/2.0, (mu_a - mu_b)/2.0
 
         if delta is None:
@@ -129,7 +129,7 @@ class FFState(object):
         """return the densities of two the components"""
         assert (mu is None) == (dmu is None)
         if mu is None:
-            mu_a, mu_b = self.mu
+            mu_a, mu_b = self.mus
             mu, dmu = (mu_a + mu_b)/2.0, (mu_a - mu_b)/2.0
         if delta is None:
             delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
@@ -291,7 +291,7 @@ class FFState(object):
                            n_a=None, n_b=None, k_c=None, use_kappa=True):
         assert (mu is None) == (dmu is None)
         if mu is None:
-            mu_a, mu_b = self.mu
+            mu_a, mu_b = self.mus
             mu, dmu = (mu_a + mu_b)/2.0, (mu_a - mu_b)/2.0
         if delta is None:
             delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq,
@@ -337,23 +337,6 @@ class FFState(object):
         mu_a, mu_b = mu + dmu, mu - dmu
         pressure = mu_a*n_a + mu_b*n_b - energy_density
         return pressure
-        
-    def check_superfluidity(self, mu=None, dmu=None, q=0, dq=0):
-        """
-        Check if a configuration will yield superfluid state.
-        May yield wrong results as the solve routine not
-        always works properly
-        """
-        assert (mu is None) == (dmu is None)
-        if mu is None:
-           mu_a, mu_b = self.mus
-           mu, dmu = (mu_a + mu_b)/2.0, (mu_a - mu_b)/2.0
-        oldFlag = self.bStateSentinel
-        self.bStateSentinel = False
-        delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq,
-                           a=self.delta * 0.8, b=self.delta * 1.2)
-        self.bStateSentinel = oldFlag
-        return delta > 0
 
     def solve(
             self, mu=None, dmu=None, q=0, dq=0,

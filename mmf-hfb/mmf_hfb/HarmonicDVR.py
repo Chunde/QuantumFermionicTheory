@@ -23,10 +23,10 @@ class HarmonicDVR(CylindricalBasis):
 
 
 if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    h = HarmonicDVR(nu=0, dim=3)
+    # import matplotlib.pyplot as plt
+    h = HarmonicDVR(nu=0, dim=2)
     H = h.get_H()
     Es, phis = np.linalg.eigh(H)
     print(Es)
-    plt.plot(phis[0]/h.rs_scale)
-    plt.show()
+    # plt.plot(phis[0]/h.rs_scale)
+    # plt.show()

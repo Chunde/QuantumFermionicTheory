@@ -384,22 +384,20 @@ for l in range(4):
     Es.append(E)
 
 Es_ = sorted(sum((E.tolist() for E in Es), []))
+# -
 
-# +
 l = 0
 l0 = 0
 nu0 = basis.nu(l=l0)
 nu = basis.nu(l=l)
-basis._d = 3
+basis._d = 2
 r = basis._r(Nr, l=l0)
 K = basis._get_K(l=l0)[0]   # Without factors of sqrt(r)
-
-V = get_V(r) # + (nu**2 - nu0**2)/r**2 * hbar**2/2/m
+V = get_V(r) + (nu*nu - nu0*nu0)/r**2 * hbar**2/2/m
 H = K/2 + np.diag(V)
 assert np.allclose(H, H.T.conj())
 E,psi = np.linalg.eigh(H)
 E
-# -
 
 plt.plot(psi[0]/r**0.5)
 
