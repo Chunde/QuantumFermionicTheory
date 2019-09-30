@@ -46,7 +46,7 @@ class VortexDVR(object):
         """
         basis = self.bases[self.basis_match_rule(nu)]
         T = basis.K
-        Delta = np.diag(delta)
+        Delta = np.diag(np.zeros_like(np.diag(T))+delta)
         mu_a, mu_b = mus
         V_corr = basis.get_V_correction(nu=nu)
         V_mean_field = basis.get_V_mean_field(nu=nu)
@@ -62,7 +62,7 @@ class VortexDVR(object):
         """
         h = homogeneous.Homogeneous(dim=3) 
         res = h.get_densities(mus_eff=(mu, mu), delta=delta)
-        g = delta/res.nu.n
+        g = delta/res.nu
         return g
 
     def _get_den(self, H):
@@ -86,9 +86,21 @@ class VortexDVR(object):
     def get_densities(self, mus, delta):
         """
         return the particle number density and anomalous density
+        Note: Here the anomalous density is represented as kappa
+        instead of \nu so it's not that confusing when \nu has
+        been used as angular momentum quantum number.
         """
         dens = 0
-        for nu in range(self.l_max):
+        for nu in range(self.l_max):  # sum over angular momentum
             H = self.get_H(mus=mus, delta=delta, nu=nu)
             dens = dens + self._get_den(H)
         n_a, n_b, kappa = dens
+        return (n_a, n_b, kappa)
+
+if __name__ == "__main__":
+    mu=10
+    dmu = 5.5
+    mus = (mu + dmu, mu - dmu)
+    delta=5
+    dvr = VortexDVR(mu=mu, delta=delta)
+    dvr.get_densities(mus=mus, delta=delta)

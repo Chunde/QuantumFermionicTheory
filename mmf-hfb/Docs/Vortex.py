@@ -357,4 +357,32 @@ delta = 1.16220056179 * mu
 dmu=0.25 * delta
 HomogeneousVortx(mu=mu, dmu=dmu, delta=delta)
 
+# # DVR Basis
+
+import mmf_hfb.VortexDVR as dvr; reload(dvr)
+from mmf_hfb.VortexDVR import VortexDVR
+from IPython.display import display, clear_output
+
+# +
+mu = 10
+delta = 5
+dmu = 0
+mus = (mu + dmu, mu - dmu)
+dvr = VortexDVR(mu=mu, delta=delta)
+
+while(True):
+    n_a, n_b, kappa = dvr.get_densities(mus=(mu,mu), delta=delta)
+    delta_ = -dvr.g*kappa
+    delta_, delta    
+    plt.plot(delta_)
+    plt.plot(delta,'+')
+    plt.title(f"Error={(delta-delta_).max()}")
+    plt.ylabel(r"$\Delta")
+    plt.show()
+    clear_output(wait=True)
+    if np.allclose(delta, delta_):
+        break      
+    delta=delta_
+# -
+
 

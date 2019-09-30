@@ -413,7 +413,7 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, dim=3,
        One of the base tf_completion functions called as f(k2_a, k2_b, ...).
     
     """
-    #if k_0 != 0:
+    # if k_0 != 0:
     #    warnings.warn(f"""This integration routine does not assume it's symmetric in k,
     #                   since your k_0 is nonzero, result may be wrong""")
     k_inf = np.inf if k_c is None else k_c
@@ -433,14 +433,12 @@ def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, dim=3,
             return f(k2_a, k2_b, *args) / 2 / np.pi
     elif dim == 2:
         def integrand(kx, kp):
-            # print(kx, kp)
             k2_a = (kx + q + dq)**2 + kp**2
             k2_b = (kx + q - dq)**2 + kp**2
             assert(kp>=0)
             return f(k2_a, k2_b, *args) / (2*np.pi**2)
     elif dim == 3:
         def integrand(kx, kp):
-            # print(kx, kp)
             k2_a = (kx + q + dq)**2 + kp**2
             k2_b = (kx + q - dq)**2 + kp**2
             assert(kp>=0)
