@@ -23,6 +23,7 @@ import numpy as np
 
 # +
 from mmf_hfb.BCSCooling import BCSCooling
+from mmf_hfb.CoolingEg import CoolingEg
 
 def H_exp(H, psi):
     return H.dot(psi).dot(psi.conj()).real
@@ -38,7 +39,7 @@ def Prob(psi):
 
 # ## Analytical vs Numerical
 
-Nx = 64
+Nx = 128
 L = 23.0
 dx = L/Nx
 bcs = BCSCooling(N=Nx, L=None, dx=dx, beta_0=1j, beta_K=0, beta_V=0)
@@ -225,10 +226,11 @@ Check_Vc()
 # ## Split-operator method
 
 from IPython.display import display, clear_output
-# from IPython.core.debugger import set_trace
+from mmf_hfb.CoolingEg import CoolingEg
 
-def PlayCooling(psis0, psis, N_data=10, N_step=100, **kw):
-    b = BCSCooling(N=Nx, L=None, dx=dx, **kw)
+
+def PlayCooling(b, psis0, psis, V, N_data=10, N_step=100, **kw):
+    x = b.xyz[0]
     E0, N0 = b.get_E_Ns(psis0, V=V)
     Es, cs, steps = [], [], list(range(N_data))
     for _n in range(N_data):
@@ -240,12 +242,14 @@ def PlayCooling(psis0, psis, N_data=10, N_step=100, **kw):
             cs.append(ax.get_c())
         for i, psi in enumerate(psis0):
             plt.plot(x, abs(psi)**2,'+', c=cs[i])
+        # derivative:   
         #for i, psi in enumerate(psis):
         #    dpsi = bcs.Del(psi, n=1)
         #   plt.plot(x, abs(dpsi)**2,'--', c=cs[i])
         plt.title(
             f"E0={E0:5.4},E={E:5.4}, $" + r"\beta_0$" +f"={b.beta_0}, "
-            +r"$\beta_V$"+f"={b.beta_V}, "+r" $\beta_K$" +f"={b.beta_K}")
+            +r"$\beta_V$"+f"={b.beta_V}, "+r" $\beta_K$" +f"={b.beta_K}"
+            +r" $\beta_D$" +f"={b.beta_D}")
         plt.show()
         clear_output(wait=True)
     return psis
@@ -254,92 +258,174 @@ def PlayCooling(psis0, psis, N_data=10, N_step=100, **kw):
 bcs = BCSCooling(N=Nx, L=None, dx=dx, beta_0=1, beta_V=1, beta_K=0, smooth=True) 
 H = bcs._get_H(mu_eff=0, V=V)  # harmonic trap
 Us, Es = bcs.get_U_E(H, transpose=True)
-plt.plot(x, np.log10(abs(Us[0])))
+#plt.plot(x, np.log10(abs(Us[0])))
 
-
-def Cooling(beta_0=1, N_state=1, **args):
-    H0 = bcs._get_H(mu_eff=0, V=0)  # free particle
-    H1 = bcs._get_H(mu_eff=0, V=V)  # harmonic trap
-    U0, Es0 = bcs.get_U_E(H0, transpose=True)
-    U1, Es1 = bcs.get_U_E(H1, transpose=True)
+def Cooling(Nx=64, beta_0=1, N_state=1, **args):
+    L = 23.0
+    dx = L/Nx
+    b = BCSCooling(N=Nx, L=None, dx=dx, **args)
+    x = b.xyz[0]
+    V = x**2/2
+    H0 = b._get_H(mu_eff=0, V=0)  # free particle
+    H1 = b._get_H(mu_eff=0, V=V)  # harmonic trap
+    U0, Es0 = b.get_U_E(H0, transpose=True)
+    U1, Es1 = b.get_U_E(H1, transpose=True)
     psis0 = U1[:N_state]
     psis = U0[:N_state]
-    psis=PlayCooling(psis0=psis0, psis=psis, **args)
+    psis=PlayCooling(b=b,psis0=psis0, psis=psis, V=V, **args)
 
+
+N_data = 20
+N_step = 100
 
 # ### Evolve with Original Hamiltonian
 
-Cooling(N_data=10, N_step=100, beta_V=0, beta_K=0, beta_D=0)
+Cooling(N_data=N_data, N_step=N_step, beta_V=0, beta_K=0, beta_D=0)
 
 # ### With $V_c$ Only
 
-Cooling(N_data=10, N_step=1000, beta_V=2, beta_K=0, beta_D=0)
+Cooling(N_data=N_data, N_step=N_step, beta_V=2, beta_K=0, beta_D=0)
 
 # ### With $K_c$ only
 
-Cooling(N_data=10, N_step=1000, beta_V=0, beta_K=2, beta_D=0)
+Cooling(N_data=N_data, N_step=N_step, beta_V=0, beta_K=2, beta_D=0)
 
 # ### With $V_c$ and $K_c$
 
-Cooling(N_data=10, N_step=1000, beta_V=1, beta_K=2, beta_D=0)
+Cooling(N_data=N_data, N_step=N_step, beta_V=1, beta_K=2, beta_D=0)
 
-Cooling(N_state=2, N_data=10, N_step=1000, beta_V=1, beta_K=0, beta_D=0)
+# ### Double States
+
+Cooling(N_state=2, Nx=64, N_data=10, N_step=N_step, beta_V=1, beta_K=1, beta_D=0)
 
 # ### With Derivatives
 
-Cooling(N_data=30, N_step=1000, beta_V=1, beta_K=0, beta_D=0, divs=(1, 1))
+Cooling(N_data=N_data, N_step=N_step, beta_V=1, beta_K=0, beta_D=1, divs=(1, 1))
 
-# ### Test code
+# # Another wave function
 
 # +
-from mmf_hfb.BCSCooling import BCSCooling
-import matplotlib.pyplot as plt
+L = 23.0
+Nx=4
+dx = L/Nx
 
-def get_V(x):
-    return x**2/2
+egs = [
+    BCSCooling(N=Nx,g=1,L=None, dx=dx, beta_V=1, beta_K=0, beta_D=0),
+    BCSCooling(N=Nx,g=1,L=None, dx=dx, beta_V=0, beta_K=1, beta_D=0)]
+psi0 = 2*(np.random.random(egs[0].Nxyz[0]) + 1j*np.random.random(egs[0].Nxyz[0]) - 0.5 - 0.5j)
+x=egs[0].xyz[0]
+#psi0 = 0*x + 1.5 + 1.5*np.exp(-x**2/2)
+psi_ground = 0*psi0 + np.sqrt((abs(psi0)**2).mean())
+V = np.array(psi0)*0
+E0, N0 = egs[0].get_E_Ns([psi_ground], V=V)
+# -
 
-def PlayCooling(bcs, psis0, psis, V=None, N_data=10, N_step=100, **kw):
-    x = bcs.xyz[0]
-    if V is None:
-        V = get_V(x)
-    E0, _ = bcs.get_E_Ns(psis0, V=V)
-    Es, cs= [], []
-    for _n in range(N_data):
-        psis = bcs.step(psis, V=V, n=N_step)
-        # assert np.allclose(psis[0].dot(psis[1].conj()), 0)
-        E, N = bcs.get_E_Ns(psis, V=V)
+psis = [psi0]
+Ess = []
+for eg in egs:
+    Es = []
+    cs = []
+    for _n in range(10):
+        psis = eg.step(psis, V=V, n=N_step)
+        E, N = eg.get_E_Ns(psis, V=V)
         Es.append(abs(E - E0)/E0)
+        plt.subplot(121)
         for psi in psis:
             ax, = plt.plot(x, abs(psi)**2)
             cs.append(ax.get_c())
-        for i, psi in enumerate(psis0):
-            plt.plot(x, abs(psi)**2, '+', c=cs[i])
-        # for i, psi in enumerate(psis):
-        #    dpsi = bcs.Del(psi, n=1)
-        #   plt.plot(x, abs(dpsi)**2,'--', c=cs[i])
-        plt.title(f"E0={E0},E={E}")
+        for i, psi in enumerate(psis):
+            plt.plot(x, abs(psi_ground)**2,'+', c=cs[i])
+        plt.subplot(122)
+        plt.plot(Es)
         plt.show()
         clear_output(wait=True)
-    return psis
+    Ess.append(Es)
 
+for Es in Ess:
+    plt.plot(Es)
 
-def CoolingEx(bcs, N=1, **args):
-    V = get_V(bcs.xyz[0])
-    H0 = bcs._get_H(mu_eff=0, V=0)  # free particle
-    H1 = bcs._get_H(mu_eff=0, V=V)  # harmonic trap
-    U0, _ = bcs.get_U_E(H0, transpose=True)
-    U1, _ = bcs.get_U_E(H1, transpose=True)
-    psis0 = U1[:N]
-    psis = U0[:N]
-    psis=PlayCooling(bcs=bcs, psis0=psis0, psis=psis, V=V, **args)
+args = dict(N=32, g=1)
+egs = [BCSCooling(beta_0=-1j, beta_V=0.0, beta_K=0.0, **args),
+       BCSCooling(beta_0=0.0, beta_V=0.0, beta_K=1.0, **args),
+       BCSCooling(beta_0=1.0, beta_V=0.0, beta_K=1.0, **args),      
+       BCSCooling(beta_0=0.0, beta_V=1.0, beta_K=0.0, **args),
+       BCSCooling(beta_0=1.0, beta_V=1.0, beta_K=0.0, **args),
+       BCSCooling(beta_0=0.0, beta_V=1.0, beta_K=1.0, **args),
+       BCSCooling(beta_0=1.0, beta_V=1.0, beta_K=1.0, **args)]
+labels = ['Imaginary Time',
+          'K', 'H+K',
+          'V', 'H+V',
+          'V+K', 'H+V+K']
+eg = egs[0]
+psi0 = 2*(np.random.random(eg.Nxyz[0]) + 1j*np.random.random(eg.Nxyz[0]) - 0.5 - 0.5j)
+V = np.array(psi0)*0
+x=egs[0].xyz[0]
+#psi0 = 0*x + 1.5 + 1.5*np.exp(-x**2/2)
+psi_ground = 0*psi0 + np.sqrt((abs(psi0)**2).mean())
+E0, N0 = eg.get_E_Ns([psi_ground], V=V)
+Es = [[] for _n in range(len(egs))]
+psis = [psi0.copy() for _n in range(len(egs))]
+t_max = 3.0
+Nstep = 4
+Ndata = int(np.round(t_max/eg.dt/Nstep))
+ts = np.arange(Ndata)*Nstep*eg.dt
+for _n in range(Ndata):
+    for n, eg in enumerate(egs):
+        ps = [psis[n]]
+        ps = eg.step(psis=ps, n=Nstep, V=V)
+        psis[n] = ps[0]
+        E, N = eg.get_E_Ns(psis=ps, V=V) 
+        Es[n].append(E/E0 - 1.0)
+Es = np.asarray(Es)
 
+_n = 0
+plt.semilogy(ts, Es[1], c='C0', ls=':', label=labels[1])
+plt.semilogy(ts, Es[2], c='C0', ls='-', label=labels[2])
+plt.semilogy(ts, Es[3], c='C1', ls=':', label=labels[3])
+plt.semilogy(ts, Es[4], c='C1', ls='-', label=labels[4])
+plt.semilogy(ts, Es[5], c='C2', ls=':', label=labels[5])
+plt.semilogy(ts, Es[6], c='C2', ls='-', label=labels[6])
+plt.semilogy(ts, Es[0], c='k', ls='-', label=labels[0], scaley=False)
+plt.xlabel("t")
+plt.ylabel("E-E0")
+plt.legend()
 
-# -
+args = dict(N=32)
+egs = [CoolingEg(beta_0=-1j, beta_V=0.0, beta_K=0.0, **args),
+       CoolingEg(beta_0=0.0, beta_V=0.0, beta_K=1.0, **args),
+       CoolingEg(beta_0=1.0, beta_V=0.0, beta_K=1.0, **args),      
+       CoolingEg(beta_0=0.0, beta_V=1.0, beta_K=0.0, **args),
+       CoolingEg(beta_0=1.0, beta_V=1.0, beta_K=0.0, **args),
+       CoolingEg(beta_0=0.0, beta_V=1.0, beta_K=1.0, **args),
+       CoolingEg(beta_0=1.0, beta_V=1.0, beta_K=1.0, **args)]
+labels = ['Imaginary Time',
+          'K', 'H+K',
+          'V', 'H+V',
+          'V+K', 'H+V+K']
+eg = egs[0]
+E0, N0 = eg.get_E_N(psi_ground)
+Es = [[] for _n in range(len(egs))]
+psis = [psi0.copy() for _n in range(len(egs))]
+t_max = 3.0
+Nstep = 4
+Ndata = int(np.round(t_max/eg.dt/Nstep))
+ts = np.arange(Ndata)*Nstep*eg.dt
+for _n in range(Ndata):
+    for n, eg in enumerate(egs):
+        psis[n] = eg.step(psis[n], Nstep)
+        E, N = eg.get_E_N(psis[n]) 
+        Es[n].append(E/E0 - 1.0)
+Es = np.asarray(Es)
 
-Nx = 128
-L = 23.0
-dx = L/Nx
-bcs = BCSCooling(N=Nx, L=None, dx=dx, beta_0=1, beta_V=0.2, beta_K=0, divs=None, smooth=True)
-CoolingEx(bcs=bcs, N_data=20, N_step=400)
+plt.semilogy(ts, Es[1], c='C0', ls=':', label=labels[1])
+plt.semilogy(ts, Es[2], c='C0', ls='-', label=labels[2])
+plt.semilogy(ts, Es[3], c='C1', ls=':', label=labels[3])
+plt.semilogy(ts, Es[4], c='C1', ls='-', label=labels[4])
+plt.semilogy(ts, Es[5], c='C2', ls=':', label=labels[5])
+plt.semilogy(ts, Es[6], c='C2', ls='-', label=labels[6])
+plt.semilogy(ts, Es[0], c='k', ls='-', label=labels[0], scaley=False)
+plt.xlabel("t")
+plt.ylabel("E-E0")
+plt.legend()
 
 
