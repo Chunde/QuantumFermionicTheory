@@ -2,6 +2,7 @@ from scipy.integrate import solve_ivp
 from mmf_hfb.bcs import BCS
 import numpy as np
 from scipy import signal as sg
+import matplotlib.pyplot as plt
 
 
 def Assert(a, b, rtol=1e-10):
@@ -30,8 +31,8 @@ class BCSCooling(BCS):
 
     def __init__(
             self, N=256, L=None, dx=0.1,
-            beta_0=1.0, beta_V=1.0, beta_K=1.0,
-            dt_Emax=1.0, g=0, divs=None, smooth=False):
+            beta_0=1.0, beta_V=1.0, beta_K=1.0, beta_D=1.0,
+            dt_Emax=1.0, g=0, divs=None, smooth=False, **args):
         """
         Arguments
         ---------
@@ -41,6 +42,8 @@ class BCSCooling(BCS):
            Portion of the position cooling potential V_c.
         beta_K : float
            Portion of the momentum cooling potential K_c.
+        beta_D: float
+            Portion of the position cooling potential V_c with derivative
         """
         if L is None:
             L = N*dx
@@ -48,11 +51,12 @@ class BCSCooling(BCS):
         self.beta_0 = beta_0
         self.beta_V = beta_V
         self.beta_K = beta_K
-        self._K2 = (self.hbar*np.array(self.kxyz[0]))**2/2/self.m
-        self.dt = dt_Emax*self.hbar/self._K2.max()
+        self.beta_D = beta_D
         self.g = g
         self.divs = divs
         self.smooth = smooth
+        self._K2 = (self.hbar*np.array(self.kxyz[0]))**2/2/self.m
+        self.dt = dt_Emax*self.hbar/self._K2.max()
 
     def get_V(self, psis, V):
         return sum(self.g*np.abs(psis)**2) + V
@@ -84,11 +88,11 @@ class BCSCooling(BCS):
             N = N + psi.dot(psi.conj())*self.dV
         return N
 
-    def get_Vc(self, psis, V):
+    def _get_Vc(self, psis, V, divs=None):
         N = self.get_N(psis)
         Hpsis = self.apply_H(psis, V=V)
         Vc = 0
-        if self.divs is None:
+        if divs is None:
             Hpsis = self.apply_H(psis, V=V)
             for i, psi in enumerate(psis):
                 Vc = Vc + 2*(psi.conj()*Hpsis[i]).imag/N
@@ -105,7 +109,15 @@ class BCSCooling(BCS):
             for i in range(len(psis)):
                 Vc = Vc + (
                     (Hpsis_a[i]*psis_b[i].conj()
-                        -psis_a[i]*Hpsis_b[i].conj())).imag/N  # may not need he dv term here
+                        -psis_a[i]*Hpsis_b[i].conj())).imag/N
+        return Vc
+
+    def get_Vc(self, psis, V, divs=None):
+        Vc = 0*np.array(psis[0])
+        if self.beta_V != 0:
+            Vc = Vc + self.beta_V*self._get_Vc(psis, V)
+        if self.beta_D !=0 and self.divs is not None:
+            Vc = Vc + self.beta_D*self._get_Vc(psis, V, self.divs)
         return Vc
 
     def get_Kc(self, psis, V):
@@ -144,7 +156,7 @@ class BCSCooling(BCS):
         return psis
         
     def apply_expV(self, psis, V, factor=1):
-        Vc = self.beta_V*self.get_Vc(psis=psis, V=V)
+        Vc = self.get_Vc(psis=psis, V=V)
         for i, psi in enumerate(psis):
             len0 = psi.dot(psi.conj())
             psi = np.exp(-1j*self.dt*factor*(self.beta_0*V + Vc))*psi
@@ -159,11 +171,11 @@ class BCSCooling(BCS):
         or, compute dy/dt w.r.t to Hc
         """
         H_psi = self.apply_H(psis=[psi], V=V)[0] if self.beta_0 !=0 else 0
-        Vc_psi = self.get_Vc(psis=[psi], V=V)[0]*psi if self.beta_V !=0 else 0
+        Vc_psi = self.get_Vc(psis=[psi], V=V)[0]*psi
         Kc_psi = (
             self.ifft(self.get_Kc([psi], V=V)[0]*self.fft(psi))
             if self.beta_K !=0 else 0)
-        return (self.beta_0*H_psi + self.beta_V*Vc_psi + self.beta_K*Kc_psi)
+        return (self.beta_0*H_psi + Vc_psi + self.beta_K*Kc_psi)
     
     def step(self, psis, V, n=1):
         """
@@ -219,3 +231,42 @@ class BCSCooling(BCS):
             E = E + K.real*self.dV
         E = E + V*self.dV
         return E, N
+
+
+def PlayCooling(b, x, V, psis0, psis, N_data=10, N_step=100, **kw):
+    E0, _ = b.get_E_Ns(psis0, V=V)
+    Es, cs = [], []
+    for _n in range(N_data):
+        psis = b.step(psis, V=V, n=N_step)
+        E, N = b.get_E_Ns(psis, V=V)
+        Es.append(abs(E - E0)/E0)
+        for psi in psis:
+            ax, = plt.plot(x, abs(psi)**2)
+            cs.append(ax.get_c())
+        for i, psi in enumerate(psis0):
+            plt.plot(x, abs(psi)**2,'+', c=cs[i])
+        plt.title(
+            f"E0={E0:5.4},E={E:5.4}, $" + r"\beta_0$" +f"={b.beta_0}, "
+            +r"$\beta_V$"+f"={b.beta_V}, "+r" $\beta_K$" +f"={b.beta_K}")
+        # plt.show()
+    return psis
+
+
+def Cooling(beta_0=1, N_state=1, **args):
+    Nx = 64
+    L = 23.0
+    dx = L/Nx
+    b = BCSCooling(N=Nx, L=None, dx=dx, **args)
+    x = b.xyz[0]
+    V = x**2/2
+    H0 = b._get_H(mu_eff=0, V=0)  # free particle
+    H1 = b._get_H(mu_eff=0, V=V)  # harmonic trap
+    U0, _ = b.get_U_E(H0, transpose=True)
+    U1, _ = b.get_U_E(H1, transpose=True)
+    psis0 = U1[:N_state]
+    psis = U0[:N_state]
+    psis=PlayCooling(b=b, x=x, V=V, psis0=psis0, psis=psis, **args)
+
+
+if __name__ == "__main__":
+    Cooling(N_data=10, N_step=1000, beta_V=2, beta_K=0, beta_D=0)

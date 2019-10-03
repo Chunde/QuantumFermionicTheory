@@ -5,8 +5,8 @@
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.3'
-#       jupytext_version: 1.0.3
+#       format_version: '1.4'
+#       jupytext_version: 1.2.3
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -81,7 +81,7 @@ plt.plot(x, -2*np.cos(2*x), '+')
 # ## Evolve with Imaginary Time
 
 def ImaginaryCooling():
-    plt.figure(figsize(16, 8))
+#    plt.figure(figsize(16, 8))
     ax1 = plt.subplot(121)
     ax2 = plt.subplot(122)
     for Nx in [64, 128, 256]:
@@ -117,7 +117,7 @@ def ImaginaryCooling():
     plt.ylabel('abs((E-E0)/E0)')
     plt.sca(ax2)
     plt.legend()
-    plt.xlim(-5,5)
+    plt.xlim(-5, 5)
     clear_output()
     plt.show()
 
@@ -167,7 +167,7 @@ ImaginaryCooling()
 
 # ## Units
 
-# First, $\braket{\psi|\psi}$ is dimentionless because is the particle number, the matrix $R=\sum_{\psi}\ket{\psi}\bra{\psi}$ should has not unit in all bases to satisifed $R^n=R$ for pure state. In $\ket{\psi}$ basis:
+# First, $\braket{\psi|\psi}$ is dimensionless because is the particle number, the matrix $R=\sum_{\psi}\ket{\psi}\bra{\psi}$ should has not unit in all bases to satisifed $R^n=R$ for pure state. In $\ket{\psi}$ basis:
 #
 # $$
 # R_{mn}=\braket{\psi_m|R|\psi_n}=\sum_l \braket{\psi_m|\psi_l}\braket{\psi_l|\psi_n}=\sum_l \delta_{lm}\delta_{ln}=\delta_{mn}\qquad \text{(dimensionless)}
@@ -175,7 +175,7 @@ ImaginaryCooling()
 #
 # Then from the relation in (1), we can see $H_c$ and $H$ should have same unit.
 #
-# Since $H\ket{\psi}=E\ket{\psi}$, the $H$ must have unit of energy, its matrix elemet in bais of $\psi$ can be derived as:
+# Since $H\ket{\psi}=E\ket{\psi}$, the $H$ must have unit of energy, its matrix element in bais of $\psi$ can be derived as:
 # $$
 # H_{mn}=\braket{\psi_m|H|\psi_n}=\int dx dx'\braket{\psi_m|x}\braket{x|H|x'}\braket{x'|\psi_n}=\int dx dx'\psi^*_m(x)\psi(x')\braket{x|H|x'}
 # $$
@@ -185,7 +185,7 @@ ImaginaryCooling()
 # $$
 # That means the matrix elements of an operator would be different in different bases.
 
-# The Hamiltonian matrx in a basis applied on a vector in that the space spaned by that basis will yield a new vector,
+# The Hamiltonian matrix in a basis applied on a vector in that the space spaned by that basis will yield a new vector,
 
 # Start with relations:
 #
@@ -202,24 +202,21 @@ ImaginaryCooling()
 def Check_Vc():
     for Nx in [64, 128, 256]:
         offset = np.log(Nx)*0
-        s = BCSCooling(N=Nx, dx=dx*64/Nx,  beta_0=-1j, beta_K=1, beta_V=1)
+        s = BCSCooling(N=Nx, dx=dx*64/Nx, beta_0=-1j, beta_K=1, beta_V=1)
         s.g = -1
         x = s.xyz[0]
         V_ext = x**2/2
         psi0 = np.exp(-x**2/2.0)*np.exp(1j*x)
-    #     H1 = s._get_H(mu_eff=0, V=V)  # harmonic trap
-    #     U1, _ = bcs.get_U_E(H1, transpose=True)
-    #     psi0 = U1[0] 
         plt.subplot(121)
         plt.plot(x, Prob(psi0) + offset)
         plt.subplot(122)
-        Vc = s.get_Vc(s.apply_H([psi0], V=V_ext), V=V_ext) 
-        l, = plt.plot(x, Vc + offset)  # add some offset in y direction to seperate plots
+        Vc = s.get_Vc(s.apply_H([psi0], V=V_ext), V=V_ext)
+        l, = plt.plot(x, Vc + offset)  # add some offset in y direction to separate plots
     plt.subplot(121)
     plt.xlim(-10, 10)
     plt.subplot(122)
-    plt.xlim(-10,10)
-    plt.xlabel("x"); plt.ylabel(f"$V_c$");
+    plt.xlim(-10, 10)
+    plt.xlabel("x"); plt.ylabel(f"$V_c$")
     clear_output()
 
 
@@ -228,12 +225,11 @@ Check_Vc()
 # ## Split-operator method
 
 from IPython.display import display, clear_output
-from IPython.core.debugger import set_trace
-
+# from IPython.core.debugger import set_trace
 
 def PlayCooling(psis0, psis, N_data=10, N_step=100, **kw):
     b = BCSCooling(N=Nx, L=None, dx=dx, **kw)
-    E0, N0 = bcs.get_E_Ns(psis0, V=V)
+    E0, N0 = b.get_E_Ns(psis0, V=V)
     Es, cs, steps = [], [], list(range(N_data))
     for _n in range(N_data):
         psis = b.step(psis, V=V, n=N_step)
@@ -271,27 +267,27 @@ def Cooling(beta_0=1, N_state=1, **args):
     psis=PlayCooling(psis0=psis0, psis=psis, **args)
 
 
-# ### Evolve with Original Harmitonian
+# ### Evolve with Original Hamiltonian
 
-Cooling(N_data=10, N_step=100, beta_V=0, beta_K=0,divs=(0, 0))
+Cooling(N_data=10, N_step=100, beta_V=0, beta_K=0, beta_D=0)
 
 # ### With $V_c$ Only
 
-Cooling(N_data=10, N_step=1000, beta_V=1, beta_K=0, divs=(0, 0))
+Cooling(N_data=10, N_step=1000, beta_V=2, beta_K=0, beta_D=0)
 
 # ### With $K_c$ only
 
-Cooling(N_data=10, N_step=1000, beta_V=0, beta_K=2, divs=(0, 0))
+Cooling(N_data=10, N_step=1000, beta_V=0, beta_K=2, beta_D=0)
 
 # ### With $V_c$ and $K_c$
 
-Cooling(N_data=10, N_step=1000,beta_V=1, beta_K=1, divs=(0, 0))
+Cooling(N_data=10, N_step=1000, beta_V=1, beta_K=2, beta_D=0)
 
-Cooling(N_state=2, N_data=10, N_step=1000,beta_V=1, beta_K=0)
+Cooling(N_state=2, N_data=10, N_step=1000, beta_V=1, beta_K=0, beta_D=0)
 
 # ### With Derivatives
 
-Cooling(N_data=30, N_step=1000, beta_V=0.01, beta_K=0, divs=(1, 1))
+Cooling(N_data=30, N_step=1000, beta_V=1, beta_K=0, beta_D=0, divs=(1, 1))
 
 # ### Test code
 
@@ -343,8 +339,7 @@ def CoolingEx(bcs, N=1, **args):
 Nx = 128
 L = 23.0
 dx = L/Nx
-bcs = BCSCooling(N=Nx, L=None, dx=dx, beta_0=1, beta_V=0.2, beta_K=0, divs=(1, 1), smooth=True)
-bcs.erase_max_ks()
-CoolingEx(bcs=bcs, N_data=100, N_step=100)
+bcs = BCSCooling(N=Nx, L=None, dx=dx, beta_0=1, beta_V=0.2, beta_K=0, divs=None, smooth=True)
+CoolingEx(bcs=bcs, N_data=20, N_step=400)
 
 
