@@ -8,7 +8,7 @@ class FunctionalBdG(object):
     def _gamma(self, p=None):
         """
         the gamma term only shows up in C
-        if C is set to constant, it may have 
+        if C is set to constant, it may have
         no effect on the result.
         """
         return -11.11  # -11.039 in Aureal's code
@@ -39,7 +39,7 @@ class FunctionalBdG(object):
         """
         return alpha_a, alpha_b
         --------------
-        Note: this method should be 
+        NOTE:
         """
         p = self._get_p(ns)
         alpha_a, alpha_b, alpha_even, alpha_odd = self._get_alphas_p(p)
@@ -87,7 +87,10 @@ class FunctionalBdG(object):
         return 0
 
     def _C(self, ns):
-        """return C tilde"""
+        """
+        return C tilde
+        NOTE: This only works for Unitray Regime
+        """
         p = self._get_p(ns)
         return self._alpha_p(p)*(sum(ns))**(1.0/3)/self._gamma()
 

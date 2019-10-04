@@ -377,7 +377,7 @@ while(True):
     plt.plot(delta_)
     plt.plot(delta,'+')
     plt.title(f"Error={(delta-delta_).max()}")
-    plt.ylabel(r"$\Delta")
+    plt.ylabel(r"$\Delta$")
     plt.show()
     clear_output(wait=True)
     if np.allclose(delta, delta_):

@@ -54,7 +54,7 @@ class FFStateFinder():
     def get_densities(self, mus_eff=None, delta=None, q=0, dq=0):
         """return the pressure"""
         
-        #if delta is None:
+        # if delta is None:
         #    delta = self.delta
         if mus_eff is None:
             mu_eff, dmu_eff = self.mu_eff, self.dmu_eff

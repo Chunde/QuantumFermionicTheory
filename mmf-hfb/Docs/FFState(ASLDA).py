@@ -5,8 +5,8 @@
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.3'
-#       jupytext_version: 1.0.3
+#       format_version: '1.4'
+#       jupytext_version: 1.2.3
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -253,40 +253,5 @@ lda.get_ns_mus_e_p(mus_eff=(mu_a_eff, mu_b_eff), delta=None)[3]
 
 lda.get_ns_mus_e_p(mus_eff=(mu_a_eff, mu_b_eff), delta=0)[3]
 
-# # Check the Functional
-
-delta=0
-args = dict(mu_eff=10, dmu_eff=0, delta=1, T=0, dim=3, k_c=100, verbosity=False)
-lda = ClassFactory("LDA", (ffa.FFStateAgent,),  functionalType=FunctionalType.SLDA, kernelType=KernelType.HOM, args=args)
-def g(e, ns):
-    g = (e/0.6/0.5/(6*np.pi**2)**(2.0/3))/(ns[0]**(5.0/3))
-    g=g**0.6
-    return g
-
-
-# +
-plt.figure(figsize(16,8))
-mu_eff = 10
-
-dmu_effs = np.linspace(0, mu_eff, 20)
-Ds = np.linspace(0, 1, 5)
-for D0 in Ds:
-    lda.D0=D0
-    nss=[]
-    es = []
-    gs=[]
-    xs = []
-    for dmu_eff in dmu_effs:
-        ns, mus, e, p = lda.get_ns_mus_e_p(mus_eff=(mu_eff + dmu_eff, mu_eff - dmu_eff), delta=0, solver=Solvers.BROYDEN1)
-        nss.append(ns)
-        es.append(e)
-        gs.append(g(e, ns))
-        xs.append(ns[1]/ns[0])
-    plt.plot(xs, gs, label=f"$D0$={D0}")
-plt.axhline(1, linestyle='dashed')
-plt.axvline(0, linestyle='dashed')
-plt.title(f"g(x)")
-plt.legend()
-# -
 
 

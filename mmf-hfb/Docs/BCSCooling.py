@@ -344,6 +344,9 @@ for eg in egs:
 for Es in Ess:
     plt.plot(Es)
 
+# ### Epxeriment with another wavefunction
+# * All the above trails used the 1D harmonic wavefunction, in which case, the $V_c$ and $K_c$ both works well to cool the energy($K_c$ performs better). However, in some case, $K_c$ may fail to cool the energy. The follow example we use GP wavefunction with interaction strength $g=1$, and no external potential.
+
 args = dict(N=32, g=1)
 egs = [BCSCooling(beta_0=-1j, beta_V=0.0, beta_K=0.0, **args),
        BCSCooling(beta_0=0.0, beta_V=0.0, beta_K=1.0, **args),

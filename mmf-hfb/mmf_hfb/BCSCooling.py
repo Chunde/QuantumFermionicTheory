@@ -2,7 +2,6 @@ from scipy.integrate import solve_ivp
 from mmf_hfb.bcs import BCS
 import numpy as np
 from scipy import signal as sg
-import matplotlib.pyplot as plt
 
 
 def Assert(a, b, rtol=1e-10):
@@ -252,48 +251,3 @@ class BCSCooling(BCS):
             E = E + K.real*self.dV
         E = E + V_eff.sum()*self.dV
         return E, N
-
-
-if __name__ == '__main__':
-    args = dict(N=32, g=1)
-    egs = [
-        BCSCooling(beta_0=-1j, beta_V=0.0, beta_K=0.0, **args),
-        BCSCooling(beta_0=0.0, beta_V=0.0, beta_K=1.0, **args),
-        BCSCooling(beta_0=1.0, beta_V=0.0, beta_K=1.0, **args),
-        BCSCooling(beta_0=0.0, beta_V=1.0, beta_K=0.0, **args),
-        BCSCooling(beta_0=1.0, beta_V=1.0, beta_K=0.0, **args),
-        BCSCooling(beta_0=0.0, beta_V=1.0, beta_K=1.0, **args),
-        BCSCooling(beta_0=1.0, beta_V=1.0, beta_K=1.0, **args)]
-    labels = ['Imaginary Time', 'K', 'H+K', 'V', 'H+V', 'V+K', 'H+V+K']
-    eg = egs[0]
-    psi0 = 2*(np.random.random(eg.Nxyz[0]) + 1j*np.random.random(eg.Nxyz[0]) - 0.5 - 0.5j)
-    V = np.array(psi0)*0
-    x=egs[0].xyz[0]
-    psi_ground = 0*psi0 + np.sqrt((abs(psi0)**2).mean())
-    E0, N0 = eg.get_E_Ns([psi_ground], V=V)
-    Es = [[] for _n in range(len(egs))]
-    psis = [psi0.copy() for _n in range(len(egs))]
-    t_max = 3.0
-    Nstep = 4
-    Ndata = int(np.round(t_max/eg.dt/Nstep))
-    ts = np.arange(Ndata)*Nstep*eg.dt
-    for _n in range(Ndata):
-        for n, eg in enumerate(egs):
-            ps = [psis[n]]
-            ps = eg.step(psis=ps, n=Nstep, V=V)
-            psis[n] = ps[0]
-            E, N = eg.get_E_Ns(psis=ps, V=V) 
-            Es[n].append(E/E0 - 1.0)
-    Es = np.asarray(Es)
-
-    plt.semilogy(ts, Es[1], c='C0', ls=':', label=labels[1])
-    plt.semilogy(ts, Es[2], c='C0', ls='-', label=labels[2])
-    plt.semilogy(ts, Es[3], c='C1', ls=':', label=labels[3])
-    plt.semilogy(ts, Es[4], c='C1', ls='-', label=labels[4])
-    plt.semilogy(ts, Es[5], c='C2', ls=':', label=labels[5])
-    plt.semilogy(ts, Es[6], c='C2', ls='-', label=labels[6])
-    plt.semilogy(ts, Es[0], c='k', ls='-', label=labels[0], scaley=False)
-    plt.xlabel("t")
-    plt.ylabel("E-E0")
-    plt.legend()
-    plt.show()
