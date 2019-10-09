@@ -72,7 +72,7 @@ class BCS(IHFBKernel):
         self.xyz = np.meshgrid(*[np.arange(_N) * _d - _L / 2
                                  for _N, _L, _d in zip(Nxyz, Lxyz, dxyz)],
                                indexing='ij')
-        self.kxyz = np.meshgrid(*[2 * np.pi * np.fft.fftfreq(_N, _d)
+        self.kxyz = np.meshgrid(*[2*np.pi*np.fft.fftfreq(_N, _d)
                                   for _N, _d in zip(Nxyz, dxyz)],
                                 indexing='ij')
 

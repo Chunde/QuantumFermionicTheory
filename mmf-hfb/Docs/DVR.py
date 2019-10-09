@@ -202,4 +202,26 @@ spectrum(6)
 
 spectrum(6)
 
+# # Harmonic in Plane Basis
+# * Make sure the plane wave basis yields the desired result
+
+from mmf_hfb.bcs import BCS
+
+Nx = 8
+L = 8
+dim = 2
+dx = L/Nx
+bcs = BCS(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
+x = bcs.xyz
+
+V=sum(np.array(x)**2/2.0).ravel()
+K = bcs._get_K()
+H = K + np.diag(V)
+
+Es, phis = np.linalg.eigh(H)
+
+Es[:40]
+
+
+
 
