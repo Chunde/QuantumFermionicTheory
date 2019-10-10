@@ -137,9 +137,9 @@ class BesselDVR(object):
         ll = self.alpha*(l*(l + 1) - l0*(l0 + 1))/2.0
         r2 = (zs[l0]/self.k_c)**2
         V_corr = ll/r2
-
-        H_a = Ts[l0] + np.diag(V_corr + V_mean + r2/2 - mu_b)
-        H_b = Ts[l0] + np.diag(V_corr + V_mean + r2/2 - mu_a)
+        V_harm = r2/2
+        H_a = Ts[l0] + np.diag(V_corr + V_mean + V_harm - mu_b)
+        H_b = Ts[l0] + np.diag(V_corr + V_mean + V_harm - mu_a)
         H = block(H_a, Delta, Delta.conj(), -H_b)
         return H
 
@@ -230,6 +230,7 @@ class AurelBesselDVR(BesselDVR):
         """
         N_a = np.ceil(N/2)
         N_b = np.floor(N/2)
+        # the (3N)^(1/3) is defined as Fermi energy of the noninteracting gas.
         mu = (3.0*N)**(1/3.0)*np.sqrt(self.xi)
         mu_a = mu_b = mu
         # E0 = (3.0*N)**(4/3.0)/4/np.sqrt(self.xi)

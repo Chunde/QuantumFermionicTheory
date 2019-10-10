@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # ---
 # jupyter:
 #   jupytext:
@@ -207,9 +208,9 @@ spectrum(6)
 
 from mmf_hfb.bcs import BCS
 
-Nx = 8
-L = 8
-dim = 2
+Nx = 128
+L = 33
+dim = 1
 dx = L/Nx
 bcs = BCS(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
 x = bcs.xyz
@@ -222,6 +223,99 @@ Es, phis = np.linalg.eigh(H)
 
 Es[:40]
 
+# # Discrete Variable Representation (DVR) Method
+# Create a program code which applies the discrete variable representation (DVR) method to calculate the eigenvectors and eigenstates for a one-dimensional quantum system in a Morse oscillator potential.
+#
+# ## DVR in a Nutshell
+# The DVR (Discrete Variable Representation) method also known as pseudo-spectral method is one of the most widely-used numerical schemes for wave packet propagation. This general and grid-based method can be summarized in three essential steps:
 
+# ## The DVR Algorithm
+# Consider a one-dimensional quantum system with coordinate x ∈ (a, b). The kinetic energy operator is deﬁned by:
+# $$
+# \hat{T}=-\frac{\hbar^{2}}{2 m} \frac{\mathrm{d}^{2}}{\mathrm{d} \mathrm{x}^{2}}
+# $$
+#
+# and the potential energy is given by the Morse potential
+#
+# $$
+# V(x)=D_{0}\left(1-\exp \left(-\alpha\left(x-x_{0}\right)\right)\right)^{2}
+# $$
+# The grid xi is equally spaced
+# $$
+# x_{i}=a+(b-a) i / N, \quad i=1, \ldots, N
+# $$
+# ### Basis Functions
+# $$
+# \operatorname{sinc}^{2}(\mathrm{x})=\frac{\sin ^{2}(\mathrm{mx})}{(\mathrm{mx})^{2}}, \quad \mathrm{m} \in \mathbb{N}
+# $$
+
+# First, construct the overlap matrix $S^{FBR}$ in ﬁnite basis representation
+#
+# $$
+# {S}^{\mathrm{FBR}}=\left(\begin{array}{ccc}{s_{11}} & {\cdots} & {s_{N 1}} \\ {\vdots} & {\ddots} & {\vdots} \\ {s_{1 N}} & {\cdots} & {s_{N N}}\end{array}\right)
+# $$
+#
+# With
+#
+# $$
+# s_{m n}=\int_{a}^{b} \frac{\sin ^{2}(m x) \sin ^{2}(n x)}{(m n)^{2} x^{4}} \mathrm{d} \mathrm{x}
+# $$
+
+from  scipy.integrate import quad
+
+a=-5
+b=5
+N=11
+D0=1
+alpha=1
+x0=0
+x = np.linspace(a,b,N)
+V = D0*(1-np.exp(-alpha*(x-x0)))**2
+ms = np.linspace(1, N, N)
+ns = ms
+mm, nn = np.meshgrid(ms, ns)
+
+plt.plot(x, V)
+
+
+def fillM(fun):
+    M = np.zeros_like(mm)
+    for i in reversed(range(N)):
+        for j in reversed(range(i)):
+            M[i][j] = fun(i+1, j+1)
+            M[j][i]= M[i][j]
+    for i in range(1, N):
+        M[i][i]=fun(i+1, i +1)
+    return M
+
+
+def smn(m, n):
+    def integrand(x):
+        return (np.sinc(m*x)*np.sinc(n*x)/m/n)**2
+    return quad(integrand, a, b)[0]
+
+
+S_FBR = fillM(smn)
+
+
+# Compute the quadrature matrix $X^{FBR}$
+#
+# $$
+# {X}^{\mathrm{FBR}}=\left(\begin{array}{ccc}{x_{11}} & {\ldots} & {x_{N 1}} \\ {\vdots} & {\ddots} & {\vdots} \\ {x_{1 N}} & {\ldots} & {x_{N N}}\end{array}\right)
+# $$
+#
+# With
+#
+# $$
+# x_{m n}=\int_{a}^{b} \frac{\sin ^{2}(m x) \sin ^{2}(n x)}{(m n)^{2}} \mathrm{d} \mathrm{x}
+# $$
+
+def xmn(m, n):
+    def integrand(x):
+        return (np.sin(m*x)*np.sin(n*x)/m/n)**2
+    return quad(integrand, a, b)[0]
+
+
+X_FBR=fillM(xmn)
 
 

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # ---
 # jupyter:
 #   jupytext:
@@ -22,16 +23,26 @@ import mmf_hfb.FFStateAgent as ffa
 
 # # Test $g(x)$
 #
-# * $g(x)$ is the ratio between the energy densities of 
+# * $g(x)$ is defined as:
 #
 # $$
 # \mathcal{E}(n_a, n_b)=\frac{3}{5} \frac{\hbar^{2}}{2 m}\left(6 \pi^{2}\right)^{2 / 3}\left[n_{a} g(x)\right]^{5 / 3}
+# $$
+#
+# The Thomas-Fermi energy density(only has kinetic term) for free fermi gas（FFG） is:
+# $$
+# \tau_{\mathrm{TF}}(r)=\frac{3 \hbar^{2}}{10 m}\left[3 \pi^{2}\right]^{2 / 3} n(r)^{5 / 3}
+# $$
+#
+# If the FFG density if uniform(i.e not depends on $r$), then the RHS of the first equation is just the FFG energy density. So $g(x)$ is just the ratio of energy of an interaction fermi gas over FFG, i.e.:
+# $$
+# g(x) = \bigl[\frac{\mathcal{E}(n_a, n_b)}{\tau_{\mathrm{TF}}}\bigr]^{3/5}
 # $$
 
 delta=0
 args = dict(mu_eff=10, dmu_eff=0, delta=1, T=0, dim=3, k_c=100, verbosity=False)
 bdg = ClassFactory(
-    "LDA", (ffa.FFStateAgent,), functionalType=FunctionalType.BDG,
+    "BDG", (ffa.FFStateAgent,), functionalType=FunctionalType.BDG,
     kernelType=KernelType.HOM, args=args)
 slda = ClassFactory(
     "SLDA", (ffa.FFStateAgent,), functionalType=FunctionalType.ASLDA,
@@ -46,7 +57,7 @@ def g(e, ns):
 
 
 mu_eff = 10
-ldas = [aslda]
+ldas = [bdg, aslda]
 dmu_effs = np.linspace(0, mu_eff, 20)
 for lda in ldas:
     nss=[]
@@ -72,5 +83,6 @@ plt.show()
 
 
 # # Bertsch parameter
+#
 
 
