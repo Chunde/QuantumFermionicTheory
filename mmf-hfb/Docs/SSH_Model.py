@@ -29,9 +29,21 @@
 
 # + {"id": "K_h6pxB5WQzM", "colab_type": "text", "cell_type": "markdown"}
 # ## Brute Force Diagonalization
+# * np.kron is the tensor product operation
 
 # + {"id": "9v_3EuFM21uF", "colab_type": "code", "outputId": "67f4c617-6642-4725-862c-6578547fd9f3", "colab": {"base_uri": "https://localhost:8080/", "height": 54}}
 import numpy as np
+def get_c(N, n):
+    c = np.array([[0, 0], 
+                    [1, 0]])
+    one = np.eye(2)
+    factors = [one]*N
+    factors[n] = c
+    res = 1
+    for f in factors:
+        res = np.kron(res, f)
+    return res
+    
 def get_cs(N):
     """Return a list of the operators c_i.
     
@@ -39,17 +51,10 @@ def get_cs(N):
     ---------
     N : int
         N = 2L = number of lattice sites.
-    """
-    c = np.array([[0, 0], 
-                    [1, 0]])
-    one = np.eye(2)
+    """    
     cs = []
     for n in range(N):
-        factors = [one]*N
-        factors[n] = c
-        res = 1
-        for f in factors:
-            res = np.kron(res, f)
+        res = get_c(N=N, n=n)
         cs.append(res)
     return cs
 
@@ -72,8 +77,42 @@ def get_H(L=4, J1=1, J2=2, get_cs=get_cs):
 # %time E, psi = np.linalg.eigh(H)
 
 
+# -
+
+c = get_c(N=10, n=1)
+ct = c.T
+op = np.matmul(ct, c)
+
+
 # + {"id": "IikbBXMnH1Ja", "colab_type": "text", "cell_type": "markdown"}
 # Here we plot the energes of the lowest excited states.  In the topological phase, the energy of the ground state has a four-fold degeneracy, so there are three degenerate "excited" states in the plot since we subtract off the energy of the ground state.
+# -
+
+def get_Ns(N, state_id=0, J1=1, J2=2):
+    """
+    return occupancy number for given manybody state id
+    """
+    H = get_H(L=N//2, J1=J1, J2=J2)
+    E, psi = np.linalg.eigh(H)
+    Ns = []
+    for n in range(N):
+        c = get_c(N=N, n=n)
+        ct = c.T
+        op_n = ct.dot(c)
+        n_ = op_n.dot(psi[:,state_id])
+        Ns.append(n_.dot(psi[:,state_id]))
+    return Ns
+
+
+state_id = 1
+Jprime=0.2
+J=1.0
+Ns=get_Ns(N=10, state_id=state_id, J2=Jprime, J1=J)
+plt.subplot(121)
+plt.bar(list(range(len(Ns))),Ns)
+plt.subplot(122)
+Ns=get_Ns(N=10, state_id=state_id, J2=J, J1=Jprime)
+plt.bar(list(range(len(Ns))),Ns)
 
 # + {"id": "H4MeDsvXENMD", "colab_type": "code", "outputId": "88ec8436-93b6-4491-9192-70f500493c1b", "colab": {"base_uri": "https://localhost:8080/", "height": 349}}
 Nstates = 10
@@ -107,7 +146,6 @@ plt.plot(abs(psi[2, :]))
 # + {"id": "pbZigkLBEUAw", "colab_type": "code", "outputId": "af34fef5-89d5-4ab9-cab4-b16fb7fe90db", "colab": {"base_uri": "https://localhost:8080/", "height": 323}}
 Jprime = 0.1
 J = 2.0
-
 H = get_H(L=5, J1=J, J2=Jprime)
 E = np.linalg.eigvalsh(H)
 #[plt.axhline(_E) for _E in E];
