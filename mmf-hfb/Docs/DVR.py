@@ -223,6 +223,10 @@ Es, phis = np.linalg.eigh(H)
 
 Es[:40]
 
+for i in range(4):
+    plt.plot(x[0], np.array(phis).T[i])
+plt.axhline(0, linestyle='dashed')
+
 # # Discrete Variable Representation (DVR) Method
 # Create a program code which applies the discrete variable representation (DVR) method to calculate the eigenvectors and eigenstates for a one-dimensional quantum system in a Morse oscillator potential.
 #

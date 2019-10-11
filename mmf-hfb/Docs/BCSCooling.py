@@ -393,42 +393,4 @@ plt.xlabel("t")
 plt.ylabel("E-E0")
 plt.legend()
 
-args = dict(N=32)
-egs = [CoolingEg(beta_0=-1j, beta_V=0.0, beta_K=0.0, **args),
-       CoolingEg(beta_0=0.0, beta_V=0.0, beta_K=1.0, **args),
-       CoolingEg(beta_0=1.0, beta_V=0.0, beta_K=1.0, **args),      
-       CoolingEg(beta_0=0.0, beta_V=1.0, beta_K=0.0, **args),
-       CoolingEg(beta_0=1.0, beta_V=1.0, beta_K=0.0, **args),
-       CoolingEg(beta_0=0.0, beta_V=1.0, beta_K=1.0, **args),
-       CoolingEg(beta_0=1.0, beta_V=1.0, beta_K=1.0, **args)]
-labels = ['Imaginary Time',
-          'K', 'H+K',
-          'V', 'H+V',
-          'V+K', 'H+V+K']
-eg = egs[0]
-E0, N0 = eg.get_E_N(psi_ground)
-Es = [[] for _n in range(len(egs))]
-psis = [psi0.copy() for _n in range(len(egs))]
-t_max = 3.0
-Nstep = 4
-Ndata = int(np.round(t_max/eg.dt/Nstep))
-ts = np.arange(Ndata)*Nstep*eg.dt
-for _n in range(Ndata):
-    for n, eg in enumerate(egs):
-        psis[n] = eg.step(psis[n], Nstep)
-        E, N = eg.get_E_N(psis[n]) 
-        Es[n].append(E/E0 - 1.0)
-Es = np.asarray(Es)
-
-plt.semilogy(ts, Es[1], c='C0', ls=':', label=labels[1])
-plt.semilogy(ts, Es[2], c='C0', ls='-', label=labels[2])
-plt.semilogy(ts, Es[3], c='C1', ls=':', label=labels[3])
-plt.semilogy(ts, Es[4], c='C1', ls='-', label=labels[4])
-plt.semilogy(ts, Es[5], c='C2', ls=':', label=labels[5])
-plt.semilogy(ts, Es[6], c='C2', ls='-', label=labels[6])
-plt.semilogy(ts, Es[0], c='k', ls='-', label=labels[0], scaley=False)
-plt.xlabel("t")
-plt.ylabel("E-E0")
-plt.legend()
-
 
