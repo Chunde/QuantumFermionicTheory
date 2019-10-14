@@ -199,7 +199,7 @@ def spectrum(nu=0):
     print(Es)
 
 
-spectrum(6)
+spectrum(2)
 
 spectrum(6)
 
@@ -209,7 +209,7 @@ spectrum(6)
 from mmf_hfb.bcs import BCS
 
 Nx = 128
-L = 33
+L = 23
 dim = 1
 dx = L/Nx
 bcs = BCS(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
@@ -226,6 +226,120 @@ Es[:40]
 for i in range(4):
     plt.plot(x[0], np.array(phis).T[i])
 plt.axhline(0, linestyle='dashed')
+
+
+# # Harmonic in Sinc Basis
+
+# +
+class DVR1D(object):
+    r"""Sinc function basis for non-periodic functions over an interval
+    `x0 +- L/2` with `N` points."""
+    def __init__(self, N, L, x0=0.0):
+        L = float(L)
+        self.N = N
+        self.L = L
+        self.x0 = x0
+        self.a = L/N
+        self.n = np.arange(N)
+        self.x = self.x0 + self.n*self.a - self.L/2.0 + self.a/2.0
+        self.k_max = np.pi/self.a
+
+    def H(self, V):
+        """Return the Hamiltonian with the give potential."""
+        _m = self.n[:, None]
+        _n = self.n[None, :]
+        K = 2.0*(-1.0)**(_m-_n)/(_m-_n)**2/self.a**2
+        K[self.n, self.n] = np.pi**2/3/self.a**2
+        K *= 0.5   # p^2/2/m
+        V = np.diag(V(self.x))
+        return K + V
+
+    def F(self, x=None):
+        """Return the DVR basis vectors"""
+        if x is None:
+            x_m = self.x[:, None]
+        else:
+            x_m = np.asarray(x)[:, None]
+        x_n = self.x[None, :]
+        return np.sinc((x_m-x_n)/self.a)/np.sqrt(self.a)
+
+
+class DVRPeriodic(DVR1D):
+    r"""Sinc function basis for periodic functions over an interval
+    `x0 +- L/2` with `N` points."""
+    def __init__(self, *v, **kw):
+        # Small shift here for consistent abscissa
+        DVR1D.__init__(self, *v, **kw)
+        self.x -= self.a/2.0
+        
+    def H(self, V):
+        """Return the Hamiltonian with the give potential."""
+        _m = self.n[:, None]
+        _n = self.n[None, :]
+        _arg = np.pi*(_m-_n)/self.N
+        if (0 == self.N % 2):
+            K = 2.0*(-1.0)**(_m-_n)/np.sin(_arg)**2
+            K[self.n, self.n] = (self.N**2 + 2.0)/3.0
+        else:
+            K = 2.0*(-1)**(_m-_n)*np.cos(_arg)/np.sin(_arg)**2
+            K[self.n, self.n] = (self.N**2 - 1.0)/3.0
+        K *= 0.5*(np.pi/self.L)**2   # p^2/2/m
+        V = np.diag(V(self.x))
+        return K + V
+
+    def F(self, x=None):
+        """Return the DVR basis vectors"""
+        if x is None:
+            x_m = self.x[:, None]
+        else:
+            x_m = np.asarray(x)[:, None]
+        x_n = self.x[None, :]
+        F = np.sinc((x_m-x_n)/self.a)/np.sinc((x_m-x_n)/self.L)/np.sqrt(self.a)
+        if (0 == self.N % 2):
+            F *= np.exp(-1j*np.pi*(x_m-x_n)/self.L)
+        return F
+
+
+# +
+Ns = [30, 40, 50]
+
+def V(x):
+   r"""HO potential"""
+   return w**2*x**2/2.0
+
+fig = plt.figure(figsize=(10,5))
+ax = []
+for _n, DVR in enumerate([DVR1D, DVRPeriodic]):
+    ax.append(plt.subplot(1,2,_n+1))
+    a = 1.0
+    k_c = np.pi/a
+    for _N in Ns:
+        _L = np.pi*_N/k_c
+        w = 2.0*np.pi/_L
+        dvr = DVR(N=_N, L=_L)
+        E = np.linalg.eigvalsh(dvr.H(V=V))
+        n = np.arange(_N)
+        _En = (n + 0.5)*w
+        plt.semilogy(n, abs(E-_En) + 1e-16, 'b-+')
+
+    _L = 30.0
+    w = 2.0*np.pi/_L
+    for _N in [60, 90]:
+        a = _L / _N
+        k_c = np.pi/a
+        dvr = DVR(N=_N, L=_L)
+
+        E = np.linalg.eigvalsh(dvr.H(V=V))
+        n = np.arange(_N)
+        _En = (n + 0.5)*w
+        plt.semilogy(n, abs(E-_En) + 1e-16, 'r:.')
+
+    plt.axis([0, 50, 1e-16, 100])
+    plt.xlabel(r'$n$')
+    if _n == 0:
+        plt.ylabel(r'$\Delta E$')
+    plt.title(DVR.__name__)
+# -
 
 # # Discrete Variable Representation (DVR) Method
 # Create a program code which applies the discrete variable representation (DVR) method to calculate the eigenvectors and eigenstates for a one-dimensional quantum system in a Morse oscillator potential.
