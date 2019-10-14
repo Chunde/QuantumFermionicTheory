@@ -104,15 +104,20 @@ def get_Ns(N, state_id=0, J1=1, J2=2):
     return Ns
 
 
+plt.figure(figsize=(16,5))
 state_id = 1
-Jprime=0.2
-J=1.0
+Jprime=.1
+J=1
 Ns=get_Ns(N=10, state_id=state_id, J2=Jprime, J1=J)
+print(Ns)
 plt.subplot(121)
-plt.bar(list(range(len(Ns))),Ns)
+plt.bar(list(range(len(Ns))),Ns, label="Trivial")
+plt.legend()
 plt.subplot(122)
 Ns=get_Ns(N=10, state_id=state_id, J2=J, J1=Jprime)
-plt.bar(list(range(len(Ns))),Ns)
+print(Ns)
+plt.bar(list(range(len(Ns))),Ns, label="Topological")
+plt.legend()
 
 # + {"id": "H4MeDsvXENMD", "colab_type": "code", "outputId": "88ec8436-93b6-4491-9192-70f500493c1b", "colab": {"base_uri": "https://localhost:8080/", "height": 349}}
 Nstates = 10
