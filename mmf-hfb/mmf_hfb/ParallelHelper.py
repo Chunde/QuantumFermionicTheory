@@ -11,6 +11,8 @@ class PoolHelper(object):
         ---------
         paras: list of parameters for the callee
         """
+        if poolsize == 1:
+            return [fun(para) for para in paras]
         if len(paras) > 1:
             if poolsize is None or poolsize < 1:
                 logic_cpu_count = os.cpu_count() - 2
