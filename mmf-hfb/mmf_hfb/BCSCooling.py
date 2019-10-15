@@ -1,7 +1,9 @@
 from scipy.integrate import solve_ivp
 from mmf_hfb.bcs import BCS
 import numpy as np
-from scipy import signal as sg
+from scipy import signal as sp
+import scipy.linalg 
+import numpy.linalg
 
 
 def Assert(a, b, rtol=1e-10):
@@ -31,7 +33,7 @@ class BCSCooling(BCS):
     def __init__(
             self, N=256, L=None, dx=0.1,
             beta_0=1.0, beta_V=1.0, beta_K=1.0, beta_D=1.0,
-            dt_Emax=1.0, g=0, divs=None, smooth=False, **args):
+            dt_Emax=1.0, g=0, divs=None, smooth=False, use_sp=False, **args):
         """
         Arguments
         ---------
@@ -43,6 +45,10 @@ class BCSCooling(BCS):
            Portion of the momentum cooling potential K_c.
         beta_D: float
             Portion of the position cooling potential V_c with derivative
+        use_sp: bool
+            specify if to solve the eigen problem using scipy
+            NOTE: scipy and numpy solve eigen value and vector problems
+                may give different vectors
         """
         if L is None:
             L = N*dx
@@ -56,12 +62,13 @@ class BCSCooling(BCS):
         self.smooth = smooth
         self._K2 = (self.hbar*np.array(self.kxyz[0]))**2/2/self.m
         self.dt = dt_Emax*self.hbar/self._K2.max()
+        self.use_sp = use_sp
 
     def get_V_eff(self, psis, V):
         """
             return effective potential for
             given external potential V and
-            states 
+            states
         """
         return sum(self.g*np.abs(psis)**2) + V
     
@@ -116,7 +123,7 @@ class BCSCooling(BCS):
         if divs is None:
             Hpsis = self.apply_H(psis, V=V)  # [check] apply apply_H or only apply_K
             for i, psi in enumerate(psis):
-                Vc = Vc + 2*(psi.conj()*Hpsis[i]).imag/N*self.dV
+                Vc = Vc + 2*(psi.conj()*Hpsis[i]).imag/N  # *self.dV
         else:  # Departure from locality
             da, db = self.divs
             psis_a = [self.Del(psi, n=da) for psi in psis]
@@ -218,7 +225,10 @@ class BCSCooling(BCS):
     
     def get_U_E(self, H, transpose=False):
         """return Us and Vs and energy"""
-        Es, U = np.linalg.eigh(H)
+        if self.use_sp:
+            Es, U = scipy.linalg.eigh(H)
+        else:
+            Es, U = numpy.linalg.eigh(H)
         if transpose:
             return (U.T, Es)
         return (U, Es)
