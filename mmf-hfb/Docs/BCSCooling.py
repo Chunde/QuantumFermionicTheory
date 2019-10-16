@@ -41,6 +41,7 @@ import numpy as np
 # $$
 
 # + {"id": "kharf_G6odN6", "colab_type": "code", "colab": {}}
+import mmf_hfb.BCSCooling as bcsc; reload(bcsc)
 from mmf_hfb.BCSCooling import BCSCooling
 from IPython.core.debugger import set_trace
 from IPython.display import display, clear_output
@@ -59,14 +60,11 @@ def Prob(psi):
 def Assert(a, b, rtol=1e-10):
     assert np.allclose(a, b, rtol=rtol)
 
-    
 def assert_orth(psis):
     y1, y2 = psis
     inner_prod = y1.dot(y2.conj())
     ret = np.allclose(inner_prod, 0, rtol=1e-16)
     assert ret
-    
-
 
 
 # + {"id": "-6acvrEKQXG-", "colab_type": "text", "cell_type": "markdown"}
@@ -228,7 +226,7 @@ check_uv_ir_error(Us[0], plot=True)
 
 # + {"id": "D2BW3sz38cet", "colab_type": "code", "colab": {}}
 def ImaginaryCooling():
-#    plt.figure(figsize(16, 8))
+    plt.rcParams["figure.figsize"] = (15,4)
     ax1 = plt.subplot(121)
     ax2 = plt.subplot(122)
     for Nx in [64, 128, 256]:
@@ -329,14 +327,16 @@ def PlayCooling(b, psis0, psis, V, N_data=10, N_step=100, plot=True, **kw):
     x = b.xyz[0]
     E0, N0 = b.get_E_Ns(psis0, V=V)
     Es, cs, Ns = [], [], []
+    #plt.rcParams["figure.figsize"] = (15,4)
+
     for _n in range(N_data):
         Ps = get_occupancy(psis0, psis)
         Ns.append(Ps)
         psis = b.step(psis, V=V, n=N_step)
         E, N = b.get_E_Ns(psis, V=V)
-        Es.append(abs(E - E0)/E0)
+        Es.append(abs(E - E0))
         if plot:
-            plt.subplot(121)
+            plt.subplot(131)
             for psi in psis:
                 ax, = plt.plot(x, abs(psi)**2)
                 cs.append(ax.get_c())
@@ -346,13 +346,16 @@ def PlayCooling(b, psis0, psis, V, N_data=10, N_step=100, plot=True, **kw):
                 f"E0={E0:5.4},E={E:5.4}, $" + r"\beta_0$" +f"={b.beta_0}, "
                 +r"$\beta_V$"+f"={b.beta_V}, "+r" $\beta_K$" +f"={b.beta_K}"
                 +r" $\beta_D$" +f"={b.beta_D}")
-            plt.subplot(122)
+            plt.subplot(132)
             plot_occupancy(Ns)
             plt.xlabel("Step")
             plt.ylabel("Occupancy")
+            plt.subplot(133)
+            plt.plot(Es)
+            plt.xlabel("Step")
+            plt.ylabel("Enery Diff")
             plt.show()
-            clear_output(wait=True)
-        
+            clear_output(wait=True)     
     return psis, Es, Ns
 
 
@@ -393,7 +396,7 @@ def Cooling(Nx=128, Lx=23, init_state_ids=None, beta_0=1, N_state=1, **args):
 # + {"id": "6DH4J9me8cfB", "colab_type": "code", "outputId": "acd8ab1e-02c6-4d3e-eba0-21b9c96b3d29", "colab": {"base_uri": "https://localhost:8080/", "height": 296}}
 N_data = 20
 N_step = 100
-Cooling(N_data=N_data, N_step=N_step, beta_V=0, beta_K=0, beta_D=0, plot=True);
+#Cooling(N_data=N_data, N_step=N_step, beta_V=0, beta_K=0, beta_D=0, plot=True);
 
 # + {"id": "Eo0kxBxAVMhZ", "colab_type": "text", "cell_type": "markdown"}
 # ## The simplest single wave function.
@@ -414,7 +417,7 @@ rets = Cooling(N_state=1, Nx=64, init_state_ids=(2,), N_data=25, N_step=100, bet
 # * if the initial state has no overlap with the true ground state, in single state case, we will see the cooling does not works.
 
 # + {"id": "BXaJWUplV13u", "colab_type": "code", "colab": {}}
-rets = Cooling(N_state=1, Nx=64, init_state_ids=(3,), N_data=25, N_step=100, beta_V=1, beta_K=1, beta_D=0., divs=(1,1), use_sp=False)
+rets = Cooling(N_state=1, Nx=64, init_state_ids=(3,), N_data=25, N_step=100, beta_V=1, beta_K=1, beta_D=0., divs=(1,1))
 
 # + {"id": "Tr365cInZDqJ", "colab_type": "text", "cell_type": "markdown"}
 # ## Two states

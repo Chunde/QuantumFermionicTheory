@@ -2,23 +2,14 @@ from scipy.integrate import solve_ivp
 from mmf_hfb.bcs import BCS
 import numpy as np
 from scipy import signal as sg
-import scipy.linalg 
 import numpy.linalg
 
 
-def Assert(a, b, rtol=1e-10):
-    assert np.allclose(a, b, rtol=rtol)
-
-    
 def assert_orth(psis):
     y1, y2 = psis
     inner_prod = y1.dot(y2.conj())
     ret = np.allclose(inner_prod, 0, rtol=1e-16)
     assert ret
-
-
-def H_exp(H, psi):
-    return H.dot(psi).dot(psi.conj()).real
 
 
 def Normalize(psi):
@@ -33,7 +24,7 @@ class BCSCooling(BCS):
     def __init__(
             self, N=256, L=None, dx=0.1,
             beta_0=1.0, beta_V=1.0, beta_K=1.0, beta_D=1.0,
-            dt_Emax=1.0, g=0, divs=None, smooth=False, use_sp=False, **args):
+            dt_Emax=1.0, g=0, divs=None, smooth=False,**args):
         """
         Arguments
         ---------
@@ -45,10 +36,6 @@ class BCSCooling(BCS):
            Portion of the momentum cooling potential K_c.
         beta_D: float
             Portion of the position cooling potential V_c with derivative
-        use_sp: bool
-            specify if to solve the eigen problem using scipy
-            NOTE: scipy and numpy solve eigen value and vector problems
-                may give different vectors
         """
         if L is None:
             L = N*dx
@@ -62,7 +49,6 @@ class BCSCooling(BCS):
         self.smooth = smooth
         self._K2 = (self.hbar*np.array(self.kxyz[0]))**2/2/self.m
         self.dt = dt_Emax*self.hbar/self._K2.max()
-        self.use_sp = use_sp
 
     def get_V_eff(self, psis, V):
         """
@@ -181,8 +167,11 @@ class BCSCooling(BCS):
         return Hc
 
     def apply_Vd(self, psis, V):
-        """apply Vd such as (V11) to the wavefunctions"""
-        Vmn = self.get_Vd(psis=psis, V=V)
+        """
+            apply Vd such as (V11) to the wavefunctions
+            NOTE: This may not be unitary
+        """
+        Vmn = self.beta_D*self.get_Vd(psis=psis, V=V)
         V11_psis = [-1*self.Del(Vmn*self.Del(psi=psi)) for psi in psis]
         return V11_psis
 
@@ -217,22 +206,43 @@ class BCSCooling(BCS):
         Kc_psi = (
             self.ifft(self.get_Kc([psi], V=V)[0]*self.fft(psi))
             if self.beta_K !=0 else 0)
-        Vd_psi = self.apply_Vd(psis=[psi], V=V)[0]*psi
+        Vd_psi = self.get_Vd(psis=[psi], V=V)[0]*psi  # apply the V11 on psi
         return (
-            self.beta_0*H_psi + self.beta_V*Vc_psi + self.beta_K*Kc_psi + self.beta_D*Vd_psi)
+            self.beta_0*H_psi + self.beta_V*Vc_psi
+            + self.beta_K*Kc_psi + self.beta_D*Vd_psi)
     
+    def evolve_V(self, psis, V, n=1):
+        """
+        evolve the states using Vmn(such as V11)
+        """
+        if self.beta_D == 0 or self.divs is None:
+            return psis
+        T = self.dt*n
+        psiss = self.solve(psis=psis, T=T, V=V, dy_dt=self.compute_dy_dt_v11)[1]
+        psis_new = [psiss[i][-1] for i in range(len(psis))]
+        for wf1, wf2 in zip(psis, psis_new):
+            len0 = wf1.conj().dot(wf1)
+            len1 = wf2.conj().dot(wf2)
+            assert np.allclose(len0, len1)
+        return psis_new
+
     def step(self, psis, V, n=1):
         """
         Evolve the state psi by applying n steps of the
         Split-Operator method.
         """
         psis = self.apply_expK(psis=psis, V=V, factor=0.5)
-        for n in range(n):
+        for _ in range(n):
             psis = self.apply_expV(psis=psis, V=V)
             psis = self.apply_expK(psis=psis, V=V)
         psis = self.apply_expK(psis=psis, V=V, factor=-0.5)
         return psis
-       
+
+    def compute_dy_dt_v11(self, t, psi, subtract_mu=True):
+        """Return dy/dt for ODE integration."""
+        Hpsi = self.apply_Vd([psi], V=self.V)[0]
+        return Hpsi/(1j*self.hbar)
+
     def compute_dy_dt(self, t, psi, subtract_mu=True):
         """Return dy/dt for ODE integration."""
         Hpsi = self.apply_Hc(psi, V=self.V)
@@ -242,20 +252,19 @@ class BCSCooling(BCS):
     
     def get_U_E(self, H, transpose=False):
         """return Us and Vs and energy"""
-        if self.use_sp:
-            Es, U = scipy.linalg.eigh(H)
-        else:
-            Es, U = numpy.linalg.eigh(H)
+        Es, U = numpy.linalg.eigh(H)
         if transpose:
             return (U.T, Es)
         return (U, Es)
 
-    def solve(self, psis, T, V, **kw):
+    def solve(self, psis, T, V, dy_dt=None, **kw):
         self.V = V  # external potential
         self.psis = psis  # all single particle states
         ts, ys = [], []
+        if dy_dt is None:
+            dy_dt = self.compute_dy_dt
         for psi0 in psis:  # can be parallelized
-            res = solve_ivp(fun=self.compute_dy_dt, t_span=(0, T), y0=psi0, **kw)
+            res = solve_ivp(fun=dy_dt, t_span=(0, T), y0=psi0, **kw)
             if not res.success:
                 raise Exception(res.message)
             ts.append(res.t)
