@@ -15,9 +15,10 @@
 # ---
 
 import mmf_setup;mmf_setup.nbinit()
+import matplotlib.pyplot as plt
 # %pylab inline --no-import-all
 from nbimports import *
-
+import numpy as np
 # + {"id": "ptb73kVS8ceS", "colab_type": "text", "cell_type": "markdown"}
 # # BCS Cooling Class
 #
@@ -50,7 +51,7 @@ def H_exp(H, psi):
     return H.dot(psi).dot(psi.conj()).real
 
 def Normalize(psi):
-    return psi/psi.dot(psi.conj())**0.5 
+    return psi/psi.dot(psi.conj())**0.5
 
 def Prob(psi):
     return np.abs(psi)**2

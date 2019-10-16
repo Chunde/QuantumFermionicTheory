@@ -1,7 +1,7 @@
 from scipy.integrate import solve_ivp
 from mmf_hfb.bcs import BCS
 import numpy as np
-from scipy import signal as sp
+from scipy import signal as sg
 import scipy.linalg 
 import numpy.linalg
 
@@ -70,6 +70,8 @@ class BCSCooling(BCS):
             given external potential V and
             states
         """
+        if self.g==0:
+            return V
         return sum(self.g*np.abs(psis)**2) + V
     
     def apply_H(self, psis, V):
@@ -101,7 +103,7 @@ class BCSCooling(BCS):
             Hpsis.append(Vpsi)
         return Hpsis
 
-    def Del(self, psi, n):
+    def Del(self, psi, n=1):
         """Now only support 1D function, should be genenilzed later"""
         if n <=0:
             return psi
@@ -112,21 +114,24 @@ class BCSCooling(BCS):
         return psi
 
     def get_N(self, psis):
+        """return total particle number"""
         N = 0
         for psi in psis:
             N = N + psi.dot(psi.conj())*self.dV
         return N
 
-    def _get_Vc(self, psis, V, divs=None):
+    def _get_Vs(self, psis, V, divs=None):
+        """return Vc or Vd"""
         N = self.get_N(psis)
         Vc = 0
         if divs is None:
-            Hpsis = self.apply_H(psis, V=V)  # [check] apply apply_H or only apply_K
+            Hpsis = self.apply_H(psis, V=V)  # [check] apply_H or apply_K
             for i, psi in enumerate(psis):
                 Vc = Vc + 2*(psi.conj()*Hpsis[i]).imag/N  # *self.dV
         else:  # Departure from locality
             da, db = self.divs
-            psis_a = [self.Del(psi, n=da) for psi in psis]
+            psis_a = [self.Del(psi, n=da) for psi in psis]  # r'\frac{d^n\psi}{dx^n}'
+            # r'\frac{\frac{d[d^n\psi}{dx^n}]}{dt} = \frac{\frac{d^n[d\psi}{dt}]}{dx^n}'
             Hpsis_a = self.apply_H(psis_a, V=V)
             if da == db:
                 psis_b = psis_a
@@ -137,21 +142,25 @@ class BCSCooling(BCS):
             for i in range(len(psis)):
                 Vc = Vc + (
                     (Hpsis_a[i]*psis_b[i].conj()
-                        -psis_a[i]*Hpsis_b[i].conj())).imag/N
+                        +psis_a[i]*Hpsis_b[i].conj()))/N  # no image
         return Vc
 
-    def get_Vc(self, psis, V, divs=None):
+    def get_Vc(self, psis, V):
         Vc = 0*np.array(psis[0])
         if self.beta_V != 0:
-            Vc = Vc + self.beta_V*self._get_Vc(psis, V)
-        if self.beta_D !=0 and self.divs is not None:
-            Vc = Vc + self.beta_D*self._get_Vc(psis, V, self.divs)
+            Vc = Vc + self._get_Vs(psis, V)
         return Vc
+
+    def get_Vd(self, psis, V):
+        Vd = 0*np.array(psis[0])
+        if self.beta_D !=0 and self.divs is not None:
+            Vd = Vd + self._get_Vs(psis, V, self.divs)
+        return Vd
 
     def get_Kc(self, psis, V):
         N = self.get_N(psis)
         Kc = 0
-        Hpsis = self.apply_H(psis, V=V)  # [check]apply_V only or apply_H
+        Hpsis = self.apply_H(psis, V=V)  # [check]apply_V or apply_H
         for i, psi in enumerate(psis):
             psi_k = np.fft.fft(psi)*self.dV
             Vpsi_k = np.fft.fft(Hpsis[i])*self.dV
@@ -171,6 +180,12 @@ class BCSCooling(BCS):
         Hc /= N
         return Hc
 
+    def apply_Vd(self, psis, V):
+        """apply Vd such as (V11) to the wavefunctions"""
+        Vmn = self.get_Vd(psis=psis, V=V)
+        V11_psis = [-1*self.Del(Vmn*self.Del(psi=psi)) for psi in psis]
+        return V11_psis
+
     def apply_expK(self, psis, V, factor=1):
         Kc = self.beta_K*self.get_Kc(psis=psis, V=V)
         for i, psi in enumerate(psis):
@@ -186,7 +201,7 @@ class BCSCooling(BCS):
         Vc = self.get_Vc(psis=psis, V=V)
         V_eff = self.get_V_eff(psis, V=V)
         for i, psi in enumerate(psis):
-            psi_new = np.exp(-1j*self.dt*factor*(self.beta_0*V_eff + Vc))*psi
+            psi_new = np.exp(-1j*self.dt*factor*(self.beta_0*V_eff +self.beta_V*Vc))*psi
             # Not sure if the next line is necessary
             psi_new *= np.sqrt((abs(psi)**2).sum()/(abs(psi_new)**2).sum())
             psis[i]=psi_new
@@ -202,7 +217,9 @@ class BCSCooling(BCS):
         Kc_psi = (
             self.ifft(self.get_Kc([psi], V=V)[0]*self.fft(psi))
             if self.beta_K !=0 else 0)
-        return (self.beta_0*H_psi + Vc_psi + self.beta_K*Kc_psi)
+        Vd_psi = self.apply_Vd(psis=[psi], V=V)[0]*psi
+        return (
+            self.beta_0*H_psi + self.beta_V*Vc_psi + self.beta_K*Kc_psi + self.beta_D*Vd_psi)
     
     def step(self, psis, V, n=1):
         """
