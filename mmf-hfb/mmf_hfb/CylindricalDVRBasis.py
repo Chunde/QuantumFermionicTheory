@@ -140,3 +140,20 @@ class CylindricalBasis(Basis):
 
     def get_V_mean_field(self, nu):
         return 0
+
+    def get_F(self, nu, n, rs=None, zs=None):
+        """return the nth basis function for \nu"""
+        if rs is None:
+            rs = self.rs
+        if zs is None:
+            zs = self.get_zs(nu=nu)
+        F = (-1)**n*self.K_max*zs[n]*np.sqrt(2*rs)/(
+            self.K_max**2*rs**2-zs[n]**2)*bessel.J(nu, 0)(rs)
+        return F
+
+    def compute_radial_psi(self, eigns):
+        Fs = [self.get_F(nu=self.nu, n=n, rs=self.rs, zs=self.zs) for n in range(len(eigns))]
+        psi = 0
+        for F, w in zip(Fs, eigns):
+            psi = psi + w*F
+        return psi

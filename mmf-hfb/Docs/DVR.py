@@ -187,19 +187,46 @@ for nu in range(4):
     plt.plot(xs,js)
 plt.axhline(0, linestyle='dashed')
 
+
+# # The first three state wavefunctions
+#
+# $\begin{aligned} \psi_{00} &=\left(\frac{m \omega}{\pi \hbar}\right)^{1 / 2} e^{-m \omega \rho^{2} / 2 \hbar} \\ \psi_{10} &=\sqrt{\frac{2 m \omega}{\hbar}}\left(\frac{m \omega}{\pi \hbar}\right)^{1 / 2} e^{-m \omega \rho^{2} / 2 \hbar} \rho \cos \phi \\ \psi_{01} &=\sqrt{\frac{2 m \omega}{\hbar}}\left(\frac{m \omega}{\pi \hbar}\right)^{1 / 2} e^{-m \omega \rho^{2} / 2 \hbar} \rho \sin \phi \end{aligned}$
+
+# +
+def psi00(rs):
+    psi = np.sqrt(1.0/np.pi)*np.exp(-rs**2/2)
+    return psi
+
+def psi10(rs):
+    psi = np.sqrt(2.0)*psi00(rs)*rs
+    return psi    
+
+
+# -
+
 from mmf_hfb.HarmonicDVR import HarmonicDVR
+
+h = HarmonicDVR(nu=0, dim=2)
+Fs = [h.get_F(nu=h.nu, n=n, rs=h.rs, zs=h.zs) for n in range(5)]
+[plt.plot(h.rs, F) for F in Fs]
 
 
 def spectrum(nu=0):
-    h = HarmonicDVR(nu=nu, dim=2)
+    h = HarmonicDVR(nu=nu, dim=2, w=1)
     H = h.get_H()
     Es, us = np.linalg.eigh(H)
-    plt.plot(h.rs,us[1]/h.rs_scale)
-    #plt.show()
+    for i in range(2):
+        plt.plot(h.rs,us[:,i]/h.rs_scale, label=f'{i}')
+    plt.plot(psi00(h.rs), '--', label='00')
+    plt.plot(psi10(h.rs), '+', label='01')
+    #psi_r = h.compute_radial_psi(Es)
+    #plt.plot(h.rs, psi_r)
     print(Es)
+    plt.axhline(0, linestyle='dashed')
+    plt.legend()
 
 
-spectrum(2)
+spectrum(nu=0)
 
 spectrum(6)
 
