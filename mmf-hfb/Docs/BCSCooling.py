@@ -20,9 +20,91 @@ import matplotlib.pyplot as plt
 from nbimports import *
 import numpy as np
 # + {"id": "ptb73kVS8ceS", "colab_type": "text", "cell_type": "markdown"}
-# # BCS Cooling Class
+# # BCS Cooling Class Test
 #
 # * A class implement local friction that supports GP type cooling(single wave function) and BCS type cooling(multiple wavefunctions). When applied to BCS orbits, it will maintain the particle number and orthogonality of these orbits
+
+# +
+import mmf_hfb.BCSCooling as bcsc; reload(bcsc)
+from mmf_hfb.BCSCooling import BCSCooling
+from IPython.core.debugger import set_trace
+from IPython.display import display, clear_output
+import numpy as np
+import scipy as sp
+
+def Normalize(psi):
+    return psi/psi.dot(psi.conj())**0.5
+
+def Prob(psi):
+    return np.abs(psi)**2
+   
+def check_uv_ir_error(psi, plot=False):
+    """check if a lattice configuration(N, L, dx) is good"""
+    psi_k = np.fft.fft(psi)
+    psi_log = np.log10(abs(psi))
+    psi_log_k = np.log10(abs(psi_k))
+    if plot:
+        l, =plt.plot(psi_log_k)
+        plt.plot(psi_log,'--', c=l.get_c())
+        print(np.min(psi_log), np.min(psi_log_k))
+    # assert the log10 value to be close to machine precision
+    #assert np.min(psi_log)<-15
+    assert np.min(psi_log_k) < -15
+
+
+# +
+args = dict(N=128, dx=0.1, beta_0=1, divs=(1, 1), beta_K=0, beta_V=0, beta_D=1)
+b = BCSCooling(**args)
+k0 = 2*np.pi/b.L
+x = b.xyz[0]
+V = 0  # x**2/2
+H0 = b._get_H(mu_eff=0, V=0)
+H1 = b._get_H(mu_eff=0, V=V)
+U0, E0 = b.get_U_E(H0, transpose=True)
+U1, E1 = b.get_U_E(H1, transpose=True)
+psi_1 = Normalize(np.cos(k0*x))
+assert np.allclose(Prob(psi_1), Prob(U0[1]))
+assert np.allclose(E0[1], k0**2/2.0)
+n=2
+psi = np.exp(1j*n*(k0*x))
+E =n**2*k0**2/2
+da=db=1
+# compute d^n \psi / d^n x
+psi_a = b.Del(psi, n=da)
+# d[d^n \psi / d^n x] / dt
+Hpsi = np.array(b.apply_H([psi], V=V))[0]
+plt.subplot(121)
+plt.plot(x, Hpsi,'+')
+plt.plot(x, Hpsi.imag, 'o')
+plt.plot(x, E*psi)
+plt.plot(x, E*psi.imag,'--')
+plt.subplot(122)
+Hpsi_a = b.Del(Hpsi, n=da)
+
+if da == db:
+    psi_b = psi_a
+    Hpsi_b = Hpsi_a
+else:
+    psi_b = b.Del(psi, n=db)
+    Hpsi_b = b.Del(Hpsi, n=db)
+    Vc =  psi_a*Hpsi_b.conj()+Hpsi_a*psi_b.conj()
+    
+
+# ts, psis = b.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, V=V, method='BDF')
+# psi0 = U1[0]
+# E0, _ = b.get_E_Ns([psi0], V=V)
+# Es = [b.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]
+# plt.subplot(121)
+# plt.plot(ts[0][:-2], (Es[:-2] - E0)/abs(E0))
+# plt.subplot(122)
+# l, = plt.plot(x, psi0)  # ground state
+# plt.plot(x, psis[0][0], "+", c=l.get_c())
+# plt.plot(x, psis[0][-1], '--', c=l.get_c())
+# plt.show()
+
+# -
+
+
 
 # + {"id": "a8GAbW-pn2cI", "colab_type": "text", "cell_type": "markdown"}
 # ## Define some commands
@@ -41,43 +123,6 @@ import numpy as np
 # $$
 
 # + {"id": "kharf_G6odN6", "colab_type": "code", "colab": {}}
-import mmf_hfb.BCSCooling as bcsc; reload(bcsc)
-from mmf_hfb.BCSCooling import BCSCooling
-from IPython.core.debugger import set_trace
-from IPython.display import display, clear_output
-import numpy as np
-import scipy as sp
-
-def H_exp(H, psi):
-    return H.dot(psi).dot(psi.conj()).real
-
-def Normalize(psi):
-    return psi/psi.dot(psi.conj())**0.5
-
-def Prob(psi):
-    return np.abs(psi)**2
-
-def Assert(a, b, rtol=1e-10):
-    assert np.allclose(a, b, rtol=rtol)
-
-def assert_orth(psis):
-    y1, y2 = psis
-    inner_prod = y1.dot(y2.conj())
-    ret = np.allclose(inner_prod, 0, rtol=1e-16)
-    assert ret
-    
-def check_uv_ir_error(psi, plot=False):
-    """check if a lattice configuration(N, L, dx) is good"""
-    psi_k = np.fft.fft(psi)
-    psi_log = np.log10(abs(psi))
-    psi_log_k = np.log10(abs(psi_k))
-    if plot:
-        l, =plt.plot(psi_log_k)
-        plt.plot(psi_log,'--', c=l.get_c())
-        print(np.min(psi_log), np.min(psi_log_k))
-    # assert the log10 value to be close to machine precision
-    #assert np.min(psi_log)<-15
-    assert np.min(psi_log_k) < -15
 
 
 # + {"id": "lLIWw-ya8ceW", "colab_type": "text", "cell_type": "markdown"}

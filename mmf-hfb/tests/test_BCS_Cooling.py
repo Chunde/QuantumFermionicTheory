@@ -1,50 +1,40 @@
 from mmf_hfb.BCSCooling import BCSCooling
 import matplotlib.pyplot as plt
+import numpy as np
+def Normalize(psi):
+    return psi/psi.dot(psi.conj())**0.5
+
+def Prob(psi):
+    return np.abs(psi)**2
+
+def test_derivative_cooling():
+    args = dict(N=128, dx=0.1, beta_0=1, divs=(1, 1), beta_K=0, beta_V=0, beta_D=1)
+    b = BCSCooling(**args)
+    k0 = 2*np.pi/b.L
+    x = b.xyz[0]
+    V = 0  # x**2/2
+    H0 = b._get_H(mu_eff=0, V=0)
+    H1 = b._get_H(mu_eff=0, V=V)
+    U0, E0 = b.get_U_E(H0, transpose=True)
+    U1, E1 = b.get_U_E(H1, transpose=True)
+    psi_1 = Normalize(np.cos(k0*x))
+    assert np.allclose(Prob(psi_1), Prob(U0[1]))
+    assert np.allclose(E0[1], k0**2/2.0)
 
 
-def get_V(x):
-    return x**2/2
-
-
-def PlayCooling(bcs, psis0, psis, V=None, N_data=10, N_step=100, **kw):
-    x = bcs.xyz[0]
-    if V is None:
-        V = get_V(x)
-    E0, _ = bcs.get_E_Ns(psis0, V=V)
-    Es, cs= [], []
-    for _n in range(N_data):
-        psis = bcs.step(psis, V=V, n=N_step)
-        # assert np.allclose(psis[0].dot(psis[1].conj()), 0)
-        E, _ = bcs.get_E_Ns(psis, V=V)
-        Es.append(abs(E - E0)/E0)
-        for psi in psis:
-            ax, = plt.plot(x, abs(psi)**2)
-            cs.append(ax.get_c())
-        for i, psi in enumerate(psis0):
-            plt.plot(x, abs(psi)**2, '+', c=cs[i])
-        # for i, psi in enumerate(psis):
-        #    dpsi = bcs.Del(psi, n=1)
-        #   plt.plot(x, abs(dpsi)**2,'--', c=cs[i])
-        plt.title(f"E0={E0},E={E}")
-        plt.show()
-    return psis
-
-
-def Cooling(bcs, beta_0=1, N=1, **args):
-    V = get_V(bcs.xyz[0])
-    H0 = bcs._get_H(mu_eff=0, V=0)  # free particle
-    H1 = bcs._get_H(mu_eff=0, V=V)  # harmonic trap
-    U0, _ = bcs.get_U_E(H0, transpose=True)
-    U1, _ = bcs.get_U_E(H1, transpose=True)
-    psis0 = U1[:N]
-    psis = U0[:N]
-    psis=PlayCooling(bcs=bcs, psis0=psis0, psis=psis, V=V, **args)
+    psi_0 = U0[1]
+    ts, psis = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, V=V, method='BDF')
+    psi0 = U1[0]
+    E0, _ = s.get_E_Ns([psi0], V=V)
+    Es = [s.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]
+    plt.subplot(121)
+    plt.plot(ts[0][:-2], (Es[:-2] - E0)/abs(E0))
+    plt.subplot(122)
+    l, = plt.plot(x, psi0)  # ground state
+    plt.plot(x, psis[0][0], "+", c=l.get_c())
+    plt.plot(x, psis[0][-1], '--', c=l.get_c())
+    plt.show()
 
 
 if __name__ == "__main__":
-    Nx = 64
-    L = 23.0
-    dx = L/Nx
-    bcs = BCSCooling(N=Nx, L=None, dx=dx, beta_0=1, beta_V=1, beta_K=0, smooth=True) #, divs=(1, 1))
-    #bcs.erase_max_ks()
-    Cooling(bcs=bcs, N_data=10, N_step=100)
+    test_derivative_cooling()

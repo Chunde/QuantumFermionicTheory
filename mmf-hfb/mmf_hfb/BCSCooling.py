@@ -64,7 +64,7 @@ class BCSCooling(BCS):
         return sum(self.g*np.abs(psis)**2) + V
     
     def apply_H(self, psis, V):
-        """compute dy/dt"""
+        """compute dy/dt=H\psi"""
         V_eff = self.get_V_eff(psis, V=V)
         Hpsis = []
         for psi in psis:
@@ -274,35 +274,3 @@ class BCSCooling(BCS):
             E = E + K.real*self.dV
         E = E + V_eff.sum()*self.dV
         return E, N
-
-
-def DerivativeCooling(Nx=128, L=23):
-    import matplotlib.pyplot as plt
-    dx = L/Nx
-    b = BCSCooling(N=Nx, L=None, dx=dx)
-    x = b.xyz[0]
-    V = x**2/2
-    H0 = b._get_H(mu_eff=0, V=0)
-    H1 = b._get_H(mu_eff=0, V=V)
-    U0, _ = b.get_U_E(H0, transpose=True)
-    U1, _ = b.get_U_E(H1, transpose=True)
-
-    args = dict(N=Nx, beta_0=1, divs=(1, 0), beta_K=0, beta_V=0, beta_D=1)
-    s = BCSCooling(dx=dx, **args)
-    psi_0 = U0[1]
-    ts, psis = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, V=V, method='BDF')
-    psi0 = U1[0]
-    E0, _ = s.get_E_Ns([psi0], V=V)
-    Es = [s.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]
-    plt.subplot(121)
-    plt.plot(ts[0][:-2], (Es[:-2] - E0)/abs(E0))
-    plt.subplot(122)
-    l, = plt.plot(x, psi0)  # ground state
-    plt.plot(x, psis[0][0], "+", c=l.get_c())
-    plt.plot(x, psis[0][-1], '--', c=l.get_c())
-    plt.show()
-
-
-if __name__ == "__main__":
-    DerivativeCooling()
-    
