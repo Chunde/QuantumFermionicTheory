@@ -18,7 +18,7 @@ def Normalize(psi):
 
 class BCSCooling(BCS):
     """
-    1d Local Quamtum Friction class
+    1d Local Quantum Friction class
     """
 
     def __init__(
@@ -39,6 +39,9 @@ class BCSCooling(BCS):
         """
         if L is None:
             L = N*dx
+        self.L=L
+        self.N=N
+        self.dx=dx
         BCS.__init__(self, Nxyz=(N,), Lxyz=(L,))
         self.beta_0 = beta_0
         self.beta_V = beta_V
@@ -90,7 +93,7 @@ class BCSCooling(BCS):
         return Hpsis
 
     def Del(self, psi, n=1):
-        """Now only support 1D function, should be genenilzed later"""
+        """Now only support 1D function, should be generalized later"""
         if n <=0:
             return psi
         for _ in range(n):
@@ -116,19 +119,23 @@ class BCSCooling(BCS):
                 Vc = Vc + 2*(psi.conj()*Hpsis[i]).imag/N  # *self.dV
         else:  # Departure from locality
             da, db = self.divs
-            psis_a = [self.Del(psi, n=da) for psi in psis]  # r'\frac{d^n\psi}{dx^n}'
-            # r'\frac{\frac{d[d^n\psi}{dx^n}]}{dt} = \frac{\frac{d^n[d\psi}{dt}]}{dx^n}'
-            Hpsis_a = self.apply_H(psis_a, V=V)
+            # compute d^n \psi / d^n x
+            psis_a = [self.Del(psi, n=da) for psi in psis]
+
+            # d[d^n \psi / d^n x] / dt
+            Hpsis = np.array(self.apply_H(psis, V=V))/(1j*self.hbar)
+            Hpsis_a = [self.Del(psi, n=da) for psi in Hpsis]
+
             if da == db:
                 psis_b = psis_a
                 Hpsis_b = Hpsis_a
             else:
                 psis_b = [self.Del(psi, n=db) for psi in psis]
-                Hpsis_b = self.apply_H(psis_b, V=V)
+                Hpsis_b = [self.Del(psi, n=db) for psi in Hpsis]
             for i in range(len(psis)):
                 Vc = Vc + (
-                    (Hpsis_a[i]*psis_b[i].conj()
-                        +psis_a[i]*Hpsis_b[i].conj()))/N  # no image
+                    (psis_a[i]*Hpsis_b[i].conj()
+                        +Hpsis_a[i]*psis_b[i].conj()))/N  # no image
         return Vc
 
     def get_Vc(self, psis, V):
@@ -168,7 +175,7 @@ class BCSCooling(BCS):
 
     def apply_Vd(self, psis, V):
         """
-            apply Vd such as (V11) to the wavefunctions
+            apply Vd such as (V11) to the wave-functions
             NOTE: This may not be unitary
         """
         Vmn = self.beta_D*self.get_Vd(psis=psis, V=V)
@@ -202,32 +209,17 @@ class BCSCooling(BCS):
         or, compute dy/dt w.r.t to Hc
         """
         H_psi = self.apply_H(psis=[psi], V=V)[0] if self.beta_0 !=0 else 0
-        Vc_psi = self.get_Vc(psis=[psi], V=V)[0]*psi
+        Vc_psi = self.get_Vc(psis=[psi], V=V)*psi
         Kc_psi = (
-            self.ifft(self.get_Kc([psi], V=V)[0]*self.fft(psi))
+            self.ifft(self.get_Kc([psi], V=V)*self.fft(psi))
             if self.beta_K !=0 else 0)
-        Vd_psi = self.get_Vd(psis=[psi], V=V)[0]*psi  # apply the V11 on psi
+        Vd_psi = self.get_Vd(psis=[psi], V=V)*psi  # apply the V11 on psi
         return (
             self.beta_0*H_psi + self.beta_V*Vc_psi
             + self.beta_K*Kc_psi + self.beta_D*Vd_psi)
-    
-    def evolve_V(self, psis, V, n=1):
-        """
-        evolve the states using Vmn(such as V11)
-        """
-        if self.beta_D == 0 or self.divs is None:
-            return psis
-        T = self.dt*n
-        psiss = self.solve(psis=psis, T=T, V=V, dy_dt=self.compute_dy_dt_v11)[1]
-        psis_new = [psiss[i][-1] for i in range(len(psis))]
-        for wf1, wf2 in zip(psis, psis_new):
-            len0 = wf1.conj().dot(wf1)
-            len1 = wf2.conj().dot(wf2)
-            assert np.allclose(len0, len1)
-        return psis_new
 
     def step(self, psis, V, n=1):
-        """
+        """ 
         Evolve the state psi by applying n steps of the
         Split-Operator method.
         """
@@ -237,11 +229,6 @@ class BCSCooling(BCS):
             psis = self.apply_expK(psis=psis, V=V)
         psis = self.apply_expK(psis=psis, V=V, factor=-0.5)
         return psis
-
-    def compute_dy_dt_v11(self, t, psi, subtract_mu=True):
-        """Return dy/dt for ODE integration."""
-        Hpsi = self.apply_Vd([psi], V=self.V)[0]
-        return Hpsi/(1j*self.hbar)
 
     def compute_dy_dt(self, t, psi, subtract_mu=True):
         """Return dy/dt for ODE integration."""
@@ -287,3 +274,35 @@ class BCSCooling(BCS):
             E = E + K.real*self.dV
         E = E + V_eff.sum()*self.dV
         return E, N
+
+
+def DerivativeCooling(Nx=128, L=23):
+    import matplotlib.pyplot as plt
+    dx = L/Nx
+    b = BCSCooling(N=Nx, L=None, dx=dx)
+    x = b.xyz[0]
+    V = x**2/2
+    H0 = b._get_H(mu_eff=0, V=0)
+    H1 = b._get_H(mu_eff=0, V=V)
+    U0, _ = b.get_U_E(H0, transpose=True)
+    U1, _ = b.get_U_E(H1, transpose=True)
+
+    args = dict(N=Nx, beta_0=1, divs=(1, 0), beta_K=0, beta_V=0, beta_D=1)
+    s = BCSCooling(dx=dx, **args)
+    psi_0 = U0[1]
+    ts, psis = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, V=V, method='BDF')
+    psi0 = U1[0]
+    E0, _ = s.get_E_Ns([psi0], V=V)
+    Es = [s.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]
+    plt.subplot(121)
+    plt.plot(ts[0][:-2], (Es[:-2] - E0)/abs(E0))
+    plt.subplot(122)
+    l, = plt.plot(x, psi0)  # ground state
+    plt.plot(x, psis[0][0], "+", c=l.get_c())
+    plt.plot(x, psis[0][-1], '--', c=l.get_c())
+    plt.show()
+
+
+if __name__ == "__main__":
+    DerivativeCooling()
+    

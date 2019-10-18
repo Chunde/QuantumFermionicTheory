@@ -2,6 +2,11 @@ from mmfutils.math import bessel
 import numpy as np
 
 
+def nan0(data):
+    """convert nan to zero"""
+    return np.nan_to_num(data, 0)
+
+
 class Basis(object):
     pass
 
@@ -75,7 +80,42 @@ class CylindricalBasis(Basis):
             zs = self.get_zs(nu=nu)
         return zs/self.K_max
 
+    def get_F(self, nu, n, rs):
+        """return the nth basis function for nu"""
+        if nu is None:
+            nu = self.nu
+        if rs is None:
+            rs = self.rs
+        zs = self.get_zs(nu=nu)
+        F = (-1)**(n)*self.K_max*zs[n]*np.sqrt(2*rs)/(
+            self.K_max**2*rs**2-zs[n]**2)*bessel.J(nu, 0)(self.K_max*rs)
+        F=nan0(F)
+        return F
+
+    def get_F_rs(self, zs=None, nu=None):
+        """
+        return the basis function values at abscissa r_n
+        for the nth basis function. Since each basis function
+        have non-zero value only at its own r_n, we just need to
+        compute that value, all other values are simply zero
+
+        """
+        if nu is None:
+            nu = self.nu
+        if zs is None:
+            rs = self.rs
+            zs = self.zs
+        else:
+            rs = zs/self.K_max
+        Fs = [(-1)**(n+1)*self.K_max*np.sqrt(2*rs[n]*zs[n])/(2*zs[n])*bessel.J_sqrt_pole(
+            nu=nu, zn=zs[n])(zs[n]) for n in range(len(rs))]
+        return Fs
+
     def _rs_scaling_factor(self, zs=None):
+        """
+        the dimension dependent scaling factor used to 
+        convert from u(r) to psi(r)=u(r)/rs_, or u(r)=psi(r)*rs_
+        """
         if zs is None:
             zs = self.zs
         rs = self.get_rs(zs=zs)
@@ -147,13 +187,14 @@ class CylindricalBasis(Basis):
             rs = self.rs
         if zs is None:
             zs = self.get_zs(nu=nu)
-        F = (-1)**n*self.K_max*zs[n]*np.sqrt(2*rs)/(
-            self.K_max**2*rs**2-zs[n]**2)*bessel.J(nu, 0)(rs)
+        F = (-1)**(n+1)*self.K_max*zs[n]*np.sqrt(2*rs)/(
+            self.K_max**2*rs**2-zs[n]**2)*bessel.J(nu, 0)(self.K_max*rs)
+        F=nan0(F)
         return F
 
-    def compute_radial_psi(self, eigns):
-        Fs = [self.get_F(nu=self.nu, n=n, rs=self.rs, zs=self.zs) for n in range(len(eigns))]
-        psi = 0
-        for F, w in zip(Fs, eigns):
-            psi = psi + w*F
-        return psi
+    # def compute_radial_psi(self, eigns):
+    #     Fs = [self.get_F(nu=self.nu, n=n, rs=self.rs, zs=self.zs) for n in range(len(eigns))]
+    #     psi = 0
+    #     for F, w in zip(Fs, eigns):
+    #         psi = psi + w*F
+    #     return psi

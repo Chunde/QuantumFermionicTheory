@@ -17,7 +17,8 @@
 import mmf_setup;mmf_setup.nbinit()
 # %pylab inline --no-import-all
 from nbimports import *
-
+import numpy as np
+import matplotlib.pyplot as plt
 # # Definition of DVR
 
 # Let $\phi_1(x), \phi_2(x)\dots \phi_n(x)$ be normalized and orthogonal basis in the Hilbert space $H$, $\{x_\alpha\}=(x_1, x_2, \dots, x_m)$ be a set of grid point in the configuration space of the system on which the coordinate system is based. Define the projector operator as:
@@ -180,7 +181,6 @@ from nbimports import *
 from scipy.integrate import quad
 from mmfutils.math import bessel
 
-plt.figure(figsize(12,4))
 xs = np.linspace(0, 10*np.pi, 500)
 for nu in range(4):
     js = bessel.J(nu, 0)(xs)
@@ -193,38 +193,53 @@ plt.axhline(0, linestyle='dashed')
 # $\begin{aligned} \psi_{00} &=\left(\frac{m \omega}{\pi \hbar}\right)^{1 / 2} e^{-m \omega \rho^{2} / 2 \hbar} \\ \psi_{10} &=\sqrt{\frac{2 m \omega}{\hbar}}\left(\frac{m \omega}{\pi \hbar}\right)^{1 / 2} e^{-m \omega \rho^{2} / 2 \hbar} \rho \cos \phi \\ \psi_{01} &=\sqrt{\frac{2 m \omega}{\hbar}}\left(\frac{m \omega}{\pi \hbar}\right)^{1 / 2} e^{-m \omega \rho^{2} / 2 \hbar} \rho \sin \phi \end{aligned}$
 
 # +
+def Normalize(psi):
+    return psi
+    return psi/psi.dot(psi.conj())**0.5
+
 def psi00(rs):
     psi = np.sqrt(1.0/np.pi)*np.exp(-rs**2/2)
-    return psi
+    return Normalize(psi)
 
 def psi10(rs):
     psi = np.sqrt(2.0)*psi00(rs)*rs
-    return psi    
+    return Normalize(psi)
+
 
 
 # -
 
+import mmf_hfb.HarmonicDVR as HarmonicDVR; reload(HarmonicDVR)
 from mmf_hfb.HarmonicDVR import HarmonicDVR
 
 h = HarmonicDVR(nu=0, dim=2)
-Fs = [h.get_F(nu=h.nu, n=n, rs=h.rs, zs=h.zs) for n in range(5)]
-[plt.plot(h.rs, F) for F in Fs]
+rs = np.linspace(0, 5, 100)
+for r in h.rs:
+    plt.axvline(r, linestyle='dashed')
+plt.axhline(0, linestyle='dotted')
+Fs = h.get_F(nu=0, n=3, rs=rs)
+plt.plot(rs, Fs)
+Fs = h.get_F_rs()
+plt.plot(h.rs, Fs, '+')
 
 
 def spectrum(nu=0):
     h = HarmonicDVR(nu=nu, dim=2, w=1)
     H = h.get_H()
+    Fs = h.get_F_rs()
+    
     Es, us = np.linalg.eigh(H)
     for i in range(2):
-        plt.plot(h.rs,us[:,i]/h.rs_scale, label=f'{i}')
+        psi = Normalize(us[:,i]*Fs/h.rs_scale)
+        plt.plot(h.rs,psi, label=f'{i}')
     plt.plot(psi00(h.rs), '--', label='00')
     plt.plot(psi10(h.rs), '+', label='01')
-    #psi_r = h.compute_radial_psi(Es)
-    #plt.plot(h.rs, psi_r)
     print(Es)
     plt.axhline(0, linestyle='dashed')
     plt.legend()
 
+
+spectrum(nu=0)
 
 spectrum(nu=0)
 
@@ -462,5 +477,7 @@ def xmn(m, n):
 
 
 X_FBR=fillM(xmn)
+
+
 
 
