@@ -57,7 +57,7 @@ args = dict(N=128, dx=0.1, beta_0=1, divs=(1, 1), beta_K=0, beta_V=0, beta_D=1)
 b = BCSCooling(**args)
 k0 = 2*np.pi/b.L
 x = b.xyz[0]
-V = 0  # x**2/2
+V =  0 #x**2/2
 H0 = b._get_H(mu_eff=0, V=0)
 H1 = b._get_H(mu_eff=0, V=V)
 U0, E0 = b.get_U_E(H0, transpose=True)
@@ -65,10 +65,10 @@ U1, E1 = b.get_U_E(H1, transpose=True)
 psi_1 = Normalize(np.cos(k0*x))
 assert np.allclose(Prob(psi_1), Prob(U0[1]))
 assert np.allclose(E0[1], k0**2/2.0)
-n=2
+n=1
 psi = np.exp(1j*n*(k0*x))
 E =n**2*k0**2/2
-da=db=1
+da=db=3
 # compute d^n \psi / d^n x
 psi_a = b.Del(psi, n=da)
 # d[d^n \psi / d^n x] / dt
@@ -87,8 +87,11 @@ if da == db:
 else:
     psi_b = b.Del(psi, n=db)
     Hpsi_b = b.Del(Hpsi, n=db)
-    Vc =  psi_a*Hpsi_b.conj()+Hpsi_a*psi_b.conj()
-    
+Vc =  psi_a*Hpsi_b.conj()/(1j)-Hpsi_a*psi_b.conj()/(1j)
+
+#assert np.allclose(Vc, 0)
+plt.plot(x,Vc)
+plt.ylim(-1,1)
 
 # ts, psis = b.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, V=V, method='BDF')
 # psi0 = U1[0]
@@ -104,7 +107,37 @@ else:
 
 # -
 
+Vc
 
+# # Analytical Check
+# Start with plance wave $\psi_n(x)= e^{i n kx}$, and free particle Hamiltonian $H$ with eigen energy $E_n$ for nth wave function $\psi_n(x)$, then
+# $$
+# H\psi=i\hbar \frac{\partial \psi(x, t)}{\partial t} = E_n \psi=\frac{n^2k^2}{2}\psi(x), \qquad \dot{\psi(x)}=\frac{\partial \psi(x)}{\partial t} = \frac{E_n\psi(x)}{i\hbar}\\
+# \psi^a(x)=\nabla^a \psi(x) = \frac{d^a \psi(x)}{dx^a} =  (i n k )^a e^{i n k x} = (ink)^a \psi(x)\\
+# \dot{\psi}^a(x)=(i n k )^a e^{i n k x} = (ink)^a\frac{E_n \psi(x)}{i\hbar}\\
+# $$
+# The defination of $V_{11}$ is given by:
+#
+# $$
+#   \hbar V_{ab}(x) 
+#   = (\I\hbar\braket{x|\op{D}_b[\op{R},\op{H}]\op{D}_a^\dagger|x})^*
+#   = \I\hbar\braket{x|\op{D}_a[\op{R},\op{H}]\op{D}_b^\dagger|x}\\
+#   = \braket{x|\op{D}_a|\psi}\braket{x|\op{D}_b|\dot{\psi}}^*
+#   + \braket{x|\op{D}_a|\dot{\psi}}\braket{x|\op{D}_b|\psi}^*.
+# $$
+#
+# If $\op{D}_{a,b}(x)$ are just derivative operators$\nabla^a$, then $\braket{x|\op{D}_{a}|\psi} = \psi^{(a)}(x)$, then we have
+#
+# $$
+# \begin{align}
+#  \hbar V_{ab}(x) 
+#   &= \psi^{(a)}(x)\overline{\dot{\psi}^{(b)}(x)}+ \dot{\psi}^{(a)}(x)\overline{\psi^{(b)}(x)}\\
+#   &=\frac{(ink)^a(-ink)^b E_n\psi(x)\psi^*(x)}{-i\hbar}+\frac{(-ink)^a(ink)^b E_n\psi(x)\psi^*(x)}{i\hbar}\\
+#   &=\frac{(nk)^{a+b}E_n\psi\psi^*}{ih}\bigl[(-i)^ai^b-i^a(-i)^b\bigr]
+# \end{align}
+# $$
+#
+# If $a=b$, then it's found that $V_{ab}=0$
 
 # + {"id": "a8GAbW-pn2cI", "colab_type": "text", "cell_type": "markdown"}
 # ## Define some commands
