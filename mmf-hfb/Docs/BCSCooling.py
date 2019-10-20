@@ -19,6 +19,21 @@ import matplotlib.pyplot as plt
 # %pylab inline --no-import-all
 from nbimports import *
 import numpy as np
+# ## Define some commands
+# * To properly display equations, we define some command to make life easier, this commands are invisible
+# $$
+#   \newcommand{\I}{\mathrm{i}}
+#   \newcommand{\d}{\mathrm{d}}
+#   \newcommand{\vect}[1]{\vec{#1}}
+#   \newcommand{\op}[1]{\hat{#1}}
+#   \newcommand{\abs}[1]{\lvert#1\rvert}
+#   \newcommand{\pdiff}[2]{\frac{\partial #1}{\partial #2}}
+#   \newcommand{\ket}[1]{\lvert#1\rangle}
+#   \newcommand{\bra}[1]{\langle#1\rvert}
+#   \newcommand{\braket}[1]{\langle#1\rangle}
+#   \DeclareMathOperator{\Tr}{Tr}
+# $$
+
 # + {"id": "ptb73kVS8ceS", "colab_type": "text", "cell_type": "markdown"}
 # # BCS Cooling Class Test
 #
@@ -57,7 +72,7 @@ args = dict(N=128, dx=0.1, beta_0=1, divs=(1, 1), beta_K=0, beta_V=0, beta_D=1)
 b = BCSCooling(**args)
 k0 = 2*np.pi/b.L
 x = b.xyz[0]
-V =  0 #x**2/2
+V =  x**2/2
 H0 = b._get_H(mu_eff=0, V=0)
 H1 = b._get_H(mu_eff=0, V=V)
 U0, E0 = b.get_U_E(H0, transpose=True)
@@ -66,13 +81,13 @@ psi_1 = Normalize(np.cos(k0*x))
 assert np.allclose(Prob(psi_1), Prob(U0[1]))
 assert np.allclose(E0[1], k0**2/2.0)
 n=1
-psi = np.exp(1j*n*(k0*x))
+psi =  np.exp(1j*n*(k0*x))
 E =n**2*k0**2/2
-da=db=3
+da, db=0, 1
 # compute d^n \psi / d^n x
 psi_a = b.Del(psi, n=da)
 # d[d^n \psi / d^n x] / dt
-Hpsi = np.array(b.apply_H([psi], V=V))[0]
+Hpsi = np.array(b.apply_H([psi], V=0))[0]/(1j)
 plt.subplot(121)
 plt.plot(x, Hpsi,'+')
 plt.plot(x, Hpsi.imag, 'o')
@@ -80,20 +95,19 @@ plt.plot(x, E*psi)
 plt.plot(x, E*psi.imag,'--')
 plt.subplot(122)
 Hpsi_a = b.Del(Hpsi, n=da)
-
 if da == db:
     psi_b = psi_a
     Hpsi_b = Hpsi_a
 else:
     psi_b = b.Del(psi, n=db)
     Hpsi_b = b.Del(Hpsi, n=db)
-Vc =  psi_a*Hpsi_b.conj()/(1j)-Hpsi_a*psi_b.conj()/(1j)
-
-#assert np.allclose(Vc, 0)
+Vc =  psi_a*Hpsi_b.conj() - Hpsi_a*psi_b.conj()
+if da==db:
+    assert np.allclose(Vc, 0)
 plt.plot(x,Vc)
-plt.ylim(-1,1)
 
-# ts, psis = b.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, V=V, method='BDF')
+
+# ts, psis = b.solve([psi], T=1, rtol=1e-5, atol=1e-6, V=V, method='BDF')
 # psi0 = U1[0]
 # E0, _ = b.get_E_Ns([psi0], V=V)
 # Es = [b.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]
@@ -104,10 +118,34 @@ plt.ylim(-1,1)
 # plt.plot(x, psis[0][0], "+", c=l.get_c())
 # plt.plot(x, psis[0][-1], '--', c=l.get_c())
 # plt.show()
-
 # -
 
-Vc
+np.allclose(psi_a*Hpsi_b.conj(), (n*k0)**(da+db)*E*psi*psi.conj()/(1j)*((1j)**db)*(-1j)**da)
+
+np.allclose(Hpsi_a*psi_b.conj(), (n*k0)**(da+db)*E*psi*psi.conj()/(1j)*((-1j)**db)*(1j)**da)
+
+psi_a*Hpsi_b.conj(), Hpsi_a*psi_b.conj();
+
+plt.plot(psi)
+plt.plot(psi.imag, '--')
+plt.plot(Hpsi)
+plt.plot(Hpsi.imag, '+')
+plt.axhline(0, linestyle='dashed')
+psi.dot(psi.conj()), E
+
+
+psi_c =psi.conj()
+l, = plt.plot(psi_c)
+plt.plot(psi_c.imag, '--',c=l.get_c())
+l, =plt.plot(psi, '+')
+plt.plot(psi.imag, '--', c=l.get_c())
+
+Hpsi.dot(psi_c)/(1j)
+
+plt.plot(x, psis[0][0], "+", c=l.get_c())
+plt.plot(x, psis[0][-1], '--', c=l.get_c())
+
+psi_a*Hpsi_b.conj() + Hpsi_a*psi_b.conj();
 
 # # Analytical Check
 # Start with plance wave $\psi_n(x)= e^{i n kx}$, and free particle Hamiltonian $H$ with eigen energy $E_n$ for nth wave function $\psi_n(x)$, then
@@ -132,31 +170,12 @@ Vc
 # \begin{align}
 #  \hbar V_{ab}(x) 
 #   &= \psi^{(a)}(x)\overline{\dot{\psi}^{(b)}(x)}+ \dot{\psi}^{(a)}(x)\overline{\psi^{(b)}(x)}\\
-#   &=\frac{(ink)^a(-ink)^b E_n\psi(x)\psi^*(x)}{-i\hbar}+\frac{(-ink)^a(ink)^b E_n\psi(x)\psi^*(x)}{i\hbar}\\
-#   &=\frac{(nk)^{a+b}E_n\psi\psi^*}{ih}\bigl[(-i)^ai^b-i^a(-i)^b\bigr]
+#   &=\frac{(ink)^a(-ink)^b E_n\psi(x)\psi^*(x)}{-i\hbar}+\frac{(ink)^a(-ink)^b E_n\psi(x)\psi^*(x)}{i\hbar}\\
+#   &=\frac{(nk)^{a+b}E_n\psi\psi^*}{ih}\bigl[(i)^a(-i)^b-i^a(-i)^b\bigr]=0
 # \end{align}
 # $$
 #
-# If $a=b$, then it's found that $V_{ab}=0$
-
-# + {"id": "a8GAbW-pn2cI", "colab_type": "text", "cell_type": "markdown"}
-# ## Define some commands
-# * To properly display equations, we define some command to make life easier, this commands are invisible
-# $$
-#   \newcommand{\I}{\mathrm{i}}
-#   \newcommand{\d}{\mathrm{d}}
-#   \newcommand{\vect}[1]{\vec{#1}}
-#   \newcommand{\op}[1]{\hat{#1}}
-#   \newcommand{\abs}[1]{\lvert#1\rvert}
-#   \newcommand{\pdiff}[2]{\frac{\partial #1}{\partial #2}}
-#   \newcommand{\ket}[1]{\lvert#1\rangle}
-#   \newcommand{\bra}[1]{\langle#1\rvert}
-#   \newcommand{\braket}[1]{\langle#1\rangle}
-#   \DeclareMathOperator{\Tr}{Tr}
-# $$
-
-# + {"id": "kharf_G6odN6", "colab_type": "code", "colab": {}}
-
+# It's found that $V_{ab}=0$, since any wave function can be expanded as plane wave, that means for any wave function, as long as the Hamiltonian is free-partile type, $V_{ab}=0$
 
 # + {"id": "lLIWw-ya8ceW", "colab_type": "text", "cell_type": "markdown"}
 # ## Free Fermions and Fermions in a Harmonic Trap

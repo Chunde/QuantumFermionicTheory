@@ -16,10 +16,14 @@ def n(request):
     return request.param
 
 @pytest.fixture(params=[0, 2, 3])
-def d(request):
+def da(request):
     return request.param
 
-def test_derivative_cooling(n, d):
+@pytest.fixture(params=[0, 2, 3])
+def db(request):
+    return request.param
+
+def test_derivative_cooling(n, da, db):
     """
     Test that for free particle hamiltonian, when da=da, Vc is zero
     """
@@ -35,7 +39,6 @@ def test_derivative_cooling(n, d):
     assert np.allclose(E0[1], k0**2/2.0)
     psi = np.exp(1j*n*(k0*x))
     E =n**2*k0**2/2
-    da=db=d
     # compute d^n \psi / d^n x
     psi_a = b.Del(psi, n=da)
     # d[d^n \psi / d^n x] / dt

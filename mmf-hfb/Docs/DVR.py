@@ -19,6 +19,7 @@ import mmf_setup;mmf_setup.nbinit()
 from nbimports import *
 import numpy as np
 import matplotlib.pyplot as plt
+
 # # Definition of DVR
 
 # Let $\phi_1(x), \phi_2(x)\dots \phi_n(x)$ be normalized and orthogonal basis in the Hilbert space $H$, $\{x_\alpha\}=(x_1, x_2, \dots, x_m)$ be a set of grid point in the configuration space of the system on which the coordinate system is based. Define the projector operator as:
@@ -212,7 +213,7 @@ def psi10(rs):
 import mmf_hfb.HarmonicDVR as HarmonicDVR; reload(HarmonicDVR)
 from mmf_hfb.HarmonicDVR import HarmonicDVR
 
-h = HarmonicDVR(nu=0, dim=2)
+h = HarmonicDVR(nu=2, dim=2)
 rs = np.linspace(0, 5, 100)
 for r in h.rs:
     plt.axvline(r, linestyle='dashed')
@@ -226,11 +227,10 @@ plt.plot(h.rs, Fs, '+')
 def spectrum(nu=0):
     h = HarmonicDVR(nu=nu, dim=2, w=1)
     H = h.get_H()
-    Fs = h.get_F_rs()
-    
+    Fs = h.get_F_rs()    
     Es, us = np.linalg.eigh(H)
     for i in range(2):
-        psi = Normalize(us[:,i]*Fs/h.rs_scale)
+        psi = us[:,i]*Fs
         plt.plot(h.rs,psi, label=f'{i}')
     plt.plot(psi00(h.rs), '--', label='00')
     plt.plot(psi10(h.rs), '+', label='01')
