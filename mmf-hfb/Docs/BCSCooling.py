@@ -173,34 +173,6 @@ U1, Es1 = bcs.get_U_E(H1, transpose=True)
 # + {"id": "gmdvwhivQ6eN", "colab_type": "text", "cell_type": "markdown"}
 # # Prerequisite Test
 
-# + {"id": "7TlYSxPFQUu5", "colab_type": "code", "colab": {}}
-import math
-import numpy as np
-import scipy as sp
-class QHO(object):
-    """
-    1D quantum harmonic Oscillator class
-    to give exat wave function
-    """
-    w = m = hbar= 1
-    def __init__(self, w=1, m=1, dim=1):
-        """support 1d, will be generalized later"""
-        assert dim == 1
-        self.w = w
-        self.m = m
-    
-    def get_wf(self, x, n=0):
-        """return the wavefunction"""
-        C1 = 1/np.sqrt(2**math.factorial(n))*(self.m*self.w/np.pi/self.hbar)**0.25
-        C2 = np.exp(-1*self.m*self.w*x**2/2/self.hbar)
-        Hn = sp.special.eval_hermite(n, np.sqrt(self.m*self.w/self.hbar)*x)
-        return C1*C2*Hn
-    
-    def get_E(self, n):
-        """return eigen value"""
-        return self.hbar*self.w*(n+0.5)
-
-
 # + {"id": "B3ifArgkA90M", "colab_type": "text", "cell_type": "markdown"}
 # ## Check relation of $V_c(x)$, $K_c(k)$ with $H_c$
 # * By definition, $V_c$ should be equal to the diagonal terms of $H_c$ in position space while $K_c$ in momentum space
@@ -230,7 +202,6 @@ dy = bcs.Del(y, n=2)
 plt.plot(x, dy)
 plt.plot(x, -2*np.cos(2*x), '+')
 
-
 # + {"id": "Nkt4KOoaRQ0C", "colab_type": "text", "cell_type": "markdown"}
 # ## Demostrate the $V_c$ and $K_c$ are Independent of Box Size
 # * with fixed $dx$
@@ -243,28 +214,33 @@ plt.plot(x, -2*np.cos(2*x), '+')
 # $$
 
 # + {"id": "uW47ksLDRUia", "colab_type": "code", "colab": {"base_uri": "https://localhost:8080/", "height": 374}, "outputId": "2fc78344-6585-450f-9653-4afdb476f242"}
+dx = 0.1
 def Check_Vc():
-    for Nx in [64, 128, 256]:
-        offset = np.log(Nx)*0.1  # add a small offset so the plots would be visible for all Nx 
-        s = BCSCooling(N=Nx, dx=dx, beta_0=-1j, beta_K=1, beta_V=1)
-        s.g = -1
-        x = s.xyz[0]
-        V_ext = x**2/2
-        psi0 = np.exp(-x**2/2.0)*np.exp(1j*x)
-    #     H1 = s._get_H(mu_eff=0, V=V)  # harmonic trap
-    #     U1, _ = bcs.get_U_E(H1, transpose=True)
-    #     psi0 = U1[0]
-        plt.subplot(121)
-        plt.plot(x, Prob(psi0) + offset)
-        plt.subplot(122)
-        Vc = s.get_Vc(s.apply_H([psi0], V=V_ext), V=V_ext) 
-        l, = plt.plot(x, Vc + offset)  # add some offset in y direction to separate plots
-    plt.subplot(121)
+    plt.figure(figsize=(15,5))
+    for Nx in [128, 256, 512]:
+        offset = np.log(Nx)*0.1 # add a small offset in y direction
+        uv = BCSCooling(N=256, dx=dx, beta_0=-1j, beta_K=1, beta_V=1)
+        ir  = BCSCooling(N=Nx, dx=dx, beta_0=-1j, beta_K=1, beta_V=1)
+        for s, i in zip([uv, ir],[2, 3]):           
+            s.g = -1
+            x = s.xyz[0]
+            V_ext = x**2/2
+            psi0 = np.exp(-x**2/2.0)*np.exp(1j*x)
+            plt.subplot(1,3,1)
+            plt.plot(x, Prob(psi0) + offset)
+            plt.subplot(1,3,i)
+            Vc = s.get_Vc(s.apply_H([psi0], V=V_ext), V=V_ext) 
+            l, = plt.plot(x, Vc + offset)  # add some offset in y direction to separate plots
+    plt.subplot(131)
     plt.xlim(-10, 10)
-    plt.subplot(122)
-    plt.xlim(-10, 10)
-    
+    plt.subplot(132)
+    plt.xlim(-5, 5)
+    plt.subplot(133)
+    plt.xlim(-5,5)
 Check_Vc()
+# -
+
+# %debug
 
 # + {"id": "s5LBtTtXSt_a", "colab_type": "text", "cell_type": "markdown"}
 # ## Check machine precision
@@ -276,11 +252,11 @@ H = bcs._get_H(mu_eff=0, V=V)  # harmonic trap
 Us, Es = bcs.get_U_E(H, transpose=True)
 check_uv_ir_error(Us[0], plot=True)
 
-
 # + {"id": "ysb1C9Hu8ces", "colab_type": "text", "cell_type": "markdown"}
 # # Evolve in Imaginary Time
 
 # + {"id": "D2BW3sz38cet", "colab_type": "code", "colab": {}}
+dx = 0.1
 def ImaginaryCooling():
     plt.rcParams["figure.figsize"] = (15, 4)
     ax1 = plt.subplot(121)
@@ -326,17 +302,13 @@ def ImaginaryCooling():
 # + {"id": "-0u8hZIMBjN2", "colab_type": "code", "outputId": "aad3f16e-6edb-41c6-8343-3869e67a5517", "colab": {"base_uri": "https://localhost:8080/", "height": 283}}
 ImaginaryCooling()
 
+
 # + {"id": "p5nZgiVpBr6w", "colab_type": "text", "cell_type": "markdown"}
 # # Evolve in Real Time(Locally)
 # * Unlike the imaginary time situation, where all wavefunction or orbits are used to renormlized the results, which can be expensive. Here wave functions are evolved in real time only using the local wavefunctions to cool down the energy.
 
 # + {"id": "-Wxtf4KV8cew", "colab_type": "text", "cell_type": "markdown"}
 # ## Split-operator method
-
-# + {"id": "nPRsT-oL8ce2", "colab_type": "code", "colab": {}}
-N_data = 20
-N_step = 100
-
 
 # + {"id": "C5kkQAZcja8V", "colab_type": "text", "cell_type": "markdown"}
 # * Assume all orbits are mutually orthogonal. For any given two obits , the state can be put as $\ket{\psi}=\ket{\psi_1 ⊗\psi_2}$. To compute the probability of a particle showing up in each of the ground state orbit, ie. $\ket{\phi_0}$ and $\ket{\phi_1}$:

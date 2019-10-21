@@ -116,20 +116,32 @@ class BCSCooling(BCS):
         is not larger than the maximum energy of the system.
         """
         return Vc
-        V0 = 1.0
+        E0 = 0.01*self.E_max
         V_max = np.max(abs(Vc))
-        Vc = Vc/V_max*self.E_max*V0
+        Vc = Vc/V_max*E0
         return Vc
 
     def _get_Vs(self, psis, V, divs=None):
-        """return Vc or Vd"""
+        """
+        return Vc or Vd
+        -------------------        
+        Normalization
+            Vc should not depend on particle number as
+            it applies on single particle orbit(divided by N)
+            it should not depend on lattice setting, dx or L
+            its maximum value should be smaller than the energy
+            cuttoff self.E_max in order to be compatible with
+            time step. How to rescale the cooling potential is
+            not clear yet. 
+        """
+        
         N = self.get_N(psis)
         Vc = 0
         if divs is None:
             # can also apply_H, but result is unchanged.
-            Hpsis = self.apply_K(psis, V=V)  # [check] apply_H or apply_K
+            Hpsis = self.apply_K(psis, V=V)
             for i, psi in enumerate(psis):
-                Vc = Vc + 2*(psi.conj()*Hpsis[i]).imag/N  # *self.dV
+                Vc = Vc + 2*(psi.conj()*Hpsis[i]).imag
         else:  # Departure from locality
             da, db = self.divs
             # compute d^n \psi / d^n x
@@ -148,8 +160,14 @@ class BCSCooling(BCS):
             for i in range(len(psis)):
                 Vc = Vc + (
                     (psis_a[i]*Hpsis_b[i].conj()
-                        +Hpsis_a[i]*psis_b[i].conj()))/N  # no image
-        return self._normalize_potential(Vc=Vc)
+                        +Hpsis_a[i]*psis_b[i].conj()))
+
+        Vc = Vc/N  # divided by density mean to have unit of energy
+        # N/den_man == 23? where the 23 comes from?
+        # it's the box size. N=den_mean*Nx*dx=den_mean*Lx
+        den_mean =self.get_density(psis).mean()
+        assert np.allclose(N, self.L*den_mean)
+        return Vc  # self._normalize_potential(Vc=Vc)
 
     def get_Vc(self, psis, V):
         Vc = 0*np.array(psis[0])
