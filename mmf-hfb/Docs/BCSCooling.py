@@ -68,7 +68,7 @@ def check_uv_ir_error(psi, plot=False):
 
 
 # +
-args = dict(N=128, dx=0.1, beta_0=1, divs=(1, 1), beta_K=0, beta_V=0, beta_D=1)
+args = dict(N=128, dx=0.1, beta_0=1, divs=(1, 1), beta_K=0, beta_V=0, beta_D=0.1)
 b = BCSCooling(**args)
 k0 = 2*np.pi/b.L
 x = b.xyz[0]
@@ -80,20 +80,21 @@ U1, E1 = b.get_U_E(H1, transpose=True)
 psi_1 = Normalize(np.cos(k0*x))
 assert np.allclose(Prob(psi_1), Prob(U0[1]))
 assert np.allclose(E0[1], k0**2/2.0)
-n=1
+n, da, db=1, 3, 3
 psi =  np.exp(1j*n*(k0*x))
 E =n**2*k0**2/2
-da, db=0, 1
 # compute d^n \psi / d^n x
 psi_a = b.Del(psi, n=da)
 # d[d^n \psi / d^n x] / dt
-Hpsi = np.array(b.apply_H([psi], V=0))[0]/(1j)
-plt.subplot(121)
+Hpsi = np.array(b.apply_H([psi], V=V))[0]/(1j)
+plt.figure(figsize=(18,6))
+N = 4
+plt.subplot(1,N,1)
 plt.plot(x, Hpsi,'+')
 plt.plot(x, Hpsi.imag, 'o')
 plt.plot(x, E*psi)
 plt.plot(x, E*psi.imag,'--')
-plt.subplot(122)
+plt.subplot(1,N,2)
 Hpsi_a = b.Del(Hpsi, n=da)
 if da == db:
     psi_b = psi_a
@@ -101,51 +102,24 @@ if da == db:
 else:
     psi_b = b.Del(psi, n=db)
     Hpsi_b = b.Del(Hpsi, n=db)
-Vc =  psi_a*Hpsi_b.conj() - Hpsi_a*psi_b.conj()
-if da==db:
-    assert np.allclose(Vc, 0)
+Vc =  psi_a*Hpsi_b.conj() + Hpsi_a*psi_b.conj()
+if da==db and np.allclose(V, 0):
+    assert np.allclose(Vc, 0, 1e-6)
 plt.plot(x,Vc)
+plt.subplot(1,N,3)
 
+ts, psis = b.solve([psi], T=0.02, rtol=1e-5, atol=1e-6, V=V, method='BDF')
+psi0 = U1[0]
+E0, _ = b.get_E_Ns([psi0], V=V)
+Es = [b.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]
 
-# ts, psis = b.solve([psi], T=1, rtol=1e-5, atol=1e-6, V=V, method='BDF')
-# psi0 = U1[0]
-# E0, _ = b.get_E_Ns([psi0], V=V)
-# Es = [b.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]
-# plt.subplot(121)
-# plt.plot(ts[0][:-2], (Es[:-2] - E0)/abs(E0))
-# plt.subplot(122)
-# l, = plt.plot(x, psi0)  # ground state
-# plt.plot(x, psis[0][0], "+", c=l.get_c())
-# plt.plot(x, psis[0][-1], '--', c=l.get_c())
-# plt.show()
-# -
-
-np.allclose(psi_a*Hpsi_b.conj(), (n*k0)**(da+db)*E*psi*psi.conj()/(1j)*((1j)**db)*(-1j)**da)
-
-np.allclose(Hpsi_a*psi_b.conj(), (n*k0)**(da+db)*E*psi*psi.conj()/(1j)*((-1j)**db)*(1j)**da)
-
-psi_a*Hpsi_b.conj(), Hpsi_a*psi_b.conj();
-
-plt.plot(psi)
-plt.plot(psi.imag, '--')
-plt.plot(Hpsi)
-plt.plot(Hpsi.imag, '+')
-plt.axhline(0, linestyle='dashed')
-psi.dot(psi.conj()), E
-
-
-psi_c =psi.conj()
-l, = plt.plot(psi_c)
-plt.plot(psi_c.imag, '--',c=l.get_c())
-l, =plt.plot(psi, '+')
-plt.plot(psi.imag, '--', c=l.get_c())
-
-Hpsi.dot(psi_c)/(1j)
-
+l, = plt.plot(x, psi0)  # ground state
 plt.plot(x, psis[0][0], "+", c=l.get_c())
 plt.plot(x, psis[0][-1], '--', c=l.get_c())
-
-psi_a*Hpsi_b.conj() + Hpsi_a*psi_b.conj();
+plt.plot(x, psi, '-')
+plt.subplot(1,N,4)
+plt.plot(ts[0][:-2], (Es[:-2] - E0)/abs(E0))
+# -
 
 # # Analytical Check
 # Start with plance wave $\psi_n(x)= e^{i n kx}$, and free particle Hamiltonian $H$ with eigen energy $E_n$ for nth wave function $\psi_n(x)$, then
@@ -415,7 +389,7 @@ def plot_occupancy_k(b, psis):
 
 
 # + {"id": "8d7MfMQH8ce6", "colab_type": "code", "colab": {}}
-def PlayCooling(b, psis0, psis, V, N_data=10, N_step=100, plot=True, plot_k=True, use_div=False, use_so=True, **kw):
+def PlayCooling(b, psis0, psis, V, N_data=10, N_step=100, plot=True, plot_k=True,**kw):
     
     x = b.xyz[0]
     E0, N0 = b.get_E_Ns(psis0, V=V)
@@ -425,10 +399,7 @@ def PlayCooling(b, psis0, psis, V, N_data=10, N_step=100, plot=True, plot_k=True
     for _n in range(N_data):
         Ps = get_occupancy(psis0, psis)
         Ns.append(Ps)
-        if use_div:
-            psis = b.evolve_V(psis, V=V, n=N_step)
-        if use_so:
-            psis = b.step(psis, V=V, n=N_step)
+        psis = b.step(psis, V=V, n=N_step)
         E, N = b.get_E_Ns(psis, V=V)
         Es.append(abs(E - E0))
         if plot:
@@ -493,14 +464,7 @@ def Cooling(Nx=128, Lx=23, init_state_ids=None, V0=1, beta_0=1, N_state=1, plot_
 N_data = 20
 N_step = 100
 Cooling(N_state=2, Nx=128, N_data=10, 
-        init_state_ids=list(range(2, 4)), V0=0,
-        N_step=N_step*10, beta_V=1, beta_K=1, divs=(1, 1), beta_D=1, plot_k=True, use_div=True, use_so=False);
-
-# + {"id": "6DH4J9me8cfB", "colab_type": "code", "outputId": "acd8ab1e-02c6-4d3e-eba0-21b9c96b3d29", "colab": {"base_uri": "https://localhost:8080/", "height": 296}}
-N_data = 20
-N_step = 100
-Cooling(N_state=3, Nx=128, N_data=35,
-        init_state_ids=list(range(2, 5)), V0=0,
+        init_state_ids=list(range(2, 4)), V0=1,
         N_step=N_step*10, beta_V=1, beta_K=1, divs=(1, 1), beta_D=0, plot_k=True);
 
 # + {"id": "Eo0kxBxAVMhZ", "colab_type": "text", "cell_type": "markdown"}

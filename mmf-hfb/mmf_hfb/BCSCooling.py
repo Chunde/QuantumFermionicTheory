@@ -24,7 +24,7 @@ class BCSCooling(BCS):
     def __init__(
             self, N=256, L=None, dx=0.1,
             beta_0=1.0, beta_V=1.0, beta_K=1.0, beta_D=1.0,
-            dt_Emax=1.0, g=0, divs=None, smooth=False,**args):
+            dt_Emax=1.0, g=0, divs=None, smooth=False, **args):
         """
         Arguments
         ---------
@@ -50,8 +50,9 @@ class BCSCooling(BCS):
         self.g = g
         self.divs = divs
         self.smooth = smooth
-        self._K2 = (self.hbar*np.array(self.kxyz[0]))**2/2/self.m
+        self._K2 = (self.hbar*np.array(self.kxyz[0]))**2/2/self.m  
         self.dt = dt_Emax*self.hbar/self._K2.max()
+        self.E_max = self._K2.max()
 
     def get_V_eff(self, psis, V):
         """
@@ -109,12 +110,24 @@ class BCSCooling(BCS):
             N = N + psi.dot(psi.conj())*self.dV
         return N
 
+    def _normalize_potential(self, Vc):
+        """
+        normalize a given cooling potential so that its max value
+        is not larger than the maximum energy of the system.
+        """
+        return Vc
+        V0 = 1.0
+        V_max = np.max(abs(Vc))
+        Vc = Vc/V_max*self.E_max*V0
+        return Vc
+
     def _get_Vs(self, psis, V, divs=None):
         """return Vc or Vd"""
         N = self.get_N(psis)
         Vc = 0
         if divs is None:
-            Hpsis = self.apply_H(psis, V=V)  # [check] apply_H or apply_K
+            # can also apply_H, but result is unchanged.
+            Hpsis = self.apply_K(psis, V=V)  # [check] apply_H or apply_K
             for i, psi in enumerate(psis):
                 Vc = Vc + 2*(psi.conj()*Hpsis[i]).imag/N  # *self.dV
         else:  # Departure from locality
@@ -136,7 +149,7 @@ class BCSCooling(BCS):
                 Vc = Vc + (
                     (psis_a[i]*Hpsis_b[i].conj()
                         +Hpsis_a[i]*psis_b[i].conj()))/N  # no image
-        return Vc
+        return self._normalize_potential(Vc=Vc)
 
     def get_Vc(self, psis, V):
         Vc = 0*np.array(psis[0])
@@ -153,12 +166,13 @@ class BCSCooling(BCS):
     def get_Kc(self, psis, V):
         N = self.get_N(psis)
         Kc = 0
-        Hpsis = self.apply_H(psis, V=V)  # [check]apply_V or apply_H
+        # can also apply_H, result is unchanged
+        Hpsis = self.apply_V(psis, V=V)  # [check]apply_V or apply_H
         for i, psi in enumerate(psis):
             psi_k = np.fft.fft(psi)*self.dV
             Vpsi_k = np.fft.fft(Hpsis[i])*self.dV
             Kc = Kc + 2*(psi_k.conj()*Vpsi_k).imag/N*self.dV/np.prod(self.Lxyz)
-        return Kc
+        return self._normalize_potential(Vc=Kc)
 
     def get_Hc(self, psis, V):
         """Return the full cooling Hamiltonian in position space."""
