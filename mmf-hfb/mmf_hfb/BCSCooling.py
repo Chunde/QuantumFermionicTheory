@@ -183,14 +183,16 @@ class BCSCooling(BCS):
 
     def get_Kc(self, psis, V):
         N = self.get_N(psis)
-        Kc = 0
+        Kc = 0*np.array(psis[0])
+        if self.beta_K == 0:
+            return Kc
         # can also apply_H, result is unchanged
-        Hpsis = self.apply_V(psis, V=V)  # [check]apply_V or apply_H
+        Hpsis = self.apply_V(psis, V=V)
         for i, psi in enumerate(psis):
             psi_k = np.fft.fft(psi)*self.dV
             Vpsi_k = np.fft.fft(Hpsis[i])*self.dV
             Kc = Kc + 2*(psi_k.conj()*Vpsi_k).imag/N*self.dV/np.prod(self.Lxyz)
-        return self._normalize_potential(Vc=Kc)
+        return Kc  # self._normalize_potential(Vc=Kc)
 
     def get_Hc(self, psis, V):
         """Return the full cooling Hamiltonian in position space."""
@@ -245,7 +247,7 @@ class BCSCooling(BCS):
         Kc_psi = (
             self.ifft(self.get_Kc([psi], V=V)*self.fft(psi))
             if self.beta_K !=0 else 0)
-        Vd_psi = self.get_Vd(psis=[psi], V=V)*psi  # apply the V11 on psi
+        Vd_psi = self.apply_Vd(psis=[psi], V=V)[0]  # apply the V11 on psi
         return (
             self.beta_0*H_psi + self.beta_V*Vc_psi
             + self.beta_K*Kc_psi + self.beta_D*Vd_psi)
