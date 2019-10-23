@@ -93,7 +93,8 @@ class BCSCooling(BCS):
             psi_k = self.fft(psi)
             Kpsi = self.ifft(self._K2*psi_k)
             return Kpsi
-        uv = self._get_uv(psi)
+        u, v = self._get_uv(psi)
+        uv = (u, -v)
         Kpsi = []
         for psi in uv:
             psi_k = self.fft(psi)
@@ -112,7 +113,7 @@ class BCSCooling(BCS):
     def _apply_V(self, psi, V):
         if self.delta == 0:
             return V*psi
-        return np.array([V, V]).ravel()*psi
+        return np.array([V - self.mus[0], -V + self.mus[1]]).ravel()*psi
 
     def apply_V(self, psis, V):
         """compute dy/dt with effective potential only"""
@@ -136,7 +137,10 @@ class BCSCooling(BCS):
         return u.extend(v)
 
     def Del(self, psi, n=1):
-        """support 1D function, should be generalized later"""
+        """
+        return the nth order derivative for psi
+        support 1D function, should be generalized later
+        """
         if n <=0:
             return psi
         psi = self._div(psi, n=n)
@@ -169,7 +173,7 @@ class BCSCooling(BCS):
             it applies on single particle orbit(divided by N)
             it should not depend on lattice setting, dx or L
             its maximum value should be smaller than the energy
-            cuttoff self.E_max in order to be compatible with
+            cutoff self.E_max in order to be compatible with
             time step. How to rescale the cooling potential is
             not clear yet.
         """
@@ -178,14 +182,14 @@ class BCSCooling(BCS):
         Vc = 0
         if divs is None:
             # can also apply_H, but result is unchanged.
-            Hpsis = self.apply_K(psis, V=V)
+            # but with pairing, apply_H should be used
+            Hpsis = self.apply_H(psis, V=V)
             for i, psi in enumerate(psis):
                 Vc = Vc + 2*(psi.conj()*Hpsis[i]).imag
         else:  # Departure from locality
             da, db = self.divs
             # compute d^n \psi / d^n x
             psis_a = [self.Del(psi, n=da) for psi in psis]
-
             # d[d^n \psi / d^n x] / dt
             Hpsis = np.array(self.apply_H(psis, V=V))/(1j*self.hbar)
             Hpsis_a = [self.Del(psi, n=da) for psi in Hpsis]
@@ -200,34 +204,41 @@ class BCSCooling(BCS):
                 Vc = Vc + (
                     (psis_a[i]*Hpsis_b[i].conj()
                         +Hpsis_a[i]*psis_b[i].conj()))
-
-        Vc = Vc/N  # divided by density mean to have unit of energy
-        # N/den_man == 23? where the 23 comes from?
-        # it's the box size. N=den_mean*Nx*dx=den_mean*Lx
-        return Vc  # self._normalize_potential(Vc=Vc)
+        return Vc/N
 
     def get_Vc(self, psis, V):
+        """return Vc potential"""
         Vc = 0*np.array(psis[0])
         if self.beta_V != 0:
             Vc = Vc + self._get_Vs(psis, V)
         return Vc
 
     def get_Vd(self, psis, V):
+        """return the derivative cooling potential"""
         Vd = 0*np.array(psis[0])
         if self.beta_D !=0 and self.divs is not None:
             Vd = Vd + self._get_Vs(psis, V, self.divs)
         return Vd
+
+    def _get_Kc(self, Hpsi, psi, V, N):
+        """
+        Kc is the diagonal of the H in k space, so
+        even in the case with pairing, it is good to
+        use psi as a single wavefunction without
+        dividing it in to u, v components.
+        """
+        psi_k = self.fft(psi)*self.dV
+        Vpsi_k = self.fft(Hpsi)*self.dV
+        return 2*(psi_k.conj()*Vpsi_k).imag/N*self.dV/np.prod(self.Lxyz)
 
     def get_Kc(self, psis, V):
         N = self.get_N(psis)
         Kc = 0*np.array(psis[0])
         if self.beta_K == 0:
             return Kc
-        Hpsis = self.apply_V(psis, V=V)
+        Hpsis = self.apply_H(psis, V=V)  # use apply_H instead of apply_V for pairing
         for i, psi in enumerate(psis):
-            psi_k = self.fft(psi)*self.dV
-            Vpsi_k = self.fft(Hpsis[i])*self.dV
-            Kc = Kc + 2*(psi_k.conj()*Vpsi_k).imag/N*self.dV/np.prod(self.Lxyz)
+            Kc = Kc + self._get_Kc(Hpsi=Hpsis[i], psi=psi, V=V, N=N)
         return Kc
 
     def get_Hc(self, psis, V):
@@ -240,8 +251,7 @@ class BCSCooling(BCS):
             Hc_ += Hc_.conj().T
             Hc = Hc + Hc_
         N = self.get_N(psis)
-        Hc /= N
-        return Hc
+        return Hc/N
 
     def apply_Vd(self, psis, V):
         """
@@ -258,7 +268,11 @@ class BCSCooling(BCS):
             return self.ifft(np.exp(-1j*self.dt*factor*(self.beta_0*self._K2 + Kc))*psi_k)
         kuv = [self.fft(psi) for psi in self._get_uv(psi)]
         kc_uv = self._get_uv(Kc)
-        expK = [self.ifft(np.exp(-1j*self.dt*factor*(self.beta_0*self._K2 + Kc))*psi_k) for (psi_k, Kc) in zip(kuv, kc_uv)]
+        signs = [1, -1]  # used to change the sign of k2
+        expK = [self.ifft(
+            np.exp(-1j*self.dt*factor*(
+                self.beta_0*self._K2*sign + Kc))*psi_k) for (
+                    sign, psi_k, Kc) in zip(signs, kuv, kc_uv)]
         return np.array(expK).ravel()
 
     def apply_expK(self, psis, V, factor=1):
@@ -272,7 +286,10 @@ class BCSCooling(BCS):
             return np.exp(-1j*self.dt*factor*(self.beta_0*V +self.beta_V*Vc))*psi
         Vc_uv = self._get_uv(Vc)
         uv = self._get_uv(psi)
-        expV = [np.exp(-1j*self.dt*factor*(self.beta_0*V +self.beta_V*Vc))*psi for (psi, Vc) in zip(uv, Vc_uv)]
+        Vs = (V - self.mus[0], -V + self.mus[1])
+        expV = [np.exp(
+            -1j*self.dt*factor*(
+                self.beta_0*V_ +self.beta_V*Vc))*psi for (V_, psi, Vc) in zip(Vs, uv, Vc_uv)]
         return np.array(expV).ravel()
 
     def apply_expV(self, psis, V, factor=1):
@@ -350,10 +367,7 @@ class BCSCooling(BCS):
         E = 0
         N = 0
         ns = self.get_ns(psis)
-        N = sum(ns)*self.dV
-        if self.delta !=0:
-            ns = ns[:len(ns)//2] + ns[len(ns)//2:]  # n_a + n_b
-        
+        N = sum(ns)*self.dV        
         if self.delta == 0:
             for psi in psis:
                 K = psi.conj().dot(self.ifft(self._K2*self.fft(psi)))
@@ -368,7 +382,8 @@ class BCSCooling(BCS):
 
 
 if __name__ == "__main__":
-    b = BCSCooling(N=4, dx=0.1, delta=1, mus=(2, 2))
+    import matplotlib.pyplot as plt
+    b = BCSCooling(N=64, dx=0.1, beta_0=1, beta_V=1, delta=1, mus=(2, 2))
     x = b.xyz[0]
     V = x**2/2
     H0 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(0, 0))
@@ -376,10 +391,15 @@ if __name__ == "__main__":
     U0, Es0 = b.get_U_E(H0, transpose=True)
     U1, Es1 = b.get_U_E(H1, transpose=True)
     N_state = 1
-    psis0 = U0[:N_state]
-    psis1 = U1[:N_state]
-    b.get_ns(psis0)
-    psis = b.step(psis=psis0, n=100, V=V)
-    E0, N0 = b.get_E_Ns(psis=psis0, V=V)
-    E, N = b.get_E_Ns(psis=psis, V=V)
-    print(N0, N, E0, E)
+    psi0 = U1[64]
+    psi = U0[64]
+    plt.plot(psi0)
+    E0, N0 = b.get_E_Ns(psis=[U1[64]], V=V)
+    psis = [psi]
+    for i in range(1):
+        E, N = b.get_E_Ns(psis=psis, V=V)
+        psis = b.step(psis=psis, n=10, V=V)
+        plt.plot(psis[0], '--')
+        plt.plot(psi0, '-')
+        plt.title(f"E0={E0.real},E={E.real}")
+        plt.show()
