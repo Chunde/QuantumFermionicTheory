@@ -1,7 +1,13 @@
+"""
+Methods that will be called from notebook to play
+Animation for cooling procedure. Put this method
+in a file to make a notebook cleaner.
+"""
 from mmf_hfb.BCSCooling import BCSCooling
 import numpy as np
 import matplotlib.pyplot as plt
-from IPython.display import display, clear_output
+from IPython.display import clear_output
+
 eps = 7./3 - 4./3 -1  # machine precision
 
 
@@ -12,7 +18,7 @@ def check_uv_ir_error(psi, plot=False):
     psi_log_k = np.log10(abs(psi_k)+eps)
     if plot:
         l, =plt.plot(psi_log_k)
-        plt.plot(psi_log,'--', c=l.get_c())
+        plt.plot(psi_log, '--', c=l.get_c())
         print(np.min(psi_log), np.min(psi_log_k))
     # assert the log10 value to be close to machine precision
     #assert np.min(psi_log)<-15
@@ -101,7 +107,7 @@ def PlayCooling(
                 plot_psis(b=b, psis0=psis0, psis=psis, E0=E0, E=E)
             plt.subplot(132)
             if plot_k:
-                plot_occupancy_k(b=b,psis=psis)
+                plot_occupancy_k(b=b, psis=psis)
             else:
                 plot_occupancy_n(ts=ts, nss=Ns)
             
@@ -115,7 +121,8 @@ def PlayCooling(
     return psis, Es, Ns
 
 
-def Cooling(Nx=128, Lx=23, init_state_ids=None, V0=1, beta_0=1, N_state=1, plot_k=True, **args):
+def Cooling(
+        Nx=128, Lx=23, init_state_ids=None, V0=1, beta_0=1, N_state=1, plot_k=True, **args):
     L = Lx
     dx = L/Nx
     b = BCSCooling(N=Nx, L=None, dx=dx, **args)

@@ -40,6 +40,7 @@ import numpy as np
 # +
 import mmf_hfb.BCSCooling as bcsc; reload(bcsc)
 from mmf_hfb.BCSCooling import BCSCooling
+from mmf_hfb.Cooling import Cooling
 from IPython.core.debugger import set_trace
 from IPython.display import display, clear_output
 import numpy as np
@@ -67,65 +68,10 @@ def check_uv_ir_error(psi, plot=False):
 
 # -
 
-def der_cooling(da=0, db=1, beta_D=0.05, evolve=False):
-    args = dict(N=128, dx=0.1, beta_0=0, divs=(1, 1), beta_K=0, beta_V=0, beta_D=0.1)
-    b = BCSCooling(**args)
-    k0 = 2*np.pi/b.L
-    x = b.xyz[0]
-    V =  x**2/2
-    H0 = b._get_H(mu_eff=0, V=0)
-    H1 = b._get_H(mu_eff=0, V=V)
-    U0, E0 = b.get_U_E(H0, transpose=True)
-    U1, E1 = b.get_U_E(H1, transpose=True)
-    psi_1 = Normalize(np.cos(k0*x))
-    assert np.allclose(Prob(psi_1), Prob(U0[1]))
-    assert np.allclose(E0[1], k0**2/2.0)
-    n=1
-    psi =  U0[1]  # np.exp(1j*n*(k0*x))
-    E =n**2*k0**2/2
-    # compute d^n \psi / d^n x
-    psi_a = b.Del(psi, n=da)
-    # d[d^n \psi / d^n x] / dt
-    Hpsi = np.array(b.apply_H([psi], V=V))[0]/(1j)
-    plt.figure(figsize=(18,6))
-    if evolve:
-        N=4
-    else:
-        N = 2
-    plt.subplot(1,N,1)
-    plt.plot(x, Hpsi,'+')
-    plt.plot(x, Hpsi.imag, 'o')
-    plt.plot(x, E*psi)
-    plt.plot(x, E*psi.imag,'--')
-
-    plt.subplot(1,N,2)
-    Hpsi_a = b.Del(Hpsi, n=da)
-    if da == db:
-        psi_b = psi_a
-        Hpsi_b = Hpsi_a
-    else:
-        psi_b = b.Del(psi, n=db)
-        Hpsi_b = b.Del(Hpsi, n=db)
-    Vc =  psi_a*Hpsi_b.conj() + Hpsi_a*psi_b.conj()
-    if da==db and np.allclose(V, 0):
-        assert np.allclose(Vc, 0, 1e-6)
-    plt.plot(x,Vc)
-    if evolve:
-        plt.subplot(1,N,3)
-        ts, psis = b.solve([psi], T=5, rtol=1e-5, atol=1e-6, V=V, method='BDF')
-        psi0 = U1[0]
-        E0, _ = b.get_E_Ns([psi0], V=V)
-        Es = [b.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]
-        plt.plot(x, psis[0][0], "+")
-        plt.plot(x, psis[0][-1], '--')
-        plt.plot(x, U1[0])
-        plt.subplot(1,N,4)
-        plt.plot(ts[0][:-2], (Es[:-2] - E0)/abs(E0))
-
-
-der_cooling(da=0, db=1)
-
-# # Analytical Check
+# ## Test Derivative Cooling
+# * As the derivative cooling potential Vd is not diagonilzed in either postion space nor momenutum space, it can't be used in split-operator method. 
+# * It's found that discarding the highest momentum $k_{max}$ can cool down the energy using $V_{d}$ to some energy and may stall there.
+# ### Analytical Check
 # Start with plance wave $\psi_n(x)= e^{i n kx}$, and free particle Hamiltonian $H$ with eigen energy $E_n$ for nth wave function $\psi_n(x)$, then
 # $$
 # H\psi=i\hbar \frac{\partial \psi(x, t)}{\partial t} = E_n \psi=\frac{n^2k^2}{2}\psi(x), \qquad \dot{\psi(x)}=\frac{\partial \psi(x)}{\partial t} = \frac{E_n\psi(x)}{i\hbar}\\
@@ -154,6 +100,95 @@ der_cooling(da=0, db=1)
 # $$
 #
 # It's found that $V_{ab}=0$, since any wave function can be expanded as plane wave, that means for any wave function, as long as the Hamiltonian is free-partile type, $V_{ab}=0$
+
+def test_der_cooling(psi = None, evolve=False, T=0.5, **args):
+    b = BCSCooling(**args)
+    print(b.E_max)
+    da, db=b.divs
+    
+    k0 = 2*np.pi/b.L
+    x = b.xyz[0]
+    V = x**2/2
+    H0 = b._get_H(mu_eff=0, V=0)
+    H1 = b._get_H(mu_eff=0, V=V)
+    U0, E0 = b.get_U_E(H0, transpose=True)
+    U1, E1 = b.get_U_E(H1, transpose=True)
+    psi_1 = Normalize(np.cos(k0*x))
+    if psi is None:
+        psi = U0[1]  # np.exp(1j*n*(k0*x))
+    psi_a = b.Del(psi, n=da)
+    Hpsi = np.array(b.apply_H([psi], V=V))[0]/(1j)
+    plt.figure(figsize=(18,6))
+    N = 4 if evolve else 2   
+    plt.subplot(1,N,1)
+    plt.plot(x, abs(Hpsi),'-', label=r'$H\psi$')
+    plt.legend()
+    plt.subplot(1,N,2)
+    Hpsi_a = b.Del(Hpsi, n=da)
+    if da == db:
+        psi_b = psi_a
+        Hpsi_b = Hpsi_a
+    else:
+        psi_b = b.Del(psi, n=db)
+        Hpsi_b = b.Del(Hpsi, n=db)
+    Vc =  psi_a*Hpsi_b.conj() + Hpsi_a*psi_b.conj()
+    plt.plot(x,Vc, label='real')
+    plt.plot(x, Vc.imag, label='imag')
+    plt.plot(x, abs(Vc), label='|Vc|')
+    plt.legend()
+    if evolve:
+        b.erase_max_ks()
+        plt.subplot(1,N,3)
+        ts, psis = b.solve([psi], T=T, rtol=1e-5, atol=1e-6, V=V, method='BDF')
+        psi0 = U1[0]
+        E0, _ = b.get_E_Ns([psi0], V=V)
+        Es = [b.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]
+        plt.plot(x, Prob(psis[0][0]), "+", label='init')
+        plt.plot(x, Prob(psis[0][-1]), '--',label="final")
+        plt.plot(x, Prob(U1[0]), label='Ground')
+        plt.legend()
+        plt.subplot(1,N,4)
+        plt.plot(ts[0][:-2], (Es[:-2] - E0)/abs(E0))
+    return psis[0][-1]
+
+
+args = dict(N=128, dx=0.1, beta_0=1, divs=(0, 1), beta_K=1, beta_V=0, T=5, beta_D=0, evolve=True)
+psi = test_der_cooling(**args)
+
+# ## Dyadic Cooling
+# To minimize the communication costs, we consider approximating $\op{H}_c$ by a set of dyads:
+#
+# $$
+#   \op{H}_c = \sum_{n}\ket{a_n}f_n\bra{b_n} + \text{h.c.}, \qquad
+#   \I\hbar\dot{E} = \sum_{i}\left(
+#     f_i\sum_{n}\left(
+#       \braket{\psi_n|\op{H}|a_i}\braket{b_i|\psi_n}
+#       - 
+#       \braket{\psi_n|a_i}\braket{b_i|\op{H}|\psi_n}
+#     \right)
+#     + \text{h.c.}
+#   \right), \\
+#   f_i = \frac{\I}{\hbar}
+#   \sum_{n}\left(
+#     \braket{a_i|\op{H}|\psi_n}\braket{\psi_n|b_i}
+#     - 
+#     \braket{a_i|\psi_n}\braket{\psi_n|\op{H}|b_i}
+#   \right).
+# $$
+#
+# A simplification occurs if $\ket{a_n} = \ket{b_n}$:
+#
+# $$
+#   \op{H}_c = \sum_{n}\ket{a_n}f_n\bra{a_n}, \qquad
+#   f_i = \frac{\I}{\hbar}
+#   \sum_{n}\left(
+#     \braket{a_i|\op{H}|\psi_n}\braket{\psi_n|a_i}
+#     - 
+#     \braket{a_i|\psi_n}\braket{\psi_n|\op{H}|a_i}
+#   \right).
+# $$
+#
+# Choosing $\ket{a_n} = \ket{x}$ leads to our local cooling potential $\op{V}_c$ while choosing $\ket{a_n} = \ket{k}$ leads to $\op{K}_c$.
 
 # + {"id": "lLIWw-ya8ceW", "colab_type": "text", "cell_type": "markdown"}
 # ## Free Fermions and Fermions in a Harmonic Trap
@@ -189,22 +224,6 @@ Kc = bcs.get_Kc(psi, V=0)
 Hc = bcs.get_Hc(psi, V=0)
 Hc_k = np.fft.ifft(np.fft.fft(Hc, axis=0), axis=1)
 np.allclose(np.diag(Hc_k).real - Kc, 0), np.allclose(np.diag(Hc) - Vc, 0)
-
-# + {"id": "cBYbgtdFBF72", "colab_type": "text", "cell_type": "markdown"}
-# ## Check Derivatives
-# * As derivatitves will be used, we need to make sure the numerical method works by comparing its results to analytical ones
-
-# + {"id": "cz7QCOsFBHI-", "colab_type": "code", "outputId": "9c536947-c7d8-4699-8765-1aa23fa0b80e", "colab": {"base_uri": "https://localhost:8080/", "height": 320}}
-y = np.cos(x)**2
-plt.subplot(211)
-plt.plot(x, y)
-dy = bcs.Del(y, n=1)
-plt.plot(x, dy)
-plt.plot(x, -np.sin(2*x), '+')
-plt.subplot(212)
-dy = bcs.Del(y, n=2)
-plt.plot(x, dy)
-plt.plot(x, -2*np.cos(2*x), '+')
 
 # + {"id": "Nkt4KOoaRQ0C", "colab_type": "text", "cell_type": "markdown"}
 # ## Demostrate the $V_c$ and $K_c$ are Independent of Box Size
@@ -242,19 +261,6 @@ def Check_Vc():
     plt.subplot(133)
     plt.xlim(-5,5)
 Check_Vc()
-# -
-
-# %debug
-
-# + {"id": "s5LBtTtXSt_a", "colab_type": "text", "cell_type": "markdown"}
-# ## Check machine precision
-# * Also do this for exiting states in both postion and momentum space
-
-# + {"id": "BDFIOcIYSqcT", "colab_type": "code", "colab": {"base_uri": "https://localhost:8080/", "height": 286}, "outputId": "38f4f39d-905b-48a5-8b56-8e850f751b15"}
-bcs = BCSCooling(N=Nx, L=None, dx=dx, beta_0=1, beta_V=1, beta_K=0, smooth=True)
-H = bcs._get_H(mu_eff=0, V=V)  # harmonic trap
-Us, Es = bcs.get_U_E(H, transpose=True)
-check_uv_ir_error(Us[0], plot=True)
 
 # + {"id": "ysb1C9Hu8ces", "colab_type": "text", "cell_type": "markdown"}
 # # Evolve in Imaginary Time
@@ -306,7 +312,6 @@ def ImaginaryCooling():
 # + {"id": "-0u8hZIMBjN2", "colab_type": "code", "outputId": "aad3f16e-6edb-41c6-8343-3869e67a5517", "colab": {"base_uri": "https://localhost:8080/", "height": 283}}
 ImaginaryCooling()
 
-
 # + {"id": "p5nZgiVpBr6w", "colab_type": "text", "cell_type": "markdown"}
 # # Evolve in Real Time(Locally)
 # * Unlike the imaginary time situation, where all wavefunction or orbits are used to renormlized the results, which can be expensive. Here wave functions are evolved in real time only using the local wavefunctions to cool down the energy.
@@ -321,254 +326,39 @@ ImaginaryCooling()
 #   P_i = (\abs{\braket{\phi_i|\psi_1}}^2+\abs{\braket{\phi_i|\psi_1}}^2)\qquad \text{i=0, 1}
 # $$
 
-# + {"id": "F_qwEBVdjaq-", "colab_type": "text", "cell_type": "markdown"}
-# ## Cooling procedure replay code.
-# * These cooling methods will visualize the evolution of wavefunctions and how the ground state orbits occupancy change as the cooling continues
-#
-#
-
-# + {"id": "stIKJpqBgl8Z", "colab_type": "code", "colab": {}}
-def get_occupancy(psis0, psis):
-    """return occupancy"""
-    def p(psis0):
-        ps =[np.abs(psis0.conj().dot(psi))**2 for psi in psis]
-        return sum(ps)
-    return [p(psi0) for psi0 in psis0]
-
-def plot_occupancy(nss):
-    """plot occupancy as cooling proceeds"""
-    if len(nss) == 0:
-        return
-    num_plt = len(nss[0])
-    datas = []
-    for i in range(num_plt):
-        datas.append([])
-    for ns in nss:
-        for i in range(num_plt):
-            v = ns[i]
-            datas[i].append(v)
-    for i, data in enumerate(datas):
-        plt.plot(data, label=f'{i}')
-    plt.axhline(1, linestyle='dashed')
-    plt.legend()
-
-def plot_occupancy_k(b, psis):
-    n_k = 0
-    dx = b.L/b.N
-    ks = np.fft.fftshift(2*np.pi * np.fft.fftfreq(b.N, dx))
-    for psi in psis:
-        n_k += abs(np.fft.fft(psi))
-    n_k = np.fft.fftshift(n_k)
-    plt.plot(ks, n_k)
-    plt.xlabel("k")
-    plt.ylabel("n_k")
-
-
-# + {"id": "8d7MfMQH8ce6", "colab_type": "code", "colab": {}}
-def PlayCooling(b, psis0, psis, V, N_data=10, N_step=100, plot=True, plot_k=True,**kw):
-    
-    x = b.xyz[0]
-    E0, N0 = b.get_E_Ns(psis0, V=V)
-    Es, cs, Ns = [], [], []
-    plt.rcParams["figure.figsize"] = (24, 8)
-
-    for _n in range(N_data):
-        Ps = get_occupancy(psis0, psis)
-        Ns.append(Ps)
-        psis = b.step(psis, V=V, n=N_step)
-        E, N = b.get_E_Ns(psis, V=V)
-        Es.append(abs(E - E0))
-        if plot:
-            plt.subplot(131)
-            for psi in psis:
-                ax, = plt.plot(x, abs(psi)**2)
-                cs.append(ax.get_c())
-            for i, psi in enumerate(psis0):
-                plt.plot(x, abs(psi)**2, '+', c=cs[i])
-            plt.title(
-                f"E0={E0:5.4},E={E:5.4}, $" + r"\beta_0$" +f"={b.beta_0}, "
-                +r"$\beta_V$"+f"={b.beta_V}, "+r" $\beta_K$" +f"={b.beta_K}"
-                +r" $\beta_D$" +f"={b.beta_D}")
-            plt.subplot(132)
-            if plot_k:
-                plot_occupancy_k(b=b, psis=psis)
-            else:
-                plot_occupancy(Ns)
-            
-            plt.subplot(133)
-            plt.plot(Es)
-            plt.xlabel("Step")
-            plt.ylabel("Enery Diff")
-            plt.axhline(0, linestyle='dashed')
-            plt.show()
-            clear_output(wait=True) 
-    return psis, Es, Ns
-
-def Cooling(Nx=128, Lx=23, init_state_ids=None, V0=1, beta_0=1, N_state=1, plot_k=True, **args):
-    L = Lx
-    dx = L/Nx
-    b = BCSCooling(N=Nx, L=None, dx=dx, **args)
-    x = b.xyz[0]
-    V = V0*x**2/2
-    H0 = b._get_H(mu_eff=0, V=0)  # free particle
-    H1 = b._get_H(mu_eff=0, V=V)  # harmonic trap
-    U0, Es0 = b.get_U_E(H0, transpose=True)
-    U1, Es1 = b.get_U_E(H1, transpose=True)
-    if init_state_ids is None:
-        psis = U0[:N_state]  # change the start states here if needed.
-    else:
-        assert len(init_state_ids) == N_state
-        psis=[U0[id] for id in init_state_ids]
-    psis0 = U1[:N_state]  # the ground states for the harmonic potential
-    for i in range(N_state):
-        check_uv_ir_error(psis0[i], plot=False)
-        check_uv_ir_error(psis[i], plot=False)
-    return [x, PlayCooling(b=b, psis0=psis0, psis=psis, V=V, plot_k=plot_k, **args)]
-
-
 # + {"id": "EIyZmO5HCt5x", "colab_type": "text", "cell_type": "markdown"}
 # # Cool Down the Energy
 # In this section, all kinds of configuration will be presented. The initial state(s) is (are) picked from the free fermions in a box.
 #
 #
-
-# + {"id": "qesmvV_pC-M-", "colab_type": "text", "cell_type": "markdown"}
-# ## Evolve with derivative
-# * if a state evolve with the oribinal hamiltonian, we expect the energy would be const.
 # -
 
 N_data = 20
 N_step = 100
-Cooling(N_state=2, Nx=128, N_data=10, 
+Cooling(N_state=4, Nx=128, N_data=10, 
         init_state_ids=list(range(2, 4)), V0=1,
-        N_step=N_step*10, beta_V=1, beta_K=1, divs=(1, 1), beta_D=0, plot_k=True);
+        N_step=N_step*10, beta_V=1, beta_K=1, divs=(1, 1), beta_D=0, plot_k=False);
 
 # + {"id": "Eo0kxBxAVMhZ", "colab_type": "text", "cell_type": "markdown"}
 # ## The simplest single wave function.
 # * In the follow demo, we will show the efficiency of  the Cooling algorithm in different condition. Start with the simplest case where the inital state is a uniform wavefunction, then we turn on the hamonic potential, and monitor how the wave function evolve and the true ground state of the harmonic system is pupulated as the cooling proceeds. In the plot, the left panel plot the true ground state probability distribution $\psi^\dagger\psi$ in '+', and the evolving wavefunction probability distribution in solid line. 
 
-# + {"id": "H0EtjerlWq-U", "colab_type": "code", "colab": {"base_uri": "https://localhost:8080/", "height": 296}, "outputId": "d837f4d9-0431-487d-fc1c-ea411fb8fb41"}
-rets = Cooling(N_state=1, Nx=64, init_state_ids=(0,), N_data=25, N_step=100, beta_V=1, beta_K=1, beta_D=0., divs=(1, 1))
-
-# + {"id": "3g1oa3n8WRqx", "colab_type": "text", "cell_type": "markdown"}
-# ## Start with and Even Single State
-# If we pick the initial state with even nodes(state id is even), then such state have some overlap with the ground state in a harmonic trap. It's expected to cooling down to the ground state as above case.
-
-# + {"id": "vLvdhzU4WYFS", "colab_type": "code", "colab": {}}
-rets = Cooling(N_state=1, Nx=64, init_state_ids=(2,), N_data=25, N_step=100, beta_V=1, beta_K=1, beta_D=0., divs=(1, 1))
-
-# + {"id": "c7vQCjWHVsaW", "colab_type": "text", "cell_type": "markdown"}
-# ## Start with an odd single state
-# * if the initial state has no overlap with the true ground state, in single state case, we will see the cooling does not works.
-
 # + {"id": "BXaJWUplV13u", "colab_type": "code", "colab": {}}
 rets = Cooling(N_state=1, Nx=64, init_state_ids=(3,), N_data=25, N_step=100, beta_V=1, beta_K=1, beta_D=0., divs=(1, 1))
 
 # + {"id": "Tr365cInZDqJ", "colab_type": "text", "cell_type": "markdown"}
-# ## Two states
+# ### Double States
 # However, in multiple state situation, if we state of state 1 and 3, it may cool down to the ground states
 
 # + {"id": "ceTa7P2bZQax", "colab_type": "code", "colab": {}}
 x, rets = Cooling(N_state=2, Nx=128, Lx=23, init_state_ids=(1,3), N_data=20, N_step=1000, beta_V=1, beta_K=0, beta_D=0., divs=(1, 1), use_sp=False)
 
-# + {"id": "DtyhhJd5vM94", "colab_type": "text", "cell_type": "markdown"}
-# # Different Cooling Potential Configurations
-
-# + {"colab_type": "text", "id": "AABociIPYwKA", "cell_type": "markdown"}
-# ### With $V_c$ only
-
-# + {"id": "Gtt1t3XH3R0r", "colab_type": "code", "colab": {}}
-Cooling(N_data=N_data, N_step=N_step, beta_V=2, beta_K=0, beta_D=0);
-
-# + {"id": "crFVHZeADJef", "colab_type": "text", "cell_type": "markdown"}
-# ### With $K_c$ only
-
-# + {"id": "9jtz-B_OC46R", "colab_type": "code", "colab": {}}
-Cooling(N_data=N_data, N_step=N_step, beta_V=0, beta_K=2, beta_D=0);
-
-# + {"id": "J7AxO9tZDP43", "colab_type": "text", "cell_type": "markdown"}
-# ### With $V_c$ and $K_c$
-
-# + {"id": "9yFVXjhIDLYa", "colab_type": "code", "colab": {}}
-Cooling(N_data=N_data, N_step=N_step, beta_V=1, beta_K=2, beta_D=0);
-
 # + {"id": "P14489lt3y5X", "colab_type": "text", "cell_type": "markdown"}
-# ### Double States
+# ### Triple States
 # * if set Nx=128, the environment of Google collaboratory will yield different result than than I run locally. Where it not converge properly, but will give desired result on my local environment.
 
 # + {"id": "ZBaymdxh3zaN", "colab_type": "code", "colab": {}}
 Cooling(N_state=3, Nx=256, N_data=100, start_state=2, N_step=N_step*10, beta_V=1, beta_K=1, beta_D=0);
-
-# + {"id": "lyFRMrlPdgVO", "colab_type": "text", "cell_type": "markdown"}
-# Consider the following cooling Hamiltonian.  (The motivation here is that the operators $\op{D}$ are derivatives, so this Hamiltonian is quasi-local.)
-#
-# $$
-#   \op{H}_c = \int \d{x}\; \op{D}_a^\dagger\ket{x}V_{ab}(x)\bra{x}\op{D}_b + \text{h.c.},\\
-#   \hbar \dot{E} = -\I\left(
-#     \int\d{x}\;V_{ab}(x)
-#     \braket{x|\op{D}_b[\op{R},\op{H}]\op{D}_a^\dagger|x}
-#     + \text{h.c.}
-#   \right).
-# $$
-#
-# We can ensure cooling if we take:
-#
-# $$
-#   \hbar V_{ab}(x) 
-#   = (\I\hbar\braket{x|\op{D}_b[\op{R},\op{H}]\op{D}_a^\dagger|x})^*
-#   = \I\hbar\braket{x|\op{D}_a[\op{R},\op{H}]\op{D}_b^\dagger|x}\\
-#   = \braket{x|\op{D}_a|\psi}\braket{x|\op{D}_b|\dot{\psi}}^*
-#   + \braket{x|\op{D}_a|\dot{\psi}}\braket{x|\op{D}_b|\psi}^*.
-# $$
-#
-# If $\op{D}_{a,b}(x)$ are just derivative operators $\braket{x|\op{D}_{a}|\psi} = \psi^{(a)}(x)$, then we have
-#
-# $$
-#   \hbar V_{ab}(x) 
-#   = \psi^{(a)}(x)\overline{\dot{\psi}^{(b)}(x)}
-#   + \dot{\psi}^{(a)}(x)\overline{\psi^{(b)}(x)},
-# $$
-#
-# where
-#
-# $$
-#   \dot{\psi}(x) = -\I\hbar\braket{x|\op{H}|\psi}
-# $$
-#
-# is the time-derivative with respect to the original Hamiltonian.  Note that these "potentials" are no longer diagonal in either momentum or position space, so they should be implemented in the usual fashion with an integrator like ABM.
-
-# + {"id": "8xx81MBqDWqL", "colab_type": "text", "cell_type": "markdown"}
-# ### With Derivatives
-# * <font color='red'>if turn on the derivative terms(beta_D !=1), with both sides with the first order derivative of the wavefunction(divs=(1, 1)), it will screw up the cooling. beta_D=1 may be too big.
-# </font>
-
-# + {"id": "O0gXrx5UL8Nb", "colab_type": "code", "colab": {}}
-Cooling(N_data=N_data, N_step=N_step, beta_0=1, beta_V=2, beta_K=0, beta_D=1, divs=(1, 1));
-
-# + {"id": "nKevmpDPMDBX", "colab_type": "text", "cell_type": "markdown"}
-# ### Turn on a little derivative term
-# * if set beta_D to small value 0.2, the cooling procedure will be more efficient compared with $V_c$ only.
-
-# + {"id": "2ej15LjHNLXu", "colab_type": "text", "cell_type": "markdown"}
-#
-
-# + {"id": "pfCjQEUCNMUi", "colab_type": "code", "colab": {}}
-Cooling(N_data=N_data, N_step=N_step, beta_0=1, beta_V=2, beta_K=0, beta_D=0, divs=(1, 1));
-
-# + {"id": "I18eY3dgDRTq", "colab_type": "code", "colab": {}}
-Cooling(N_data=N_data, N_step=N_step, beta_0=1, beta_V=2, beta_K=0, beta_D=0.2, divs=(1, 1));
-
-# + {"id": "BpsL9KrUMeB0", "colab_type": "text", "cell_type": "markdown"}
-# ### Check how the beta_D effects the cooling
-
-# + {"id": "46e5O5q8INNH", "colab_type": "code", "colab": {}}
-beta_Ds = np.linspace(0, 0.23, 10)
-Es = [Cooling(N_data=N_data, N_step=500, beta_0=1, beta_V=2, beta_K=0, beta_D=beta_D, divs=(1, 1), plot=False) for beta_D in beta_Ds]  
-
-# + {"id": "V1krCSOkJuBJ", "colab_type": "code", "colab": {}}
-plt.plot(beta_Ds, Es)
-plt.xlabel("beta_D")
-plt.ylabel("(E-E0)/E0")
 
 # + {"id": "QETrGFXTGhcb", "colab_type": "text", "cell_type": "markdown"}
 # # Experiment with another wavefunction

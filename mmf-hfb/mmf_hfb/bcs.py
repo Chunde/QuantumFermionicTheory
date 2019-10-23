@@ -9,7 +9,6 @@ import numpy
 import numpy as np
 from mmfutils.math.integrate import mquad
 from mmf_hfb.ParallelHelper import PoolHelper
-from mmf_hfb.interface import IHFBKernel
 from mmf_hfb.utils import block
 
 
@@ -35,7 +34,7 @@ def twising_worker_thread(obj_args):
     return dens
 
 
-class BCS(IHFBKernel):
+class BCS(object):
     """Simple implementation of the BCS equations in a periodic box.
 
     We use all states in the box, regularizing the theory with a fixed
@@ -315,7 +314,6 @@ class BCS(IHFBKernel):
                 # while nb = (1 - np.diag(R)[N:]* dV)/dV
                 # dV = np.prod(self.dxyz)
                 #return Rp_Rm / dV
-
         """
         # Here we use the notation Rp = R = f(M) and Rm = f(-M) = 1-R
         def get_Rs(twists):
@@ -476,7 +474,7 @@ class BCS(IHFBKernel):
             Note: need to test more carefully
         """
         obj, k_c, vs, twists, args = obj_args
-        ks = 2 * np.pi * np.fft.fftfreq(self.Nxyz[0] * N_factor, self.dxyz[0])
+        ks = 2*np.pi*np.fft.fftfreq(self.Nxyz[0]*N_factor, self.dxyz[0])
         obj_twists_kp = [(obj, vs, twists, k, args) for k in ks]
         res = PoolHelper.run(mqaud_worker_thread, paras=obj_twists_kp)
         dens = sum(res)/(obj.dxyz[0] * obj.Nxyz[0] * N_factor)

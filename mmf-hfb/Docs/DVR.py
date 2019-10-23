@@ -200,15 +200,18 @@ def Normalize(psi):
 
 def psi00(rs):
     psi = np.sqrt(1.0/np.pi)*np.exp(-rs**2/2)
-    return Normalize(psi)
+    return psi
 
 def psi10(rs):
     psi = np.sqrt(2.0)*psi00(rs)*rs
-    return Normalize(psi)
-
+    return psi
 
 
 # -
+
+rs = np.linspace(0, 2, 100)
+psi = psi10(rs)
+plt.plot(rs, psi)
 
 import mmf_hfb.HarmonicDVR as HarmonicDVR; reload(HarmonicDVR)
 from mmf_hfb.HarmonicDVR import HarmonicDVR
@@ -230,7 +233,7 @@ def spectrum(nu=0):
     Fs = h.get_F_rs()    
     Es, us = np.linalg.eigh(H)
     for i in range(2):
-        psi = us[:,i]*Fs
+        psi = h.get_psi(us[:,i])*Fs
         plt.plot(h.rs,psi, label=f'{i}')
     plt.plot(psi00(h.rs), '--', label='00')
     plt.plot(psi10(h.rs), '+', label='01')
@@ -240,10 +243,6 @@ def spectrum(nu=0):
 
 
 spectrum(nu=0)
-
-spectrum(nu=0)
-
-spectrum(6)
 
 # # Harmonic in Plane Basis
 # * Make sure the plane wave basis yields the desired result

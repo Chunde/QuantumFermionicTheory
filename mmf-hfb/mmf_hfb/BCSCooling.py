@@ -1,7 +1,6 @@
 from scipy.integrate import solve_ivp
 from mmf_hfb.bcs import BCS
 import numpy as np
-from scipy import signal as sg
 import numpy.linalg
 
 
@@ -22,9 +21,9 @@ class BCSCooling(BCS):
     """
 
     def __init__(
-            self, N=256, L=None, dx=0.1,
+            self, N=256, L=None, dx=0.1, delta=0, mus=(0, 0),
             beta_0=1.0, beta_V=1.0, beta_K=1.0, beta_D=1.0,
-            dt_Emax=1.0, g=0, divs=None, smooth=False, **args):
+            dt_Emax=1.0, g=0, divs=None, **args):
         """
         Arguments
         ---------
@@ -39,18 +38,19 @@ class BCSCooling(BCS):
         """
         if L is None:
             L = N*dx
+        BCS.__init__(self, Nxyz=(N,), Lxyz=(L,))
         self.L=L
         self.N=N
         self.dx=dx
-        BCS.__init__(self, Nxyz=(N,), Lxyz=(L,))
+        self.delta = delta
+        self.mus = mus
         self.beta_0 = beta_0
         self.beta_V = beta_V
         self.beta_K = beta_K
         self.beta_D = beta_D
         self.g = g
         self.divs = divs
-        self.smooth = smooth
-        self._K2 = (self.hbar*np.array(self.kxyz[0]))**2/2/self.m  
+        self._K2 = (self.hbar*np.array(self.kxyz[0]))**2/2/self.m
         self.dt = dt_Emax*self.hbar/self._K2.max()
         self.E_max = self._K2.max()
 
@@ -62,45 +62,80 @@ class BCSCooling(BCS):
         """
         if self.g==0:
             return V
-        return sum(self.g*np.abs(psis)**2) + V
+        ns = self.get_ns(psis)
+        if self.delta !=0:  # n_a + n_b
+            ns = ns[:len(ns)//2] + ns[len(ns)//2:]
+        return sum(self.g*ns) + V
     
+    def _apply_H(self, psi, V):
+        if self.delta == 0:
+            psi_k = np.fft.fft(psi)
+            Hpsi = self.ifft(self._K2*psi_k) + V*psi
+            return Hpsi
+        H = self.get_H(mus_eff=self.mus, delta=self.delta, Vs=(V, V))
+        return H.dot(psi)  # apply H on psi
+
     def apply_H(self, psis, V):
         """compute dy/dt=H\psi"""
         V_eff = self.get_V_eff(psis, V=V)
         Hpsis = []
         for psi in psis:
+            Hpsi = self._apply_H(psi, V=V_eff)
+            Hpsis.append(Hpsi)
+        return Hpsis
+
+    def _apply_K(self, psi, V):
+        if self.delta == 0:
             psi_k = np.fft.fft(psi)
             Kpsi = self.ifft(self._K2*psi_k)
-            Vpsi = V_eff*psi
-            Hpsis.append(Kpsi + Vpsi)
-        return Hpsis
+            return Kpsi
+        uv = psi.reshape(2, len(psi)//2)
+        Kpsi = []
+        for psi in uv:
+            psi_k = np.fft.fft(psi)
+            Kpsi.extend(self.ifft(self._K2*psi_k))
+        return Kpsi
 
     def apply_K(self, psis, V):
         """compute dy/dt with kinetic part only"""
         Hpsis = []
+        V_eff = self.get_V_eff(psis, V=V)
         for psi in psis:
-            psi_k = np.fft.fft(psi)
-            Kpsi = self.ifft(self._K2*psi_k)
+            Kpsi = self._apply_K(psi=psi, V=V_eff)
             Hpsis.append(Kpsi)
         return Hpsis
+
+    def _apply_V(self, psi, V):
+        if self.delta == 0:
+            return V*psi
+        return np.array([V, V]).reveal()*psi
 
     def apply_V(self, psis, V):
         """compute dy/dt with effective potential only"""
         V_eff = self.get_V_eff(psis, V=V)
         Hpsis = []
         for psi in psis:
-            Vpsi = V_eff*psi
+            Vpsi = self._apply_V(psi, V=V_eff)
             Hpsis.append(Vpsi)
         return Hpsis
 
+    def _div(self, psi, n=1):
+        if self.delta == 0:
+            for _ in range(n):
+                psi = self._Del(alpha=(np.array([psi]).T,))[:, 0, ...][0].T[0]
+            return psi
+
+        u, v = np.array(psi).reshape(2, len(psi)//2)
+        for _ in range(n):
+            u = self._Del(alpha=(np.array([u]).T,))[:, 0, ...][0].T[0]
+            v = self._Del(alpha=(np.array([v]).T,))[:, 0, ...][0].T[0]
+        return u.extend(v)
+
     def Del(self, psi, n=1):
-        """Now only support 1D function, should be generalized later"""
+        """support 1D function, should be generalized later"""
         if n <=0:
             return psi
-        for _ in range(n):
-            psi = self._Del(alpha=(np.array([psi]).T,))[:, 0, ...][0].T[0]
-            if self.smooth:
-                psi = sg.savgol_filter(psi, 5, 2, mode='nearest')
+        psi = self._div(psi, n=n)
         return psi
 
     def get_N(self, psis):
@@ -124,7 +159,7 @@ class BCSCooling(BCS):
     def _get_Vs(self, psis, V, divs=None):
         """
         return Vc or Vd
-        -------------------        
+        -------------------
         Normalization
             Vc should not depend on particle number as
             it applies on single particle orbit(divided by N)
@@ -132,7 +167,7 @@ class BCSCooling(BCS):
             its maximum value should be smaller than the energy
             cuttoff self.E_max in order to be compatible with
             time step. How to rescale the cooling potential is
-            not clear yet. 
+            not clear yet.
         """
         
         N = self.get_N(psis)
@@ -253,7 +288,7 @@ class BCSCooling(BCS):
             + self.beta_K*Kc_psi + self.beta_D*Vd_psi)
 
     def step(self, psis, V, n=1):
-        """ 
+        """
         Evolve the state psi by applying n steps of the
         Split-Operator method.
         """
@@ -292,19 +327,37 @@ class BCSCooling(BCS):
             ys.append(res.y.T)
         return(ts, ys)
 
-    def get_density(self, psis):
+    def get_ns(self, psis):
         """compute densities"""
-        ns = np.abs(psis)**2
-        return sum(ns)
-   
+        # if self.delta == 0:
+        #     return sum(abs(psis)**2)
+
+        # psis_ = psis.reshape(psis.shape[:1] + (2, psis.shape[1]//2))
+        # Us, Vs = psis_[:, 0, ...], psis_[:, 1, ...]
+        # return (sum(abs(Us)**2), sum(abs(Vs)**2))
+        return sum(abs(psis)**2)
+
     def get_E_Ns(self, psis, V):
         E = 0
         N = 0
-        n0 = self.get_density(psis)
-        N = sum(n0)*self.dV
-        V_eff = (self.get_V_eff(psis, V=0)/2 + V)*n0
+        ns = self.get_ns(psis)
+        N = sum(ns)*self.dV
+        V_eff = (self.get_V_eff(psis, V=0)/2 + V)*ns  # may be dimension error
         for psi in psis:
             K = psi.conj().dot(self.ifft(self._K2*self.fft(psi)))
             E = E + K.real*self.dV
         E = E + V_eff.sum()*self.dV
         return E, N
+
+
+if __name__ == "__main__":
+    b = BCSCooling(N=4, dx=0.1, delta=1, mus=(2, 2))
+    x = b.xyz[0]
+    V = x**2/2
+    H0 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(0, 0))
+    H1 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(V, V))
+    U0, E0 = b.get_U_E(H0, transpose=True)
+    U1, E1 = b.get_U_E(H1, transpose=True)
+    psis0 = U0[:2]
+    psis1 = U1[:2]
+    b.get_ns(psis0)
