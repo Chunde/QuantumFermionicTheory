@@ -117,7 +117,7 @@ def PlayCooling(
             plt.ylabel("Enery Diff")
             plt.axhline(0, linestyle='dashed')
             plt.show()
-            clear_output(wait=True)     
+            clear_output(wait=True) 
     return psis, Es, Ns
 
 

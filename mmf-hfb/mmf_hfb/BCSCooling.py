@@ -53,6 +53,10 @@ class BCSCooling(BCS):
         self._K2 = (self.hbar*np.array(self.kxyz[0]))**2/2/self.m
         self.dt = dt_Emax*self.hbar/self._K2.max()
         self.E_max = self._K2.max()
+    
+    def _get_uv(self, psi):
+        uv = psi.reshape(2, len(psi)//2)
+        return uv
 
     def get_V_eff(self, psis, V):
         """
@@ -69,7 +73,7 @@ class BCSCooling(BCS):
     
     def _apply_H(self, psi, V):
         if self.delta == 0:
-            psi_k = np.fft.fft(psi)
+            psi_k = self.fft(psi)
             Hpsi = self.ifft(self._K2*psi_k) + V*psi
             return Hpsi
         H = self.get_H(mus_eff=self.mus, delta=self.delta, Vs=(V, V))
@@ -86,13 +90,13 @@ class BCSCooling(BCS):
 
     def _apply_K(self, psi, V):
         if self.delta == 0:
-            psi_k = np.fft.fft(psi)
+            psi_k = self.fft(psi)
             Kpsi = self.ifft(self._K2*psi_k)
             return Kpsi
-        uv = psi.reshape(2, len(psi)//2)
+        uv = self._get_uv(psi)
         Kpsi = []
         for psi in uv:
-            psi_k = np.fft.fft(psi)
+            psi_k = self.fft(psi)
             Kpsi.extend(self.ifft(self._K2*psi_k))
         return Kpsi
 
@@ -108,7 +112,7 @@ class BCSCooling(BCS):
     def _apply_V(self, psi, V):
         if self.delta == 0:
             return V*psi
-        return np.array([V, V]).reveal()*psi
+        return np.array([V, V]).ravel()*psi
 
     def apply_V(self, psis, V):
         """compute dy/dt with effective potential only"""
@@ -200,8 +204,6 @@ class BCSCooling(BCS):
         Vc = Vc/N  # divided by density mean to have unit of energy
         # N/den_man == 23? where the 23 comes from?
         # it's the box size. N=den_mean*Nx*dx=den_mean*Lx
-        den_mean =self.get_density(psis).mean()
-        assert np.allclose(N, self.L*den_mean)
         return Vc  # self._normalize_potential(Vc=Vc)
 
     def get_Vc(self, psis, V):
@@ -221,13 +223,12 @@ class BCSCooling(BCS):
         Kc = 0*np.array(psis[0])
         if self.beta_K == 0:
             return Kc
-        # can also apply_H, result is unchanged
         Hpsis = self.apply_V(psis, V=V)
         for i, psi in enumerate(psis):
-            psi_k = np.fft.fft(psi)*self.dV
-            Vpsi_k = np.fft.fft(Hpsis[i])*self.dV
+            psi_k = self.fft(psi)*self.dV
+            Vpsi_k = self.fft(Hpsis[i])*self.dV
             Kc = Kc + 2*(psi_k.conj()*Vpsi_k).imag/N*self.dV/np.prod(self.Lxyz)
-        return Kc  # self._normalize_potential(Vc=Kc)
+        return Kc
 
     def get_Hc(self, psis, V):
         """Return the full cooling Hamiltonian in position space."""
@@ -251,25 +252,34 @@ class BCSCooling(BCS):
         V11_psis = [-1*self.Del(Vmn*self.Del(psi=psi)) for psi in psis]
         return V11_psis
 
+    def _apply_expK(self, psi, V, Kc, factor=1):
+        if self.delta == 0:
+            psi_k = self.fft(psi)
+            return self.ifft(np.exp(-1j*self.dt*factor*(self.beta_0*self._K2 + Kc))*psi_k)
+        kuv = [self.fft(psi) for psi in self._get_uv(psi)]
+        kc_uv = self._get_uv(Kc)
+        expK = [self.ifft(np.exp(-1j*self.dt*factor*(self.beta_0*self._K2 + Kc))*psi_k) for (psi_k, Kc) in zip(kuv, kc_uv)]
+        return np.array(expK).ravel()
+
     def apply_expK(self, psis, V, factor=1):
         Kc = self.beta_K*self.get_Kc(psis=psis, V=V)
         for i, psi in enumerate(psis):
-            psi_k = np.fft.fft(psi)
-            psi_new = np.fft.ifft(
-                np.exp(-1j*self.dt*factor*(self.beta_0*self._K2 + Kc))*psi_k)
-            # Not sure if the next line is necessary
-            psi_new *= np.sqrt((abs(psi)**2).sum()/(abs(psi_new)**2).sum())
-            psis[i] = psi_new
+            psis[i] = self._apply_expK(psi, V=V, Kc=Kc, factor=factor)
         return psis
-        
+
+    def _apply_expV(self, psi, V, Vc, factor):
+        if self.delta == 0:
+            return np.exp(-1j*self.dt*factor*(self.beta_0*V +self.beta_V*Vc))*psi
+        Vc_uv = self._get_uv(Vc)
+        uv = self._get_uv(psi)
+        expV = [np.exp(-1j*self.dt*factor*(self.beta_0*V +self.beta_V*Vc))*psi for (psi, Vc) in zip(uv, Vc_uv)]
+        return np.array(expV).ravel()
+
     def apply_expV(self, psis, V, factor=1):
         Vc = self.get_Vc(psis=psis, V=V)
         V_eff = self.get_V_eff(psis, V=V)
         for i, psi in enumerate(psis):
-            psi_new = np.exp(-1j*self.dt*factor*(self.beta_0*V_eff +self.beta_V*Vc))*psi
-            # Not sure if the next line is necessary
-            psi_new *= np.sqrt((abs(psi)**2).sum()/(abs(psi_new)**2).sum())
-            psis[i]=psi_new
+            psis[i] = self._apply_expV(psi=psi, V=V_eff, Vc=Vc, factor=factor)
         return psis
     
     def apply_Hc(self, psi, V):
@@ -327,26 +337,33 @@ class BCSCooling(BCS):
             ys.append(res.y.T)
         return(ts, ys)
 
-    def get_ns(self, psis):
+    def get_ns(self, psis, shrink=False):
         """compute densities"""
         # if self.delta == 0:
         #     return sum(abs(psis)**2)
-
         # psis_ = psis.reshape(psis.shape[:1] + (2, psis.shape[1]//2))
         # Us, Vs = psis_[:, 0, ...], psis_[:, 1, ...]
         # return (sum(abs(Us)**2), sum(abs(Vs)**2))
-        return sum(abs(psis)**2)
+        return sum(np.abs(psis)**2)
 
     def get_E_Ns(self, psis, V):
         E = 0
         N = 0
         ns = self.get_ns(psis)
         N = sum(ns)*self.dV
-        V_eff = (self.get_V_eff(psis, V=0)/2 + V)*ns  # may be dimension error
-        for psi in psis:
-            K = psi.conj().dot(self.ifft(self._K2*self.fft(psi)))
-            E = E + K.real*self.dV
-        E = E + V_eff.sum()*self.dV
+        if self.delta !=0:
+            ns = ns[:len(ns)//2] + ns[len(ns)//2:]  # n_a + n_b
+        
+        if self.delta == 0:
+            for psi in psis:
+                K = psi.conj().dot(self.ifft(self._K2*self.fft(psi)))
+                E = E + K.real*self.dV
+            V_eff = (self.get_V_eff(psis, V=0)/2 + V)*ns
+            E = E + V_eff.sum()*self.dV
+        else:
+            H = self.get_H(mus_eff=self.mus, delta=self.delta, Vs=(V, V))
+            for psi in psis:
+                E = E + psi.conj().dot(H.dot(psi))
         return E, N
 
 
@@ -356,8 +373,13 @@ if __name__ == "__main__":
     V = x**2/2
     H0 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(0, 0))
     H1 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(V, V))
-    U0, E0 = b.get_U_E(H0, transpose=True)
-    U1, E1 = b.get_U_E(H1, transpose=True)
-    psis0 = U0[:2]
-    psis1 = U1[:2]
+    U0, Es0 = b.get_U_E(H0, transpose=True)
+    U1, Es1 = b.get_U_E(H1, transpose=True)
+    N_state = 1
+    psis0 = U0[:N_state]
+    psis1 = U1[:N_state]
     b.get_ns(psis0)
+    psis = b.step(psis=psis0, n=100, V=V)
+    E0, N0 = b.get_E_Ns(psis=psis0, V=V)
+    E, N = b.get_E_Ns(psis=psis, V=V)
+    print(N0, N, E0, E)

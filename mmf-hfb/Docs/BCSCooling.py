@@ -333,6 +333,8 @@ ImaginaryCooling()
 #
 # -
 
+Cooling(N_state=3, Nx=256, N_data=25, start_state=2,  N_step=1000, beta_V=1, beta_K=1, beta_D=0);
+
 N_data = 20
 N_step = 100
 Cooling(N_state=4, Nx=128, N_data=10, 
@@ -351,14 +353,14 @@ rets = Cooling(N_state=1, Nx=64, init_state_ids=(3,), N_data=25, N_step=100, bet
 # However, in multiple state situation, if we state of state 1 and 3, it may cool down to the ground states
 
 # + {"id": "ceTa7P2bZQax", "colab_type": "code", "colab": {}}
-x, rets = Cooling(N_state=2, Nx=128, Lx=23, init_state_ids=(1,3), N_data=20, N_step=1000, beta_V=1, beta_K=0, beta_D=0., divs=(1, 1), use_sp=False)
+x, rets = Cooling(N_state=2, Nx=128, Lx=23, init_state_ids=(1,3), N_data=20, N_step=1000, beta_V=1, beta_K=0, beta_D=0., divs=(1, 1))
 
 # + {"id": "P14489lt3y5X", "colab_type": "text", "cell_type": "markdown"}
 # ### Triple States
 # * if set Nx=128, the environment of Google collaboratory will yield different result than than I run locally. Where it not converge properly, but will give desired result on my local environment.
 
 # + {"id": "ZBaymdxh3zaN", "colab_type": "code", "colab": {}}
-Cooling(N_state=3, Nx=256, N_data=100, start_state=2, N_step=N_step*10, beta_V=1, beta_K=1, beta_D=0);
+Cooling(N_state=3, Nx=256, N_data=25, start_state=2, N_step=1000, beta_V=1, beta_K=1, beta_D=0);
 
 # + {"id": "QETrGFXTGhcb", "colab_type": "text", "cell_type": "markdown"}
 # # Experiment with another wavefunction
@@ -414,6 +416,29 @@ plt.legend()
 # + {"id": "LedHtcO3PO-1", "colab_type": "text", "cell_type": "markdown"}
 # # With Pairing Field
 # * to-do: update the code to support BCS with pairing field.
+# -
 
-# + {"id": "6Ji5pra9HYh7", "colab_type": "code", "colab": {}}
+b = BCSCooling(N=64, dx=0.1, delta=1, mus=(2, 2))
+x = b.xyz[0]
+V = x**2/2
+H0 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(0, 0))
+H1 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(V, V))
+U0, Es0 = b.get_U_E(H0, transpose=True)
+U1, Es1 = b.get_U_E(H1, transpose=True)
+N_state = 1
+psis = U0[:N_state]
+plt.plot(psis[0])
+#print(psis0[0].real)
+psis1 = U1[:N_state]
+E0, N0 = b.get_E_Ns(psis=psis0, V=V)
+for i in range(100):
+    psis = b.step(psis=psis, n=1000, V=V)
+    plt.plot(psis[0],'--')
+    plt.plot(psis1[0],'-')
+    #print(psis[0].real)
+    E, N = b.get_E_Ns(psis=psis, V=V)
+    plt.title(f"E0={E0.real},E={E.real}")
+    plt.show()
+    clear_output(wait=True)
+
 
