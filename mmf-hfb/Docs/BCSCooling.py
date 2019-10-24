@@ -20,6 +20,47 @@ import matplotlib.pyplot as plt
 from nbimports import *
 import numpy as np
 
+# # Departure from Locality
+# We can generalize these operators slightly to cool in a non-local fashion.  For example, consider the following cooling Hamiltonian.  (The motivation here is that the operators $\op{D}$ are derivatives, so this Hamiltonian is quasi-local.)
+#
+# $$
+#   \op{H}_c = \int \d{x}\; \op{D}_a^\dagger\ket{x}V_{ab}(x)\bra{x}\op{D}_b + \text{h.c.},\\
+#   \hbar \dot{E} = -\I\left(
+#     \int\d{x}\;V_{ab}(x)
+#     \braket{x|\op{D}_b[\op{R},\op{H}]\op{D}_a^\dagger|x}
+#     + \text{h.c.}
+#   \right).
+# $$
+#
+# We can ensure cooling if we take:
+#
+# $$
+#   \hbar V_{ab}(x) 
+#   = (\I\hbar\braket{x|\op{D}_b[\op{R},\op{H}]\op{D}_a^\dagger|x})^*
+#   = \I\hbar\braket{x|\op{D}_a[\op{R},\op{H}]\op{D}_b^\dagger|x}\\
+#   = \braket{x|\op{D}_a|\psi}\braket{x|\op{D}_b|\dot{\psi}}^*
+#   + \braket{x|\op{D}_a|\dot{\psi}}\braket{x|\op{D}_b|\psi}^*.
+# $$
+#
+# If $\op{D}_{a,b}(x)$ are just derivative operators $\braket{x|\op{D}_{a}|\psi} = \psi^{(a)}(x)$, then we have
+#
+# $$
+#   \hbar V_{ab}(x) 
+#   = \psi^{(a)}(x)\overline{\dot{\psi}^{(b)}(x)}
+#   + \dot{\psi}^{(a)}(x)\overline{\psi^{(b)}(x)},
+# $$
+#
+# where
+#
+# $$
+#   \dot{\psi}(x) = -\I\hbar\braket{x|\op{H}|\psi}
+# $$
+#
+# is the time-derivative with respect to the original Hamiltonian.  Note that these "potentials" are no longer diagonal in either momentum or position space, so they should be implemented in the usual fashion with an integrator like ABM.
+# $$
+#   \I\hbar \dot{\psi}(x) = \cdots  - \pdiff{}{x}\left(V_{11}(x) \pdiff{}{x}\psi\right)
+# $$
+
 # + {"id": "ptb73kVS8ceS", "colab_type": "text", "cell_type": "markdown"}
 # # BCS Cooling Class Test
 # * To properly display equations, we define some command to make life easier, this commands are invisible
@@ -101,11 +142,9 @@ def check_uv_ir_error(psi, plot=False):
 #
 # It's found that $V_{ab}=0$, since any wave function can be expanded as plane wave, that means for any wave function, as long as the Hamiltonian is free-partile type, $V_{ab}=0$
 
-def test_der_cooling(psi = None, evolve=False, T=0.5, **args):
+def test_der_cooling(psi = None, evolve=True, T=0.5, **args):
     b = BCSCooling(**args)
-    print(b.E_max)
-    da, db=b.divs
-    
+    da, db=b.divs    
     k0 = 2*np.pi/b.L
     x = b.xyz[0]
     V = x**2/2
@@ -118,7 +157,7 @@ def test_der_cooling(psi = None, evolve=False, T=0.5, **args):
         psi = U0[1]  # np.exp(1j*n*(k0*x))
     psi_a = b.Del(psi, n=da)
     Hpsi = np.array(b.apply_H([psi], V=V))[0]/(1j)
-    plt.figure(figsize=(18,6))
+    plt.figure(figsize=(18, 6))
     N = 4 if evolve else 2   
     plt.subplot(1,N,1)
     plt.plot(x, abs(Hpsi),'-', label=r'$H\psi$')
@@ -152,8 +191,15 @@ def test_der_cooling(psi = None, evolve=False, T=0.5, **args):
     return psis[0][-1]
 
 
-args = dict(N=128, dx=0.1, beta_0=1, divs=(0, 1), beta_K=1, beta_V=0, T=5, beta_D=0, evolve=True)
+args = dict(N=128, dx=0.1, divs=(0, 1), beta_K=1, beta_V=1, T=5, beta_D=0, check_dE=True)
 psi = test_der_cooling(**args)
+
+# \begin{align}
+#   \dot{E} &= \bra{\dot{\psi}}\pdiff{E}{\bra{\psi}} + \pdiff{E}{\ket{\psi}}\ket{\dot{\psi}}
+#            = \braket{\dot{\psi}|\op{H}|\psi} + \braket{\psi|\op{H}|\dot{\psi}}
+#            = \frac{-\braket{\psi|\op{H}_c\op{H}|\psi} + \braket{\psi|\op{H}\op{H}_c|\psi}}{\I\hbar}\\
+#           &= \frac{\braket{\psi|[\op{H},\op{H}_c]|\psi}}{\I\hbar}.
+# \end{align}
 
 # ## Dyadic Cooling
 # To minimize the communication costs, we consider approximating $\op{H}_c$ by a set of dyads:
@@ -420,23 +466,24 @@ plt.legend()
 
 b = BCSCooling(N=64, dx=0.1, beta_0=1, beta_V=1, delta=1, mus=(2, 2))
 x = b.xyz[0]
-V = x**2/2
-H0 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(0, 0))
-H1 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(V, V))
+V0 = x**2/3
+V1 = x**2/2
+H0 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(V0, V0))
+H1 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(V1, V1))
 U0, Es0 = b.get_U_E(H0, transpose=True)
 U1, Es1 = b.get_U_E(H1, transpose=True)
 N_state = 1
 psi0 = U1[64]
 psi = U0[64]
 plt.plot(psi0)
-E0, N0 = b.get_E_Ns(psis=[U1[64]], V=V)
+E0, N0 = b.get_E_Ns(psis=[U1[64]], V=V1)
 psis = [psi]
-for i in range(1):
-    psis = b.step(psis=psis, n=10, V=V)
+for i in range(20):
+    psis = b.step(psis=psis, n=10, V=V1)
     plt.plot(psis[0],'--')
     plt.plot(psi0,'-')
     #print(psis[0].real)
-    E, N = b.get_E_Ns(psis=psis, V=V)
+    E, N = b.get_E_Ns(psis=psis, V=V1)
     plt.title(f"E0={E0.real},E={E.real}")
     plt.show()
     clear_output(wait=True)

@@ -79,7 +79,6 @@ def test_apply_Vs(N_state=2):
     V = x**2/2
     H0 = b._get_H(mu_eff=0, V=0)
     U0, E0 = b.get_U_E(H0, transpose=True)
-
     psis = U0[:N_state]
 
     def get_kc(psis, fun):
@@ -108,6 +107,79 @@ def test_apply_Vs(N_state=2):
     vc2 = get_Vc(psis, b.apply_H)
     assert np.allclose(vc1, vc2)
 
+
+def test_der_cooling(psi=None, evolve=True, T=0.5, **args):
+    import matplotlib.pyplot as plt
+    b = BCSCooling(**args)
+    da, db=b.divs
+    k0 = 2*np.pi/b.L
+    x = b.xyz[0]
+    V = x**2/2
+    H0 = b._get_H(mu_eff=0, V=0)
+    H1 = b._get_H(mu_eff=0, V=V)
+    U0, E0 = b.get_U_E(H0, transpose=True)
+    U1, E1 = b.get_U_E(H1, transpose=True)
+    psi_1 = Normalize(np.cos(k0*x))
+    if psi is None:
+        psi = U0[1]  # np.exp(1j*n*(k0*x))
+    psi_a = b.Del(psi, n=da)
+    Hpsi = np.array(b.apply_H([psi], V=V))[0]/(1j)
+    plt.figure(figsize=(18, 6))
+    N = 4 if evolve else 2
+    plt.subplot(1, N, 1)
+    plt.plot(x, abs(Hpsi), '-', label=r'$H\psi$')
+    plt.legend()
+    plt.subplot(1, N, 2)
+    Hpsi_a = b.Del(Hpsi, n=da)
+    if da == db:
+        psi_b = psi_a
+        Hpsi_b = Hpsi_a
+    else:
+        psi_b = b.Del(psi, n=db)
+        Hpsi_b = b.Del(Hpsi, n=db)
+    Vc = psi_a*Hpsi_b.conj() + Hpsi_a*psi_b.conj()
+    plt.plot(x, Vc, label='real')
+    plt.plot(x, Vc.imag, label='imag')
+    plt.plot(x, abs(Vc), label='|Vc|')
+    plt.legend()
+    if evolve:
+        b.erase_max_ks()
+        plt.subplot(1, N, 3)
+        ts, psis = b.solve([psi], T=T, rtol=1e-5, atol=1e-6, V=V, method='BDF', check_dE=True)
+        psi0 = U1[0]
+        E0, _ = b.get_E_Ns([psi0], V=V)
+        Es = [b.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]
+        plt.plot(x, Prob(psis[0][0]), "+", label='init')
+        plt.plot(x, Prob(psis[0][-1]), '--', label="final")
+        plt.plot(x, Prob(U1[0]), label='Ground')
+        plt.legend()
+        plt.subplot(1, N, 4)
+        plt.plot(ts[0][:-2], (Es[:-2] - E0)/abs(E0))
+    return psis[0][-1]
+
+def pairing_cooling():
+    import matplotlib.pyplot as plt
+    b = BCSCooling(N=64, dx=0.1, beta_0=1, beta_V=1, delta=1, mus=(2, 2))
+    x = b.xyz[0]
+    V = x**2/2
+    H0 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(0, 0))
+    H1 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(V, V))
+    U0, Es0 = b.get_U_E(H0, transpose=True)
+    U1, Es1 = b.get_U_E(H1, transpose=True)
+    psi0 = U1[64]
+    psi = U0[64]
+    plt.plot(psi0)
+    E0, N0 = b.get_E_Ns(psis=[U1[64]], V=V)
+    psis = [psi]
+    for i in range(1):
+        E, N = b.get_E_Ns(psis=psis, V=V)
+        psis = b.step(psis=psis, n=10, V=V)
+        plt.plot(psis[0], '--')
+        plt.plot(psi0, '-')
+        plt.title(f"E0={E0.real},E={E.real}")
+        plt.show()
+
+
 if __name__ == "__main__":
-    test_derivative_cooling(n=3, da=3, db=2)
-    test_apply_Vs()
+    args = dict(N=128, dx=0.1, beta_0=1, divs=(1, 1), beta_K=1, beta_V=1, beta_D=0)
+    psi = test_der_cooling(**args)

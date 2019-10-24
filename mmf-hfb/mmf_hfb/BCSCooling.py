@@ -15,6 +15,10 @@ def Normalize(psi):
     return psi/psi.dot(psi.conj())**0.5
 
 
+class HamiltonianC(object):
+    pass
+
+
 class BCSCooling(BCS):
     """
     1d Local Quantum Friction class
@@ -23,7 +27,7 @@ class BCSCooling(BCS):
     def __init__(
             self, N=256, L=None, dx=0.1, delta=0, mus=(0, 0),
             beta_0=1.0, beta_V=1.0, beta_K=1.0, beta_D=1.0,
-            dt_Emax=1.0, g=0, divs=None, **args):
+            dt_Emax=1.0, g=0, divs=None, check_dE=True, **args):
         """
         Arguments
         ---------
@@ -50,6 +54,7 @@ class BCSCooling(BCS):
         self.beta_D = beta_D
         self.g = g
         self.divs = divs
+        self.check_dE = check_dE
         self._K2 = (self.hbar*np.array(self.kxyz[0]))**2/2/self.m
         self.dt = dt_Emax*self.hbar/self._K2.max()
         self.E_max = self._K2.max()
@@ -259,7 +264,7 @@ class BCSCooling(BCS):
             NOTE: This may not be unitary
         """
         Vmn = self.beta_D*self.get_Vd(psis=psis, V=V)
-        V11_psis = [-1*self.Del(Vmn*self.Del(psi=psi)) for psi in psis]
+        V11_psis = [self.Del(Vmn*self.Del(psi=psi)) for psi in psis]
         return V11_psis
 
     def _apply_expK(self, psi, V, Kc, factor=1):
@@ -299,20 +304,33 @@ class BCSCooling(BCS):
             psis[i] = self._apply_expV(psi=psi, V=V_eff, Vc=Vc, factor=factor)
         return psis
     
-    def apply_Hc(self, psi, V):
+    def apply_Hc(self, psis, V):
         """
         Apply the cooling Hamiltonian.
         or, compute dy/dt w.r.t to Hc
         """
-        H_psi = self.apply_H(psis=[psi], V=V)[0] if self.beta_0 !=0 else 0
-        Vc_psi = self.get_Vc(psis=[psi], V=V)*psi
-        Kc_psi = (
-            self.ifft(self.get_Kc([psi], V=V)*self.fft(psi))
-            if self.beta_K !=0 else 0)
-        Vd_psi = self.apply_Vd(psis=[psi], V=V)[0]  # apply the V11 on psi
-        return (
-            self.beta_0*H_psi + self.beta_V*Vc_psi
-            + self.beta_K*Kc_psi + self.beta_D*Vd_psi)
+        Hc_psis = []
+        H_psis = self.apply_H(psis=psis, V=V) if self.beta_0 != 0 else 0
+        Vc = self.get_Vc(psis=psis, V=V) if self.beta_V !=0 else 0
+        Kc = self.get_Kc(psis, V=V) if self.beta_K !=0 else 0
+        Vd_psis = self.apply_Vd(psis=psis, V=V) if self.beta_D !=0 else (0,)*len(psis)
+        for i, psi in enumerate(psis):
+            Vc_psi = Vc*psi
+            Kc_psi = self.ifft(Kc*self.fft(psi))
+            Hc_psi = (
+                self.beta_0*H_psis[i] + self.beta_V*Vc_psi
+                +self.beta_K*Kc_psi + self.beta_D*Vd_psis[i])
+            Hc_psis.append(Hc_psi)
+        return Hc_psis
+
+    def check_dE_dt(self, psis, V):
+        """compute dE/dt"""
+        H_psis = self.apply_H(psis, V=V)
+        Hc_psis = self.apply_Hc(psis=psis, V=V)
+        dE_dt = sum(
+            [H_psi.conj().dot(Hc_psi)- Hc_psi.conj().dot(H_psi)
+                for (H_psi, Hc_psi) in zip(H_psis, Hc_psis)])/(1j)
+        return dE_dt < 0
 
     def step(self, psis, V, n=1):
         """
@@ -328,7 +346,9 @@ class BCSCooling(BCS):
 
     def compute_dy_dt(self, t, psi, subtract_mu=True):
         """Return dy/dt for ODE integration."""
-        Hpsi = self.apply_Hc(psi, V=self.V)
+        if self.check_dE:
+            assert self.check_dE_dt(psis=[psi], V=self.V)
+        Hpsi = self.apply_Hc([psi], V=self.V)[0]
         if subtract_mu:
             Hpsi -= psi.conj().dot(Hpsi)/psi.dot(psi.conj())*psi
         return Hpsi/(1j*self.hbar)
@@ -382,24 +402,13 @@ class BCSCooling(BCS):
 
 
 if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    b = BCSCooling(N=64, dx=0.1, beta_0=1, beta_V=1, delta=1, mus=(2, 2))
+    b = BCSCooling(N=64, dx=0.1, beta_0=1, beta_V=1, beta_K=1, delta=0, beta_D=0, divs=(1, 1))
     x = b.xyz[0]
     V = x**2/2
-    H0 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(0, 0))
-    H1 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(V, V))
+    H0 = b._get_H(mu_eff=0, V=0)
+    H1 = b._get_H(mu_eff=0, V=V)
     U0, Es0 = b.get_U_E(H0, transpose=True)
     U1, Es1 = b.get_U_E(H1, transpose=True)
-    N_state = 1
-    psi0 = U1[64]
-    psi = U0[64]
-    plt.plot(psi0)
-    E0, N0 = b.get_E_Ns(psis=[U1[64]], V=V)
-    psis = [psi]
-    for i in range(1):
-        E, N = b.get_E_Ns(psis=psis, V=V)
-        psis = b.step(psis=psis, n=10, V=V)
-        plt.plot(psis[0], '--')
-        plt.plot(psi0, '-')
-        plt.title(f"E0={E0.real},E={E.real}")
-        plt.show()
+    psi0 = U1[:1]
+    psis = U0[:1]
+    b.check_dE_dt(psis=psis, V=V)
