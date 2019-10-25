@@ -144,6 +144,16 @@ def check_uv_ir_error(psi, plot=False):
 
 def test_der_cooling(psi = None, evolve=True, T=0.5, **args):
     b = BCSCooling(**args)
+    def compute_dy_dt(t, psi, subtract_mu=True):
+        """Return dy/dt for ODE integration."""
+        #if b.check_dE:
+        #    b.check_dE_dt(psis=[psi], V=b.V)
+        Hpsi = b.apply_Hc([psi], V=b.V)[0]
+        if subtract_mu:
+            Hpsi -= psi.conj().dot(Hpsi)/psi.dot(psi.conj())*psi
+        return Hpsi/(1j*b.hbar)
+    
+    b = BCSCooling(**args)
     da, db=b.divs    
     k0 = 2*np.pi/b.L
     x = b.xyz[0]
@@ -178,7 +188,7 @@ def test_der_cooling(psi = None, evolve=True, T=0.5, **args):
     if evolve:
         b.erase_max_ks()
         plt.subplot(1,N,3)
-        ts, psis = b.solve([psi], T=T, rtol=1e-5, atol=1e-6, V=V, method='BDF')
+        ts, psis = b.solve([psi], T=T, rtol=1e-5, atol=1e-6, V=V, method='BDF', dy_dt=compute_dy_dt)
         psi0 = U1[0]
         E0, _ = b.get_E_Ns([psi0], V=V)
         Es = [b.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]
@@ -191,8 +201,10 @@ def test_der_cooling(psi = None, evolve=True, T=0.5, **args):
     return psis[0][-1]
 
 
-args = dict(N=128, dx=0.1, divs=(0, 1), beta_K=1, beta_V=1, T=5, beta_D=0, check_dE=True)
+args = dict(N=128, dx=0.1, divs=(1, 1), beta_K=0, beta_V=0, T=15.5, beta_D=0.01, check_dE=True)
 psi = test_der_cooling(**args)
+
+
 
 # \begin{align}
 #   \dot{E} &= \bra{\dot{\psi}}\pdiff{E}{\bra{\psi}} + \pdiff{E}{\ket{\psi}}\ket{\dot{\psi}}

@@ -2,7 +2,7 @@ from scipy.integrate import solve_ivp
 from mmf_hfb.bcs import BCS
 import numpy as np
 import numpy.linalg
-
+import matplotlib.pyplot as plt
 
 def assert_orth(psis):
     y1, y2 = psis
@@ -264,7 +264,8 @@ class BCSCooling(BCS):
             NOTE: This may not be unitary
         """
         Vmn = self.beta_D*self.get_Vd(psis=psis, V=V)
-        V11_psis = [self.Del(Vmn*self.Del(psi=psi)) for psi in psis]
+        da, db = self.divs
+        V11_psis = [-self.Del(Vmn*self.Del(psi=psi, n=da), n=db) for psi in psis]
         return V11_psis
 
     def _apply_expK(self, psi, V, Kc, factor=1):
@@ -330,7 +331,8 @@ class BCSCooling(BCS):
         dE_dt = sum(
             [H_psi.conj().dot(Hc_psi)- Hc_psi.conj().dot(H_psi)
                 for (H_psi, Hc_psi) in zip(H_psis, Hc_psis)])/(1j)
-        return dE_dt < 0
+        print(dE_dt)
+        assert dE_dt <= 0
 
     def step(self, psis, V, n=1):
         """
@@ -347,7 +349,7 @@ class BCSCooling(BCS):
     def compute_dy_dt(self, t, psi, subtract_mu=True):
         """Return dy/dt for ODE integration."""
         if self.check_dE:
-            assert self.check_dE_dt(psis=[psi], V=self.V)
+            self.check_dE_dt(psis=[psi], V=self.V)
         Hpsi = self.apply_Hc([psi], V=self.V)[0]
         if subtract_mu:
             Hpsi -= psi.conj().dot(Hpsi)/psi.dot(psi.conj())*psi
@@ -402,7 +404,7 @@ class BCSCooling(BCS):
 
 
 if __name__ == "__main__":
-    b = BCSCooling(N=64, dx=0.1, beta_0=1, beta_V=1, beta_K=1, delta=0, beta_D=0, divs=(1, 1))
+    b = BCSCooling(N=64, dx=0.1, beta_V=0, beta_K=0, delta=0, beta_D=1, divs=(1, 1))
     x = b.xyz[0]
     V = x**2/2
     H0 = b._get_H(mu_eff=0, V=0)
