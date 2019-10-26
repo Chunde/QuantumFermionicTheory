@@ -324,15 +324,14 @@ class BCSCooling(BCS):
             Hc_psis.append(Hc_psi)
         return Hc_psis
 
-    def check_dE_dt(self, psis, V):
+    def get_dE_dt(self, psis, V):
         """compute dE/dt"""
         H_psis = self.apply_H(psis, V=V)
         Hc_psis = self.apply_Hc(psis=psis, V=V)
         dE_dt = sum(
             [H_psi.conj().dot(Hc_psi)- Hc_psi.conj().dot(H_psi)
                 for (H_psi, Hc_psi) in zip(H_psis, Hc_psis)])/(1j)
-        print(dE_dt)
-        assert dE_dt <= 0
+        return dE_dt
 
     def step(self, psis, V, n=1):
         """
@@ -349,7 +348,10 @@ class BCSCooling(BCS):
     def compute_dy_dt(self, t, psi, subtract_mu=True):
         """Return dy/dt for ODE integration."""
         if self.check_dE:
-            self.check_dE_dt(psis=[psi], V=self.V)
+            dE_dt = self.get_dE_dt(psis=[psi], V=self.V)
+            if abs(dE_dt) > 1e-16:
+                #print(dE_dt)
+                assert dE_dt<= 0
         Hpsi = self.apply_Hc([psi], V=self.V)[0]
         if subtract_mu:
             Hpsi -= psi.conj().dot(Hpsi)/psi.dot(psi.conj())*psi
@@ -401,16 +403,3 @@ class BCSCooling(BCS):
             for psi in psis:
                 E = E + psi.conj().dot(H.dot(psi))
         return E, N
-
-
-if __name__ == "__main__":
-    b = BCSCooling(N=64, dx=0.1, beta_V=0, beta_K=0, delta=0, beta_D=1, divs=(1, 1))
-    x = b.xyz[0]
-    V = x**2/2
-    H0 = b._get_H(mu_eff=0, V=0)
-    H1 = b._get_H(mu_eff=0, V=V)
-    U0, Es0 = b.get_U_E(H0, transpose=True)
-    U1, Es1 = b.get_U_E(H1, transpose=True)
-    psi0 = U1[:1]
-    psis = U0[:1]
-    b.check_dE_dt(psis=psis, V=V)

@@ -142,17 +142,7 @@ def check_uv_ir_error(psi, plot=False):
 #
 # It's found that $V_{ab}=0$, since any wave function can be expanded as plane wave, that means for any wave function, as long as the Hamiltonian is free-partile type, $V_{ab}=0$
 
-def test_der_cooling(psi = None, evolve=True, T=0.5, **args):
-    b = BCSCooling(**args)
-    def compute_dy_dt(t, psi, subtract_mu=True):
-        """Return dy/dt for ODE integration."""
-        #if b.check_dE:
-        #    b.check_dE_dt(psis=[psi], V=b.V)
-        Hpsi = b.apply_Hc([psi], V=b.V)[0]
-        if subtract_mu:
-            Hpsi -= psi.conj().dot(Hpsi)/psi.dot(psi.conj())*psi
-        return Hpsi/(1j*b.hbar)
-    
+def test_der_cooling(psi = None, evolve=True, plot_dE=True, T=0.5, **args):   
     b = BCSCooling(**args)
     da, db=b.divs    
     k0 = 2*np.pi/b.L
@@ -164,15 +154,11 @@ def test_der_cooling(psi = None, evolve=True, T=0.5, **args):
     U1, E1 = b.get_U_E(H1, transpose=True)
     psi_1 = Normalize(np.cos(k0*x))
     if psi is None:
-        psi = U0[1]  # np.exp(1j*n*(k0*x))
+        psi = U0[0]  # np.exp(1j*n*(k0*x))
     psi_a = b.Del(psi, n=da)
     Hpsi = np.array(b.apply_H([psi], V=V))[0]/(1j)
     plt.figure(figsize=(18, 6))
-    N = 4 if evolve else 2   
-    plt.subplot(1,N,1)
-    plt.plot(x, abs(Hpsi),'-', label=r'$H\psi$')
-    plt.legend()
-    plt.subplot(1,N,2)
+    N = 2  
     Hpsi_a = b.Del(Hpsi, n=da)
     if da == db:
         psi_b = psi_a
@@ -181,30 +167,35 @@ def test_der_cooling(psi = None, evolve=True, T=0.5, **args):
         psi_b = b.Del(psi, n=db)
         Hpsi_b = b.Del(Hpsi, n=db)
     Vc =  psi_a*Hpsi_b.conj() + Hpsi_a*psi_b.conj()
-    plt.plot(x,Vc, label='real')
-    plt.plot(x, Vc.imag, label='imag')
-    plt.plot(x, abs(Vc), label='|Vc|')
-    plt.legend()
     if evolve:
         b.erase_max_ks()
-        plt.subplot(1,N,3)
-        ts, psis = b.solve([psi], T=T, rtol=1e-5, atol=1e-6, V=V, method='BDF', dy_dt=compute_dy_dt)
+        plt.subplot(1,N,1)
+        ts, psiss = b.solve([psi], T=T, rtol=1e-5, atol=1e-6, V=V, method='BDF')
         psi0 = U1[0]
         E0, _ = b.get_E_Ns([psi0], V=V)
-        Es = [b.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]
-        plt.plot(x, Prob(psis[0][0]), "+", label='init')
-        plt.plot(x, Prob(psis[0][-1]), '--',label="final")
+        Es = [b.get_E_Ns([_psi], V=V)[0] for _psi in psiss[0]]
+        dE_dt= [-1*b.get_dE_dt([_psi], V=V) for _psi in psiss[0]]
+        plt.plot(x, Prob(psiss[0][0]), "+", label='init')
+        plt.plot(x, Prob(psiss[0][-1]), '--',label="final")
         plt.plot(x, Prob(U1[0]), label='Ground')
         plt.legend()
-        plt.subplot(1,N,4)
-        plt.plot(ts[0][:-2], (Es[:-2] - E0)/abs(E0))
-    return psis[0][-1]
+        plt.subplot(1,N,2)
+        plt.plot(ts[0][:-2], (Es[:-2] - E0)/abs(E0), label="E")
+        if plot_dE:
+            plt.plot(ts[0][:-2], dE_dt[:-2], label='-dE/dt')
+            plt.axhline(0, linestyle='dashed')
+        plt.legend()
+        plt.show()
+    return psiss[0][-1]
 
 
-args = dict(N=128, dx=0.1, divs=(1, 1), beta_K=0, beta_V=0, T=15.5, beta_D=0.01, check_dE=True)
+# %%time 
+args = dict(N=128, dx=0.1, divs=(1, 1), beta_K=0, beta_V=0, T=1.5, beta_D=0.05, check_dE=True)
+psi = test_der_cooling(plot_dE=True, **args)
+
+# %%time 
+args = dict(N=128, dx=0.1, divs=(1, 1), beta_K=0, beta_V=1, T=5, beta_D=0, check_dE=False)
 psi = test_der_cooling(**args)
-
-
 
 # \begin{align}
 #   \dot{E} &= \bra{\dot{\psi}}\pdiff{E}{\bra{\psi}} + \pdiff{E}{\ket{\psi}}\ket{\dot{\psi}}
