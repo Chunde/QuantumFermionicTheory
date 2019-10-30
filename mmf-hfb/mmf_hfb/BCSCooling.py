@@ -27,7 +27,7 @@ class BCSCooling(BCS):
     def __init__(
             self, N=256, L=None, dx=0.1, delta=0, mus=(0, 0),
             beta_0=1.0, beta_V=1.0, beta_K=1.0, beta_D=1.0,
-            dt_Emax=1.0, g=0, divs=None, check_dE=True, **args):
+            dt_Emax=1.0, g=0, divs=(0, 0), check_dE=True, **args):
         """
         Arguments
         ---------
@@ -223,7 +223,7 @@ class BCSCooling(BCS):
         Vd = 0*np.array(psis[0])
         if self.beta_D !=0 and self.divs is not None:
             Vd = Vd + self._get_Vs(psis, V, self.divs)
-        return Vd
+        return Vd*self.dV
 
     def _get_Kc(self, Hpsi, psi, V, N):
         """
@@ -266,7 +266,7 @@ class BCSCooling(BCS):
         Vmn = self.beta_D*self.get_Vd(psis=psis, V=V)
         da, db = self.divs
         V11_psis = [-self.Del(Vmn*self.Del(psi=psi, n=da), n=db) for psi in psis]
-        return V11_psis
+        return np.array(V11_psis)*self.dV**(2*sum(self.divs))
 
     def _apply_expK(self, psi, V, Kc, factor=1):
         if self.delta == 0:
@@ -320,7 +320,7 @@ class BCSCooling(BCS):
             Kc_psi = self.ifft(Kc*self.fft(psi))
             Hc_psi = (
                 self.beta_0*H_psis[i] + self.beta_V*Vc_psi
-                +self.beta_K*Kc_psi + self.beta_D*Vd_psis[i])
+                +self.beta_K*Kc_psi + Vd_psis[i])
             Hc_psis.append(Hc_psi)
         return Hc_psis
 
@@ -350,7 +350,6 @@ class BCSCooling(BCS):
         if self.check_dE:
             dE_dt = self.get_dE_dt(psis=[psi], V=self.V)
             if abs(dE_dt) > 1e-16:
-                #print(dE_dt)
                 assert dE_dt<= 0
         Hpsi = self.apply_Hc([psi], V=self.V)[0]
         if subtract_mu:
@@ -391,7 +390,7 @@ class BCSCooling(BCS):
         E = 0
         N = 0
         ns = self.get_ns(psis)
-        N = sum(ns)*self.dV        
+        N = sum(ns)*self.dV
         if self.delta == 0:
             for psi in psis:
                 K = psi.conj().dot(self.ifft(self._K2*self.fft(psi)))

@@ -20,47 +20,6 @@ import matplotlib.pyplot as plt
 from nbimports import *
 import numpy as np
 
-# # Departure from Locality
-# We can generalize these operators slightly to cool in a non-local fashion.  For example, consider the following cooling Hamiltonian.  (The motivation here is that the operators $\op{D}$ are derivatives, so this Hamiltonian is quasi-local.)
-#
-# $$
-#   \op{H}_c = \int \d{x}\; \op{D}_a^\dagger\ket{x}V_{ab}(x)\bra{x}\op{D}_b + \text{h.c.},\\
-#   \hbar \dot{E} = -\I\left(
-#     \int\d{x}\;V_{ab}(x)
-#     \braket{x|\op{D}_b[\op{R},\op{H}]\op{D}_a^\dagger|x}
-#     + \text{h.c.}
-#   \right).
-# $$
-#
-# We can ensure cooling if we take:
-#
-# $$
-#   \hbar V_{ab}(x) 
-#   = (\I\hbar\braket{x|\op{D}_b[\op{R},\op{H}]\op{D}_a^\dagger|x})^*
-#   = \I\hbar\braket{x|\op{D}_a[\op{R},\op{H}]\op{D}_b^\dagger|x}\\
-#   = \braket{x|\op{D}_a|\psi}\braket{x|\op{D}_b|\dot{\psi}}^*
-#   + \braket{x|\op{D}_a|\dot{\psi}}\braket{x|\op{D}_b|\psi}^*.
-# $$
-#
-# If $\op{D}_{a,b}(x)$ are just derivative operators $\braket{x|\op{D}_{a}|\psi} = \psi^{(a)}(x)$, then we have
-#
-# $$
-#   \hbar V_{ab}(x) 
-#   = \psi^{(a)}(x)\overline{\dot{\psi}^{(b)}(x)}
-#   + \dot{\psi}^{(a)}(x)\overline{\psi^{(b)}(x)},
-# $$
-#
-# where
-#
-# $$
-#   \dot{\psi}(x) = -\I\hbar\braket{x|\op{H}|\psi}
-# $$
-#
-# is the time-derivative with respect to the original Hamiltonian.  Note that these "potentials" are no longer diagonal in either momentum or position space, so they should be implemented in the usual fashion with an integrator like ABM.
-# $$
-#   \I\hbar \dot{\psi}(x) = \cdots  - \pdiff{}{x}\left(V_{11}(x) \pdiff{}{x}\psi\right)
-# $$
-
 # + {"id": "ptb73kVS8ceS", "colab_type": "text", "cell_type": "markdown"}
 # # BCS Cooling Class Test
 # * To properly display equations, we define some command to make life easier, this commands are invisible
@@ -82,6 +41,7 @@ import numpy as np
 import mmf_hfb.BCSCooling as bcsc; reload(bcsc)
 from mmf_hfb.BCSCooling import BCSCooling
 from mmf_hfb.Cooling import Cooling
+from mmf_hfb.Potentials import HarmonicOscillator
 from IPython.core.debugger import set_trace
 from IPython.display import display, clear_output
 import numpy as np
@@ -142,44 +102,56 @@ def check_uv_ir_error(psi, plot=False):
 #
 # It's found that $V_{ab}=0$, since any wave function can be expanded as plane wave, that means for any wave function, as long as the Hamiltonian is free-partile type, $V_{ab}=0$
 
-def test_der_cooling(psi = None, evolve=True, plot_dE=True, T=0.5, **args):   
+# * The following code check the UV and IR depedence of the derivative potential. 
+
+dx = 0.1
+def Check_Vd():
+    plt.figure(figsize=(15,5))
+    for Nx in [128, 256, 512]:
+        offset = np.log(Nx)*0.01 # add a small offset in y direction
+        uv = BCSCooling(N=256, dx=dx, beta_0=1, beta_K=0, beta_V=0, beta_D=1, divs=(1, 1))
+        ir  = BCSCooling(N=Nx, dx=dx, beta_0=1, beta_K=0, beta_V=0, beta_D=1, divs=(1, 1))
+        for s, i in zip([uv, ir],[2, 3]):           
+            s.g = -1
+            x = s.xyz[0]
+            V_ext = x**2/2
+            psi0 = np.exp(-x**2/2.0)*np.exp(1j*x)
+            plt.subplot(1,3,1)
+            plt.plot(x, psi0 + offset)
+            plt.subplot(1,3,i)
+            Vc = s.get_Vd(s.apply_H([psi0], V=V_ext), V=V_ext) 
+            l, = plt.plot(x, Vc + offset)  # add some offset in y direction to separate plots
+    plt.subplot(131)
+    plt.xlim(-10, 10)
+    plt.subplot(132)
+    plt.xlim(-5, 5)
+    plt.subplot(133)
+    plt.xlim(-5,5)
+Check_Vd()
+
+
+def test_der_cooling(evolve=True, plot_dE=True, T=0.5, **args):   
     b = BCSCooling(**args)
+    h0 = HarmonicOscillator(w=1)
+    h = HarmonicOscillator()
     da, db=b.divs    
     k0 = 2*np.pi/b.L
     x = b.xyz[0]
     V = x**2/2
-    H0 = b._get_H(mu_eff=0, V=0)
-    H1 = b._get_H(mu_eff=0, V=V)
-    U0, E0 = b.get_U_E(H0, transpose=True)
-    U1, E1 = b.get_U_E(H1, transpose=True)
-    psi_1 = Normalize(np.cos(k0*x))
-    if psi is None:
-        psi = U0[0]  # np.exp(1j*n*(k0*x))
-    psi_a = b.Del(psi, n=da)
-    Hpsi = np.array(b.apply_H([psi], V=V))[0]/(1j)
-    plt.figure(figsize=(18, 6))
-    N = 2  
-    Hpsi_a = b.Del(Hpsi, n=da)
-    if da == db:
-        psi_b = psi_a
-        Hpsi_b = Hpsi_a
-    else:
-        psi_b = b.Del(psi, n=db)
-        Hpsi_b = b.Del(Hpsi, n=db)
-    Vc =  psi_a*Hpsi_b.conj() + Hpsi_a*psi_b.conj()
+    psi0 = h.get_wf(x)
+    psi = h0.get_wf(x, n=2)
     if evolve:
-        b.erase_max_ks()
-        plt.subplot(1,N,1)
+        #b.erase_max_ks()
+        plt.subplot(1,2,1)
         ts, psiss = b.solve([psi], T=T, rtol=1e-5, atol=1e-6, V=V, method='BDF')
-        psi0 = U1[0]
         E0, _ = b.get_E_Ns([psi0], V=V)
         Es = [b.get_E_Ns([_psi], V=V)[0] for _psi in psiss[0]]
         dE_dt= [-1*b.get_dE_dt([_psi], V=V) for _psi in psiss[0]]
         plt.plot(x, Prob(psiss[0][0]), "+", label='init')
         plt.plot(x, Prob(psiss[0][-1]), '--',label="final")
-        plt.plot(x, Prob(U1[0]), label='Ground')
+        plt.plot(x, Prob(psi0), label='Ground')
         plt.legend()
-        plt.subplot(1,N,2)
+        plt.subplot(1,2,2)
         plt.plot(ts[0][:-2], (Es[:-2] - E0)/abs(E0), label="E")
         if plot_dE:
             plt.plot(ts[0][:-2], dE_dt[:-2], label='-dE/dt')
@@ -190,12 +162,22 @@ def test_der_cooling(psi = None, evolve=True, plot_dE=True, T=0.5, **args):
 
 
 # %%time 
-args = dict(N=128, dx=0.1, divs=(1, 1), beta_K=0, beta_V=0, T=1.5, beta_D=0.05, check_dE=True)
-psi = test_der_cooling(plot_dE=True, **args)
+args = dict(N=64, dx=0.1, divs=(1, 1),beta0=-1j, beta_K=0, beta_V=0, T=1, beta_D=0, check_dE=False)
+psi = test_der_cooling(plot_dE=False, **args)
 
 # %%time 
-args = dict(N=128, dx=0.1, divs=(1, 1), beta_K=0, beta_V=1, T=5, beta_D=0, check_dE=False)
-psi = test_der_cooling(**args)
+args = dict(N=128, dx=0.1, divs=(1, 1), beta_K=0, beta_V=1, T=0.1, beta_D=0, check_dE=False)
+psi = test_der_cooling(plot_dE=False, **args)
+
+# %%time 
+args = dict(N=128, dx=0.1, divs=(1, 1), beta_K=0, beta_V=1, T=1, beta_D=0, check_dE=False)
+psi = test_der_cooling(plot_dE=False, **args)
+
+# ## Long-time cooling
+
+# %%time 
+args = dict(N=128, dx=0.1, divs=(1, 1), beta_K=0, beta_V=0, T=500, beta_D=0.02, check_dE=False)
+psi = test_der_cooling(plot_dE=False, **args)
 
 # \begin{align}
 #   \dot{E} &= \bra{\dot{\psi}}\pdiff{E}{\bra{\psi}} + \pdiff{E}{\ket{\psi}}\ket{\dot{\psi}}
@@ -360,6 +342,9 @@ def ImaginaryCooling():
 
 # + {"id": "-0u8hZIMBjN2", "colab_type": "code", "outputId": "aad3f16e-6edb-41c6-8343-3869e67a5517", "colab": {"base_uri": "https://localhost:8080/", "height": 283}}
 ImaginaryCooling()
+# -
+
+# %debug
 
 # + {"id": "p5nZgiVpBr6w", "colab_type": "text", "cell_type": "markdown"}
 # # Evolve in Real Time(Locally)
