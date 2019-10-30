@@ -4,6 +4,7 @@ import numpy as np
 import numpy.linalg
 import matplotlib.pyplot as plt
 
+
 def assert_orth(psis):
     y1, y2 = psis
     inner_prod = y1.dot(y2.conj())
@@ -26,8 +27,8 @@ class BCSCooling(BCS):
 
     def __init__(
             self, N=256, L=None, dx=0.1, delta=0, mus=(0, 0),
-            beta_0=1.0, beta_V=1.0, beta_K=1.0, beta_D=1.0,
-            dt_Emax=1.0, g=0, divs=(0, 0), check_dE=True, **args):
+            beta_0=1.0, beta_V=1.0, beta_K=1.0, beta_D=0, beta_Y=0,
+            g=0, divs=(0, 0), check_dE=True, **args):
         """
         Arguments
         ---------
@@ -39,6 +40,8 @@ class BCSCooling(BCS):
            Portion of the momentum cooling potential K_c.
         beta_D: float
             Portion of the position cooling potential V_c with derivative
+        beta_Y: float
+            Portion of the Dyadic cooling potential V_Dyadic.
         """
         if L is None:
             L = N*dx
@@ -52,11 +55,12 @@ class BCSCooling(BCS):
         self.beta_V = beta_V
         self.beta_K = beta_K
         self.beta_D = beta_D
+        self.beta_Y = beta_Y
         self.g = g
         self.divs = divs
         self.check_dE = check_dE
         self._K2 = (self.hbar*np.array(self.kxyz[0]))**2/2/self.m
-        self.dt = dt_Emax*self.hbar/self._K2.max()
+        self.dt = self.hbar/self._K2.max()
         self.E_max = self._K2.max()
     
     def _get_uv(self, psi):
@@ -85,7 +89,7 @@ class BCSCooling(BCS):
         return H.dot(psi)  # apply H on psi
 
     def apply_H(self, psis, V):
-        """compute dy/dt=H\psi"""
+        """compute dy/dt=H psi"""
         V_eff = self.get_V_eff(psis, V=V)
         Hpsis = []
         for psi in psis:
@@ -169,6 +173,9 @@ class BCSCooling(BCS):
         Vc = Vc/V_max*E0
         return Vc
 
+    def get_psis_k(self, psis):
+        return [self.fft(psi) for psi in psis]
+
     def _get_Vs(self, psis, V, divs=None):
         """
         return Vc or Vd
@@ -217,13 +224,22 @@ class BCSCooling(BCS):
         if self.beta_V != 0:
             Vc = Vc + self._get_Vs(psis, V)
         return Vc
-
+        
     def get_Vd(self, psis, V):
         """return the derivative cooling potential"""
         Vd = 0*np.array(psis[0])
         if self.beta_D !=0 and self.divs is not None:
             Vd = Vd + self._get_Vs(psis, V, self.divs)
         return Vd*self.dV
+
+    def get_Dyadic(self, psis, psis_k, V):
+        """mixed Vc and Kc"""
+        N = self.get_N(psis)
+        V_dy = 0
+        Hpsis = self.apply_H(psis, V=V)
+        for i, psi_k in enumerate(psis_k):
+            V_dy = V_dy + 2*(Hpsis[i]*psi_k.conj()).imag
+        return V_dy*self.dV
 
     def _get_Kc(self, Hpsi, psi, V, N):
         """
@@ -258,11 +274,21 @@ class BCSCooling(BCS):
         N = self.get_N(psis)
         return Hc/N
 
+    def apply_Dyadic(self, psis, V):
+        if self.beta_Y == 0:
+            return (0,)*len(psis)
+        psis_k = self.get_psis_k(psis)
+        Vdy = self.beta_Y*self.get_Dyadic(psis=psis, psis_k=psis_k, V=V)
+        Vdy_psis = [self.ifft(Vdy*psi_k) for psi_k in psis_k]
+        return Vdy_psis
+
     def apply_Vd(self, psis, V):
         """
             apply Vd such as (V11) to the wave-functions
             NOTE: This may not be unitary
         """
+        if self.beta_D == 0:
+            return (0,)*len(psis)
         Vmn = self.beta_D*self.get_Vd(psis=psis, V=V)
         da, db = self.divs
         V11_psis = [-self.Del(Vmn*self.Del(psi=psi, n=da), n=db) for psi in psis]
@@ -295,7 +321,8 @@ class BCSCooling(BCS):
         Vs = (V - self.mus[0], -V + self.mus[1])
         expV = [np.exp(
             -1j*self.dt*factor*(
-                self.beta_0*V_ +self.beta_V*Vc))*psi for (V_, psi, Vc) in zip(Vs, uv, Vc_uv)]
+                self.beta_0*V_ +self.beta_V*Vc))*psi for (
+                    V_, psi, Vc) in zip(Vs, uv, Vc_uv)]
         return np.array(expV).ravel()
 
     def apply_expV(self, psis, V, factor=1):
@@ -314,13 +341,14 @@ class BCSCooling(BCS):
         H_psis = self.apply_H(psis=psis, V=V) if self.beta_0 != 0 else 0
         Vc = self.get_Vc(psis=psis, V=V) if self.beta_V !=0 else 0
         Kc = self.get_Kc(psis, V=V) if self.beta_K !=0 else 0
-        Vd_psis = self.apply_Vd(psis=psis, V=V) if self.beta_D !=0 else (0,)*len(psis)
+        Vd_psis = self.apply_Vd(psis=psis, V=V)
+        V_Dyadic_psis = self.apply_Dyadic(psis, V=V)
         for i, psi in enumerate(psis):
             Vc_psi = Vc*psi
             Kc_psi = self.ifft(Kc*self.fft(psi))
             Hc_psi = (
                 self.beta_0*H_psis[i] + self.beta_V*Vc_psi
-                +self.beta_K*Kc_psi + Vd_psis[i])
+                +self.beta_K*Kc_psi + Vd_psis[i] + V_Dyadic_psis[i])
             Hc_psis.append(Hc_psi)
         return Hc_psis
 

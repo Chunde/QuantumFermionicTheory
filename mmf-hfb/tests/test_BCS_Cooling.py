@@ -10,6 +10,7 @@ def Normalize(psi):
 def Prob(psi):
     return np.abs(psi)**2
 
+
 @pytest.fixture(params=[1, 2, 3])
 def n(request):
     return request.param
