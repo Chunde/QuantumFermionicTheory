@@ -228,7 +228,7 @@ def test_der_cooling(evolve=True, plot_dE=True, T=0.5, **args):
 
 
 # %%time 
-args = dict(N=128, dx=0.1, divs=(1, 1), beta0=1, beta_K=0, beta_V=1, beta_Y=5, T=3, beta_D=0, check_dE=False)
+args = dict(N=128, dx=0.1, divs=(1, 1), beta0=1, beta_K=0, beta_V=0, beta_D=3, beta_Y=1, T=3, check_dE=False)
 psi = test_der_cooling(plot_dE=False, **args)
 
 # %%time 

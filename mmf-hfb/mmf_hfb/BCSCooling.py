@@ -391,14 +391,16 @@ class BCSCooling(BCS):
             return (U.T, Es)
         return (U, Es)
 
-    def solve(self, psis, T, V, dy_dt=None, **kw):
+    def solve(self, psis, T, V, dy_dt=None, solver=None,  **kw):
         self.V = V  # external potential
         self.psis = psis  # all single particle states
         ts, ys = [], []
         if dy_dt is None:
             dy_dt = self.compute_dy_dt
+        if solver is None:
+            solver = solve_ivp
         for psi0 in psis:  # can be parallelized
-            res = solve_ivp(fun=dy_dt, t_span=(0, T), y0=psi0, **kw)
+            res = solver(fun=dy_dt, t_span=(0, T), y0=psi0, **kw)
             if not res.success:
                 raise Exception(res.message)
             ts.append(res.t)
