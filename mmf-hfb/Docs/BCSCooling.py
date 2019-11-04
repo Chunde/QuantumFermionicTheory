@@ -40,6 +40,7 @@ import numpy as np
 # +
 import mmf_hfb.BCSCooling as bcsc; reload(bcsc)
 from mmf_hfb.BCSCooling import BCSCooling
+from mmf_hfb.SolverABM import ABMEvolverAdapter
 from mmf_hfb.Cooling import Cooling
 from mmf_hfb.Potentials import HarmonicOscillator
 from IPython.core.debugger import set_trace
@@ -209,7 +210,7 @@ def test_der_cooling(evolve=True, plot_dE=True, T=0.5, **args):
         #b.erase_max_ks()
         plt.figure(figsize=(10,5))
         plt.subplot(1,2,1)
-        ts, psiss = b.solve([psi], T=T, rtol=1e-5, atol=1e-6, V=V, method='BDF')
+        ts, psiss = b.solve([psi], T=T, rtol=1e-5, atol=1e-6, V=V,solver=ABMEvolverAdapter, method='BDF')
         E0, _ = b.get_E_Ns([psi0], V=V)
         Es = [b.get_E_Ns([_psi], V=V)[0] for _psi in psiss[0]]
         dE_dt= [-1*b.get_dE_dt([_psi], V=V) for _psi in psiss[0]]
@@ -226,6 +227,10 @@ def test_der_cooling(evolve=True, plot_dE=True, T=0.5, **args):
         plt.show()
     return psiss[0][-1]
 
+
+# %%time 
+args = dict(N=128, dx=0.1, divs=(1, 1), beta0=1, beta_K=0, beta_V=0, beta_D=0, beta_Y=1, T=0.5, check_dE=False)
+psi = test_der_cooling(plot_dE=False, **args)
 
 # %%time 
 args = dict(N=128, dx=0.1, divs=(1, 1), beta0=1, beta_K=0, beta_V=0, beta_D=3, beta_Y=1, T=3, check_dE=False)
