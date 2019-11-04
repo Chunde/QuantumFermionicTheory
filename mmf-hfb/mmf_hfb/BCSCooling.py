@@ -78,7 +78,7 @@ class BCSCooling(BCS):
         ns = self.get_ns(psis)
         if self.delta !=0:  # n_a + n_b
             ns = ns[:len(ns)//2] + ns[len(ns)//2:]
-        return sum(self.g*ns) + V
+        return self.g*ns + V
     
     def _apply_H(self, psi, V):
         if self.delta == 0:
@@ -190,7 +190,7 @@ class BCSCooling(BCS):
             not clear yet.
         """
         
-        N = self.get_N(psis)
+        N = sum(self.get_ns(psis)) # total density
         Vc = 0
         if divs is None:
             # can also apply_H, but result is unchanged.
@@ -297,7 +297,10 @@ class BCSCooling(BCS):
     def _apply_expK(self, psi, V, Kc, factor=1):
         if self.delta == 0:
             psi_k = self.fft(psi)
-            return self.ifft(np.exp(-1j*self.dt*factor*(self.beta_0*self._K2 + Kc))*psi_k)
+            psi_new = self.ifft(np.exp(-1j*self.dt*factor*(self.beta_0*self._K2 + Kc))*psi_k)
+            psi_new *= np.sqrt((abs(psi)**2).sum()
+                           / (abs(psi_new)**2).sum())
+            return psi_new
         kuv = [self.fft(psi) for psi in self._get_uv(psi)]
         kc_uv = self._get_uv(Kc)
         signs = [1, -1]  # used to change the sign of k2
@@ -315,7 +318,10 @@ class BCSCooling(BCS):
 
     def _apply_expV(self, psi, V, Vc, factor):
         if self.delta == 0:
-            return np.exp(-1j*self.dt*factor*(self.beta_0*V +self.beta_V*Vc))*psi
+            psi_new = np.exp(-1j*self.dt*factor*(self.beta_0*V +self.beta_V*Vc))*psi
+            psi_new *= np.sqrt((abs(psi)**2).sum()
+                           / (abs(psi_new)**2).sum())
+            return psi_new
         Vc_uv = self._get_uv(Vc)
         uv = self._get_uv(psi)
         Vs = (V - self.mus[0], -V + self.mus[1])
@@ -432,3 +438,36 @@ class BCSCooling(BCS):
             for psi in psis:
                 E = E + psi.conj().dot(H.dot(psi))
         return E, N
+
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+    args = dict(N=4, g=1)
+    egs = [BCSCooling(beta_0=1.0, beta_V=1.0, beta_K=1.0, **args)]
+    
+    eg = egs[0]
+    psi0 = 2*(np.random.random(eg.N) + 1j*np.random.random(eg.N) - 0.5 - 0.5j)
+    psi0 = np.array([-0.11929213+0.96523369j, -0.03408293+0.12828157j, 0.5853759 +0.80384941j, -0.22561126+0.86861302j])
+    psi_ground = 0*psi0 + np.sqrt((abs(psi0)**2).mean())
+    E0, N0 = eg.get_E_Ns([psi_ground], V=0)
+    Es = [[] for _n in range(len(egs))]
+    psis = [psi0.copy() for _n in range(len(egs))]
+    t_max = 3.0
+    Nstep = 4
+    Ndata = int(np.round(t_max/eg.dt/Nstep))
+    ts = np.arange(Ndata)*Nstep*eg.dt
+    
+    for n, eg in enumerate(egs):
+        psis = [psis[0]]
+        for _n in range(Ndata):
+            psis = eg.step(psis, V=0, n=Nstep)
+            E, N = eg.get_E_Ns(psis, V=0) 
+            Es[n].append(E/E0 - 1.0)
+    Es = np.asarray(Es)
+    print(Es)
+    _n = 0
+   
+    plt.semilogy(ts, Es[0], c='k', ls='-')
+    plt.xlabel("t")
+    plt.ylabel("E-E0")
+    plt.legend()
+    plt.show()

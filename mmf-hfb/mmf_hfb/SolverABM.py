@@ -12,7 +12,7 @@ class EvolverABM(object):
 
     def __init__(
             self, y, dt, dy_dt, t=None,
-            normalize=False, mu=None, no_runge_kutta=False,
+            normalize=True, no_runge_kutta=False,
             history_step=10, **kw):
         self.y = y
         self.N = math.sqrt(y.conj().dot(y))
@@ -30,6 +30,7 @@ class EvolverABM(object):
         self.init()
 
     def _add_replay(self):
+        r"""save current time and y"""
         self.replay_ts.append(self.t)
         self.replay_ys.append(self.y)
 
@@ -38,6 +39,7 @@ class EvolverABM(object):
         return self.y.copy()
 
     def get_dy(self, y=None, t=None, dy=None):
+        r"""return dy/dt"""
         return self.dy_dt(psi=y, t=t, dy=dy)
 
     def evolve(self, steps=None):
@@ -83,13 +85,12 @@ class EvolverABM(object):
                 self.dcps = [0*_y for _y in self.ys]
         else:
             self.do_step_ABM()
-        # Normalize the wave function
-        self.y = self.N*self.y/math.sqrt(self.y.conj().dot(self.y))
+        if self.normalize:
+            self.y = self.N*self.y/math.sqrt(self.y.conj().dot(self.y))
         self.steps += 1
         if self.steps % self.history_step == 0:
             self._add_replay()
         
-
     def do_step_runge_kutta(self):
         r"""4th order Runge Kutta for the first four steps to populate the
         predictor/corrector arrays."""
@@ -172,10 +173,9 @@ class EvolverABM(object):
         self.y = y
         
 
-
-def ABMEvolverAdapter(fun, t_span, dt, y0, history_step=100, **args):
+def ABMEvolverAdapter(fun, t_span, dt,y0, beta_t=0.1, history_step=100, **args):
     success = True
-    dt = 0.1*dt
+    dt = beta_t*dt
     total_step = int(t_span[1]/dt)
     if history_step > total_step:
         history_step = total_step
