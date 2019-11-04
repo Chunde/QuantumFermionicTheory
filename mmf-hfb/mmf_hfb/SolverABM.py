@@ -173,7 +173,11 @@ class EvolverABM(object):
         self.y = y
         
 
-def ABMEvolverAdapter(fun, t_span, dt,y0, beta_t=0.1, history_step=100, **args):
+def ABMEvolverAdapter(fun, t_span, dt, y0, beta_t=0.1, history_step=100, **args):
+    """
+    An adapter function used to make ABMEvolver be compatible
+    with the ivp_solver convension
+    """
     success = True
     dt = beta_t*dt
     total_step = int(t_span[1]/dt)
