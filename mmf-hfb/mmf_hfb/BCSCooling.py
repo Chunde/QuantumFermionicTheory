@@ -373,7 +373,7 @@ class BCSCooling(BCS):
         psis = self.apply_expK(psis=psis, V=V, factor=-0.5)
         return psis
 
-    def compute_dy_dt(self, t, psi, subtract_mu=True):
+    def compute_dy_dt(self, t, psi, subtract_mu=True, **args):
         """Return dy/dt for ODE integration."""
         if self.check_dE:
             dE_dt = self.get_dE_dt(psis=[psi], V=self.V)
@@ -391,7 +391,7 @@ class BCSCooling(BCS):
             return (U.T, Es)
         return (U, Es)
 
-    def solve(self, psis, T, V, dy_dt=None, solver=None,  **kw):
+    def solve(self, psis, T, V, dy_dt=None, solver=None, **kw):
         self.V = V  # external potential
         self.psis = psis  # all single particle states
         ts, ys = [], []
@@ -400,7 +400,7 @@ class BCSCooling(BCS):
         if solver is None:
             solver = solve_ivp
         for psi0 in psis:  # can be parallelized
-            res = solver(fun=dy_dt, t_span=(0, T), y0=psi0, **kw)
+            res = solver(fun=dy_dt, t_span=(0, T), dt=self.dt, y0=psi0, **kw)
             if not res.success:
                 raise Exception(res.message)
             ts.append(res.t)
