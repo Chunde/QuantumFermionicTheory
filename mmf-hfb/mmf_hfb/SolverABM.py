@@ -1,4 +1,5 @@
 import numpy as np
+import math
 from collections import namedtuple
 
 
@@ -14,6 +15,7 @@ class EvolverABM(object):
             normalize=False, mu=None, no_runge_kutta=False,
             history_step=10, **kw):
         self.y = y
+        self.N = math.sqrt(y.conj().dot(y))
         self.t = t if t is not None else 0
         self.dt = dt
         self.dy_dt = dy_dt
@@ -81,6 +83,12 @@ class EvolverABM(object):
                 self.dcps = [0*_y for _y in self.ys]
         else:
             self.do_step_ABM()
+        # Normalize the wave function
+        self.y = self.N*self.y/math.sqrt(self.y.conj().dot(self.y))
+        self.steps += 1
+        if self.steps % self.history_step == 0:
+            self._add_replay()
+        
 
     def do_step_runge_kutta(self):
         r"""4th order Runge Kutta for the first four steps to populate the
@@ -162,9 +170,7 @@ class EvolverABM(object):
         dys.insert(0, dy)
         dcps.insert(0, dcp)
         self.y = y
-        self.steps += 1
-        if self.steps % self.history_step == 0:
-            self._add_replay()
+        
 
 
 def ABMEvolverAdapter(fun, t_span, dt, y0, history_step=100, **args):
@@ -174,6 +180,6 @@ def ABMEvolverAdapter(fun, t_span, dt, y0, history_step=100, **args):
     if history_step > total_step:
         history_step = total_step
     e = EvolverABM(y=y0, dt=dt, dy_dt=fun, history_step=history_step, **args)
-    y = e.evolve(steps=total_step)
+    e.evolve(steps=total_step)
     res = namedtuple('res', ['success', 't', 'y'])
     return res(success=success, t=e.replay_ts, y=np.array(e.replay_ys).T)
