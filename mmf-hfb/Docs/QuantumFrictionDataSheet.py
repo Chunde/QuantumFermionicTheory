@@ -197,6 +197,34 @@ class TestCase(object):
         plt.legend()
 
 
+import json
+def SaveTestCase(ts):
+    """Save the test case data to a json file"""
+    file_name = "CoolingTestData_"+time.strftime("%Y_%m_%d_%H_%M_%S.json")
+    output = []
+    def unpack(psi):
+        return dict(r=psi.real.tolist(), i=psi.imag.tolist())    
+    for t in ts:
+        V = t.V
+        b = t.b
+        if isinstance(t.V, np.ndarray):
+            V = V.tolist()
+        dic = dict(
+            dx=t.dx, N=t.N, E0=t.E0, max_T=t.max_T, g=t.g, eps=t.eps,
+            beta_0=b.beta_0, beta_V=b.beta_V, beta_K=b.beta_K,
+            beta_D=b.beta_D, beta_Y=b.beta_Y, V=V, psi0=unpack(t.psi0))
+        data = []
+        for (E, T, Tw, psi) in zip(t.Es, t.physical_time, t.wall_time, t.psis):
+            data.append(dict(E=E, T=T, Tw=Tw, psi=unpack(psi)))
+        dic['data']=data
+        output.append(dic)
+    with open(file_name, 'w') as wf:
+        json.dump(output, wf)
+    return output
+
+
+output = SaveTestCase(testCases)
+
 psi_init = random_gaussian_mixing(x)
 # args = dict(N=N, dx=dx, eps=1e-1, V=V_PO, beta_V=beta_V, g=1, psi=psi_init, check_dE=False)
 # testCases = []
@@ -234,23 +262,7 @@ for args in paras:
     t.run()
     testCases.append(t)
 
-t0 = testCases[0]
 
-t0.V
-
-
-# +
-def show_des(t):
-    b = t.b
-    print(f"beta_0={b.beta_0} beta_V={b.beta_V} beta_K={b.beta_K} beta_D={b.beta_D} beta_Y={b.beta_Y}")
-    print(t.E0, t.wall_time)
-    print(f"{t.dE*100/t.E0}%100")
-    
-for t in testCases:
-    show_des(t)
-
-
-# -
 
 def test_cooling(plot_dE=True, use_ABM=False, T=0.5, plt_log=True, **args):   
     b = BCSCooling(**args)
