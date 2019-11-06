@@ -27,7 +27,7 @@ class BCSCooling(BCS):
 
     def __init__(
             self, N=256, L=None, dx=0.1, delta=0, mus=(0, 0),
-            beta_0=1.0, beta_V=1.0, beta_K=1.0, beta_D=0, beta_Y=0,
+            beta_0=1.0, beta_V=0, beta_K=0, beta_D=0, beta_Y=0,
             g=0, divs=(0, 0), check_dE=True, **args):
         """
         Arguments

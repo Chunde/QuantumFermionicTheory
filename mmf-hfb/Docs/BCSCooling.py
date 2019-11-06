@@ -247,7 +247,7 @@ psi = test_der_cooling(plot_dE=False, **args)
 # ## Long-time cooling
 
 # %%time 
-args = dict(N=128, dx=0.1, divs=(1, 1), beta_K=0, beta_V=0, T=500, beta_D=0.02, check_dE=False)
+args = dict(N=128, dx=0.1, divs=(1, 1), beta_K=0, beta_V=0, T=5, beta_D=0.02, check_dE=False)
 psi = test_der_cooling(plot_dE=False, **args)
 
 # \begin{align}
@@ -448,7 +448,7 @@ Cooling(N_state=4, Nx=128, N_data=10,
 # * In the follow demo, we will show the efficiency of  the Cooling algorithm in different condition. Start with the simplest case where the inital state is a uniform wavefunction, then we turn on the hamonic potential, and monitor how the wave function evolve and the true ground state of the harmonic system is pupulated as the cooling proceeds. In the plot, the left panel plot the true ground state probability distribution $\psi^\dagger\psi$ in '+', and the evolving wavefunction probability distribution in solid line. 
 
 # + {"id": "BXaJWUplV13u", "colab_type": "code", "colab": {}}
-rets = Cooling(N_state=1, Nx=64, init_state_ids=(3,), N_data=25, N_step=100, beta_V=1, beta_K=1, beta_D=0., divs=(1, 1))
+rets = Cooling(N_state=1, Nx=64, init_state_ids=(3,), N_data=25, N_step=100, beta_0=-1j, beta_V=0, beta_K=0, beta_D=0., divs=(1, 1), plot_k=False)
 
 # + {"id": "Tr365cInZDqJ", "colab_type": "text", "cell_type": "markdown"}
 # ### Double States
@@ -469,7 +469,7 @@ Cooling(N_state=3, Nx=256, N_data=25, start_state=2, N_step=1000, beta_V=1, beta
 # * All the above trails used the 1D harmonic wavefunction, in which case, the $V_c$ and $K_c$ both works well to cool the energy($K_c$ performs better). However, in some case, $K_c$ may fail to cool the energy. The follow example we use GP wavefunction with interaction strength $g=1$, and no external potential.
 
 # + {"id": "TzOboV3sDYN5", "colab_type": "code", "colab": {}}
-args = dict(N=32, g=1)
+args = dict(N=4, g=1)
 egs = [BCSCooling(beta_0=-1j, beta_V=0.0, beta_K=0.0, **args),
        BCSCooling(beta_0=0.0, beta_V=0.0, beta_K=1.0, **args),
        BCSCooling(beta_0=1.0, beta_V=0.0, beta_K=1.0, **args),      
