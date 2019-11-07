@@ -86,7 +86,7 @@ class EvolverABM(object):
         else:
             self.do_step_ABM()
         if self.normalize:
-            self.y = self.N*self.y/math.sqrt(self.y.conj().dot(self.y))
+            self.y = self.N*self.y/math.sqrt((self.y.conj().dot(self.y)).real)
         self.steps += 1
         if self.steps % self.history_step == 0:
             self._add_replay()
@@ -176,7 +176,7 @@ class EvolverABM(object):
 def ABMEvolverAdapter(fun, t_span, dt, y0, beta_t=0.1, history_step=100, **args):
     """
     An adapter function used to make ABMEvolver be compatible
-    with the ivp_solver convension
+    with the ivp_solver convention
     """
     success = True
     dt = beta_t*dt
