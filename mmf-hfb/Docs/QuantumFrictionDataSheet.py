@@ -19,93 +19,90 @@ import matplotlib.pyplot as plt
 from nbimports import *
 import numpy as np
 
-# # Define Some Helper Functions
+# ## Load Data from Files
 
 # +
-from mmf_hfb.BCSCooling import BCSCooling
-from mmf_hfb.SolverABM import ABMEvolverAdapter
-from mmf_hfb.Cooling import Cooling
-from mmf_hfb.Potentials import HarmonicOscillator
-from IPython.display import display, clear_output
-import time
-np.random.seed(1)
+from os.path import join
+import inspect
+import json
+import glob
+import os
+from mmf_hfb.CoolingCaseTests import TestCase, Prob, Normalize
 
-def Normalize(psi, dx=0.1):
-    return psi/(psi.dot(psi.conj())*dx)**0.5
-
-def Prob(psi):
-    return np.abs(psi)**2
-   
-def check_uv_ir_error(x, psi, plot=False):
-    """check if a lattice configuration(N, L, dx) is good"""
-    psi_k = np.fft.fft(psi)
-    psi_log = np.log10(abs(psi))
-    psi_log_k = np.log10(abs(psi_k))
-    if plot:
-        l, =plt.plot(x,psi_log_k)
-        plt.plot(x, psi_log,'--', c=l.get_c())
-        print(np.min(psi_log), np.min(psi_log_k))
-    assert np.min(psi_log_k) < -15
+def load_data(current_dir=None):
+    if current_dir is None:
+        current_dir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), "..")
+    pattern = join(current_dir, "CoolingTestData*.json")
+    files = glob.glob(pattern)
+    for file in files:
+        if os.path.exists(file):
+            print(file)
+            with open(file, 'r') as rf:
+                ret = json.load(rf)
+                return ret
+                    
 
 
 # -
 
-# # Lattice Configuration
 
-N, dx = 128, 0.1
-args = dict(N=N, dx=dx, divs=(1, 1), beta0=1, beta_K=0, beta_V=0, beta_D=0, beta_Y=0, T=0, check_dE=False)
-b = BCSCooling(**args)
-x = b.xyz[0]
-gaussian = np.exp(-x**2)
-check_uv_ir_error(x=x, psi=gaussian, plot=True)
+ret = load_data()
+len(ret)
 
-# # Check Upper-Bound
-# * Roughly check the max value of $\beta_0$, $\beta_V$, $\beta_K$, $\beta_D$, $\beta_Y$
-
-beta_V=60
-beta_K=75
-beta_D=1000
-beta_Y=1
-
-# ## List of Potentials
-
-args = dict(N=N, dx=dx)
-V0 = 0*x
-V_HO = x**2/2
-V_PO = V0 + np.random.random()*V_HO +  + abs(x**2)*np.random.random()
-Vs = [0, V_HO, V_PO]
-plt.plot(V_PO)
-
-psi_init = random_gaussian_mixing(x)
-# args = dict(N=N, dx=dx, eps=1e-1, V=V_PO, beta_V=beta_V, g=1, psi=psi_init, check_dE=False)
-# testCases = []
-# t = TestCase(**args)
-# t.run(plot=True)
-# testCases.append(t)
-
-psi_init = random_gaussian_mixing(x)
-paras = []
-for g in [0, 1]:
-    for V in Vs:        
-        for para in reversed(cooling_para_list):
-            args = dict(N=N, dx=dx, eps=1e-1, V=V, beta_0=1, g=g, psi=psi_init, check_dE=False)
-            args.update(para)
-            paras.append(args)
-
-from mmf_hfb.ParallelHelper import PoolHelper
-def test_case_worker(para):
-    t = TestCase(**para)
-    t.run()
-    return t
-#res = PoolHelper.run(mqaud_worker_thread, paras=obj_twists_kp)
 
 # +
-#t0 = test_case_worker(paras[40])
+def get_psi(psi_data):
+    psi_r = psi_data['r']
+    psi_i = psi_data['i']
+    return np.array(psi_r)+1j*np.array(psi_i)
 
-# +
-# res = PoolHelper.run(test_case_worker, paras=paras)
+def get_Es_Ts_psis(data):
+    Es = []
+    Tws = []
+    Ts = []
+    psis = []
+    for dic in data:
+        Es.append(dic['E'])
+        Ts.append(dic['T'])
+        Tws.append(dic['Tw'])
+        psis.append(dic['psi'])
+    return (Es, Ts, Tws, psis)
+        
+def display_data(data):
+    V_name = data['V_name']
+    dx = data['dx']
+    N = data['N']
+    x = dx*(np.array(list(range(N))) - N//2)
+    V = data['V']
+    psi0 = get_psi(data['psi0'])
+    plt.figure(figsize=(18,5))
+    
+    plt.subplot(131)
+    plt.plot(x, V, label="Potential")
+    plt.title(V_name)
+    plt.xlabel("x")
+    plt.ylabel("Energy")
+    plt.legend()
+    
+    plt.subplot(132)
+    plt.plot(x, Prob(psi0), label='Ground')
+    plt.xlabel("x")
+    plt.ylabel(r"Prob")
+    plt.legend()
+    
+    plt.subplot(133)
+    Es, Ts, Tws, psis = get_Es_Ts_psis(data['data'])
+    plt.plot(Es, Ts, '--', label= "Physical Time")
+    plt.plot(Es, Tws, '-', label="Wall Time")
+    plt.xlabel("Energy")
+    plt.ylabel("Time(s)")
+    plt.legend()
+    
+
+
 # -
 
+display_data(ret[0])
 
 
 def test_cooling(plot_dE=True, use_ABM=False, T=0.5, plt_log=True, **args):   

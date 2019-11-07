@@ -9,48 +9,52 @@ import os
 import datetime
 
 
+def Normalize(psi, dx=0.1):
+    return psi/(psi.dot(psi.conj())*dx)**0.5
+
+
+def Prob(psi):
+    return np.abs(psi)**2
+
+
+def random_gaussian_mixing(x):
+    n = np.random.randint(1, 10)
+    cs = np.random.random(n)
+    ns = np.random.randint(1, 10, size=n)    
+    ys = sum([c*np.exp(-x**2/n**2) for (c, n) in zip(cs, ns)])
+    return Normalize(ys)
+
+
 class TestCase(object):
     
-    def __init__(self, V, g, N, dx, eps=1e-2, psi=None, max_T=10, **args):
+    def __init__(self, V, g, N, dx, eps=1e-2, psi=None, max_T=10, V_name=None, **args):
         args.update(g=g, N=N, dx=dx)
-        b = BCSCooling(**args)        
+        b = BCSCooling(**args)
         self.x = b.xyz[0]
         self.b=b
         self.V = V
+        self.V_name = V_name
         self.eps = eps
         self.max_T = max_T
         self.g = g
         self.N = N
         self.dx = dx
-        self.psi = psi if psi is not None else TestCase.random_gaussian_mixing(self.x)
+        self.psi = psi if psi is not None else random_gaussian_mixing(self.x)
         self.psi0 = self.get_ground_state()
-
-    def random_gaussian_mixing(x):
-        n = np.random.randint(1, 10)
-        cs = np.random.random(n)
-        ns = np.random.randint(1, 10, size=n)    
-        ys = sum([c*np.exp(-x**2/n**2) for (c, n) in zip(cs, ns)])
-        return TestCase.Normalize(ys)
-
-    def Normalize(psi, dx=0.1):
-        return psi/(psi.dot(psi.conj())*dx)**0.5
-
-    def Prob(self, psi):
-        return np.abs(psi)**2
 
     def get_ground_state(self):
         b = self.b
         H = b._get_H(mu_eff=0, V=self.V)
         U, E = b.get_U_E(H, transpose=True)
-        psi0 = TestCase.Normalize(U[0], dx=b.dx)
+        psi0 = Normalize(U[0], dx=b.dx)
         self.psi_0 = psi0
-        if self.g == 0:            
+        if self.g == 0:
             return psi0
         else:
             # imaginary cooling
             for T in range(2, 10, 1):
                 print(f"Imaginary Cooling with T={T}")
-                ts, psiss = b.solve(
+                _, psiss = b.solve(
                     [psi0], T=5, beta_0=-1j, V=self.V, solver=ABMEvolverAdapter)
                 psis = psiss[0]
                 assert len(psis) > 2
@@ -62,7 +66,7 @@ class TestCase(object):
                 print((E2 - E1)/E1)
                 if abs((E2 - E1)/E1)<1e-5:
                     return psis[-1]
-            raise Exception("Failed to cool down to ground state.")
+            raise ValueError("Failed to cool down to ground state.")
 
     def run(self):
         b = self.b
@@ -77,9 +81,9 @@ class TestCase(object):
         self.psis = []
         for T in reversed(Ts):
             start_time = time.time()
-            ts, psiss = b.solve([self.psi], T=T, **args)
-            wall_time = time.time()-start_time
-            E, _ = b.get_E_Ns([psiss[0][-1]], V=self.V)           
+            _, psiss = b.solve([self.psi], T=T, **args)
+            wall_time = time.time() - start_time
+            E, _ = b.get_E_Ns([psiss[0][-1]], V=self.V)
             self.wall_time.append(wall_time)
             self.physical_time.append(T)
             self.Es.append(E)
@@ -91,9 +95,9 @@ class TestCase(object):
     def plot(self, id=0):
         E=self.Es[id]
         psi = self.psis[id]
-        plt.plot(self.x, TestCase.Prob(psi), "--", label='init')
-        plt.plot(self.x, TestCase.Prob(self.psis[id]), '+', label="final")
-        plt.plot(self.x, TestCase.Prob(self.psi0), label='Ground')
+        plt.plot(self.x, Prob(psi), "--", label='init')
+        plt.plot(self.x, Prob(self.psis[id]), '+', label="final")
+        plt.plot(self.x, Prob(self.psi0), label='Ground')
         b=self.b
         plt.title(
             f"E0={self.E0:5.4},E={E:5.4}, $" + r"\beta_0$" +f"={b.beta_0}, "
@@ -146,7 +150,8 @@ def SaveTestCase(ts):
         dic = dict(
             dx=t.dx, N=t.N, E0=t.E0, max_T=t.max_T, g=t.g, eps=t.eps,
             beta_0=b.beta_0, beta_V=b.beta_V, beta_K=b.beta_K,
-            beta_D=b.beta_D, beta_Y=b.beta_Y, V=V, psi0=unpack(t.psi0))
+            beta_D=b.beta_D, beta_Y=b.beta_Y, V_name=t.V_name, V=V,
+            psi0=unpack(t.psi0), psi=unpack(t.psi))
         data = []
         for (E, T, Tw, psi) in zip(t.Es, t.physical_time, t.wall_time, t.psis):
             data.append(dict(E=E, T=T, Tw=Tw, psi=unpack(psi)))
@@ -167,7 +172,7 @@ def test_case_worker(para):
         t.run()
         print(f"{id} Wall time:{time.time() - start_time}")
         return t
-    except:
+    except ValueError:
         print(para)
         print(f"{id} Wall time:{time.time() - start_time}")
         return None
@@ -181,7 +186,7 @@ if __name__ == "__main__":
         T=0, divs=(1, 1), check_dE=False)
     b = BCSCooling(**args)
     x = b.xyz[0]
-    psi_init = TestCase.random_gaussian_mixing(x)
+    psi_init = random_gaussian_mixing(x)
     Vs = get_potentials(x)
     cooling_para_list = get_cooling_potential_setting()
     paras = []
@@ -194,5 +199,5 @@ if __name__ == "__main__":
                 args.update(para)
                 paras.append(args)
     
-    testCases = PoolHelper.run(test_case_worker, paras=paras, poolsize=10)
+    testCases = PoolHelper.run(test_case_worker, paras=paras[7:], poolsize=1)
     SaveTestCase(ts=testCases)

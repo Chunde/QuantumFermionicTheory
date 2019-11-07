@@ -3,7 +3,8 @@ from mmf_hfb.bcs import BCS
 import numpy as np
 import numpy.linalg
 import matplotlib.pyplot as plt
-
+import warnings
+warnings.filterwarnings("error")
 
 def assert_orth(psis):
     y1, y2 = psis
@@ -248,9 +249,13 @@ class BCSCooling(BCS):
         use psi as a single wavefunction without
         dividing it in to u, v components.
         """
+        #try:
         psi_k = self.fft(psi)*self.dV
         Vpsi_k = self.fft(Hpsi)*self.dV
-        return 2*(psi_k.conj()*Vpsi_k).imag/N*self.dV/np.prod(self.Lxyz)
+        Kc = 2*(psi_k.conj()*Vpsi_k).imag/N*self.dV/np.prod(self.Lxyz)
+        return Kc
+        #except RuntimeWarning:
+        #    pass
 
     def get_Kc(self, psis, V):
         N = self.get_N(psis)
