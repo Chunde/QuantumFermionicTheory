@@ -15,7 +15,7 @@ class EvolverABM(object):
             normalize=True, no_runge_kutta=False,
             history_step=10, **kw):
         self.y = y
-        self.N = math.sqrt(y.conj().dot(y))
+        self.N = math.sqrt((y.conj().dot(y)).real)
         self.t = t if t is not None else 0
         self.dt = dt
         self.dy_dt = dy_dt
@@ -28,6 +28,7 @@ class EvolverABM(object):
         self.dcps = None
         self.dys = None
         self.init()
+        self.counter = 1
 
     def _add_replay(self):
         r"""save current time and y"""
@@ -75,6 +76,9 @@ class EvolverABM(object):
         self._am = _tmp * (17)
         self._ac = _tmp * np.array([-68, 102, -68, 17], dtype=float)
 
+    def Normalize(self, y):
+        return self.N*y/math.sqrt((y.conj().dot(y)).real)
+
     def do_step(self, first=None, final=None):
         if len(self.dys) < 4:
             self.do_step_runge_kutta()
@@ -85,8 +89,7 @@ class EvolverABM(object):
                 self.dcps = [0*_y for _y in self.ys]
         else:
             self.do_step_ABM()
-        if self.normalize:
-            self.y = self.N*self.y/math.sqrt((self.y.conj().dot(self.y)).real)
+        
         self.steps += 1
         if self.steps % self.history_step == 0:
             self._add_replay()
@@ -118,7 +121,7 @@ class EvolverABM(object):
         y = axpy(y, f1, h/2.)
         f2 = self.get_dy(y, t=t + h/2.)
         # y.axpy(f1, -h/2.)
-        y = axpy(y,f1, -h/2.)
+        y = axpy(y, f1, -h/2.)
         # y.axpy(f2, h)
         y = axpy(y, f2, h)
         # f1.axpy(f2, -2.)
@@ -167,11 +170,15 @@ class EvolverABM(object):
         self.t += dt
         dy = dys.pop()
         dy = self.get_dy(y=y, dy=dy)
-        ys.insert(0, y)
+        
         dys.insert(0, dy)
         dcps.insert(0, dcp)
         self.y = y
-        
+        if self.normalize:
+            self.y = self.Normalize(self.y)
+        assert np.any(abs(self.y) < 1e3)
+        ys.insert(0, self.y)
+
 
 def ABMEvolverAdapter(fun, t_span, dt, y0, beta_t=0.1, history_step=100, **args):
     """

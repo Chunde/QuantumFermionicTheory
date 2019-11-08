@@ -249,13 +249,13 @@ class BCSCooling(BCS):
         use psi as a single wavefunction without
         dividing it in to u, v components.
         """
-        #try:
-        psi_k = self.fft(psi)*self.dV
-        Vpsi_k = self.fft(Hpsi)*self.dV
-        Kc = 2*(psi_k.conj()*Vpsi_k).imag/N*self.dV/np.prod(self.Lxyz)
-        return Kc
-        #except RuntimeWarning:
-        #    pass
+        try:
+            psi_k = self.fft(psi)*self.dV
+            Vpsi_k = self.fft(Hpsi)*self.dV
+            Kc = 2*(psi_k.conj()*Vpsi_k).imag/N*self.dV/np.prod(self.Lxyz)
+            return Kc
+        except RuntimeWarning:
+            raise Exception("Value Error")
 
     def get_Kc(self, psis, V):
         N = self.get_N(psis)
