@@ -41,7 +41,7 @@ def dict_to_complex(psi_data):
 class TestCase(object):
     
     def __init__(
-            self, V, g, N, dx, eps=1e-2, psi=None, max_T=10,
+            self, V, g, N, dx, eps=1e-2, psi=None, psi0=None, E0=None, max_T=10,
             V_key=None, use_abm=True, **args):
         args.update(g=g, N=N, dx=dx)
         b = BCSCooling(**args)
@@ -57,7 +57,8 @@ class TestCase(object):
         self.N = N
         self.dx = dx
         self.psi = psi if psi is not None else random_gaussian_mixing(self.x)
-        self.psi0 = self.get_ground_state()
+        self.psi0 = psi0 if psi0 is not None else self.get_ground_state()
+        self.E0=E0
 
     def get_ground_state(self):
         b = self.b
@@ -179,6 +180,59 @@ def SaveTestCase(ts, Vs, psi_init):
         json.dump(output, wf)
     print(f"file {file_name} saved")
     return output
+
+
+def load_json_data(file=None, filter="CoolingTestData*.json"):
+    """load a json file """
+    if file is None:
+        current_dir = join(
+            os.path.dirname(
+                os.path.abspath(
+                    inspect.getfile(inspect.currentframe()))), "..")
+        pattern = join(current_dir, filter)
+        files = glob.glob(pattern)
+        if len(files) > 0:
+            file = files[0]
+    if os.path.exists(file):
+        with open(file, 'r') as rf:
+            ret = json.load(rf)
+            return ret
+    return None
+
+
+def deserialize_object(json_object):
+    """
+        Deserialize objects from a given json object
+        return a list of TestCase objects
+    """
+    def parse_time_data(testCase, res):
+        """parse wave function and its energy"""
+        psis = []
+        wall_time = []
+        physical_time = []
+        Es = []
+        for data in res:
+            Es.append(data['E'])
+            physical_time.append(data['T'])
+            wall_time.append(data['Tw'])
+            psis.append(dict_to_complex(data['psi']))
+        testCase.wall_time = wall_time
+        testCase.physical_time = physical_time
+        testCase.Es = Es
+        testCase.psis = psis
+    
+    Vs = json_object['Vs']
+    psi_init = dict_to_complex(json_object['psi_init'])
+    cases = json_object['cases']
+    testCases = []
+    for args in cases:
+        V = Vs[args['V_key']]
+        args['psi0'] = dict_to_complex(args['psi0'])
+        args.update(V=V, psi=psi_init)
+        t = TestCase(**args)
+        parse_time_data(t, res=args['data'])
+        testCases.append(t)
+    return testCases
 
 
 def DumpTestPara(pid, para):

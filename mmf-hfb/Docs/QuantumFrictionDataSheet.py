@@ -26,12 +26,11 @@ import inspect
 import json
 import glob
 import os
-from mmf_hfb.CoolingCaseTests import TestCase, Prob, Normalize
+from mmf_hfb.CoolingCaseTests import TestCase, Prob, Normalize, dict_to_complex, deserialize_object, load_json_data
 
 
-# ## Load Data from Files
+# # Load Data from Files
 
-# +
 def random_gaussian_mixing(x):
     n = np.random.randint(1, 10)
     cs = np.random.random(n)
@@ -40,77 +39,16 @@ def random_gaussian_mixing(x):
     return Normalize(ys)
 
 
-def load_data(current_dir=None):
-    if current_dir is None:
-        current_dir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), "..")
-    pattern = join(current_dir, "CoolingTestData*.json")
-    files = glob.glob(pattern)
-    for file in files:
-        if os.path.exists(file):
-            print(file)
-            with open(file, 'r') as rf:
-                ret = json.load(rf)
-                return ret
-                    
+res = load_json_data()
+testCases = deserialize_object(res)
+
+t0 = testCases[4]
+t0.plot(0)
 
 
-# +
-# ret = load_data()
-# len(ret)
+# # Visualization
 
-# +
-def get_psi(psi_data):
-    psi_r = psi_data['r']
-    psi_i = psi_data['i']
-    return np.array(psi_r)+1j*np.array(psi_i)
-
-def get_Es_Ts_psis(data):
-    Es = []
-    Tws = []
-    Ts = []
-    psis = []
-    for dic in data:
-        Es.append(dic['E'])
-        Ts.append(dic['T'])
-        Tws.append(dic['Tw'])
-        psis.append(dic['psi'])
-    return (Es, Ts, Tws, psis)
-        
-def display_data(data):
-    V_name = data['V_name']
-    dx = data['dx']
-    N = data['N']
-    x = dx*(np.array(list(range(N))) - N//2)
-    V = data['V']
-    psi0 = get_psi(data['psi0'])
-    plt.figure(figsize=(18,5))
-    
-    plt.subplot(131)
-    plt.plot(x, V, label="Potential")
-    plt.title(V_name)
-    plt.xlabel("x")
-    plt.ylabel("Energy")
-    plt.legend()
-    
-    plt.subplot(132)
-    plt.plot(x, Prob(psi0), label='Ground')
-    plt.xlabel("x")
-    plt.ylabel(r"Prob")
-    plt.legend()
-    
-    plt.subplot(133)
-    Es, Ts, Tws, psis = get_Es_Ts_psis(data['data'])
-    plt.plot(Es, Ts, '--', label= "Physical Time")
-    plt.plot(Es, Tws, '-', label="Wall Time")
-    plt.xlabel("Energy")
-    plt.ylabel("Time(s)")
-    plt.legend()
-    
-
-
-# +
-#display_data(ret[0])
-# -
+# # Some Test Code
 
 def test_cooling(plot_dE=True, use_ABM=False, T=0.5, plt_log=True, check_dE=False, **args):   
     b = BCSCooling(**args)
