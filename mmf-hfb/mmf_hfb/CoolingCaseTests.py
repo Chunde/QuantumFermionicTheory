@@ -11,6 +11,7 @@ import datetime
 import inspect
 import glob
 
+
 def Normalize(psi, dx=0.1):
     return psi/(psi.dot(psi.conj())*dx)**0.5
 
@@ -90,7 +91,7 @@ class TestCase(object):
         print(f"E0={E0}")
         self.E0 = E0
         Ts = (np.array(list(range(N_T)))+1)*0.5
-        args = dict(rtol=1e-5, atol=1e-6, V=self.V, solver=self.solver)
+        args = dict(rtol=1e-5, atol=1e-6, V=self.V, solver=self.solver, method='BDF')
         self.physical_time = []
         self.wall_time = []
         self.Es = []
@@ -165,7 +166,7 @@ def SaveTestCase(ts, Vs, psi_init):
             V = V.tolist()
         dic = dict(
             dx=t.dx, dt=b.dt, N=t.N, E0=t.E0, max_T=t.max_T, g=t.g, eps=t.eps,
-            beta_0=b.beta_0, beta_V=b.beta_V, beta_K=b.beta_K,
+            beta_0=b.beta_0, beta_V=b.beta_V, beta_K=b.beta_K, dE_dt=b.dE_dt,
             beta_D=b.beta_D, beta_Y=b.beta_Y, V_key=t.V_key, use_abm=t.use_abm,
             psi0=unpack(t.psi0))
         data = []
@@ -244,12 +245,13 @@ if __name__ == "__main__":
         cooling_para_list = get_cooling_potential_setting()
         paras = []
         use_abm=True
+        dE_dt = 1
         for g in [0, 1]:
             for key in Vs:
                 for para in reversed(cooling_para_list):
                     args = dict(
                         N=N, dx=dx, eps=1e-1, V=Vs[key], V_key=key, beta_0=1, g=g,
-                        psi=psi_init, use_abm=use_abm, check_dE=False)
+                        dE_dt=dE_dt, psi=psi_init, use_abm=use_abm, check_dE=False)
                     args.update(para)
                     paras.append(args)
         testCases = PoolHelper.run(test_case_worker, paras=paras, poolsize=10)

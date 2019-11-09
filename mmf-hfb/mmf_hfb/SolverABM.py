@@ -28,7 +28,6 @@ class EvolverABM(object):
         self.dcps = None
         self.dys = None
         self.init()
-        self.counter = 1
 
     def _add_replay(self):
         r"""save current time and y"""
@@ -71,13 +70,10 @@ class EvolverABM(object):
         self._add_replay()
         # Coefficients for the ABM method
         h = dt
-        self._ap = h/48 * np.array([119, -99, 69, -17], dtype=float)
+        self._ap = h/48*np.array([119, -99, 69, -17], dtype=float)
         _tmp = h * 161./48./170.
-        self._am = _tmp * (17)
-        self._ac = _tmp * np.array([-68, 102, -68, 17], dtype=float)
-
-    def Normalize(self, y):
-        return self.N*y/math.sqrt((y.conj().dot(y)).real)
+        self._am = _tmp*(17)
+        self._ac = _tmp*np.array([-68, 102, -68, 17], dtype=float)
 
     def do_step(self, first=None, final=None):
         if len(self.dys) < 4:
@@ -89,7 +85,8 @@ class EvolverABM(object):
                 self.dcps = [0*_y for _y in self.ys]
         else:
             self.do_step_ABM()
-        
+        if self.normalize:
+            self.y = self.N*self.y/math.sqrt((self.y.conj().dot(self.y)).real)
         self.steps += 1
         if self.steps % self.history_step == 0:
             self._add_replay()
@@ -104,37 +101,25 @@ class EvolverABM(object):
 
         y = self.ys[0].copy()
         if len(self.dys) < len(self.ys):
-            # Need to compute dy
             dy = self.get_dy(y=y)
             dys.insert(0, dy)
         else:
             dy = self.dys[0]
 
         f0 = dy
-        # y.axpy(dy, h/2.)
         y = axpy(y, dy, h/2.)
         f1 = self.get_dy(y, t=t + h/2.)
-
-        # y.axpy(dy, -h/2.)
         y = axpy(y, dy, -h/2.)
-        # y.axpy(f1, h/2.)
         y = axpy(y, f1, h/2.)
         f2 = self.get_dy(y, t=t + h/2.)
-        # y.axpy(f1, -h/2.)
         y = axpy(y, f1, -h/2.)
-        # y.axpy(f2, h)
         y = axpy(y, f2, h)
-        # f1.axpy(f2, -2.)
         f1 = axpy(f1, f2, -2.)
         f3 = self.get_dy(y, dy=f2, t=t + h)
-        del f2
-        # y.axpy(f1, h/3.)
-        # y.axpy(f0, h/6.)
-        # y.axpy(f3, h/6.)
         y = axpy(y, f1, h/3.)
         y = axpy(y, f0, h/6.)
         y = axpy(y, f3, h/6.)
-        del f0, f1, f3
+        del f0, f1, f2, f3
         self.t += h
         dy = self.get_dy(y=y)
         ys.insert(0, y)
@@ -149,36 +134,26 @@ class EvolverABM(object):
         dys = self.dys
         y = ys.pop()
         y *= 0.5
-        #y.axpy(x=ys[0], a=0.5)
         y = axpy(y, x=ys[0], a=0.5)
         for _i in range(4):
-            # y.axpy(x=dys[_i], a=self._ap[_i])
             y = axpy(y, x=dys[_i], a=self._ap[_i])
-        # y.axpy(x=dcps[0], a=1)
         y = axpy(y, x=dcps[0], a=1)
         dcp = dcps.pop()
         # Compute m' in next dcp array, then update
         dcp = self.get_dy(y=y, t=t+dt, dy=dcp)
         dcp *= self._am
         for _i in range(4):
-            # dcp.axpy(x=dys[_i], a=self._ac[_i])
             dcp = axpy(dcp, x=dys[_i], a=self._ac[_i])
-        # y.axpy(x=dcp, a=1)
-        # y.axpy(x=dcps[0], a=-1)
         y = axpy(y, x=dcp, a=1)
         y = axpy(y, x=dcps[0], a=-1)
         self.t += dt
         dy = dys.pop()
         dy = self.get_dy(y=y, dy=dy)
-        
+        ys.insert(0, y)
         dys.insert(0, dy)
         dcps.insert(0, dcp)
         self.y = y
-        if self.normalize:
-            self.y = self.Normalize(self.y)
-        assert np.any(abs(self.y) < 1e3)
-        ys.insert(0, self.y)
-
+        
 
 def ABMEvolverAdapter(fun, t_span, dt, y0, beta_t=0.1, history_step=100, **args):
     """

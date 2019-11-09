@@ -18,16 +18,27 @@ import matplotlib.pyplot as plt
 # %pylab inline --no-import-all
 from nbimports import *
 import numpy as np
-
-# ## Load Data from Files
-
-# +
+from mmf_hfb.BCSCooling import BCSCooling
+from mmf_hfb.Potentials import HarmonicOscillator
+from mmf_hfb.SolverABM import ABMEvolverAdapter
 from os.path import join
 import inspect
 import json
 import glob
 import os
 from mmf_hfb.CoolingCaseTests import TestCase, Prob, Normalize
+
+
+# ## Load Data from Files
+
+# +
+def random_gaussian_mixing(x):
+    n = np.random.randint(1, 10)
+    cs = np.random.random(n)
+    ns = np.random.randint(1, 10, size=n)    
+    ys = sum([c*np.exp(-x**2/n**2) for (c, n) in zip(cs, ns)])
+    return Normalize(ys)
+
 
 def load_data(current_dir=None):
     if current_dir is None:
@@ -43,12 +54,9 @@ def load_data(current_dir=None):
                     
 
 
-# -
-
-
-ret = load_data()
-len(ret)
-
+# +
+# ret = load_data()
+# len(ret)
 
 # +
 def get_psi(psi_data):
@@ -100,12 +108,11 @@ def display_data(data):
     
 
 
+# +
+#display_data(ret[0])
 # -
 
-display_data(ret[0])
-
-
-def test_cooling(plot_dE=True, use_ABM=False, T=0.5, plt_log=True, **args):   
+def test_cooling(plot_dE=True, use_ABM=False, T=0.5, plt_log=True, check_dE=False, **args):   
     b = BCSCooling(**args)
     solver = ABMEvolverAdapter if use_ABM else None
     h0 = HarmonicOscillator(w=1)
@@ -117,11 +124,11 @@ def test_cooling(plot_dE=True, use_ABM=False, T=0.5, plt_log=True, **args):
     H1 = b._get_H(mu_eff=0, V=V)
     U0, E0 = b.get_U_E(H0, transpose=True)
     U1, E1 = b.get_U_E(H1, transpose=True)
-    psi0 = h.get_wf(x)
+    #psi0 = h.get_wf(x)
     psi0 = U1[0]
     psi0 = Normalize(psi0, dx=b.dx)
-    psi = h0.get_wf(x, n=2)
-    psi = random_gaussian_mixing(x) # U0[1]
+    #psi = h0.get_wf(x, n=2)
+    psi = random_gaussian_mixing(x) #U0[1]#
     psi = Normalize(psi, dx=b.dx)
     #b.erase_max_ks()
     plt.figure(figsize=(10,5))
@@ -150,53 +157,7 @@ def test_cooling(plot_dE=True, use_ABM=False, T=0.5, plt_log=True, **args):
 
 
 # %%time 
-args = dict(N=N, dx=dx,beta_V=beta_V, beta_K=0,  beta_D=0, beta_Y=0, T=5, divs=(1, 1), use_ABM=True, plt_log=True, check_dE=False)
-psi = test_cooling(plot_dE=False, **args)
-
-
-def test_cooling(plot_dE=True, use_ABM=False, T=0.5, **args):   
-    b = BCSCooling(**args)
-    solver = ABMEvolverAdapter if use_ABM else None
-    h0 = HarmonicOscillator(w=1)
-    h = HarmonicOscillator()
-    da, db=b.divs    
-    x = b.xyz[0]
-    V = x**2/2
-    H0 = b._get_H(mu_eff=0, V=0)
-    H1 = b._get_H(mu_eff=0, V=V)
-    U0, E0 = b.get_U_E(H0, transpose=True)
-    U1, E1 = b.get_U_E(H1, transpose=True)
-    psi0 = h.get_wf(x)
-    psi0 = U1[0]
-    psi0 = Normalize(psi0, dx=b.dx)
-    psi = h0.get_wf(x, n=2)
-    psi = random_gaussian_mixing(x) # U0[1]
-    psi = Normalize(psi, dx=b.dx)
-    #b.erase_max_ks()
-    plt.figure(figsize=(10,5))
-    plt.subplot(1,2,1)
-    N0 = psi0.conj().dot(psi0)
-    ts, psiss = b.solve([psi], T=T, rtol=1e-5, atol=1e-6, V=V,solver=solver, method='BDF')
-    E0, _ = b.get_E_Ns([psi0], V=V)
-    Es = [b.get_E_Ns([_psi], V=V)[0] for _psi in psiss[0]]   
-    plt.plot(x, Prob(psiss[0][0]), "+", label='init')
-    plt.plot(x, Prob(psiss[0][-1]), '--',label="final")
-    plt.plot(x, Prob(psi0), label='Ground')
-    plt.legend()
-    plt.subplot(1,2,2)
-    plt.semilogy(ts[0][:-2], (Es[:-2] - E0)/abs(E0), label="E")
-    if plot_dE:
-        dE_dt= [-1*b.get_dE_dt([_psi], V=V) for _psi in psiss[0]]
-        plt.plot(ts[0][:-2], dE_dt[:-2], label='-dE/dt')
-        plt.axhline(0, linestyle='dashed')
-    plt.legend()
-    plt.axhline(0, linestyle='dashed')
-    plt.show()    
-    return psiss[0][-1]
-
-
-# %%time 
-args = dict(N=N, dx=dx, beta_0=1, beta_K=130, beta_V=0, beta_D=0, beta_Y=0, T=5, divs=(1, 1), use_ABM=True, check_dE=False)
+args = dict(N=128, dx=0.1, beta_0=1, beta_K=0, beta_V=30, beta_D=0, beta_Y=0, T=5, divs=(1, 1),plt_log=True, use_ABM=True)
 psi = test_cooling(plot_dE=False, **args)
 
 
@@ -218,9 +179,9 @@ def Cooling(plot_dE=True, use_ABM=False, T=0.5, **args):
     E0, _ = b.get_E_Ns([psi0], V=V)
     Es = [b.get_E_Ns([_psi], V=V)[0] for _psi in psiss[0]]
     dE_dt= [-1*b.get_dE_dt([_psi], V=V) for _psi in psiss[0]]
+    plt.plot(x, Prob(psi0), 'o', label='Ground')
     plt.plot(x, Prob(psiss[0][0]), "+", label='init')
     plt.plot(x, Prob(psiss[0][-1]), '--',label="final")
-    plt.plot(x, Prob(psi0), label='Ground')
     plt.legend()
     plt.subplot(1,2,2)
     plt.semilogy(ts[0][:-2], (Es[:-2] - E0)/abs(E0), label="E")
@@ -234,7 +195,11 @@ def Cooling(plot_dE=True, use_ABM=False, T=0.5, **args):
 
 
 # %%time 
-args = dict(N=128, dx=0.1,beta_0=-1j, beta_K=0, beta_V=0, beta_D=0, beta_Y=0, T=5, divs=(1, 1), use_ABM=True, check_dE=False)
+args = dict(N=128, dx=0.1, beta_0=-1j, beta_K=0, beta_V=1, beta_D=0, beta_Y=0, T=5, divs=(1, 1), use_ABM=True)
+psi = Cooling(plot_dE=False, **args)
+
+# %%time 
+args = dict(N=128, dx=0.1, beta_0=-1j, beta_K=0, beta_V=0, beta_D=0, beta_Y=0, T=5, divs=(1, 1), use_ABM=True, check_dE=False)
 psi = Cooling(plot_dE=False, **args)
 
 args = dict(N=4, g=1)

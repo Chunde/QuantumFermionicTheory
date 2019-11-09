@@ -3,8 +3,8 @@ from mmf_hfb.bcs import BCS
 import numpy as np
 import numpy.linalg
 import matplotlib.pyplot as plt
-import warnings
-warnings.filterwarnings("error")
+#import warnings
+#warnings.filterwarnings("error")
 
 def assert_orth(psis):
     y1, y2 = psis
@@ -29,7 +29,7 @@ class BCSCooling(BCS):
     def __init__(
             self, N=256, L=None, dx=0.1, delta=0, mus=(0, 0),
             beta_0=1.0, beta_V=0, beta_K=0, beta_D=0, beta_Y=0,
-            g=0, divs=(0, 0), check_dE=True, **args):
+            g=0, dE_dt=1, divs=(0, 0), check_dE=True, **args):
         """
         Arguments
         ---------
@@ -60,8 +60,9 @@ class BCSCooling(BCS):
         self.g = g
         self.divs = divs
         self.check_dE = check_dE
+        self.dE_dt = dE_dt
         self._K2 = (self.hbar*np.array(self.kxyz[0]))**2/2/self.m
-        self.dt = self.hbar/self._K2.max()
+        self.dt =dE_dt*self.hbar/self._K2.max()
         self.E_max = self._K2.max()
     
     def _get_uv(self, psi):
@@ -410,8 +411,10 @@ class BCSCooling(BCS):
             dy_dt = self.compute_dy_dt
         if solver is None:
             solver = solve_ivp
+        else:
+            kw.update(dt=self.dt)
         for psi0 in psis:  # can be parallelized
-            res = solver(fun=dy_dt, t_span=(0, T), dt=self.dt, y0=psi0, **kw)
+            res = solver(fun=dy_dt, t_span=(0, T), y0=psi0, **kw)
             if not res.success:
                 raise Exception(res.message)
             ts.append(res.t)
