@@ -234,9 +234,10 @@ class BCSCooling(BCS):
             Vd = Vd + self._get_Vs(psis, V, self.divs)
         return Vd*self.dV
 
-    def get_Dyadic(self, psis, psis_k, V):
+    def get_Dyadic(self, psis, V, psis_k=None):
         """mixed Vc and Kc"""
-        N = self.get_N(psis)
+        if psis_k is None:
+            psis_k = self.get_psis_k(psis)
         V_dy = 0
         Hpsis = self.apply_H(psis, V=V)
         for i, psi_k in enumerate(psis_k):
@@ -325,8 +326,7 @@ class BCSCooling(BCS):
     def _apply_expV(self, psi, V, Vc, factor):
         if self.delta == 0:
             psi_new = np.exp(-1j*self.dt*factor*(self.beta_0*V +self.beta_V*Vc))*psi
-            psi_new *= np.sqrt((abs(psi)**2).sum()
-                           / (abs(psi_new)**2).sum())
+            psi_new *= np.sqrt((abs(psi)**2).sum()/(abs(psi_new)**2).sum())
             return psi_new
         Vc_uv = self._get_uv(Vc)
         uv = self._get_uv(psi)

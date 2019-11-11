@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>d96035f2-d7ba-4540-adc5-a336a7b7a91f</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>mmf_hfb\CoolingCaseTests.py</StartupFile>
+    <StartupFile>Docs\QuantumFrictionDataSheet.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -48,6 +48,7 @@
     <Compile Include="Docs\KineticMatrixDerivation2D.py" />
     <Compile Include="Docs\LatticeNumericalSimulation.py" />
     <Compile Include="Docs\nbimports.py" />
+    <Compile Include="Docs\QuantumFrictionDataSheet.py" />
     <Compile Include="Docs\RotatingFrameTransform%28BdG%29.py" />
     <Compile Include="Docs\ScatteringTutorial.py" />
     <Compile Include="Docs\ThermodynamicRelations.py" />

@@ -110,8 +110,8 @@ def Check_Vd():
     plt.figure(figsize=(15,5))
     for Nx in [128, 256, 512]:
         offset = np.log(Nx)*0.01 # add a small offset in y direction
-        uv = BCSCooling(N=256, dx=dx, beta_0=1, beta_K=0, beta_V=0, beta_D=1, divs=(1, 1))
-        ir  = BCSCooling(N=Nx, dx=dx, beta_0=1, beta_K=0, beta_V=0, beta_D=1, divs=(1, 1))
+        uv = BCSCooling(N=256, dx=dx, beta_0=1, beta_K=0, beta_V=0, beta_D=1, beta_Y=0, divs=(1, 1))
+        ir  = BCSCooling(N=Nx, dx=dx, beta_0=1, beta_K=0, beta_V=0, beta_D=1, beta_Y=0, divs=(1, 1))
         for s, i in zip([uv, ir],[2, 3]):           
             s.g = -1
             x = s.xyz[0]
@@ -129,6 +129,31 @@ def Check_Vd():
     plt.subplot(133)
     plt.xlim(-5,5)
 Check_Vd()
+
+dx = 0.1
+def Check_Vy():
+    plt.figure(figsize=(15,5))
+    for Nx in [128, 256, 512]:
+        offset = np.log(Nx)*0.0001 # add a small offset in y direction
+        uv = BCSCooling(N=256, dx=dx, beta_0=1, beta_K=0, beta_V=0, beta_D=0, beta_Y=1, divs=(1, 1))
+        ir  = BCSCooling(N=Nx, dx=dx, beta_0=1, beta_K=0, beta_V=0, beta_D=0, beta_Y=1, divs=(1, 1))
+        for s, i in zip([uv, ir],[2, 3]):           
+            s.g = -1
+            x = s.xyz[0]
+            V_ext = x**2/2
+            psi0 = np.exp(-x**2/2.0)*np.exp(1j*x)
+            plt.subplot(1,3,1)
+            plt.plot(x, psi0 + offset)
+            plt.subplot(1,3,i)
+            Vc = s.get_Dyadic(s.apply_H([psi0], V=V_ext), V=V_ext) 
+            l, = plt.plot(x, Vc + offset)  # add some offset in y direction to separate plots
+    plt.subplot(131)
+    plt.xlim(-10, 10)
+    plt.subplot(132)
+    plt.xlim(-5, 5)
+    plt.subplot(133)
+    plt.xlim(-5,5)
+Check_Vy()
 
 
 def test_der_cooling(psi = None, evolve=True, T=0.5, **args):

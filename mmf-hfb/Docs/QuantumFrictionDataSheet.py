@@ -26,78 +26,170 @@ import inspect
 import json
 import glob
 import os
-from mmf_hfb.CoolingCaseTests import TestCase, Prob, Normalize, dict_to_complex, deserialize_object, load_json_data
+from mmf_hfb.CoolingCaseTests import TestCase, Prob, Normalize, dict_to_complex, deserialize_object, load_json_data, random_gaussian_mixing
 
 
-# # Load Data from Files
-
-def random_gaussian_mixing(x):
-    n = np.random.randint(1, 10)
-    cs = np.random.random(n)
-    ns = np.random.randint(1, 10, size=n)    
-    ys = sum([c*np.exp(-x**2/n**2) for (c, n) in zip(cs, ns)])
-    return Normalize(ys)
-
-
-res = load_json_data()
-testCases = deserialize_object(res)
-
-t0 = testCases[4]
-t0.plot(0)
-
-
-# # Visualization
-
-# # Some Test Code
-
-def test_cooling(plot_dE=True, use_ABM=False, T=0.5, plt_log=True, check_dE=False, **args):   
-    b = BCSCooling(**args)
-    solver = ABMEvolverAdapter if use_ABM else None
-    h0 = HarmonicOscillator(w=1)
+# +
+def get_init_states(N=128, dx=0.1):
+    b = BCSCooling(N=N, dx=dx)
     h = HarmonicOscillator()
-    da, db=b.divs    
     x = b.xyz[0]
     V = x**2/2
     H0 = b._get_H(mu_eff=0, V=0)
     H1 = b._get_H(mu_eff=0, V=V)
     U0, E0 = b.get_U_E(H0, transpose=True)
     U1, E1 = b.get_U_E(H1, transpose=True)
-    #psi0 = h.get_wf(x)
-    psi0 = U1[0]
-    psi0 = Normalize(psi0, dx=b.dx)
-    #psi = h0.get_wf(x, n=2)
-    psi = random_gaussian_mixing(x) #U0[1]#
-    psi = Normalize(psi, dx=b.dx)
-    #b.erase_max_ks()
-    plt.figure(figsize=(10,5))
-    plt.subplot(121)
-    N0 = psi0.conj().dot(psi0)
-    ts, psiss = b.solve([psi], T=T, rtol=1e-5, atol=1e-6, V=V, solver=solver, method='BDF')
-    E0, _ = b.get_E_Ns([psi0], V=V)
-    Es = [b.get_E_Ns([_psi], V=V)[0] for _psi in psiss[0]]   
-    plt.plot(x, Prob(psiss[0][0]), "+", label='init')
-    plt.plot(x, Prob(psiss[0][-1]), '--',label="final")
-    plt.plot(x, Prob(psi0), label='Ground')
-    plt.legend()
-    plt.subplot(122)
-    if plt_log:
-        plt.semilogy(ts[0][:-2], (Es[:-2] - E0)/abs(E0), label="E")
+    psi_random = Normalize(np.random.random(N), dx=dx)
+    psi_standing_wave=Normalize(U0[1],dx=dx)
+    psi_gaussian_mixing = random_gaussian_mixing(x, dx=dx)
+    psi_uniform = Normalize(U0[0], dx=dx)
+    psi_interaction = Normalize(np.exp(-x**2/2.0)*np.exp(1j*x), dx=dx)
+    return dict(RN=psi_random, ST=psi_standing_wave, GM=psi_gaussian_mixing, UN=psi_uniform, IN=psi_interaction)
+
+def get_potentials(x):
+    V0 = 0*x
+    V_HO = x**2/2
+    V_PO = V0 + np.random.random()*V_HO + abs(x**2)*np.random.random()
+    return dict(V0=V0, HO=V_HO, PO=V_PO)
+
+
+# -
+
+psis_init = get_init_states()
+# for key in psis_init:
+#     plt.plot(Prob(psis_init[key]), label=key)
+#     plt.legend()
+
+# # Load Data from Files
+
+res = load_json_data()
+testCases = deserialize_object(res)
+
+t0 = testCases[4]
+
+
+# # Visualization
+
+# +
+def beta_filter(t, expr=None):
+    t = t.b
+    beta_0, beta_V, beta_K, beta_D, beta_Y =t.beta_0, t.beta_V, t.beta_K, t.beta_D, t.beta_Y 
+    if expr is None:
+        if t.beta_V >0 and t.beta_K==0 and t.beta_D==0 and t.beta_Y==0:
+            return True
+        return False
     else:
-        plt.plot(ts[0][:-2], (Es[:-2] - E0)/abs(E0), label="E")
-    if plot_dE:
-        dE_dt= [-1*b.get_dE_dt([_psi], V=V) for _psi in psiss[0]]
-        plt.plot(ts[0][:-2], dE_dt[:-2], label='-dE/dt')
-        plt.axhline(0, linestyle='dashed')
-    plt.legend()
-    plt.axhline(0, linestyle='dashed')
-    plt.show()    
-    return psiss[0][-1]
+        return eval(expr)
+
+def V_filter(t, expr=None):
+    V = t.V_key
+    if expr is None:
+        if V == 'HO':
+            return True
+        return True
+    else:
+        return eval(expr)
+
+def t_filter(t, expr=None):
+    if expr is None:
+        return True
+    else:
+        return eval(expr)
+
+def filter(ts,t_expr=None, V_expr=None, beta_expr=None):
+    filtered_ts = []
+    for t in ts:
+        if not beta_filter(t, expr=beta_expr):
+            continue
+        if not V_filter(t, expr=V_expr):
+            continue
+        if not t_filter(t, expr=t_expr):
+            continue
+            
+        filtered_ts.append(t)
+    return filtered_ts
 
 
-# %%time 
-args = dict(N=128, dx=0.1, beta_0=1, beta_K=0, beta_V=30, beta_D=0, beta_Y=0, T=5, divs=(1, 1),plt_log=True, use_ABM=True)
-psi = test_cooling(plot_dE=False, **args)
+# -
 
+ts = filter(testCases, t_expr='t.g==1', V_expr='V=="PO"', beta_expr="beta_V>0 and beta_K==0 and beta_D==0 and beta_Y==0")
+len(ts)
+
+
+def plotCase(t):
+    plt.figure(figsize=(10, 5))
+    plt.subplot(121)
+    t.plot(0)
+    plt.subplot(122)
+    E0, Es, Ts, Tws = t0.E0, t.Es, t0.physical_time, t0.wall_time
+    Es = np.array(Es) - E0
+    Es = Es/E0
+    plt.semilogy(Tws, Es, '--')
+    #plt.plot(Tws, Es, 'o')
+
+
+# ## Interaction
+
+b = BCSCooling(N=128, dx=0.1, beta_0=-1j, g=-1)
+h0 = HarmonicOscillator(w=1)
+h = HarmonicOscillator()
+da, db=b.divs    
+x = b.xyz[0]
+V = x*0
+psi_0 = psis_init['IN'] #np.exp(-x**2/2.0)*np.exp(1j*x)
+plt.figure(figsize=(18,5))
+plt.subplot(131)
+plt.plot(x, V)
+plt.subplot(132)
+ts, psiss = b.solve([psi_0], T=20, rtol=1e-5, atol=1e-6, V=V, method='BDF')
+E0, _ = b.get_E_Ns([psi0], V=V)
+Es = [b.get_E_Ns([_psi], V=V)[0] for _psi in psiss[0]]   
+plt.plot(x, Normalize(psiss[0][0]), "--", label='init')
+plt.plot(x, Normalize(psiss[0][-1]), '-',label="final")
+plt.legend()
+plt.subplot(133)
+plt.semilogy(ts[0][:-1], (Es[:-1] - E0)/abs(E0), label="E")
+plt.legend()
+plt.show()
+
+# # Some Test Code
+
+b = BCSCooling(N=128, dx=0.1)
+h = HarmonicOscillator()
+x = b.xyz[0]
+psi_init= psis_init['IN']
+Vs = get_potentials(x)
+V=Vs['HO']
+args = dict(N=128, dx=0.1, eps=1e-1, V=0*V, V_key='0', g=-1, psi_init=psi_init, use_abm=False, check_dE=False)
+t=TestCase(ground_state_eps=1e-1, **args)
+
+plt.plot(x, Normalize(psi_init), "--", label='init')
+plt.plot(x, Normalize(t.psi_ground), '-',label="final")
+
+plt.figure(figsize=(18,5))
+t.b.beta_V= 10
+t.b.beta_K = 100
+t.run(T=5, plot=True, plot_log=False)
+
+# ## Batch Data
+
+t.b.beta_V = 0
+for beta_K in np.linspace(10, 100, 10):
+    print("--------------------------------------")
+    print(f"beta_K={beta_K}")
+    plt.figure(figsize=(18,5))
+    t.b.beta_K= beta_K
+    t.run(T=3, plot=False, plot_log=False)
+
+for beta_V in np.linspace(10, 100, 10):
+    print("--------------------------------------")
+    print(f"beta_V={beta_V}")
+    plt.figure(figsize=(18,5))
+    t.b.beta_V= beta_V
+    t.run(T=5, plot=False, plot_log=False)
+
+
+# # Cooling
 
 def Cooling(plot_dE=True, use_ABM=False, T=0.5, **args):
     b = BCSCooling(**args)
@@ -184,5 +276,57 @@ plt.semilogy(ts, Es[0], c='k', ls='-', label=labels[0], scaley=False)
 plt.xlabel("t")
 plt.ylabel("E-E0")
 plt.legend()
+
+
+def test_cooling(use_ABM=False, psi_key="ST", T=0.5,plot_dE=True,  plt_log=True, **args):   
+    b = BCSCooling(**args)
+    solver = ABMEvolverAdapter if use_ABM else None
+    h0 = HarmonicOscillator(w=1)
+    h = HarmonicOscillator()
+    da, db=b.divs    
+    x = b.xyz[0]
+    V = x*0
+    H0 = b._get_H(mu_eff=0, V=0)
+    H1 = b._get_H(mu_eff=0, V=V)
+    U0, E0 = b.get_U_E(H0, transpose=True)
+    U1, E1 = b.get_U_E(H1, transpose=True)
+    #psi0 = h.get_wf(x)
+    psi0 = U1[0]
+    psi0 = Normalize(psi0, dx=b.dx)
+    # psi = h0.get_wf(x, n=2)
+    psi = U0[1]# random_gaussian_mixing(x) #
+    psi = Normalize(psi, dx=b.dx)
+    #b.erase_max_ks()
+    plt.figure(figsize=(18,5))
+    plt.subplot(131)
+    plt.plot(x, V)
+    plt.subplot(132)
+    N0 = psi0.conj().dot(psi0)
+    ts, psiss = b.solve([psi], T=T, rtol=1e-5, atol=1e-6, V=V, solver=solver, method='BDF')
+    psis = psiss[0]
+    E0, _ = b.get_E_Ns([psi0], V=V)
+    Es = [b.get_E_Ns([_psi], V=V)[0] for _psi in psiss[0]]   
+    plt.plot(x, Prob(psiss[0][0]), "+", label='init')
+    plt.plot(x, Prob(psiss[0][-1]), '--',label="final")
+    plt.plot(x, Prob(psi0), label='Ground')
+    plt.legend()
+    plt.subplot(133)
+    if plt_log:
+        plt.semilogy(ts[0][:-1], (Es[:-1] - E0)/abs(E0), label="E")
+    else:
+        plt.plot(ts[0][:-1], (Es[:-1] - E0)/abs(E0), label="E")
+    if plot_dE:
+        dE_dt= [-1*b.get_dE_dt([_psi], V=V) for _psi in psiss[0]]
+        plt.plot(ts[0][:-1], dE_dt[:-1], label='-dE/dt')
+        plt.axhline(0, linestyle='dashed')
+    plt.legend()
+    plt.axhline(0, linestyle='dashed')
+    plt.show()
+    print((Es[-1] - E0)/abs(E0), (Es[0] - E0)/abs(E0))
+    return psiss[0][-1]
+
+
+args = dict(N=128, dx=0.1, beta_0=-1j, g=1, plt_log=False, check_dE=False, use_ABM=False)
+psi = test_cooling(plot_dE=False, **args)
 
 
