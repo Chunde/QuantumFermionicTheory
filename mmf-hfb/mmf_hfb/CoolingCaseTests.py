@@ -41,9 +41,9 @@ def dict_to_complex(psi_data):
 class TestCase(object):
     
     def __init__(
-            self, V, g, N, dx, eps=1e-2, ground_state_eps=1e-5,
+            self, V, g, N, dx, eps=1e-2,
             psi_init=None, psi_ground=None, E0=None, T_max=10,
-            T_ground_state=None, V_key=None, use_abm=True, **args):
+            T_ground_state=20, V_key=None, use_abm=True, **args):
         args.update(g=g, N=N, dx=dx)
         b = BCSCooling(**args)
         self.use_abm = use_abm
@@ -53,7 +53,6 @@ class TestCase(object):
         self.V = V
         self.V_key = V_key
         self.eps = eps
-        self.ground_state_eps = ground_state_eps
         self.T_max = T_max
         self.g = g
         self.N = N
@@ -67,8 +66,8 @@ class TestCase(object):
         self.psi_ground = psi_ground
         self.E0=E0
 
-    def get_ground_state(self, psi_init, T=None,  plot=False):
-        b = BCSCooling(N=self.b.N, dx=self.b.dx, beta_0=-1j)
+    def get_ground_state(self, psi_init, T=None, plot=False):
+        b = BCSCooling(N=self.b.N, dx=self.b.dx, g=self.g, beta_0=-1j)
         H = b._get_H(mu_eff=0, V=self.V)
         U, E = b.get_U_E(H, transpose=True)
         psi0 = Normalize(U[0], dx=b.dx)
@@ -94,9 +93,9 @@ class TestCase(object):
                     print(f"Value error: E1={E1}, E2={E2}")
                     raise ValueError("Failed to get ground state.")
                 print((E2 - E1)/E1)
-                if abs((E2 - E1)/E1) < self.ground_state_eps:
-                    return psis[-1]
-            raise ValueError("Failed to cool down to ground state.")
+                #if abs((E2 - E1)/E1) < self.ground_state_eps:
+                return psis[-1]
+            #raise ValueError("Failed to cool down to ground state.")
 
     def run(self, N_T=10, T=None, plot=False, plot_log=True, plot_dE=False):
         b, x = self.b, self.x

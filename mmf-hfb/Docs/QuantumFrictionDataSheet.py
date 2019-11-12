@@ -128,63 +128,82 @@ def plotCase(t):
     #plt.plot(Tws, Es, 'o')
 
 
+# +
+# # %pylab inline --no-import-all
+# from gpe.imports import *
+# import gpe.exact_solutions;reload(gpe.exact_solutions)
+# from gpe.exact_solutions import BrightSoliton
+# Nx = 128
+# Lx = 10.0
+# v = 2.0
+# args = dict(Nx=Nx, Lx=Lx, v=v, sigma=1)
+# s0 = BrightSoliton(v_x=0, **args)
+# plt.plot(s0.x, s0.psi0)
+# -
+
 # ## Interaction
 
-b = BCSCooling(N=128, dx=0.1, beta_0=-1j, g=-1)
-h0 = HarmonicOscillator(w=1)
-h = HarmonicOscillator()
-da, db=b.divs    
-x = b.xyz[0]
-V = x*0
-psi_0 = psis_init['IN'] #np.exp(-x**2/2.0)*np.exp(1j*x)
-plt.figure(figsize=(18,5))
-plt.subplot(131)
-plt.plot(x, V)
-plt.subplot(132)
-ts, psiss = b.solve([psi_0], T=20, rtol=1e-5, atol=1e-6, V=V, method='BDF')
-E0, _ = b.get_E_Ns([psi0], V=V)
-Es = [b.get_E_Ns([_psi], V=V)[0] for _psi in psiss[0]]   
-plt.plot(x, Normalize(psiss[0][0]), "--", label='init')
-plt.plot(x, Normalize(psiss[0][-1]), '-',label="final")
-plt.legend()
-plt.subplot(133)
-plt.semilogy(ts[0][:-1], (Es[:-1] - E0)/abs(E0), label="E")
-plt.legend()
-plt.show()
+# +
+# b = BCSCooling(N=128, dx=0.1, beta_0=-1j, g=-1)
+# h0 = HarmonicOscillator(w=1)
+# h = HarmonicOscillator()
+# da, db=b.divs    
+# x = b.xyz[0]
+# V = x*0
+# psi_0 = psis_init['IN'] #np.exp(-x**2/2.0)*np.exp(1j*x)
+# plt.figure(figsize=(18,5))
+# plt.subplot(131)
+# plt.plot(x, V)
+# plt.subplot(132)
+# ts, psiss = b.solve([psi_0], T=30, rtol=1e-5, atol=1e-6, V=V, method='BDF')
+# psi0 = psiss[0][-1]
+# E0, _ = b.get_E_Ns([psi0], V=V)
+# Es = [b.get_E_Ns([_psi], V=V)[0] for _psi in psiss[0]]   
+# plt.plot(x, Normalize(psiss[0][0]), "--", label='init')
+# plt.plot(x, Normalize(psiss[0][-1]), '-',label="final")
+# plt.legend()
+# plt.subplot(133)
+# plt.semilogy(ts[0][:-1], (Es[:-1] - E0)/abs(E0), label="E")
+# plt.legend()
+# plt.show()
+# -
 
 # # Some Test Code
 
-b = BCSCooling(N=128, dx=0.1)
+N=128
+dx=0.2
+b = BCSCooling(N=N, dx=dx)
 h = HarmonicOscillator()
 x = b.xyz[0]
 psi_init= psis_init['IN']
 Vs = get_potentials(x)
 V=Vs['HO']
-args = dict(N=128, dx=0.1, eps=1e-1, V=0*V, V_key='0', g=-1, psi_init=psi_init, use_abm=False, check_dE=False)
-t=TestCase(ground_state_eps=1e-1, **args)
+args = dict(N=N, dx=dx, eps=1e-1, T_ground_state=20, V=V, V_key='0', g=-1, psi_init=psi_init, use_abm=False, check_dE=False)
+t=TestCase(ground_state_eps=1e-1, beta_0=-1j, **args)
 
 plt.plot(x, Normalize(psi_init), "--", label='init')
 plt.plot(x, Normalize(t.psi_ground), '-',label="final")
 
 plt.figure(figsize=(18,5))
-t.b.beta_V= 10
+t.b.beta_V= 50
 t.b.beta_K = 100
 t.run(T=5, plot=True, plot_log=False)
 
 # ## Batch Data
 
-t.b.beta_V = 0
+t.b.beta_V = 10
+plt.figure(figsize=(18,5))
 for beta_K in np.linspace(10, 100, 10):
     print("--------------------------------------")
     print(f"beta_K={beta_K}")
-    plt.figure(figsize=(18,5))
     t.b.beta_K= beta_K
-    t.run(T=3, plot=False, plot_log=False)
+    t.run(T=5, plot=False, plot_log=False)
 
+plt.figure(figsize=(18,5))
+t.b.beta_K = 0
 for beta_V in np.linspace(10, 100, 10):
     print("--------------------------------------")
     print(f"beta_V={beta_V}")
-    plt.figure(figsize=(18,5))
     t.b.beta_V= beta_V
     t.run(T=5, plot=False, plot_log=False)
 
@@ -327,6 +346,33 @@ def test_cooling(use_ABM=False, psi_key="ST", T=0.5,plot_dE=True,  plt_log=True,
 
 
 args = dict(N=128, dx=0.1, beta_0=-1j, g=1, plt_log=False, check_dE=False, use_ABM=False)
-psi = test_cooling(plot_dE=False, **args)
+psi = test_cooling(plot_dE=False, T=15, **args)
+
+# +
+from IPython.display import clear_output
+from importlib import reload
+import mmf_hfb.quantum_friction as quantum_friction;reload(quantum_friction)
+from mmf_hfb.quantum_friction import StateBase
+# plt.figure(figsize=(10,5))
+ax1 = plt.subplot(121)
+ax2 = plt.subplot(122)
+for Nx in [256]:
+    s = StateBase(Nxyz=(Nx,), beta_0=-1j)
+    s.g = -1
+    r2 = sum(_x**2 for _x in s.xyz)
+    psi_0 = Normalize(s.zero + np.exp(-r2/2.0)*np.exp(1j*s.xyz[0]))
+    ts, psis = s.solve(psi_0, T=50, rtol=1e-5, atol=1e-6, method='BDF')
+    psi0 = psis[-1]
+    E0, N0 = s.get_E_N(psi0)
+    Es = [s.get_E_N(_psi)[0] for _psi in psis]
+    line, = ax1.semilogy(ts[:-2], (Es[:-2] - E0)/abs(E0), label=f"Nx={Nx}")
+    plt.sca(ax2)
+    s.plot(psi0, c=line.get_c(), alpha=0.5)
+
+plt.sca(ax1)
+plt.legend()
+plt.xlabel('t')
+plt.ylabel('abs((E-E0)/E0)')
+# -
 
 
