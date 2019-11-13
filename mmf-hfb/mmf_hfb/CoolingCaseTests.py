@@ -350,7 +350,8 @@ def get_init_states(N=128, dx=0.1):
         ST=psi_standing_wave, GM=psi_gaussian_mixing,
         UN=psi_uniform, BS=psi_bright_soliton)
 
-def test_case_json():
+
+def benchmark_test_json():
     if True:  # set to false if want to debug overflow by loading dumped file
         N, dx = 128, 0.1
         args = dict(
@@ -385,41 +386,51 @@ def test_case_json():
         testCases = PoolHelper.run(test_case_worker, paras=paras, poolsize=1)
 
 
+def write_sheet(sheet, last_file):
+    try:
+        if last_file is not None: # load last saved
+            res = []
+            book = xlrd.open_workbook(last_file)
+            table = book.sheet_by_name("overall")
+            nrows = table.nrows
+            ncols = table.nrows
+            last_row = sheet.nrows
+            for r in range(1, nrows):
+                for c in range(ncols):
+                    sheet.write(last_row, c, table.cell(r, c).value)
+                last_row += 1
+    except:
+        pass
+
+
 def benchmark_test_excel(
         N=128, dx=0.1, g=0, Ts=[5], trails=1, use_abm=False,
         beta_0=1, beta_Ks=[0], beta_Vs=[10], beta_Ds=[0], beta_Ys=[0],
         ground_state="Gaussian", init_state_key="ST", V_key="HO",
-        time_out=120):
-    
+        time_out=120, last_file=None):
+    """
+    this function is provided to perform test the cooling vs wall time
+    calling this function will create a excel file that summarize the 
+    results, including all parameters used for each case.
+    """
     # create an excel table to store the result
     file_name = (
-        f"TestCase_N{N}_dx{dx}_g{g}_T{5}_Trails{trails}"+
-        f"_ISK={init_state_key}_VK={V_key}_"+
-        time.strftime("%Y_%m_%d_%H_%M_%S.xls"))
+        f"TestCase_N{N}_dx{dx}_g{g}_T{5}_Trails{trails}"
+            +f"_IS={init_state_key}_V={V_key}_"
+                +time.strftime("%Y_%m_%d_%H_%M_%S.xls"))
     output = xlwt.Workbook(encoding='utf-8')
     sheet = output.add_sheet("overall", cell_overwrite_ok=True)
     col = 0
-    sheet.write(0, col, "Trail#");col+=1
-    sheet.write(0, col, "Time");col+=1
-    sheet.write(0, col, "N");col+=1
-    sheet.write(0, col, "dx");col+=1
-    sheet.write(0, col, "beta_0");col+=1
-    sheet.write(0, col, "beta_V");col+=1
-    sheet.write(0, col, "beta_K");col+=1
-    sheet.write(0, col, "beta_D");col+=1
-    sheet.write(0, col, "beta_Y");col+=1
-    sheet.write(0, col, "g");col+=1
-    sheet.write(0, col, "V");col+=1
-    sheet.write(0, col, "Ground State");col+=1
-    sheet.write(0, col, "init State");col+=1
-    sheet.write(0, col, "E0(Ground)");col+=1
-    sheet.write(0, col, "Ei(Init)");col+=1
-    sheet.write(0, col, "Ef(Final)");col+=1
-    sheet.write(0, col, "Evolver");col+=1
-    sheet.write(0, col, "Cooling Effect");col+=1
-    sheet.write(0, col, "Physical Time");col+=1
-    sheet.write(0, col, "Wall Time");col+=1
-
+    row = 0
+    values = [
+        "Trail#", "Time", "N", "dx", "beta_0", "beta_V", "beta_K",
+        "beta_D", "beta_Y", "g", "V", "Ground State", "Init State",
+        "E0(Ground)", "Ei(Init)", "Ef(Final)", "Evolver",
+        "Cooling Effect", "Physical Time", "Wall Time"]
+    for value in values:
+        sheet.write(row, col, value)
+        col += 1
+    write_sheet(sheet, last_file=last_file)
     psis_init = get_init_states()
     psi_init = psis_init[init_state_key]
     b = BCSCooling(N=N, dx=dx)
@@ -439,8 +450,11 @@ def benchmark_test_excel(
                     t.b.beta_K = beta_K
                     for beta_V in beta_Vs:
                         t.b.beta_V = beta_V
-                        print(f"Trai#={trail}: beta_V={beta_V}, beta_K={beta_K}, beta_D={beta_D}, beta_Y={beta_Y}")
                         for T in Ts:
+                            print(
+                                f"Trail#={trail}: beta_V={beta_V}, beta_K={beta_K},"
+                                    +f"beta_D={beta_D}, beta_Y={beta_Y},"
+                                        +f"g={g}, T={T}, V={V_key}, N={N},dx={dx}")
                             try:
                                 if beta_V == 0 and beta_K== 0 and beta_Y==0:
                                     continue
@@ -450,24 +464,16 @@ def benchmark_test_excel(
                                 Ei, Ef = t.E_init, t.Es[-1]
                                 dEi, dEf = (Ei - E0)/E0, (Ef - E0)/E0
                                 col = 0
-                                sheet.write(row, col, trail); col+=1
-                                sheet.write(row, col, time.strftime("%Y/%m/%d %H:%M:%S")); col+=1
-                                sheet.write(row, col, N); col+=1
-                                sheet.write(row, col, dx); col+=1
-                                sheet.write(row, col, beta_0); col+=1
-                                sheet.write(row, col, beta_V); col+=1
-                                sheet.write(row, col, beta_K); col+=1
-                                sheet.write(row, col, beta_D); col+=1
-                                sheet.write(row, col, beta_Y); col+=1
-                                sheet.write(row, col, g); col+=1
-                                sheet.write(row, col, V_key); col+=1
-                                sheet.write(row, col, ground_state); col+=1
-                                sheet.write(row, col, init_state_key); col+=1
-                                sheet.write(row, col, E0); col+=1
-                                sheet.write(row, col, Ei); col+=1
-                                sheet.write(row, col, Ef); col+=1
+                                values = [
+                                    trail, time.strftime("%Y/%m/%d %H:%M:%S"), N, dx,
+                                    beta_0, beta_V, beta_K, beta_D, beta_Y, g, V_key,
+                                    ground_state, init_state_key, E0, Ei, Ef]
+                                for value in values:
+                                    sheet.write(row, col, value)
+                                    col += 1
                                 Evoler = "ABM" if t.use_abm else "IVP"
-                                sheet.write(row, col, Evoler);col+=1
+                                sheet.write(row, col, Evoler)
+                                col+=1
                                 if abs(dEf) < 1:
                                     sheet.write(row, col, "Cooled")
                                 elif abs((Ef - Ei)/Ei)<0.01:
@@ -475,14 +481,22 @@ def benchmark_test_excel(
                                 else:
                                     sheet.write(row, col, "Partially Cooled")
                                 col+=1
-                                sheet.write(row, col, T); col+=1
-                                sheet.write(row, col, wall_time); col+=1
+                                sheet.write(row, col, T)
+                                col+=1
+                                sheet.write(row, col, wall_time)
+                                col+=1
                                 row+=1
                                 output.save(file_name)
+                                print(f"Saved to {file_name}")
                             except:
                                 continue
 
-if __name__ == "__main__":
+
+def do_case_test_excel():
+    """
+    a function benchmarks on wall time for given set of parameters.
+    change parameters below as needed.
+    """
     N=128
     dx=0.2
     b = BCSCooling(N=N, dx=dx)
@@ -497,8 +511,12 @@ if __name__ == "__main__":
     beta_Ds = [0]
     beta_Ys = [0]
     for init_state_key in get_init_states():
-        for V_key in ["V0"]:
+        for V_key in ["HO"]:
             benchmark_test_excel(
                 N=N, dx=dx, g=g, trails=1, Ts=Ts, use_abm=use_abm,
-                    beta_Vs=beta_Vs, beta_Ks=beta_Ks, beta_Ds=beta_Ds,
-                        beta_Ys=beta_Ys,init_state_key=init_state_key, V_key=V_key)
+                beta_Vs=beta_Vs, beta_Ks=beta_Ks, beta_Ds=beta_Ds,
+                beta_Ys=beta_Ys, init_state_key=init_state_key, V_key=V_key)
+
+
+if __name__ == "__main__":
+    do_case_test_excel()
