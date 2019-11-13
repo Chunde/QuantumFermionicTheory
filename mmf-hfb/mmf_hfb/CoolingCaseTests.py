@@ -5,6 +5,8 @@ from os.path import join
 import matplotlib.pyplot as plt
 import numpy as np
 import json
+import xlwt
+import xlrd
 import time
 import os
 import datetime
@@ -115,9 +117,11 @@ class TestCase(object):
             start_time = time.time()
             ts, psiss = b.solve([self.psi_init], T=T, **args)
             wall_time = time.time() - start_time
+            E, _ = b.get_E_Ns([psiss[0][0]], V=self.V)
+            self.E_init = E
             E, _ = b.get_E_Ns([psiss[0][-1]], V=self.V)
             self.wall_time.append(wall_time)
-            self.physical_time.append(T)
+            self.physical_time.append(T)           
             self.Es.append(E)
             self.psis.append(psiss[0][-1])
             print(f"physical time:{T}, wall time:{wall_time},dE:{(E-E0)/abs(E0)} ")
@@ -130,7 +134,7 @@ class TestCase(object):
                 plt.legend()
                 plt.subplot(132)
                 plt.plot(x, Prob(psiss[0][0]), "+", label='init')
-                plt.plot(x, Prob(psiss[0][-1]), '--',label="final")
+                plt.plot(x, Prob(psiss[0][-1]), '--', label="final")
                 plt.plot(x, Prob(self.psi_ground), label='Ground')
                 plt.title(
                     f"E0={self.E0:5.4},E={E:5.4}, $" + r"\beta_0$" +f"={b.beta_0}, "
@@ -154,7 +158,7 @@ class TestCase(object):
                 plt.show()
             if abs((E - E0)/E0) > self.eps:
                 break
-    
+                
     def plot(self, id=0):
         E=self.Es[id]
         psi = self.psis[id]
@@ -193,7 +197,7 @@ def get_potentials(x):
     V0 = 0*x
     V_HO = x**2/2
     V_PO = V0 + np.random.random()*V_HO + abs(x**2)*np.random.random()
-    return dict(HO=V_HO, PO=V_PO)
+    return dict(V0=V0, HO=V_HO, PO=V_PO)
 
 
 def SaveTestCase(ts, Vs, psi_init):
@@ -329,6 +333,7 @@ def test_case_worker(para):
         print(f"{pid} Wall time:{time.time() - start_time}")
         return None
 
+
 def get_init_states(N=128, dx=0.1):
     b = BCSCooling(N=N, dx=dx)
     x = b.xyz[0]
@@ -337,31 +342,15 @@ def get_init_states(N=128, dx=0.1):
     H1 = b._get_H(mu_eff=0, V=V)
     U0, E0 = b.get_U_E(H0, transpose=True)
     U1, E1 = b.get_U_E(H1, transpose=True)
-    psi_random = Normalize(np.random.random(N), dx=dx)
     psi_standing_wave=Normalize(U0[1],dx=dx)
     psi_gaussian_mixing = random_gaussian_mixing(x, dx=dx)
     psi_uniform = Normalize(U0[0], dx=dx)
-    return dict(RN=psi_random, ST=psi_standing_wave, GM=psi_gaussian_mixing, UN=psi_uniform)
+    psi_bright_soliton = Normalize(np.exp(-x**2/2.0)*np.exp(1j*x), dx=dx)
+    return dict(
+        ST=psi_standing_wave, GM=psi_gaussian_mixing,
+        UN=psi_uniform, BS=psi_bright_soliton)
 
-
-def test_scatch():
-    import matplotlib.pyplot as plt
-    psis_init = get_init_states()
-
-    b = BCSCooling(N=128, dx=0.1)
-    x = b.xyz[0]
-    psi_init= psis_init['UN']
-    Vs = get_potentials(x)
-    V=Vs['HO']
-    args = dict(N=128, dx=0.1, eps=1e-1, V=0*V, V_key='0', g=1, psi=psi_init, use_abm=False, check_dE=False)
-    t=TestCase(ground_state_eps=1e-4, **args)
-    plt.figure(figsize=(18,5))
-    t.b.beta_V= 0
-    t.b.beta_K = 300
-    t.run(T=5, plot=True, plot_log=False)
-
-if __name__ == "__main__":
-    test_scatch()
+def test_case_json():
     if True:  # set to false if want to debug overflow by loading dumped file
         N, dx = 128, 0.1
         args = dict(
@@ -374,7 +363,7 @@ if __name__ == "__main__":
         Vs = get_potentials(x)
         cooling_para_list = get_cooling_potential_setting()
         paras = []
-        use_abm=True
+        use_abm = True
         dE_dt = 1
         for g in [0, 1]:
             for key in Vs:
@@ -394,3 +383,122 @@ if __name__ == "__main__":
         else:
             psi_init = []
         testCases = PoolHelper.run(test_case_worker, paras=paras, poolsize=1)
+
+
+def benchmark_test_excel(
+        N=128, dx=0.1, g=0, Ts=[5], trails=1, use_abm=False,
+        beta_0=1, beta_Ks=[0], beta_Vs=[10], beta_Ds=[0], beta_Ys=[0],
+        ground_state="Gaussian", init_state_key="ST", V_key="HO",
+        time_out=120):
+    
+    # create an excel table to store the result
+    file_name = (
+        f"TestCase_N{N}_dx{dx}_g{g}_T{5}_Trails{trails}"+
+        f"_ISK={init_state_key}_VK={V_key}_"+
+        time.strftime("%Y_%m_%d_%H_%M_%S.xls"))
+    output = xlwt.Workbook(encoding='utf-8')
+    sheet = output.add_sheet("overall", cell_overwrite_ok=True)
+    col = 0
+    sheet.write(0, col, "Trail#");col+=1
+    sheet.write(0, col, "Time");col+=1
+    sheet.write(0, col, "N");col+=1
+    sheet.write(0, col, "dx");col+=1
+    sheet.write(0, col, "beta_0");col+=1
+    sheet.write(0, col, "beta_V");col+=1
+    sheet.write(0, col, "beta_K");col+=1
+    sheet.write(0, col, "beta_D");col+=1
+    sheet.write(0, col, "beta_Y");col+=1
+    sheet.write(0, col, "g");col+=1
+    sheet.write(0, col, "V");col+=1
+    sheet.write(0, col, "Ground State");col+=1
+    sheet.write(0, col, "init State");col+=1
+    sheet.write(0, col, "E0(Ground)");col+=1
+    sheet.write(0, col, "Ei(Init)");col+=1
+    sheet.write(0, col, "Ef(Final)");col+=1
+    sheet.write(0, col, "Evolver");col+=1
+    sheet.write(0, col, "Cooling Effect");col+=1
+    sheet.write(0, col, "Physical Time");col+=1
+    sheet.write(0, col, "Wall Time");col+=1
+
+    psis_init = get_init_states()
+    psi_init = psis_init[init_state_key]
+    b = BCSCooling(N=N, dx=dx)
+    x = b.xyz[0]
+    Vs = get_potentials(x)
+    args = dict(
+        N=N, dx=dx, eps=1e-1, T_ground_state=20, V=Vs[V_key], V_key=V_key,
+        g=g, psi_init=psi_init, use_abm=use_abm, check_dE=False, time_out=time_out)
+    t=TestCase(ground_state_eps=1e-1, beta_0=beta_0, **args)
+    row = 1
+    for trail in range(trails):
+        for beta_Y in beta_Ys:
+            t.b.beta_Y = beta_Y
+            for beta_D in beta_Ds:
+                t.b.beta_D = beta_D
+                for beta_K in beta_Ks:
+                    t.b.beta_K = beta_K
+                    for beta_V in beta_Vs:
+                        t.b.beta_V = beta_V
+                        print(f"Trai#={trail}: beta_V={beta_V}, beta_K={beta_K}, beta_D={beta_D}, beta_Y={beta_Y}")
+                        for T in Ts:
+                            try:
+                                if beta_V == 0 and beta_K== 0 and beta_Y==0:
+                                    continue
+                                t.run(T=T, plot=False)
+                                wall_time = t.wall_time[-1]
+                                E0 = t.E0
+                                Ei, Ef = t.E_init, t.Es[-1]
+                                dEi, dEf = (Ei - E0)/E0, (Ef - E0)/E0
+                                col = 0
+                                sheet.write(row, col, trail); col+=1
+                                sheet.write(row, col, time.strftime("%Y/%m/%d %H:%M:%S")); col+=1
+                                sheet.write(row, col, N); col+=1
+                                sheet.write(row, col, dx); col+=1
+                                sheet.write(row, col, beta_0); col+=1
+                                sheet.write(row, col, beta_V); col+=1
+                                sheet.write(row, col, beta_K); col+=1
+                                sheet.write(row, col, beta_D); col+=1
+                                sheet.write(row, col, beta_Y); col+=1
+                                sheet.write(row, col, g); col+=1
+                                sheet.write(row, col, V_key); col+=1
+                                sheet.write(row, col, ground_state); col+=1
+                                sheet.write(row, col, init_state_key); col+=1
+                                sheet.write(row, col, E0); col+=1
+                                sheet.write(row, col, Ei); col+=1
+                                sheet.write(row, col, Ef); col+=1
+                                Evoler = "ABM" if t.use_abm else "IVP"
+                                sheet.write(row, col, Evoler);col+=1
+                                if abs(dEf) < 1:
+                                    sheet.write(row, col, "Cooled")
+                                elif abs((Ef - Ei)/Ei)<0.01:
+                                    sheet.write(row, col, "Failed")
+                                else:
+                                    sheet.write(row, col, "Partially Cooled")
+                                col+=1
+                                sheet.write(row, col, T); col+=1
+                                sheet.write(row, col, wall_time); col+=1
+                                row+=1
+                                output.save(file_name)
+                            except:
+                                continue
+
+if __name__ == "__main__":
+    N=128
+    dx=0.2
+    b = BCSCooling(N=N, dx=dx)
+    x = b.xyz[0]
+    Vs = get_potentials(x)
+    g = -1
+    beta_0=1
+    use_abm=False
+    beta_Vs = np.linspace(0, 100, 11)
+    beta_Ks = np.linspace(0, 100, 11)
+    Ts = np.linspace(1, 5, 5)
+    beta_Ds = [0]
+    beta_Ys = [0]
+    for init_state_key in get_init_states():
+        for V_key in ["V0"]:
+            benchmark_test_excel(
+                N=N, dx=dx, g=g, trails=1, Ts=Ts, use_abm=use_abm,
+                    beta_Vs=beta_Vs, beta_Ks=beta_Ks, beta_Ds=beta_Ds,
+                        beta_Ys=beta_Ys,init_state_key=init_state_key, V_key=V_key)

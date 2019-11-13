@@ -1,5 +1,6 @@
 from scipy.integrate import solve_ivp
 from mmf_hfb.bcs import BCS
+import time
 import numpy as np
 import numpy.linalg
 import matplotlib.pyplot as plt
@@ -29,7 +30,8 @@ class BCSCooling(BCS):
     def __init__(
             self, N=256, L=None, dx=0.1, delta=0, mus=(0, 0),
             beta_0=1.0, beta_V=0, beta_K=0, beta_D=0, beta_Y=0,
-            g=0, dE_dt=1, divs=(0, 0), check_dE=True, **args):
+            g=0, dE_dt=1, divs=(0, 0),
+            check_dE=True, time_out=None, **args):
         """
         Arguments
         ---------
@@ -58,6 +60,8 @@ class BCSCooling(BCS):
         self.beta_D = beta_D
         self.beta_Y = beta_Y
         self.g = g
+        self.time_out = time_out
+        self.start_time = 0
         self.divs = divs
         self.check_dE = check_dE
         self.dE_dt = dE_dt
@@ -385,8 +389,18 @@ class BCSCooling(BCS):
         psis = self.apply_expK(psis=psis, V=V, factor=-0.5)
         return psis
 
+    def check_time_out(self):
+        """a function used to enforce timing"""
+        if self.time_out is None:
+            return
+        wall_time = time.time() - self.start_time
+        if wall_time > self.time_out:
+            print(f"Solver time out[{wall_time}>{self.time_out}], stop...")
+            raise ValueError("Time Out")
+
     def compute_dy_dt(self, t, psi, subtract_mu=True, **args):
         """Return dy/dt for ODE integration."""
+        self.check_time_out()
         if self.check_dE:
             dE_dt = self.get_dE_dt(psis=[psi], V=self.V)
             if abs(dE_dt) > 1e-16:
@@ -406,6 +420,7 @@ class BCSCooling(BCS):
     def solve(self, psis, T, V, dy_dt=None, solver=None, **kw):
         self.V = V  # external potential
         self.psis = psis  # all single particle states
+        self.start_time = time.time()
         ts, ys = [], []
         if dy_dt is None:
             dy_dt = self.compute_dy_dt
@@ -446,36 +461,3 @@ class BCSCooling(BCS):
             for psi in psis:
                 E = E + psi.conj().dot(H.dot(psi))
         return E, N
-
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    args = dict(N=4, g=1)
-    egs = [BCSCooling(beta_0=1.0, beta_V=1.0, beta_K=1.0, **args)]
-    
-    eg = egs[0]
-    psi0 = 2*(np.random.random(eg.N) + 1j*np.random.random(eg.N) - 0.5 - 0.5j)
-    psi0 = np.array([-0.11929213+0.96523369j, -0.03408293+0.12828157j, 0.5853759 +0.80384941j, -0.22561126+0.86861302j])
-    psi_ground = 0*psi0 + np.sqrt((abs(psi0)**2).mean())
-    E0, N0 = eg.get_E_Ns([psi_ground], V=0)
-    Es = [[] for _n in range(len(egs))]
-    psis = [psi0.copy() for _n in range(len(egs))]
-    t_max = 3.0
-    Nstep = 4
-    Ndata = int(np.round(t_max/eg.dt/Nstep))
-    ts = np.arange(Ndata)*Nstep*eg.dt
-    
-    for n, eg in enumerate(egs):
-        psis = [psis[0]]
-        for _n in range(Ndata):
-            psis = eg.step(psis, V=0, n=Nstep)
-            E, N = eg.get_E_Ns(psis, V=0) 
-            Es[n].append(E/E0 - 1.0)
-    Es = np.asarray(Es)
-    print(Es)
-    _n = 0
-   
-    plt.semilogy(ts, Es[0], c='k', ls='-')
-    plt.xlabel("t")
-    plt.ylabel("E-E0")
-    plt.legend()
-    plt.show()
