@@ -29,7 +29,7 @@ class BCSCooling(BCS):
 
     def __init__(
             self, N=256, L=None, dx=0.1, delta=0, mus=(0, 0),
-            beta_0=1.0, beta_V=0, beta_K=0, beta_D=0, beta_Y=0,
+            beta_H=1, beta_0=1.0, beta_V=0, beta_K=0, beta_D=0, beta_Y=0,
             g=0, dE_dt=1, divs=(0, 0),
             check_dE=True, time_out=None, **args):
         """
@@ -54,6 +54,7 @@ class BCSCooling(BCS):
         self.dx=dx
         self.delta = delta
         self.mus = mus
+        self.beta_H = beta_H
         self.beta_0 = beta_0
         self.beta_V = beta_V
         self.beta_K = beta_K
@@ -70,10 +71,17 @@ class BCSCooling(BCS):
         self.E_max = self._K2.max()
     
     def _get_uv(self, psi):
+        """slice a uv into u, and v components"""
         uv = psi.reshape(2, len(psi)//2)
         return uv
+    
+    def get_Vint(self):
+        ns = self.get_ns(psis)
+        if self.delta !=0:  # n_a + n_b
+            ns = ns[:len(ns)//2] + ns[len(ns)//2:]
+        return self.g*ns
 
-    def get_V_eff(self, psis, V):
+    def get_V(self, psis, V):
         """
             return effective potential for
             given external potential V and
@@ -81,10 +89,8 @@ class BCSCooling(BCS):
         """
         if self.g==0:
             return V
-        ns = self.get_ns(psis)
-        if self.delta !=0:  # n_a + n_b
-            ns = ns[:len(ns)//2] + ns[len(ns)//2:]
-        return self.g*ns + V
+        Vint = self.get_Vint()
+        return Vint + V
     
     def _apply_H(self, psi, V):
         if self.delta == 0:
@@ -96,7 +102,7 @@ class BCSCooling(BCS):
 
     def apply_H(self, psis, V):
         """compute dy/dt=H psi"""
-        V_eff = self.get_V_eff(psis, V=V)
+        V_eff = self.get_V(psis, V=V)
         Hpsis = []
         for psi in psis:
             Hpsi = self._apply_H(psi, V=V_eff)
@@ -119,7 +125,7 @@ class BCSCooling(BCS):
     def apply_K(self, psis, V):
         """compute dy/dt with kinetic part only"""
         Hpsis = []
-        V_eff = self.get_V_eff(psis, V=V)
+        V_eff = self.get_V(psis, V=V)
         for psi in psis:
             Kpsi = self._apply_K(psi=psi, V=V_eff)
             Hpsis.append(Kpsi)
@@ -132,7 +138,7 @@ class BCSCooling(BCS):
 
     def apply_V(self, psis, V):
         """compute dy/dt with effective potential only"""
-        V_eff = self.get_V_eff(psis, V=V)
+        V_eff = self.get_V(psis, V=V)
         Hpsis = []
         for psi in psis:
             Vpsi = self._apply_V(psi, V=V_eff)
@@ -196,7 +202,7 @@ class BCSCooling(BCS):
             not clear yet.
         """
         
-        N = sum(self.get_ns(psis)) # total density
+        N = sum(self.get_ns(psis))  # total density
         Vc = 0
         if divs is None:
             # can also apply_H, but result is unchanged.
@@ -308,15 +314,17 @@ class BCSCooling(BCS):
     def _apply_expK(self, psi, V, Kc, factor=1):
         if self.delta == 0:
             psi_k = self.fft(psi)
-            psi_new = self.ifft(np.exp(-1j*self.dt*factor*(self.beta_0*self._K2 + Kc))*psi_k)
-            psi_new *= np.sqrt((abs(psi)**2).sum()
-                           / (abs(psi_new)**2).sum())
+            psi_new = self.ifft(
+                np.exp(-1j*self.dt*factor*self.beta_H(
+                    self.beta_0*self._K2 + Kc))*psi_k)
+            psi_new *= np.sqrt(
+                (abs(psi)**2).sum()/(abs(psi_new)**2).sum())
             return psi_new
         kuv = [self.fft(psi) for psi in self._get_uv(psi)]
         kc_uv = self._get_uv(Kc)
         signs = [1, -1]  # used to change the sign of k2
         expK = [self.ifft(
-            np.exp(-1j*self.dt*factor*(
+            np.exp(-1j*self.dt*factor*self.beta_H(
                 self.beta_0*self._K2*sign + Kc))*psi_k) for (
                     sign, psi_k, Kc) in zip(signs, kuv, kc_uv)]
         return np.array(expK).ravel()
@@ -329,21 +337,22 @@ class BCSCooling(BCS):
 
     def _apply_expV(self, psi, V, Vc, factor):
         if self.delta == 0:
-            psi_new = np.exp(-1j*self.dt*factor*(self.beta_0*V +self.beta_V*Vc))*psi
+            psi_new = np.exp(
+                -1j*self.dt*factor*self.beta_H*(self.beta_0*V +self.beta_V*Vc))*psi
             psi_new *= np.sqrt((abs(psi)**2).sum()/(abs(psi_new)**2).sum())
             return psi_new
         Vc_uv = self._get_uv(Vc)
         uv = self._get_uv(psi)
         Vs = (V - self.mus[0], -V + self.mus[1])
         expV = [np.exp(
-            -1j*self.dt*factor*(
+            -1j*self.dt*factor*self.beta_H(
                 self.beta_0*V_ +self.beta_V*Vc))*psi for (
                     V_, psi, Vc) in zip(Vs, uv, Vc_uv)]
         return np.array(expV).ravel()
 
     def apply_expV(self, psis, V, factor=1):
         Vc = self.get_Vc(psis=psis, V=V)
-        V_eff = self.get_V_eff(psis, V=V)
+        V_eff = self.get_V(psis, V=V)
         for i, psi in enumerate(psis):
             psis[i] = self._apply_expV(psi=psi, V=V_eff, Vc=Vc, factor=factor)
         return psis
@@ -365,7 +374,7 @@ class BCSCooling(BCS):
             Hc_psi = (
                 self.beta_0*H_psis[i] + self.beta_V*Vc_psi
                 +self.beta_K*Kc_psi + Vd_psis[i] + V_Dyadic_psis[i])
-            Hc_psis.append(Hc_psi)
+            Hc_psis.append(self.beta_H*Hc_psi)
         return Hc_psis
 
     def get_dE_dt(self, psis, V):
@@ -438,11 +447,6 @@ class BCSCooling(BCS):
 
     def get_ns(self, psis, shrink=False):
         """compute densities"""
-        # if self.delta == 0:
-        #     return sum(abs(psis)**2)
-        # psis_ = psis.reshape(psis.shape[:1] + (2, psis.shape[1]//2))
-        # Us, Vs = psis_[:, 0, ...], psis_[:, 1, ...]
-        # return (sum(abs(Us)**2), sum(abs(Vs)**2))
         return sum(np.abs(psis)**2)
 
     def get_E_Ns(self, psis, V):
@@ -454,7 +458,7 @@ class BCSCooling(BCS):
             for psi in psis:
                 K = psi.conj().dot(self.ifft(self._K2*self.fft(psi)))
                 E = E + K.real*self.dV
-            V_eff = (self.get_V_eff(psis, V=0)/2 + V)*ns
+            V_eff = (self.get_V(psis, V=0)/2 + V)*ns
             E = E + V_eff.sum()*self.dV
         else:
             H = self.get_H(mus_eff=self.mus, delta=self.delta, Vs=(V, V))
