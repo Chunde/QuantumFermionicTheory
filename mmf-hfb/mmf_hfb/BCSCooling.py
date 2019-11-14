@@ -1,11 +1,12 @@
 from scipy.integrate import solve_ivp
+import matplotlib.pyplot as plt
 from mmf_hfb.bcs import BCS
 import time
 import numpy as np
 import numpy.linalg
-import matplotlib.pyplot as plt
-#import warnings
-#warnings.filterwarnings("error")
+#  import warnings
+#  warnings.filterwarnings("error")
+
 
 def assert_orth(psis):
     y1, y2 = psis
@@ -18,20 +19,15 @@ def Normalize(psi):
     return psi/psi.dot(psi.conj())**0.5
 
 
-class HamiltonianC(object):
-    pass
-
-
 class BCSCooling(BCS):
     """
     1d Local Quantum Friction class
     """
 
     def __init__(
-            self, N=256, L=None, dx=0.1, delta=0, mus=(0, 0),
+            self, N=256, L=None, dx=0.1, delta=0, mus=(0, 0), dim=1, V=0,
             beta_H=1, beta_0=1.0, beta_V=0, beta_K=0, beta_D=0, beta_Y=0,
-            g=0, dE_dt=1, divs=(0, 0),
-            check_dE=True, time_out=None, **args):
+            g=0, dE_dt=1, divs=(0, 0), check_dE=True, time_out=None, **args):
         """
         Arguments
         ---------
@@ -48,7 +44,7 @@ class BCSCooling(BCS):
         """
         if L is None:
             L = N*dx
-        BCS.__init__(self, Nxyz=(N,), Lxyz=(L,))
+        BCS.__init__(self, Nxyz=(N,)*dim, Lxyz=(L,)*dim)
         self.L=L
         self.N=N
         self.dx=dx
@@ -61,12 +57,13 @@ class BCSCooling(BCS):
         self.beta_D = beta_D
         self.beta_Y = beta_Y
         self.g = g
+        self.V = V
         self.time_out = time_out
         self.start_time = 0
         self.divs = divs
         self.check_dE = check_dE
         self.dE_dt = dE_dt
-        self._K2 = (self.hbar*np.array(self.kxyz[0]))**2/2/self.m
+        self._K2 = self.hbar**2/2/self.m*sum(_k**2 for _k in self.kxyz)
         self.dt =dE_dt*self.hbar/self._K2.max()
         self.E_max = self._K2.max()
     
@@ -75,23 +72,29 @@ class BCSCooling(BCS):
         uv = psi.reshape(2, len(psi)//2)
         return uv
     
-    def get_Vint(self):
+    def get_Vext(self):
+        return self.V
+
+    def get_Vint(self, psis):
         ns = self.get_ns(psis)
         if self.delta !=0:  # n_a + n_b
             ns = ns[:len(ns)//2] + ns[len(ns)//2:]
         return self.g*ns
 
-    def get_V(self, psis, V):
+    def get_V(self, psis):
         """
             return effective potential for
             given external potential V and
             states
         """
-        if self.g==0:
-            return V
-        Vint = self.get_Vint()
-        return Vint + V
+        Vext = self.get_Vext()
+        Vint = self.get_Vint(psis)
+        return Vint + Vext
     
+    def dotc(self, a, b):
+        """Return dot(a.conj(), b) allowing for dim > 1."""
+        return np.dot(a.conj().ravel(), b.ravel())
+
     def _apply_H(self, psi, V):
         if self.delta == 0:
             psi_k = self.fft(psi)
@@ -100,16 +103,16 @@ class BCSCooling(BCS):
         H = self.get_H(mus_eff=self.mus, delta=self.delta, Vs=(V, V))
         return H.dot(psi)  # apply H on psi
 
-    def apply_H(self, psis, V):
+    def apply_H(self, psis):
         """compute dy/dt=H psi"""
-        V_eff = self.get_V(psis, V=V)
+        V_eff = self.get_V(psis)
         Hpsis = []
         for psi in psis:
             Hpsi = self._apply_H(psi, V=V_eff)
             Hpsis.append(Hpsi)
         return Hpsis
 
-    def _apply_K(self, psi, V):
+    def _apply_K(self, psi):
         if self.delta == 0:
             psi_k = self.fft(psi)
             Kpsi = self.ifft(self._K2*psi_k)
@@ -122,12 +125,11 @@ class BCSCooling(BCS):
             Kpsi.extend(self.ifft(self._K2*psi_k))
         return Kpsi
 
-    def apply_K(self, psis, V):
+    def apply_K(self, psis):
         """compute dy/dt with kinetic part only"""
         Hpsis = []
-        V_eff = self.get_V(psis, V=V)
         for psi in psis:
-            Kpsi = self._apply_K(psi=psi, V=V_eff)
+            Kpsi = self._apply_K(psi=psi)
             Hpsis.append(Kpsi)
         return Hpsis
 
@@ -136,9 +138,9 @@ class BCSCooling(BCS):
             return V*psi
         return np.array([V - self.mus[0], -V + self.mus[1]]).ravel()*psi
 
-    def apply_V(self, psis, V):
+    def apply_V(self, psis):
         """compute dy/dt with effective potential only"""
-        V_eff = self.get_V(psis, V=V)
+        V_eff = self.get_V(psis)
         Hpsis = []
         for psi in psis:
             Vpsi = self._apply_V(psi, V=V_eff)
@@ -188,7 +190,7 @@ class BCSCooling(BCS):
     def get_psis_k(self, psis):
         return [self.fft(psi) for psi in psis]
 
-    def _get_Vs(self, psis, V, divs=None):
+    def _get_Vc(self, psis, divs=None):
         """
         return Vc or Vd
         -------------------
@@ -205,17 +207,19 @@ class BCSCooling(BCS):
         N = sum(self.get_ns(psis))  # total density
         Vc = 0
         if divs is None:
-            # can also apply_H, but result is unchanged.
+            # can also apply_H, result is unchanged.
             # but with pairing, apply_H should be used
-            Hpsis = self.apply_H(psis, V=V)
+            Hpsis = self.apply_H(psis)
             for i, psi in enumerate(psis):
                 Vc = Vc + 2*(psi.conj()*Hpsis[i]).imag
         else:  # Departure from locality
             da, db = self.divs
+            assert da == 1
+            assert db == 1  # now only da=db=1 is tested
             # compute d^n \psi / d^n x
             psis_a = [self.Del(psi, n=da) for psi in psis]
             # d[d^n \psi / d^n x] / dt
-            Hpsis = np.array(self.apply_H(psis, V=V))/(1j*self.hbar)
+            Hpsis = np.array(self.apply_H(psis))/(1j*self.hbar)
             Hpsis_a = [self.Del(psi, n=da) for psi in Hpsis]
 
             if da == db:
@@ -230,31 +234,31 @@ class BCSCooling(BCS):
                         +Hpsis_a[i]*psis_b[i].conj()))
         return Vc/N
 
-    def get_Vc(self, psis, V):
+    def get_Vc(self, psis):
         """return Vc potential"""
         Vc = 0*np.array(psis[0])
         if self.beta_V != 0:
-            Vc = Vc + self._get_Vs(psis, V)
+            Vc = Vc + self._get_Vc(psis=psis)
         return Vc
         
-    def get_Vd(self, psis, V):
+    def get_Vd(self, psis):
         """return the derivative cooling potential"""
         Vd = 0*np.array(psis[0])
         if self.beta_D !=0 and self.divs is not None:
-            Vd = Vd + self._get_Vs(psis, V, self.divs)
+            Vd = Vd + self._get_Vc(psis=psis, divs=self.divs)
         return Vd*self.dV
 
-    def get_Dyadic(self, psis, V, psis_k=None):
+    def get_Dyadic(self, psis, psis_k=None):
         """mixed Vc and Kc"""
         if psis_k is None:
             psis_k = self.get_psis_k(psis)
         V_dy = 0
-        Hpsis = self.apply_H(psis, V=V)
+        Hpsis = self.apply_H(psis=psis)
         for i, psi_k in enumerate(psis_k):
             V_dy = V_dy + 2*(Hpsis[i]*psi_k.conj()).imag
         return V_dy*self.dV
 
-    def _get_Kc(self, Hpsi, psi, V, N):
+    def _get_Kc(self, Hpsi, psi, N):
         """
         Kc is the diagonal of the H in k space, so
         even in the case with pairing, it is good to
@@ -269,21 +273,21 @@ class BCSCooling(BCS):
         except RuntimeWarning:
             raise Exception("Value Error")
 
-    def get_Kc(self, psis, V):
+    def get_Kc(self, psis):
         N = self.get_N(psis)
         Kc = 0*np.array(psis[0])
         if self.beta_K == 0:
             return Kc
-        Hpsis = self.apply_H(psis, V=V)  # use apply_H instead of apply_V for pairing
+        Hpsis = self.apply_H(psis)  # use apply_H instead of apply_V for pairing
         for i, psi in enumerate(psis):
-            Kc = Kc + self._get_Kc(Hpsi=Hpsis[i], psi=psi, V=V, N=N)
+            Kc = Kc + self._get_Kc(Hpsi=Hpsis[i], psi=psi, N=N)
         return Kc
 
-    def get_Hc(self, psis, V):
+    def get_Hc(self, psis):
         """Return the full cooling Hamiltonian in position space."""
         size = np.prod(self.Nxyz)
         Hc = 0
-        Hpsis = self.apply_H(psis, V=V)
+        Hpsis = self.apply_H(psis)
         for _, (psi, Hpsi) in enumerate(zip(psis, Hpsis)):
             Hc_ = (1j*psi.reshape(size)[:, None]*Hpsi.conj().reshape(size)[None, :])
             Hc_ += Hc_.conj().T
@@ -291,27 +295,27 @@ class BCSCooling(BCS):
         N = self.get_N(psis)
         return Hc/N
 
-    def apply_Dyadic(self, psis, V):
+    def apply_Dyadic(self, psis):
         if self.beta_Y == 0:
             return (0,)*len(psis)
         psis_k = self.get_psis_k(psis)
-        Vdy = self.beta_Y*self.get_Dyadic(psis=psis, psis_k=psis_k, V=V)
+        Vdy = self.beta_Y*self.get_Dyadic(psis=psis, psis_k=psis_k)
         Vdy_psis = [self.ifft(Vdy*psi_k) for psi_k in psis_k]
         return Vdy_psis
 
-    def apply_Vd(self, psis, V):
+    def apply_Vd(self, psis):
         """
             apply Vd such as (V11) to the wave-functions
             NOTE: This may not be unitary
         """
         if self.beta_D == 0:
             return (0,)*len(psis)
-        Vmn = self.beta_D*self.get_Vd(psis=psis, V=V)
+        Vmn = self.beta_D*self.get_Vd(psis=psis)
         da, db = self.divs
         V11_psis = [-self.Del(Vmn*self.Del(psi=psi, n=da), n=db) for psi in psis]
         return np.array(V11_psis)*self.dV**(2*sum(self.divs))
 
-    def _apply_expK(self, psi, V, Kc, factor=1):
+    def _apply_expK(self, psi, Kc, factor=1):
         if self.delta == 0:
             psi_k = self.fft(psi)
             psi_new = self.ifft(
@@ -329,10 +333,10 @@ class BCSCooling(BCS):
                     sign, psi_k, Kc) in zip(signs, kuv, kc_uv)]
         return np.array(expK).ravel()
 
-    def apply_expK(self, psis, V, factor=1):
-        Kc = self.beta_K*self.get_Kc(psis=psis, V=V)
+    def apply_expK(self, psis, factor=1):
+        Kc = self.beta_K*self.get_Kc(psis=psis)
         for i, psi in enumerate(psis):
-            psis[i] = self._apply_expK(psi, V=V, Kc=Kc, factor=factor)
+            psis[i] = self._apply_expK(psi, Kc=Kc, factor=factor)
         return psis
 
     def _apply_expV(self, psi, V, Vc, factor):
@@ -350,24 +354,24 @@ class BCSCooling(BCS):
                     V_, psi, Vc) in zip(Vs, uv, Vc_uv)]
         return np.array(expV).ravel()
 
-    def apply_expV(self, psis, V, factor=1):
-        Vc = self.get_Vc(psis=psis, V=V)
-        V_eff = self.get_V(psis, V=V)
+    def apply_expV(self, psis, factor=1):
+        Vc = self.get_Vc(psis=psis)
+        V_eff = self.get_V(psis)
         for i, psi in enumerate(psis):
             psis[i] = self._apply_expV(psi=psi, V=V_eff, Vc=Vc, factor=factor)
         return psis
     
-    def apply_Hc(self, psis, V):
+    def apply_Hc(self, psis):
         """
         Apply the cooling Hamiltonian.
         or, compute dy/dt w.r.t to Hc
         """
         Hc_psis = []
-        H_psis = self.apply_H(psis=psis, V=V) if self.beta_0 != 0 else 0
-        Vc = self.get_Vc(psis=psis, V=V) if self.beta_V !=0 else 0
-        Kc = self.get_Kc(psis, V=V) if self.beta_K !=0 else 0
-        Vd_psis = self.apply_Vd(psis=psis, V=V)
-        V_Dyadic_psis = self.apply_Dyadic(psis, V=V)
+        H_psis = self.apply_H(psis=psis) if self.beta_0 != 0 else 0
+        Vc = self.get_Vc(psis=psis) if self.beta_V !=0 else 0
+        Kc = self.get_Kc(psis=psis) if self.beta_K !=0 else 0
+        Vd_psis = self.apply_Vd(psis=psis)
+        V_Dyadic_psis = self.apply_Dyadic(psis)
         for i, psi in enumerate(psis):
             Vc_psi = Vc*psi
             Kc_psi = self.ifft(Kc*self.fft(psi))
@@ -377,25 +381,25 @@ class BCSCooling(BCS):
             Hc_psis.append(self.beta_H*Hc_psi)
         return Hc_psis
 
-    def get_dE_dt(self, psis, V):
+    def get_dE_dt(self, psis):
         """compute dE/dt"""
-        H_psis = self.apply_H(psis, V=V)
-        Hc_psis = self.apply_Hc(psis=psis, V=V)
+        H_psis = self.apply_H(psis)
+        Hc_psis = self.apply_Hc(psis=psis)
         dE_dt = sum(
-            [H_psi.conj().dot(Hc_psi)- Hc_psi.conj().dot(H_psi)
+            [self.dotc(H_psi, Hc_psi)- self.dotc(Hc_psi, H_psi)
                 for (H_psi, Hc_psi) in zip(H_psis, Hc_psis)])/(1j)
         return dE_dt
 
-    def step(self, psis, V, n=1):
+    def step(self, psis, n=1):
         """
         Evolve the state psi by applying n steps of the
         Split-Operator method.
         """
-        psis = self.apply_expK(psis=psis, V=V, factor=0.5)
+        psis = self.apply_expK(psis=psis, factor=0.5)
         for _ in range(n):
-            psis = self.apply_expV(psis=psis, V=V)
-            psis = self.apply_expK(psis=psis, V=V)
-        psis = self.apply_expK(psis=psis, V=V, factor=-0.5)
+            psis = self.apply_expV(psis=psis)
+            psis = self.apply_expK(psis=psis)
+        psis = self.apply_expK(psis=psis, factor=-0.5)
         return psis
 
     def check_time_out(self):
@@ -407,17 +411,24 @@ class BCSCooling(BCS):
             print(f"Solver time out[{wall_time}>{self.time_out}], stop...")
             raise ValueError("Time Out")
 
+    def pack(self, psi):
+        return np.ascontiguousarray(psi).view(dtype=float).ravel()
+
+    def unpack(self, y):
+        return np.ascontiguousarray(y).view(dtype=complex).reshape(self.Nxyz)
+
     def compute_dy_dt(self, t, psi, subtract_mu=True, **args):
         """Return dy/dt for ODE integration."""
         self.check_time_out()
+        psi = self.unpack(y=psi)
         if self.check_dE:
-            dE_dt = self.get_dE_dt(psis=[psi], V=self.V)
+            dE_dt = self.get_dE_dt(psis=[psi])
             if abs(dE_dt) > 1e-16:
                 assert dE_dt<= 0
-        Hpsi = self.apply_Hc([psi], V=self.V)[0]
+        Hpsi = self.apply_Hc([psi])[0]
         if subtract_mu:
-            Hpsi -= psi.conj().dot(Hpsi)/psi.dot(psi.conj())*psi
-        return Hpsi/(1j*self.hbar)
+            Hpsi -= self.dotc(psi, Hpsi)/self.dotc(psi, psi)*psi
+        return self.pack(Hpsi/(1j*self.hbar))
     
     def get_U_E(self, H, transpose=False):
         """return Us and Vs and energy"""
@@ -426,8 +437,7 @@ class BCSCooling(BCS):
             return (U.T, Es)
         return (U, Es)
 
-    def solve(self, psis, T, V, dy_dt=None, solver=None, **kw):
-        self.V = V  # external potential
+    def solve(self, psis, T, dy_dt=None, solver=None, **kw):
         self.psis = psis  # all single particle states
         self.start_time = time.time()
         ts, ys = [], []
@@ -438,30 +448,54 @@ class BCSCooling(BCS):
         else:
             kw.update(dt=self.dt)
         for psi0 in psis:  # can be parallelized
+            psi0 = self.pack(psi0)
             res = solver(fun=dy_dt, t_span=(0, T), y0=psi0, **kw)
             if not res.success:
                 raise Exception(res.message)
             ts.append(res.t)
-            ys.append(res.y.T)
+            ys.append(list(map(self.unpack, res.y.T)))
         return(ts, ys)
 
     def get_ns(self, psis, shrink=False):
         """compute densities"""
         return sum(np.abs(psis)**2)
 
-    def get_E_Ns(self, psis, V):
+    def get_E_Ns(self, psis):
         E = 0
         N = 0
         ns = self.get_ns(psis)
-        N = sum(ns)*self.dV
+        N = ns.sum()*self.dV
         if self.delta == 0:
             for psi in psis:
-                K = psi.conj().dot(self.ifft(self._K2*self.fft(psi)))
+                K = self.dotc(psi, self.ifft(self._K2*self.fft(psi)))
                 E = E + K.real*self.dV
-            V_eff = (self.get_V(psis, V=0)/2 + V)*ns
+            V_eff = (self.get_Vint(psis)/2 + self.V)*ns
             E = E + V_eff.sum()*self.dV
         else:
-            H = self.get_H(mus_eff=self.mus, delta=self.delta, Vs=(V, V))
+            H = self.get_H(mus_eff=self.mus, delta=self.delta, Vs=(self.V, )*2)
             for psi in psis:
                 E = E + psi.conj().dot(H.dot(psi))
         return E, N
+
+    def plot(self, psi, **kw):
+        if self.dim == 1:
+            x = self.xyz[0].ravel()
+            plt.plot(x, abs(psi)**2, **kw)
+        elif self.dim == 2:
+            from mmfutils import plot as mmfplt
+            x, y = self.xyz
+            mmfplt.imcontourf(x, y, self.get_ns([psi]))
+            plt.colorbar()
+        E, N = self.get_E_Ns([psi])
+        plt.title(f"E={E:.4f}, N={N:.4f}")
+        plt.show()
+
+if __name__ == "__main__":
+    s = BCSCooling(N=32, dx=0.1, beta_0=-1.0j, beta_V=0.0, beta_K=0.0, dim=2)
+    x, y = s.xyz
+    x0 = 0.5
+    phase = ((x-x0) + 1j*y)*((x+x0) - 1j*y)
+    psi0 = 1.0*np.exp(1j*np.angle(phase))
+    ts, psis = s.solve([psi0], T=2.0, rtol=1e-5, atol=1e-6)
+    s.plot(psis[0][0])
+    s.plot(psis[0][-1])

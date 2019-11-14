@@ -43,7 +43,7 @@ def dict_to_complex(psi_data):
 class TestCase(object):
     
     def __init__(
-            self, V, g, N, dx, eps=1e-2,
+            self, g, N, dx, eps=1e-2,
             psi_init=None, psi_ground=None, E0=None, T_max=10,
             T_ground_state=20, V_key=None, use_abm=True, **args):
         args.update(g=g, N=N, dx=dx)
@@ -52,7 +52,6 @@ class TestCase(object):
         self.solver = ABMEvolverAdapter if use_abm else None
         self.x = b.xyz[0]
         self.b=b
-        self.V = V
         self.V_key = V_key
         self.eps = eps
         self.T_max = T_max
@@ -69,8 +68,8 @@ class TestCase(object):
         self.E0=E0
 
     def get_ground_state(self, psi_init, T=None, plot=False):
-        b = BCSCooling(N=self.b.N, dx=self.b.dx, g=self.g, beta_0=-1j)
-        H = b._get_H(mu_eff=0, V=self.V)
+        b = BCSCooling(N=self.b.N, dx=self.b.dx, g=self.g, V=self.b.V, beta_0=-1j)
+        H = b._get_H(mu_eff=0, V=self.b.V)
         U, E = b.get_U_E(H, transpose=True)
         psi0 = Normalize(U[0], dx=b.dx)
         self.psi_0 = psi0
@@ -85,30 +84,28 @@ class TestCase(object):
             for T in Ts:
                 print(f"Imaginary Cooling with T={T}")
                 _, psiss = b.solve(
-                    [psi_init], T=T, V=self.V, solver=self.solver,
+                    [psi_init], T=T, solver=self.solver,
                     rtol=1e-5, atol=1e-6, method='BDF')
                 psis = psiss[0]
                 assert len(psis) > 2
-                E1, _ = b.get_E_Ns([psis[-1]], V=self.V)
-                E2, _ = b.get_E_Ns([psis[-2]], V=self.V)
+                E1, _ = b.get_E_Ns([psis[-1]])
+                E2, _ = b.get_E_Ns([psis[-2]])
                 if np.isnan(E1) or np.isnan(E2):
                     print(f"Value error: E1={E1}, E2={E2}")
                     raise ValueError("Failed to get ground state.")
                 print((E2 - E1)/E1)
-                #if abs((E2 - E1)/E1) < self.ground_state_eps:
                 return psis[-1]
-            #raise ValueError("Failed to cool down to ground state.")
 
     def run(self, N_T=10, T=None, plot=False, plot_log=True, plot_dE=False):
         b, x = self.b, self.x
-        E0, _ = b.get_E_Ns([self.psi_ground], V=self.V)
+        E0, _ = b.get_E_Ns([self.psi_ground])
         print(f"E0={E0}")
         self.E0 = E0
         if T is None:
             Ts = (np.array(list(range(N_T)))+1)*0.5
         else:
             Ts = [T]
-        args = dict(rtol=1e-5, atol=1e-6, V=self.V, solver=self.solver, method='BDF')
+        args = dict(rtol=1e-5, atol=1e-6, solver=self.solver, method='BDF')
         self.physical_time = []
         self.wall_time = []
         self.Es = []
@@ -117,9 +114,9 @@ class TestCase(object):
             start_time = time.time()
             ts, psiss = b.solve([self.psi_init], T=T, **args)
             wall_time = time.time() - start_time
-            E, _ = b.get_E_Ns([psiss[0][0]], V=self.V)
+            E, _ = b.get_E_Ns([psiss[0][0]])
             self.E_init = E
-            E, _ = b.get_E_Ns([psiss[0][-1]], V=self.V)
+            E, _ = b.get_E_Ns([psiss[0][-1]])
             self.wall_time.append(wall_time)
             self.physical_time.append(T)           
             self.Es.append(E)
@@ -127,9 +124,9 @@ class TestCase(object):
             print(f"physical time:{T}, wall time:{wall_time},dE:{(E-E0)/abs(E0)} ")
             
             if plot:
-                Es = [b.get_E_Ns([_psi], V=self.V)[0] for _psi in psiss[0]]
+                Es = [b.get_E_Ns([_psi])[0] for _psi in psiss[0]]
                 plt.subplot(131)
-                plt.plot(x, self.V, label=self.V_key)
+                plt.plot(x, self.b.V, label=self.V_key)
                 plt.title(f"g={b.g}")
                 plt.legend()
                 plt.subplot(132)
@@ -144,11 +141,12 @@ class TestCase(object):
                 plt.subplot(133)
                 alt_text = "ABM" if self.use_abm else "IVP"
                 if plot_log:
-                    plt.semilogy(ts[0][:-1], (Es[:-1] - E0)/abs(E0), label=f"E({alt_text})")
+                    plt.semilogy(
+                        ts[0][:-1], (Es[:-1] - E0)/abs(E0), label=f"E({alt_text})")
                 else:
                     plt.plot(ts[0][:-1], (Es[:-1] - E0)/abs(E0), label=f"E({alt_text})")
                 if plot_dE:
-                    dE_dt= [-1*b.get_dE_dt([_psi], V=self.V) for _psi in psiss[0]]
+                    dE_dt= [-1*b.get_dE_dt([_psi]) for _psi in psiss[0]]
                     plt.plot(ts[0][:-1], dE_dt[:-1], label='-dE/dt')
                     plt.axhline(0, linestyle='dashed')
                 plt.title(
@@ -388,8 +386,7 @@ def benchmark_test_json():
 
 def write_sheet(sheet, last_file):
     try:
-        if last_file is not None: # load last saved
-            res = []
+        if last_file is not None:  # load last saved
             book = xlrd.open_workbook(last_file)
             table = book.sheet_by_name("overall")
             nrows = table.nrows
@@ -416,8 +413,8 @@ def benchmark_test_excel(
     # create an excel table to store the result
     file_name = (
         f"TestCase_N{N}_dx{dx}_g{g}_T{5}_Trails{trails}"
-            +f"_IS={init_state_key}_V={V_key}_"
-                +time.strftime("%Y_%m_%d_%H_%M_%S.xls"))
+        +f"_IS={init_state_key}_V={V_key}_"
+        +time.strftime("%Y_%m_%d_%H_%M_%S.xls"))
     output = xlwt.Workbook(encoding='utf-8')
     sheet = output.add_sheet("overall", cell_overwrite_ok=True)
     col = 0
@@ -453,8 +450,8 @@ def benchmark_test_excel(
                         for T in Ts:
                             print(
                                 f"Trail#={trail}: beta_V={beta_V}, beta_K={beta_K},"
-                                    +f"beta_D={beta_D}, beta_Y={beta_Y},"
-                                        +f"g={g}, T={T}, V={V_key}, N={N},dx={dx}")
+                                +f"beta_D={beta_D}, beta_Y={beta_Y},"
+                                +f"g={g}, T={T}, V={V_key}, N={N},dx={dx}")
                             try:
                                 if beta_V == 0 and beta_K== 0 and beta_Y==0:
                                     continue
@@ -462,7 +459,7 @@ def benchmark_test_excel(
                                 wall_time = t.wall_time[-1]
                                 E0 = t.E0
                                 Ei, Ef = t.E_init, t.Es[-1]
-                                dEi, dEf = (Ei - E0)/E0, (Ef - E0)/E0
+                                dEf = (Ef - E0)/E0
                                 col = 0
                                 values = [
                                     trail, time.strftime("%Y/%m/%d %H:%M:%S"), N, dx,
@@ -499,9 +496,6 @@ def do_case_test_excel():
     """
     N=128
     dx=0.2
-    b = BCSCooling(N=N, dx=dx)
-    x = b.xyz[0]
-    Vs = get_potentials(x)
     g = -1
     beta_0=1
     use_abm=False
@@ -514,7 +508,7 @@ def do_case_test_excel():
         for V_key in ["HO"]:
             benchmark_test_excel(
                 N=N, dx=dx, g=g, trails=1, Ts=Ts, use_abm=use_abm,
-                beta_Vs=beta_Vs, beta_Ks=beta_Ks, beta_Ds=beta_Ds,
+                beta_Vs=beta_Vs, beta_Ks=beta_Ks, beta_Ds=beta_Ds, beta_0=beta_0,
                 beta_Ys=beta_Ys, init_state_key=init_state_key, V_key=V_key)
 
 
