@@ -156,65 +156,6 @@ def Check_Vy():
 Check_Vy()
 
 
-def test_der_cooling(psi = None, evolve=True, T=0.5, **args):
-    b = BCSCooling(**args)
-    def compute_dy_dt(t, psi, subtract_mu=True):
-        """Return dy/dt for ODE integration."""
-        #if b.check_dE:
-        #    b.check_dE_dt(psis=[psi], V=b.V)
-        Hpsi = b.apply_Hc([psi], V=b.V)[0]
-        if subtract_mu:
-            Hpsi -= psi.conj().dot(Hpsi)/psi.dot(psi.conj())*psi
-        return Hpsi/(1j*b.hbar)
-    
-    b = BCSCooling(**args)
-    da, db=b.divs    
-    k0 = 2*np.pi/b.L
-    x = b.xyz[0]
-    b.V = x**2/2
-    H0 = b._get_H(mu_eff=0, V=0)
-    H1 = b._get_H(mu_eff=0, V=V)
-    U0, E0 = b.get_U_E(H0, transpose=True)
-    U1, E1 = b.get_U_E(H1, transpose=True)
-    psi_1 = Normalize(np.cos(k0*x))
-    if psi is None:
-        psi = U0[1]  # np.exp(1j*n*(k0*x))
-    psi_a = b.Del(psi, n=da)
-    Hpsi = np.array(b.apply_H([psi], V=V))[0]/(1j)
-    plt.figure(figsize=(18, 6))
-    N = 4 if evolve else 2   
-    plt.subplot(1,N,1)
-    plt.plot(x, abs(Hpsi),'-', label=r'$H\psi$')
-    plt.legend()
-    plt.subplot(1,N,2)
-    Hpsi_a = b.Del(Hpsi, n=da)
-    if da == db:
-        psi_b = psi_a
-        Hpsi_b = Hpsi_a
-    else:
-        psi_b = b.Del(psi, n=db)
-        Hpsi_b = b.Del(Hpsi, n=db)
-    Vc =  psi_a*Hpsi_b.conj() + Hpsi_a*psi_b.conj()
-    plt.plot(x,Vc, label='real')
-    plt.plot(x, Vc.imag, label='imag')
-    plt.plot(x, abs(Vc), label='|Vc|')
-    plt.legend()
-    if evolve:
-        b.erase_max_ks()
-        plt.subplot(1,N,3)
-        ts, psis = b.solve([psi], T=T, rtol=1e-5, atol=1e-6,  method='BDF', dy_dt=compute_dy_dt)
-        psi0 = U1[0]
-        E0, _ = b.get_E_Ns([psi0])
-        Es = [b.get_E_Ns([_psi])[0] for _psi in psis[0]]
-        plt.plot(x, Prob(psis[0][0]), "+", label='init')
-        plt.plot(x, Prob(psis[0][-1]), '--',label="final")
-        plt.plot(x, Prob(U1[0]), label='Ground')
-        plt.legend()
-        plt.subplot(1,N,4)
-        plt.plot(ts[0][:-2], (Es[:-2] - E0)/abs(E0))
-    return psis[0][-1]
-
-
 def test_der_cooling(evolve=True, plot_dE=True, T=0.5, **args):   
     b = BCSCooling(**args)
     h0 = HarmonicOscillator(w=1)

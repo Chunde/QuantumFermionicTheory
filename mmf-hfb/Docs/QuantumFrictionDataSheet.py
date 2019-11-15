@@ -103,14 +103,13 @@ def test_wall_time(beta_V=0, beta_K=0, beta_Y=0):
     plt.legend()
 
 
-
 plt.figure(figsize=(18, 5))
 plt.subplot(131)
-test_wall_time(beta_V=100, beta_K=0, beta_Y=0)
+test_wall_time(beta_V=20, beta_K=0, beta_Y=0)
 plt.subplot(132)
-test_wall_time(beta_V=100, beta_K=10, beta_Y=0)
+test_wall_time(beta_V=20, beta_K=20, beta_Y=0)
 plt.subplot(133)
-test_wall_time(beta_V=0, beta_K=50, beta_Y=0)
+test_wall_time(beta_V=0, beta_K=20, beta_Y=0)
 clear_output()
 
 # # 2D Cooling
@@ -123,18 +122,72 @@ phase = ((x-x0) + 1j*y)*((x+x0) - 1j*y)
 psi0 = 1.0*np.exp(1j*np.angle(phase))
 ts, psis = s.solve([psi0], T=2.0, rtol=1e-5, atol=1e-6)
 
-plt.subplot(121)
+#plt.subplot(121)
 s.plot(psis[0][-1])
-plt.subplot(122)
+#plt.subplot(122)
 Es = [s.get_E_Ns([psi])[0] for psi in psis[0]]
 plt.plot(ts[0], Es)
-
-
 
 # # Load CVS file
 
 import pandas as pd 
 
-currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","mmf_hfb","data")
-data = pd.read_csv("filename.csv") 
+currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","mmf_hfb")
+files = glob.glob(join(currentdir, "*.csv"))
+datas = [pd.read_csv(file) for file in files]
+
+data=datas[0]
+
+
+# +
+def get_Es_Ts(beta_K, beta_V):
+    res = data.query(f"beta_K=={beta_K} and beta_V=={beta_V}")
+    Ts = res['Wall Time']
+    E0 = res['E0']
+    Ef = res['Ef']
+    dE = (Ef- E0)/E0
+    return dE, Ts
+
+def plot_Es_Ts(beta_K, beta_V, style=None):
+    Es, Ts = get_Es_Ts(beta_K=beta_K, beta_V=beta_V)
+    if Ts is None or len(Ts) ==0:
+        return
+    if style is None:
+        plt.plot(Es, Ts, label=f"K={beta_K}, V={beta_V}")
+    elif style=='log':
+        plt.loglog(Es, Ts, label=f"K={beta_K}, V={beta_V}")
+    elif style == 'semi':
+        plt.semilogy(Es, Ts, label=f"K={beta_K}, V={beta_V}")
+    else:
+        plt.plot(Es, Ts, label=f"K={beta_K}, V={beta_V}")
+    return Es, Ts
+
+
+# -
+
+beta_Vs = set(data['beta_V'])
+beta_Ks = set(data['beta_K'])
+plt.figure(figsize=(18,15))
+max_plot = 30
+beta_V_min = 0
+beta_K_min = 0
+wall_time_sum_min = sys.float_info.max
+for beta_V in beta_Vs:
+    for beta_K in beta_Ks:
+        Es, Ts=plot_Es_Ts(beta_K=beta_K, beta_V=beta_V, style='semi')
+        max_plot -= 1
+        if sum(Ts) < wall_time_sum_min:
+            beta_V_min=beta_V
+            beta_K_min=beta_K
+            wall_time_sum_min = sum(Ts)
+        if max_plot < 0:
+            break
+    if max_plot < 0:
+        break
+plt.ylabel("Wall Time")
+plt.xlabel("(E-E0)/E0")
+plt.title(f"V={beta_V_min}, K={beta_K_min}")
+plt.legend()
+
+
 
