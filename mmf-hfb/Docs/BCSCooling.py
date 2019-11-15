@@ -115,12 +115,12 @@ def Check_Vd():
         for s, i in zip([uv, ir],[2, 3]):           
             s.g = -1
             x = s.xyz[0]
-            V_ext = x**2/2
+            s.V = x**2/2
             psi0 = np.exp(-x**2/2.0)*np.exp(1j*x)
             plt.subplot(1,3,1)
             plt.plot(x, psi0 + offset)
             plt.subplot(1,3,i)
-            Vc = s.get_Vd(s.apply_H([psi0], V=V_ext), V=V_ext) 
+            Vc = s.get_Vd(s.apply_H([psi0])) 
             l, = plt.plot(x, Vc + offset)  # add some offset in y direction to separate plots
     plt.subplot(131)
     plt.xlim(-10, 10)
@@ -140,12 +140,12 @@ def Check_Vy():
         for s, i in zip([uv, ir],[2, 3]):           
             s.g = -1
             x = s.xyz[0]
-            V_ext = x**2/2
+            s.V = x**2/2
             psi0 = np.exp(-x**2/2.0)*np.exp(1j*x)
             plt.subplot(1,3,1)
             plt.plot(x, psi0 + offset)
             plt.subplot(1,3,i)
-            Vc = s.get_Dyadic(s.apply_H([psi0], V=V_ext), V=V_ext) 
+            Vc = s.get_Dyadic(s.apply_H([psi0])) 
             l, = plt.plot(x, Vc + offset)  # add some offset in y direction to separate plots
     plt.subplot(131)
     plt.xlim(-10, 10)
@@ -171,7 +171,7 @@ def test_der_cooling(psi = None, evolve=True, T=0.5, **args):
     da, db=b.divs    
     k0 = 2*np.pi/b.L
     x = b.xyz[0]
-    V = x**2/2
+    b.V = x**2/2
     H0 = b._get_H(mu_eff=0, V=0)
     H1 = b._get_H(mu_eff=0, V=V)
     U0, E0 = b.get_U_E(H0, transpose=True)
@@ -202,10 +202,10 @@ def test_der_cooling(psi = None, evolve=True, T=0.5, **args):
     if evolve:
         b.erase_max_ks()
         plt.subplot(1,N,3)
-        ts, psis = b.solve([psi], T=T, rtol=1e-5, atol=1e-6, V=V, method='BDF', dy_dt=compute_dy_dt)
+        ts, psis = b.solve([psi], T=T, rtol=1e-5, atol=1e-6,  method='BDF', dy_dt=compute_dy_dt)
         psi0 = U1[0]
-        E0, _ = b.get_E_Ns([psi0], V=V)
-        Es = [b.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]
+        E0, _ = b.get_E_Ns([psi0])
+        Es = [b.get_E_Ns([_psi])[0] for _psi in psis[0]]
         plt.plot(x, Prob(psis[0][0]), "+", label='init')
         plt.plot(x, Prob(psis[0][-1]), '--',label="final")
         plt.plot(x, Prob(U1[0]), label='Ground')
@@ -223,6 +223,7 @@ def test_der_cooling(evolve=True, plot_dE=True, T=0.5, **args):
     k0 = 2*np.pi/b.L
     x = b.xyz[0]
     V = x**2/2
+    b.V = V
     H0 = b._get_H(mu_eff=0, V=0)
     H1 = b._get_H(mu_eff=0, V=V)
     U0, E0 = b.get_U_E(H0, transpose=True)
@@ -236,9 +237,9 @@ def test_der_cooling(evolve=True, plot_dE=True, T=0.5, **args):
         plt.figure(figsize=(10,5))
         plt.subplot(1,2,1)
         ts, psiss = b.solve([psi], T=T, rtol=1e-5, atol=1e-6, V=V,solver=None, method='BDF')
-        E0, _ = b.get_E_Ns([psi0], V=V)
-        Es = [b.get_E_Ns([_psi], V=V)[0] for _psi in psiss[0]]
-        dE_dt= [-1*b.get_dE_dt([_psi], V=V) for _psi in psiss[0]]
+        E0, _ = b.get_E_Ns([psi0])
+        Es = [b.get_E_Ns([_psi])[0] for _psi in psiss[0]]
+        dE_dt= [-1*b.get_dE_dt([_psi]) for _psi in psiss[0]]
         plt.plot(x, Prob(psiss[0][0]), "+", label='init')
         plt.plot(x, Prob(psiss[0][-1]), '--',label="final")
         plt.plot(x, Prob(psi0), label='Ground')
@@ -276,7 +277,7 @@ psi = test_der_cooling(plot_dE=False, **args)
 # ## Long-time cooling
 
 # %%time 
-args = dict(N=128, dx=0.1, divs=(1, 1), beta_K=0, beta_V=0, T=5, beta_D=0.02, check_dE=False)
+args = dict(N=128, dx=0.1, divs=(1, 1), beta_K=0, beta_V=0, T=5, beta_D=0.002, check_dE=False)
 psi = test_der_cooling(plot_dE=False, **args)
 
 # \begin{align}

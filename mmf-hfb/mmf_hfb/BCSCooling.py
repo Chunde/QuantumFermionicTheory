@@ -21,7 +21,8 @@ def Normalize(psi):
 
 class BCSCooling(BCS):
     """
-    1d Local Quantum Friction class
+    Local Quantum Friction class that supports GPE(single wavefunctin)
+    and BdG type system. 
     """
 
     def __init__(

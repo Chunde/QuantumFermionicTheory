@@ -16,6 +16,7 @@
     <IsWindowsApplication>False</IsWindowsApplication>
     <InterpreterId>Global|PythonCore|3.7</InterpreterId>
     <SuppressEnvironmentCreationPrompt>True</SuppressEnvironmentCreationPrompt>
+    <TestFramework>Pytest</TestFramework>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -35,6 +36,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Docs\BCSCooling.py" />
+    <Compile Include="Docs\BCSCoolingEx.py" />
+    <Compile Include="Docs\BCSCoolingTest.py" />
     <Compile Include="Docs\bdg-equations-in-1d.py" />
     <Compile Include="Docs\ConstructFFStates.py" />
     <Compile Include="Docs\CriticalPolarizationAtUnitary.py" />
@@ -47,10 +50,15 @@
     <Compile Include="Docs\KineticMatrixDerivation.py" />
     <Compile Include="Docs\KineticMatrixDerivation2D.py" />
     <Compile Include="Docs\LatticeNumericalSimulation.py" />
+    <Compile Include="Docs\LocalQuantumFriction.py" />
     <Compile Include="Docs\nbimports.py" />
+    <Compile Include="Docs\Potentials.py" />
     <Compile Include="Docs\QuantumFrictionDataSheet.py" />
     <Compile Include="Docs\RotatingFrameTransform%28BdG%29.py" />
     <Compile Include="Docs\ScatteringTutorial.py" />
+    <Compile Include="Docs\SlowFeatureAnalysis.py" />
+    <Compile Include="Docs\SSH_Model.py" />
+    <Compile Include="Docs\State2Coupled.py" />
     <Compile Include="Docs\ThermodynamicRelations.py" />
     <Compile Include="Docs\ThermodynamicsTestDemo%28ASLDA%29.py" />
     <Compile Include="Docs\Vortex.py" />
@@ -60,6 +68,7 @@
     <Compile Include="mmf_hfb\bcs_aslda.py" />
     <Compile Include="mmf_hfb\BdGPlot.py" />
     <Compile Include="mmf_hfb\BoseCooling.py" />
+    <Compile Include="mmf_hfb\Cooling.py" />
     <Compile Include="mmf_hfb\CoolingCaseTests.py" />
     <Compile Include="mmf_hfb\CoolingEg.py" />
     <Compile Include="mmf_hfb\CylindricalBasis.py" />

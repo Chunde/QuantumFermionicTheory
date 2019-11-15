@@ -60,10 +60,10 @@ class TestCase(object):
         self.dx = dx
         if psi_init is None:
             psi_init = random_gaussian_mixing(self.x)
-        self.psi_init = psi_init
+        self.psi_init = psi_init + 1j*0
         if psi_ground is None:
             psi_ground = self.get_ground_state(
-                T=T_ground_state, psi_init=psi_init)
+                T=T_ground_state, psi_init=self.psi_init)
         self.psi_ground = psi_ground
         self.E0=E0
 
@@ -404,7 +404,7 @@ def benchmark_test_excel(
         N=128, dx=0.1, g=0, Ts=[5], trails=1, use_abm=False,
         beta_0=1, beta_Ks=[0], beta_Vs=[10], beta_Ds=[0], beta_Ys=[0],
         ground_state="Gaussian", init_state_key="ST", V_key="HO",
-        time_out=120, last_file=None):
+        time_out=120, T_ground_state=10, last_file=None):
     """
     this function is provided to perform test the cooling vs wall time
     calling this function will create a excel file that summarize the 
@@ -419,12 +419,12 @@ def benchmark_test_excel(
     sheet = output.add_sheet("overall", cell_overwrite_ok=True)
     col = 0
     row = 0
-    values = [
+    headers = [
         "Trail#", "Time", "N", "dx", "beta_0", "beta_V", "beta_K",
         "beta_D", "beta_Y", "g", "V", "Ground State", "Init State",
         "E0(Ground)", "Ei(Init)", "Ef(Final)", "Evolver",
         "Cooling Effect", "Physical Time", "Wall Time"]
-    for value in values:
+    for value in headers:
         sheet.write(row, col, value)
         col += 1
     write_sheet(sheet, last_file=last_file)
@@ -434,7 +434,7 @@ def benchmark_test_excel(
     x = b.xyz[0]
     Vs = get_potentials(x)
     args = dict(
-        N=N, dx=dx, eps=1e-1, T_ground_state=20, V=Vs[V_key], V_key=V_key,
+        N=N, dx=dx, eps=1e-1, T_ground_state=T_ground_state, V=Vs[V_key], V_key=V_key,
         g=g, psi_init=psi_init, use_abm=use_abm, check_dE=False, time_out=time_out)
     t=TestCase(ground_state_eps=1e-1, beta_0=beta_0, **args)
     row = 1
@@ -484,7 +484,7 @@ def benchmark_test_excel(
                                 col+=1
                                 row+=1
                                 output.save(file_name)
-                                print(f"Saved to {file_name}")
+                                print(f"E0={E0}, Ei={Ei}, Ef={Ef}: Saved to {file_name}")
                             except:
                                 continue
 
@@ -498,16 +498,17 @@ def do_case_test_excel():
     dx=0.2
     g = -1
     beta_0=1
+    time_out=60
     use_abm=False
-    beta_Vs = np.linspace(0, 100, 11)
+    beta_Vs = np.linspace(10, 100, 10)
     beta_Ks = np.linspace(0, 100, 11)
-    Ts = np.linspace(1, 5, 5)
+    Ts = np.linspace(0.001, 5, 20)
     beta_Ds = [0]
     beta_Ys = [0]
     for init_state_key in get_init_states():
         for V_key in ["HO"]:
             benchmark_test_excel(
-                N=N, dx=dx, g=g, trails=1, Ts=Ts, use_abm=use_abm,
+                N=N, dx=dx, g=g, trails=1, Ts=Ts, use_abm=use_abm, time_out=time_out,
                 beta_Vs=beta_Vs, beta_Ks=beta_Ks, beta_Ds=beta_Ds, beta_0=beta_0,
                 beta_Ys=beta_Ys, init_state_key=init_state_key, V_key=V_key)
 
