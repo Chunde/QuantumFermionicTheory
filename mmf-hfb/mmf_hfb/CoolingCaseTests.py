@@ -1,10 +1,7 @@
 from mmf_hfb.BCSCooling import BCSCooling
-from mmf_hfb.ParallelHelper import PoolHelper
 from mmf_hfb.SolverABM import ABMEvolverAdapter
-from os.path import join
 import matplotlib.pyplot as plt
 import numpy as np
-import json
 import xlwt
 import xlrd
 import time
@@ -39,6 +36,7 @@ def dict_to_complex(psi_data):
     psi_i = psi_data['i']
     return np.array(psi_r)+1j*np.array(psi_i)
 
+
 def get_init_states(N=128, dx=0.1):
     b = BCSCooling(N=N, dx=dx)
     x = b.xyz[0]
@@ -47,13 +45,40 @@ def get_init_states(N=128, dx=0.1):
     H1 = b._get_H(mu_eff=0, V=V)
     U0, E0 = b.get_U_E(H0, transpose=True)
     U1, E1 = b.get_U_E(H1, transpose=True)
-    psi_standing_wave=Normalize(U0[1],dx=dx)
+    psi_standing_wave=Normalize(U0[1], dx=dx)
     psi_gaussian_mixing = random_gaussian_mixing(x, dx=dx)
     psi_uniform = Normalize(U0[0], dx=dx)
     psi_bright_soliton = Normalize(np.exp(-x**2/2.0)*np.exp(1j*x), dx=dx)
     return dict(
         ST=psi_standing_wave, GM=psi_gaussian_mixing,
         UN=psi_uniform, BS=psi_bright_soliton)
+
+
+def get_cooling_potential_setting(beta_V=60, beta_K=75, beta_D=1000, beta_Y=1):
+    cooling_para_list=[
+        dict(beta_V=beta_V, beta_K=beta_K, beta_D=beta_D, beta_Y=beta_Y),
+        dict(beta_V=beta_V, beta_K=beta_K, beta_D=beta_D, beta_Y=0),
+        dict(beta_V=beta_V, beta_K=beta_K, beta_D=0, beta_Y=beta_Y),
+        dict(beta_V=beta_V, beta_K=0, beta_D=beta_D, beta_Y=beta_Y),
+        dict(beta_V=0, beta_K=beta_K, beta_D=beta_D, beta_Y=beta_Y),
+        dict(beta_V=beta_V, beta_K=beta_K, beta_D=0, beta_Y=0),
+        dict(beta_V=beta_V, beta_K=0, beta_D=beta_D, beta_Y=0),
+        dict(beta_V=0, beta_K=beta_K, beta_D=beta_D, beta_Y=0),
+        dict(beta_V=beta_V, beta_K=0, beta_D=0, beta_Y=beta_Y),
+        dict(beta_V=0, beta_K=beta_K, beta_D=0, beta_Y=beta_Y),
+        dict(beta_V=0, beta_K=0, beta_D=beta_D, beta_Y=beta_Y),
+        dict(beta_V=0, beta_K=beta_K, beta_D=0, beta_Y=0),
+        dict(beta_V=0, beta_K=0, beta_D=beta_D, beta_Y=0),
+        dict(beta_V=0, beta_K=0, beta_D=0, beta_Y=beta_Y),   
+        dict(beta_V=beta_V, beta_K=0, beta_D=0, beta_Y=0)]
+    return cooling_para_list
+
+
+def get_potentials(x):
+    V0 = 0*x
+    V_HO = x**2/2
+    V_PO = V0 + np.random.random()*V_HO + abs(x**2)*np.random.random()
+    return dict(V0=V0, HO=V_HO, PO=V_PO)
 
 
 class TestCase(object):
@@ -133,7 +158,7 @@ class TestCase(object):
             self.E_init = E
             E, _ = b.get_E_Ns([psiss[0][-1]])
             self.wall_time.append(wall_time)
-            self.physical_time.append(T)           
+            self.physical_time.append(T)
             self.Es.append(E)
             self.psis.append(psiss[0][-1])
             print(f"physical time:{T}, wall time:{wall_time},dE:{(E-E0)/abs(E0)} ")
@@ -174,9 +199,8 @@ class TestCase(object):
                 
     def plot(self, id=0):
         E=self.Es[id]
-        psi = self.psis[id]
-        plt.plot(self.x, Prob(psi), "--", label='init')
         plt.plot(self.x, Prob(self.psis[id]), '+', label="final")
+        plt.plot(self.x, Prob(self.psi_init), "--", label='init')
         plt.plot(self.x, Prob(self.psi_ground), label='Ground')
         b=self.b
         plt.title(
@@ -184,206 +208,6 @@ class TestCase(object):
             +r"$\beta_V$"+ f"={b.beta_V}, "+ r" $\beta_K$" + f"={b.beta_K}"
             +r" $\beta_D$" + f"={b.beta_D}"+ r" $\beta_Y$" + f"={b.beta_Y}")
         plt.legend()
-
-class TestCaseJsonMethods(object):
-
-    def get_cooling_potential_setting(beta_V=60, beta_K=75, beta_D=1000, beta_Y=1):
-        cooling_para_list=[
-            dict(beta_V=beta_V, beta_K=beta_K, beta_D=beta_D, beta_Y=beta_Y),
-            dict(beta_V=beta_V, beta_K=beta_K, beta_D=beta_D, beta_Y=0),
-            dict(beta_V=beta_V, beta_K=beta_K, beta_D=0, beta_Y=beta_Y),
-            dict(beta_V=beta_V, beta_K=0, beta_D=beta_D, beta_Y=beta_Y),
-            dict(beta_V=0, beta_K=beta_K, beta_D=beta_D, beta_Y=beta_Y),
-            dict(beta_V=beta_V, beta_K=beta_K, beta_D=0, beta_Y=0),
-            dict(beta_V=beta_V, beta_K=0, beta_D=beta_D, beta_Y=0),
-            dict(beta_V=0, beta_K=beta_K, beta_D=beta_D, beta_Y=0),
-            dict(beta_V=beta_V, beta_K=0, beta_D=0, beta_Y=beta_Y),
-            dict(beta_V=0, beta_K=beta_K, beta_D=0, beta_Y=beta_Y),
-            dict(beta_V=0, beta_K=0, beta_D=beta_D, beta_Y=beta_Y),
-            dict(beta_V=0, beta_K=beta_K, beta_D=0, beta_Y=0),
-            dict(beta_V=0, beta_K=0, beta_D=beta_D, beta_Y=0),
-            dict(beta_V=0, beta_K=0, beta_D=0, beta_Y=beta_Y),   
-            dict(beta_V=beta_V, beta_K=0, beta_D=0, beta_Y=0)]
-        return cooling_para_list
-
-
-    def get_potentials(x):
-        V0 = 0*x
-        V_HO = x**2/2
-        V_PO = V0 + np.random.random()*V_HO + abs(x**2)*np.random.random()
-        return dict(V0=V0, HO=V_HO, PO=V_PO)
-
-
-    def SaveTestCase(ts, Vs, psi_init):
-        """Save the test case data to a json file"""
-        file_name = "CoolingTestData_"+time.strftime("%Y_%m_%d_%H_%M_%S.json") 
-        for key in Vs:
-            Vs[key]=Vs[key].tolist()
-        output = dict(Vs=Vs, psi_init=unpack(psi_init))
-        cases = []
-        for t in ts:
-            if t is None:
-                continue
-            V = t.V
-            b = t.b
-            if isinstance(t.V, np.ndarray):
-                V = V.tolist()
-            dic = dict(
-                dx=t.dx, dt=b.dt, N=t.N, E0=t.E0, max_T=t.max_T, g=t.g, eps=t.eps,
-                beta_0=b.beta_0, beta_V=b.beta_V, beta_K=b.beta_K, dE_dt=b.dE_dt,
-                beta_D=b.beta_D, beta_Y=b.beta_Y, V_key=t.V_key, use_abm=t.use_abm,
-                psi0=unpack(t.psi_ground))
-            data = []
-            for (E, T, Tw, psi) in zip(t.Es, t.physical_time, t.wall_time, t.psis):
-                data.append(dict(E=E, T=T, Tw=Tw, psi=unpack(psi)))
-            dic['data']=data
-            cases.append(dic)
-        output["cases"] = cases
-        with open(file_name, 'w') as wf:
-            json.dump(output, wf)
-        print(f"file {file_name} saved")
-        return output
-
-
-    def load_json_data(file=None, filter="CoolingTestData*.json"):
-        """load a json file """
-        if file is None:
-            current_dir = join(
-                os.path.dirname(
-                    os.path.abspath(
-                        inspect.getfile(inspect.currentframe()))), "..")
-            pattern = join(current_dir, filter)
-            files = glob.glob(pattern)
-            if len(files) > 0:
-                file = files[0]
-        if os.path.exists(file):
-            with open(file, 'r') as rf:
-                ret = json.load(rf)
-                return ret
-        return None
-
-
-    def deserialize_object(json_object):
-        """
-            Deserialize objects from a given json object
-            return a list of TestCase objects
-        """
-        def parse_time_data(testCase, res):
-            """parse wave function and its energy"""
-            psis = []
-            wall_time = []
-            physical_time = []
-            Es = []
-            for data in res:
-                Es.append(data['E'])
-                physical_time.append(data['T'])
-                wall_time.append(data['Tw'])
-                psis.append(dict_to_complex(data['psi']))
-            testCase.wall_time = wall_time
-            testCase.physical_time = physical_time
-            testCase.Es = Es
-            testCase.psis = psis
-        
-        Vs = json_object['Vs']
-        psi_init = dict_to_complex(json_object['psi_init'])
-        cases = json_object['cases']
-        testCases = []
-        for args in cases:
-            V = Vs[args['V_key']]
-            args['psi_ground'] = dict_to_complex(args['psi0'])
-            args.update(V=V, psi=psi_init)
-            t = TestCase(**args)
-            parse_time_data(t, res=args['data'])
-            testCases.append(t)
-        return testCases
-
-
-    def DumpTestPara(pid, para):
-        file_name = f"DumpData_{pid}_" + time.strftime("%Y_%m_%d_%H_%M_%S.json")
-        with open(file_name, 'w') as wf:
-            psi_init = para['psi']
-            V = para['V']
-            del para['psi']
-            del para['V']
-            para['V'] = unpack(V)
-            para['psi'] = unpack(psi_init)
-            json.dump(para, wf)
-            print(f"file {file_name} saved")
-
-
-    def loadDumpedParas(files=None):
-        if files is None:
-            current_dir = join(
-                os.path.dirname(
-                    os.path.abspath(inspect.getfile(inspect.currentframe()))), "..")
-            pattern = join(current_dir, "DumpData*.json")
-            files = glob.glob(pattern)
-        rets = []
-        for file in files:
-            if os.path.exists(file):
-                try:
-                    print(file)
-                    with open(file, 'r') as rf:
-                        ret = json.load(rf)
-                        ret['psi'] = dict_to_complex(ret['psi'])
-                        ret['V']=dict_to_complex(ret['V'])
-                        rets.append(ret)
-                except:
-                    print("Error@" + file)
-        return rets
-
-
-    def test_case_worker(para):
-        pid = os.getpid()
-        start_time = time.time()
-        print(f"{pid} start time:{datetime.datetime.now()}")
-        try:
-            t = TestCase(**para)
-            t.run()
-            print(f"{pid} Wall time:{time.time() - start_time}")
-            return t
-        except:
-            DumpTestPara(pid=pid, para=para)
-            print(f"{pid} Wall time:{time.time() - start_time}")
-            return None
-
-
-
-
-
-    def benchmark_test_json():
-        if True:  # set to false if want to debug overflow by loading dumped file
-            N, dx = 128, 0.1
-            args = dict(
-                N=N, dx=dx,
-                beta0=1, beta_K=0, beta_V=0, beta_D=0, beta_Y=0,
-                T=0, divs=(1, 1), check_dE=False)
-            b = BCSCooling(**args)
-            x = b.xyz[0]
-            psi_init = random_gaussian_mixing(x)
-            Vs = get_potentials(x)
-            cooling_para_list = get_cooling_potential_setting()
-            paras = []
-            use_abm = True
-            dE_dt = 1
-            for g in [0, 1]:
-                for key in Vs:
-                    for para in reversed(cooling_para_list):
-                        args = dict(
-                            N=N, dx=dx, eps=1e-1, V=Vs[key], V_key=key, beta_0=1, g=g,
-                            dE_dt=dE_dt, psi=psi_init, use_abm=use_abm, check_dE=False)
-                        args.update(para)
-                        paras.append(args)
-            testCases = PoolHelper.run(test_case_worker, paras=paras, poolsize=10)
-            SaveTestCase(ts=testCases, Vs=Vs, psi_init=psi_init)
-        else:
-            paras = loadDumpedParas()
-            Vs = []
-            if len(paras) > 0:
-                psi_init = paras[0]['psi']
-            else:
-                psi_init = []
-            testCases = PoolHelper.run(test_case_worker, paras=paras, poolsize=1)
 
 
 def write_sheet(sheet, last_file):
@@ -423,14 +247,14 @@ def benchmark_test_excel(
     row = 0
     headers = [
         "Trail", "Time", "N", "dx", "beta_0", "beta_V", "beta_K",
-        "beta_D", "beta_Y", "g", "V", "Ground State", "Init State",
+        "beta_D", "beta_Y", "g", "V", "gState", "iState",
         "E0", "Ei", "Ef", "Evolver",
-        "Cooling Effect", "Physical Time", "Wall Time"]
+        "Cooling", "pTime", "wTime"]
     for value in headers:
         sheet.write(row, col, value)
         col += 1
     write_sheet(sheet, last_file=last_file)
-    psis_init = get_init_states()
+    psis_init = get_init_states(N=N, dx=dx)
     psi_init = psis_init[init_state_key]
     b = BCSCooling(N=N, dx=dx)
     x = b.xyz[0]
