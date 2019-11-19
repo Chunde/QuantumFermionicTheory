@@ -6,6 +6,7 @@ import xlwt
 import xlrd
 import time
 import argparse
+import os
 
 # Instantiate the parser
 
@@ -199,8 +200,8 @@ def benchmark_test_excel(
             +f",save_interval={save_interval}, verbose={verbose}")
     # create an excel table to store the result
     file_name = (
-        f"TestCase_N{N}_dx{dx}_g{g}_T{5}_Trail{trail}"
-        +f"_IS={init_state_key}_V={V_key}_"
+        f"TestCase_N[{N}]_dx[{dx}]_g[{g}]_T[{5}]_Tr[{trail}]"
+        +f"_IS[{init_state_key}]_V[{V_key}]_PID=[{os.getpid()}]_"
         +time.strftime("%Y_%m_%d_%H_%M_%S.xls"))
     output = xlwt.Workbook(encoding='utf-8')
     sheet = output.add_sheet("overall", cell_overwrite_ok=True)
@@ -273,7 +274,6 @@ def benchmark_test_excel(
                         if counter % save_interval == 0:
                             output.save(file_name)
                             print(f"{counter}: E0={E0}, Ei={Ei}, Ef={Ef}: Saved to {file_name}")
-
 
 
 def do_case_test_excel(
