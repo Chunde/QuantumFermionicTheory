@@ -239,43 +239,41 @@ def benchmark_test_excel(
                                 f"Trail#={trail}: beta_V={beta_V}, beta_K={beta_K},"
                                 +f"beta_D={beta_D}, beta_Y={beta_Y},"
                                 +f"g={g}, T={T}, V={V_key}, N={N},dx={dx}")
-                        try:
-                            if beta_V == 0 and beta_K== 0 and beta_Y==0:
-                                continue
-                            t.run(T=T, plot=False, verbose=verbose)
-                            wall_time = t.wall_time[-1]
-                            E0 = t.E0
-                            Ei, Ef = t.E_init, t.Es[-1]
-                            dEf = (Ef - E0)/E0
-                            col = 0
-                            values = [
-                                trail, time.strftime("%Y/%m/%d %H:%M:%S"), N, dx,
-                                beta_0, beta_V, beta_K, beta_D, beta_Y, g, V_key,
-                                ground_state, init_state_key, E0, Ei, Ef]
-                            for value in values:
-                                sheet.write(row, col, value)
-                                col += 1
-                            Evoler = "ABM" if t.use_abm else "IVP"
-                            sheet.write(row, col, Evoler)
-                            col+=1
-                            if abs(dEf) < 1:
-                                sheet.write(row, col, "Cooled")
-                            elif abs((Ef - Ei)/Ei)<0.01:
-                                sheet.write(row, col, "Failed")
-                            else:
-                                sheet.write(row, col, "Partially Cooled")
-                            col+=1
-                            sheet.write(row, col, T)
-                            col+=1
-                            sheet.write(row, col, wall_time)
-                            col+=1
-                            row+=1
-                            counter +=1
-                            if counter % save_interval == 0:
-                                output.save(file_name)
-                                print(f"{counter}: E0={E0}, Ei={Ei}, Ef={Ef}: Saved to {file_name}")
-                        except:
+                        if beta_V == 0 and beta_K== 0 and beta_Y==0:
                             continue
+                        t.run(T=T, plot=False, verbose=verbose)
+                        wall_time = t.wall_time[-1]
+                        E0 = t.E0
+                        Ei, Ef = t.E_init, t.Es[-1]
+                        dEf = (Ef - E0)/E0
+                        col = 0
+                        values = [
+                            trail, time.strftime("%Y/%m/%d %H:%M:%S"), N, dx,
+                            beta_0, beta_V, beta_K, beta_D, beta_Y, g, V_key,
+                            ground_state, init_state_key, E0, Ei, Ef]
+                        for value in values:
+                            sheet.write(row, col, value)
+                            col += 1
+                        Evoler = "ABM" if t.use_abm else "IVP"
+                        sheet.write(row, col, Evoler)
+                        col+=1
+                        if abs(dEf) < 1:
+                            sheet.write(row, col, "Cooled")
+                        elif abs((Ef - Ei)/Ei)<0.01:
+                            sheet.write(row, col, "Failed")
+                        else:
+                            sheet.write(row, col, "Partially Cooled")
+                        col+=1
+                        sheet.write(row, col, T)
+                        col+=1
+                        sheet.write(row, col, wall_time)
+                        col+=1
+                        row+=1
+                        counter +=1
+                        if counter % save_interval == 0:
+                            output.save(file_name)
+                            print(f"{counter}: E0={E0}, Ei={Ei}, Ef={Ef}: Saved to {file_name}")
+
 
 
 def do_case_test_excel(
