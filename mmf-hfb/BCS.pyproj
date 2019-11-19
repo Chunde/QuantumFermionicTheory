@@ -17,6 +17,7 @@
     <InterpreterId>Global|PythonCore|3.7</InterpreterId>
     <SuppressEnvironmentCreationPrompt>True</SuppressEnvironmentCreationPrompt>
     <TestFramework>Pytest</TestFramework>
+    <CommandLineArguments>--trail=0 --g=0 --V=HO --iState=ST --save_interval=10 --verbose=False --save_interval=10</CommandLineArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>

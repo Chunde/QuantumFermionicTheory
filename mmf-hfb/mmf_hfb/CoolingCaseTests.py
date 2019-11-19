@@ -5,10 +5,9 @@ import numpy as np
 import xlwt
 import xlrd
 import time
-import os
-import datetime
-import inspect
-import glob
+import argparse
+
+# Instantiate the parser
 
 
 def Normalize(psi, dx=0.1):
@@ -27,16 +26,6 @@ def random_gaussian_mixing(x, dx=0.1):
     return Normalize(ys, dx=dx)
 
 
-def unpack(psi):
-    return dict(r=psi.real.tolist(), i=psi.imag.tolist())
-
-
-def dict_to_complex(psi_data):
-    psi_r = psi_data['r']
-    psi_i = psi_data['i']
-    return np.array(psi_r)+1j*np.array(psi_i)
-
-
 def get_init_states(N=128, dx=0.1):
     b = BCSCooling(N=N, dx=dx)
     x = b.xyz[0]
@@ -52,26 +41,6 @@ def get_init_states(N=128, dx=0.1):
     return dict(
         ST=psi_standing_wave, GM=psi_gaussian_mixing,
         UN=psi_uniform, BS=psi_bright_soliton)
-
-
-def get_cooling_potential_setting(beta_V=60, beta_K=75, beta_D=1000, beta_Y=1):
-    cooling_para_list=[
-        dict(beta_V=beta_V, beta_K=beta_K, beta_D=beta_D, beta_Y=beta_Y),
-        dict(beta_V=beta_V, beta_K=beta_K, beta_D=beta_D, beta_Y=0),
-        dict(beta_V=beta_V, beta_K=beta_K, beta_D=0, beta_Y=beta_Y),
-        dict(beta_V=beta_V, beta_K=0, beta_D=beta_D, beta_Y=beta_Y),
-        dict(beta_V=0, beta_K=beta_K, beta_D=beta_D, beta_Y=beta_Y),
-        dict(beta_V=beta_V, beta_K=beta_K, beta_D=0, beta_Y=0),
-        dict(beta_V=beta_V, beta_K=0, beta_D=beta_D, beta_Y=0),
-        dict(beta_V=0, beta_K=beta_K, beta_D=beta_D, beta_Y=0),
-        dict(beta_V=beta_V, beta_K=0, beta_D=0, beta_Y=beta_Y),
-        dict(beta_V=0, beta_K=beta_K, beta_D=0, beta_Y=beta_Y),
-        dict(beta_V=0, beta_K=0, beta_D=beta_D, beta_Y=beta_Y),
-        dict(beta_V=0, beta_K=beta_K, beta_D=0, beta_Y=0),
-        dict(beta_V=0, beta_K=0, beta_D=beta_D, beta_Y=0),
-        dict(beta_V=0, beta_K=0, beta_D=0, beta_Y=beta_Y),   
-        dict(beta_V=beta_V, beta_K=0, beta_D=0, beta_Y=0)]
-    return cooling_para_list
 
 
 def get_potentials(x):
@@ -137,7 +106,7 @@ class TestCase(object):
                 print((E2 - E1)/E1)
                 return psis[-1]
 
-    def run(self, N_T=10, T=None, plot=False, plot_log=True, plot_dE=False):
+    def run(self, N_T=10, T=None, plot=False, plot_log=True, plot_dE=False, verbose=True):
         b, x = self.b, self.x
         E0, _ = b.get_E_Ns([self.psi_ground])
         self.E0 = E0
@@ -161,7 +130,8 @@ class TestCase(object):
             self.physical_time.append(T)
             self.Es.append(E)
             self.psis.append(psiss[0][-1])
-            print(f"physical time:{T}, wall time:{wall_time},dE:{(E-E0)/abs(E0)} ")
+            if verbose:
+                print(f"physical time:{T}, wall time:{wall_time},dE:{(E-E0)/abs(E0)} ")
             
             if plot:
                 Es = [b.get_E_Ns([_psi])[0] for _psi in psiss[0]]
@@ -210,35 +180,26 @@ class TestCase(object):
         plt.legend()
 
 
-def write_sheet(sheet, last_file):
-    try:
-        if last_file is not None:  # load last saved
-            book = xlrd.open_workbook(last_file)
-            table = book.sheet_by_name("overall")
-            nrows = table.nrows
-            ncols = table.nrows
-            last_row = sheet.nrows
-            for r in range(1, nrows):
-                for c in range(ncols):
-                    sheet.write(last_row, c, table.cell(r, c).value)
-                last_row += 1
-    except:
-        pass
-
-
 def benchmark_test_excel(
-        N=128, dx=0.1, g=0, Ts=[5], trails=1, use_abm=False,
+        N=128, dx=0.1, g=0, Ts=[5], trail=1, use_abm=False,
         beta_0=1, beta_Ks=[0], beta_Vs=[10], beta_Ds=[0], beta_Ys=[0],
         ground_state="Gaussian", init_state_key="ST", V_key="HO",
-        time_out=120, T_ground_state=10, last_file=None):
+        time_out=120, T_ground_state=10, last_file=None,
+        save_interval=5, verbose=False):
     """
     this function is provided to perform test the cooling vs wall time
-    calling this function will create a excel file that summarize the 
+    calling this function will create a excel file that summarize the
     results, including all parameters used for each case.
     """
+    print(f"N={N}, dx={dx}, g={g}, Ts={Ts}, trail={trail}, use_abm={use_abm},"
+            +f"beta_0={beta_0}, beta_Ks={beta_Ks}, beta_Vs={beta_Vs},"
+            +f"beta_Ds={beta_Ds}, beta_Ys={beta_Ys},ground_state={ground_state}, "
+            +f"init_state_key={init_state_key}, V_key={V_key},"
+            +f"time_out={time_out}, T_ground_state={T_ground_state}"
+            +f",save_interval={save_interval}, verbose={verbose}")
     # create an excel table to store the result
     file_name = (
-        f"TestCase_N{N}_dx{dx}_g{g}_T{5}_Trails{trails}"
+        f"TestCase_N{N}_dx{dx}_g{g}_T{5}_Trail{trail}"
         +f"_IS={init_state_key}_V={V_key}_"
         +time.strftime("%Y_%m_%d_%H_%M_%S.xls"))
     output = xlwt.Workbook(encoding='utf-8')
@@ -253,7 +214,6 @@ def benchmark_test_excel(
     for value in headers:
         sheet.write(row, col, value)
         col += 1
-    write_sheet(sheet, last_file=last_file)
     psis_init = get_init_states(N=N, dx=dx)
     psi_init = psis_init[init_state_key]
     b = BCSCooling(N=N, dx=dx)
@@ -264,80 +224,111 @@ def benchmark_test_excel(
         g=g, psi_init=psi_init, use_abm=use_abm, check_dE=False, time_out=time_out)
     t=TestCase(ground_state_eps=1e-1, beta_0=beta_0, **args)
     row = 1
-    for trail in range(trails):
-        for beta_Y in beta_Ys:
-            t.b.beta_Y = beta_Y
-            for beta_D in beta_Ds:
-                t.b.beta_D = beta_D
-                for beta_K in beta_Ks:
-                    t.b.beta_K = beta_K
-                    for beta_V in beta_Vs:
-                        t.b.beta_V = beta_V
-                        for T in Ts:
+    counter = 0
+    for beta_Y in beta_Ys:
+        t.b.beta_Y = beta_Y
+        for beta_D in beta_Ds:
+            t.b.beta_D = beta_D
+            for beta_K in beta_Ks:
+                t.b.beta_K = beta_K
+                for beta_V in beta_Vs:
+                    t.b.beta_V = beta_V
+                    for T in Ts:
+                        if verbose:
                             print(
                                 f"Trail#={trail}: beta_V={beta_V}, beta_K={beta_K},"
                                 +f"beta_D={beta_D}, beta_Y={beta_Y},"
                                 +f"g={g}, T={T}, V={V_key}, N={N},dx={dx}")
-                            try:
-                                if beta_V == 0 and beta_K== 0 and beta_Y==0:
-                                    continue
-                                t.run(T=T, plot=False)
-                                wall_time = t.wall_time[-1]
-                                E0 = t.E0
-                                Ei, Ef = t.E_init, t.Es[-1]
-                                dEf = (Ef - E0)/E0
-                                col = 0
-                                values = [
-                                    trail, time.strftime("%Y/%m/%d %H:%M:%S"), N, dx,
-                                    beta_0, beta_V, beta_K, beta_D, beta_Y, g, V_key,
-                                    ground_state, init_state_key, E0, Ei, Ef]
-                                for value in values:
-                                    sheet.write(row, col, value)
-                                    col += 1
-                                Evoler = "ABM" if t.use_abm else "IVP"
-                                sheet.write(row, col, Evoler)
-                                col+=1
-                                if abs(dEf) < 1:
-                                    sheet.write(row, col, "Cooled")
-                                elif abs((Ef - Ei)/Ei)<0.01:
-                                    sheet.write(row, col, "Failed")
-                                else:
-                                    sheet.write(row, col, "Partially Cooled")
-                                col+=1
-                                sheet.write(row, col, T)
-                                col+=1
-                                sheet.write(row, col, wall_time)
-                                col+=1
-                                row+=1
-                                output.save(file_name)
-                                print(f"E0={E0}, Ei={Ei}, Ef={Ef}: Saved to {file_name}")
-                            except:
+                        try:
+                            if beta_V == 0 and beta_K== 0 and beta_Y==0:
                                 continue
+                            t.run(T=T, plot=False, verbose=verbose)
+                            wall_time = t.wall_time[-1]
+                            E0 = t.E0
+                            Ei, Ef = t.E_init, t.Es[-1]
+                            dEf = (Ef - E0)/E0
+                            col = 0
+                            values = [
+                                trail, time.strftime("%Y/%m/%d %H:%M:%S"), N, dx,
+                                beta_0, beta_V, beta_K, beta_D, beta_Y, g, V_key,
+                                ground_state, init_state_key, E0, Ei, Ef]
+                            for value in values:
+                                sheet.write(row, col, value)
+                                col += 1
+                            Evoler = "ABM" if t.use_abm else "IVP"
+                            sheet.write(row, col, Evoler)
+                            col+=1
+                            if abs(dEf) < 1:
+                                sheet.write(row, col, "Cooled")
+                            elif abs((Ef - Ei)/Ei)<0.01:
+                                sheet.write(row, col, "Failed")
+                            else:
+                                sheet.write(row, col, "Partially Cooled")
+                            col+=1
+                            sheet.write(row, col, T)
+                            col+=1
+                            sheet.write(row, col, wall_time)
+                            col+=1
+                            row+=1
+                            counter +=1
+                            if counter % save_interval == 0:
+                                output.save(file_name)
+                                print(f"{counter}: E0={E0}, Ei={Ei}, Ef={Ef}: Saved to {file_name}")
+                        except:
+                            continue
 
 
-def do_case_test_excel():
+def do_case_test_excel(
+    N=128, dx=0.2, g=1, beta_0=1, N_beta_V=10, N_beta_K=11,
+        min_beta_V=10, max_beta_V=100, min_beta_K=0, max_beta_K=100,
+            min_T=1, max_T=5, N_T=20, iState="ST", V="HO", trail=0,
+                time_out=60, Ti=4, use_abm=False, save_interval=5, verbose=False):
     """
     a function benchmarks on wall time for given set of parameters.
     change parameters below as needed.
     """
-    N=128
-    dx=0.2
-    g = -1
-    beta_0=1
-    time_out=60
-    use_abm=False
-    beta_Vs = np.linspace(10, 100, 10)
-    beta_Ks = np.linspace(0, 100, 11)
-    Ts = np.linspace(0.001, 5, 20)
+    beta_Vs = np.linspace(min_beta_V, max_beta_V, N_beta_V)
+    beta_Ks = np.linspace(min_beta_K, max_beta_K, N_beta_K)
+    Ts = np.linspace(min_T, max_T, N_T)
     beta_Ds = [0]
     beta_Ys = [0]
-    for init_state_key in get_init_states():
-        for V_key in ["HO"]:
-            benchmark_test_excel(
-                N=N, dx=dx, g=g, trails=1, Ts=Ts, use_abm=use_abm, time_out=time_out,
-                beta_Vs=beta_Vs, beta_Ks=beta_Ks, beta_Ds=beta_Ds, beta_0=beta_0,
-                beta_Ys=beta_Ys, init_state_key=init_state_key, V_key=V_key)
+    benchmark_test_excel(
+        N=N, dx=dx, g=g, trail=trail, Ts=Ts, use_abm=use_abm, time_out=time_out,
+        beta_Vs=beta_Vs, beta_Ks=beta_Ks, beta_Ds=beta_Ds, beta_0=beta_0,
+        beta_Ys=beta_Ys, init_state_key=iState, V_key=V,
+        T_ground_state=Ti, save_interval=save_interval, verbose=verbose)
 
 
 if __name__ == "__main__":
-    do_case_test_excel()
+    parser = argparse.ArgumentParser(description='Cooling Case Data Generation')
+    parser.add_argument('--N', type=int, default=128, help='lattice point number')
+    parser.add_argument(
+        '--trail', type=int, default=0, help='trail number used to track different runs')
+    parser.add_argument(
+        '--dx', type=float, default=0.2, help='An optional integer positional argument')
+    parser.add_argument(
+        '--g', type=float, default=0, help='Interaction')
+    parser.add_argument('--iState', default="ST", help='Initial State Type: ST/BS/UN/GM')
+    parser.add_argument('--V', default="HO", help='Potential Type: HO/V0')
+    parser.add_argument('--N_beta_V', type=int, default=10, help='Number of beta_Vs')
+    parser.add_argument('--min_beta_V', type=float, default=10, help='min value of beta_Vs')
+    parser.add_argument(
+        '--max_beta_V', type=float, default=100, help='max value of beta_Vs')
+    parser.add_argument('--N_beta_K', type=int, default=11, help='Number of beta_Ks')
+    parser.add_argument('--min_beta_K', type=float, default=0, help='min value of beta_Ks')
+    parser.add_argument('--max_beta_K', type=float, default=100, help='max value of beta_Ks')
+    parser.add_argument('--N_T', type=int, default=25, help='Number of T')
+    parser.add_argument('--min_T', type=float, default=1, help='min value of T')
+    parser.add_argument('--max_T', type=float, default=5, help='max value of T')
+    parser.add_argument('--time_out', type=float, default=60, help='time out')
+    parser.add_argument('--Ti', type=float, default=20.0, help='imaginary cooling Max time')
+    parser.add_argument('--use_abm', type=bool, default=False, help='use ABM or not:True/False')
+    parser.add_argument('--save_interval', type=int, default=5, help='write file interval')
+   # parser.add_argument('--verbose', default=False, action="store_true" , help='print message')
+    parser.add_argument('--verbose', dest='verbose', type=lambda x:bool(True if x=='True' else False))
+    args = vars(parser.parse_args())
+    try:
+        do_case_test_excel(**args)
+    except ValueError:
+        parser.print_help()
+        
