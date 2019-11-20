@@ -87,9 +87,13 @@ def benchmark_test_excel(
                                 +f"beta_D={beta_D}, beta_Y={beta_Y}, g={g}, T={T}")
                         if beta_V == 0 and beta_K== 0 and beta_Y==0:
                             continue
-                        Ei, Ef, wall_time= t.get_E_Tw(
-                            T=T, beta_V=beta_V, beta_K=beta_K,
-                            beta_D=beta_D, beta_Y=beta_Y)
+                        try:
+                            Ei, Ef, wall_time= t.get_E_Tw(
+                                T=T, beta_V=beta_V, beta_K=beta_K,
+                                beta_D=beta_D, beta_Y=beta_Y)
+                        except ValueError as e:
+                            print('Eception: '+ str(e))
+                            continue
                         E0 = t.E0
                         dEf = (Ef - E0)/E0
                         col = 0
@@ -129,7 +133,7 @@ def benchmark_test_excel(
 def do_case_test_excel(
         g=1, beta_0=1, N_beta_V=10, N_beta_K=11,
         min_beta_V=10, max_beta_V=100, min_beta_K=0, max_beta_K=100,
-        min_T=1, max_T=5, N_T=20, trail=0, time_out=60, Ti=4,
+        min_T=1, max_T=5, N_T=20, trail=0, time_out=600, Ti=4,
         use_abm=False, save_interval=5, verbose=False):
     """
     a function benchmarks on wall time for given set of parameters.
@@ -177,7 +181,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '--verbose', dest='verbose', type=lambda x: bool(True if x=='True' else False))
     args = vars(parser.parse_args())
-    try:
-        do_case_test_excel(**args)
-    except ValueError:
-        parser.print_help()
+    #try:
+    do_case_test_excel(**args)
+    #except ValueError:
+    #    parser.print_help()

@@ -244,7 +244,11 @@ def benchmark_test_excel(
                                 +f"g={g}, T={T}, V={V_key}, N={N},dx={dx}")
                         if beta_V == 0 and beta_K== 0 and beta_Y==0:
                             continue
-                        t.run(T=T, plot=False, verbose=verbose)
+                        try:
+                            t.run(T=T, plot=False, verbose=verbose)
+                        except ValueError as e:
+                            print('Exception: '+ str(e))
+                            continue
                         wall_time = t.wall_time[-1]
                         E0 = t.E0
                         Ei, Ef = t.E_init, t.Es[-1]
@@ -342,4 +346,4 @@ if __name__ == "__main__":
     try:
         do_case_test_excel(**args)
     except ValueError:
-        parser.print_help()    
+        parser.print_help()
