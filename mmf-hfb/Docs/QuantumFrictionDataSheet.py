@@ -81,9 +81,7 @@ def Check_Test_Case(beta_H=1, beta_V=10, beta_K=0,  N=128, dx=0.2, g=1, Tp=20, T
     print(t.E_init, t.Es[-1])
 
 
-Check_Test_Case(g=-1, Tg=5, Tp=5, beta_K=70, beta_V=10,psi_key="ST", V_key="V0")
-
-Check_Test_Case(g=-1, Tg=5, Tp=5, beta_K=70, beta_V=10,psi_key="UN", V_key="HO")
+Check_Test_Case(g=-1, Tg=5, Tp=5,beta_V=10, beta_K=0, psi_key="ST", V_key="HO")
 
 
 # ## Check Overall factor $\beta_H$ vs Wall Time
@@ -144,33 +142,77 @@ ts, psis = s.solve([psi0], T=5.0, rtol=1e-5, atol=1e-6)
 s.plot(psis[0][-1])
 #plt.subplot(122)
 Es = [s.get_E_Ns([psi])[0] for psi in psis[0]]
-plt.plot(ts[0], Es)
+plt.semilogy(ts[0], Es)
 
 s.beta_0=1
 s.beta_V=20
 ts, psis = s.solve([psi0], T=3, rtol=1e-5, atol=1e-6)
 s.plot(psis[0][-1])
 Es = [s.get_E_Ns([psi])[0] for psi in psis[0]]
-plt.plot(ts[0], Es)
+plt.semilogy(ts[0], Es)
 
-s.beta_0=1
-s.beta_V=20
-s.beta_K=10
-ts, psis = s.solve([psi0], T=3, rtol=1e-5, atol=1e-6)
-s.plot(psis[0][-1])
-Es = [s.get_E_Ns([psi])[0] for psi in psis[0]]
-plt.plot(ts[0], Es)
+import time
+class TestCase2D(object):
+    def __init__(self, T=5, g=0, **args):
+        b = BCSCooling(N=32, dx=0.1, beta_0=-1j, g=g, dim=2, **args)
+        x, y =b.xyz
+        V = sum(_x**2 for _x in b.xyz)
+        b.V = np.array(V)/2
+        x0 = 0.5
+        phase = ((x-x0) + 1j*y)*((x+x0) - 1j*y)
+        psi_init = 1.0*np.exp(1j*np.angle(phase))
+        _, psis = b.solve([psi_init], T=T, rtol=1e-5, atol=1e-6)
+        psi_ground = psis[0][-1]
+        E0 = b.get_E_Ns([psi_ground])[0]
+        self.E0 = E0
+        self.psi_ground=psi_ground
+        self.psi_init = psi_init
+        self.b = b
+        
+    def get_E_Tw(self, beta_V, beta_K=0, beta_D=0, beta_Y=0, T=5):
+        b = self.b
+        b.beta_V = beta_V
+        b.beta_K = beta_K
+        b.beta_D = beta_D
+        b.beta_Y = beta_Y
+        start_time = time.time()
+        _, psis = b.solve([self.psi_init], T=T, rtol=1e-5, atol=1e-6)
+        wall_time = time.time() - start_time
+        Ei = b.get_E_Ns([psis[0][0]])[0]
+        Ef = b.get_E_Ns([psis[0][-1]])[0]
+        return (Ei, Ef, wall_time)
+
+
+c=TestCase2D(g=0, T=5)
+
+c.get_E_Tw(beta_V=20)
 
 # # Load CVS file
 
 import pandas as pd 
 import sys
 
-currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","mmf_hfb")
+currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","..", "data")
+
+# ## Excel to CVS
+# * conver excel file to cvs
+
+import pandas as pd
+files = glob.glob(join(currentdir, "*.xls"))
+for file in files:
+    csv_file = os.path.splitext(file)[0] + ".csv"
+    if os.path.exists(csv_file):
+        continue
+    data_xls = pd.read_excel(file, 'overall', index_col=None)
+    data_xls.to_csv(csv_file, encoding='utf-8')
+    print(f"generated file:{cvs_file}")
+
+# ## Plot $(E-E_0)/E_0$ vs Wall-Time
+
 files = glob.glob(join(currentdir, "*.csv"))
 data = pd.concat([pd.read_csv(file) for file in files])
 
-data.to_excel("data.xlsx", sheet_name='overall')
+data.to_excel(join(currentdir, "data.xlsx"), sheet_name='overall')
 
 istate = set(data['iState'])
 res = data.query(f"iState=='BS'")
@@ -189,57 +231,68 @@ def plot_Es_Ts(beta_K, beta_V, g, V, iState, style=None):
     Es, Ts = get_Es_Ts(beta_K=beta_K, beta_V=beta_V, V=V, g=g, iState=iState)
     if Ts is None or len(Ts) ==0:
         return
+    x = Ts
+    y = Es
     if style is None:
-        plt.plot(Es, Ts, label=f"K={beta_K}, V={beta_V}, iState={iState}")
+        plt.plot(x, y, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, iState={iState}, g={g}")
     elif style=='log':
-        plt.loglog(Es, Ts, label=f"K={beta_K}, V={beta_V}, iState={iState}")
+        plt.loglog(x,y,  label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, iState={iState}, g={g}")
     elif style == 'semi':
-        plt.semilogy(Es, Ts, label=f"K={beta_K}, V={beta_V}, iState={iState}")
+        plt.semilogy(x, y, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, iState={iState}, g={g}")
     else:
-        plt.plot(Es, Ts, label=f"K={beta_K}, V={beta_V}, iState={iState}")
+        plt.plot(x, y, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, iState={iState}, g={g}")
     return Es, Ts
 
 
+# +
+# data.query(f"beta_K=={0} and beta_V=={10} and g=={-1} and V=='HO' and iState== 'ST'")
 # -
 
-data.query(f"beta_K=={0} and beta_V=={10} and g=={-1} and V=='V0' and iState== 'ST'")
-
-g=-1
+plt.figure(figsize=(10, 8))
+g=0
 iState="ST"
-style="log"
-V="V0"
-plot_Es_Ts(beta_V=10, beta_K=0, iState=iState, g=g, V=V,style=style);
-plot_Es_Ts(beta_V=10, beta_K=40, iState=iState, g=g, V=V,style=style);
-plot_Es_Ts(beta_V=20, beta_K=0, iState=iState, g=g, V=V, style=style);
-plt.xlabel("")
+style="semi"
+V="HO"
+plot_Es_Ts(beta_V=30, beta_K=0, iState=iState, g=g, V=V,style=style);
+plot_Es_Ts(beta_V=10, beta_K=60, iState=iState, g=g, V=V,style=style);
+plt.ylabel("(E-E0)/E0")
+plt.xlabel("Wall Time")
 plt.legend()
 
-beta_Vs = set(data['beta_V'])
-beta_Ks = set(data['beta_K'])
-iStates = list(set(data['iState']))
-iState = iStates[3]
-print(iState)
-plt.figure(figsize=(18,15))
-max_plot = 5
-beta_V_min = 0
-beta_K_min = 0
-wall_time_sum_min = sys.float_info.max
-for beta_V in beta_Vs:
-    for beta_K in beta_Ks:
-        Es, Ts=plot_Es_Ts(beta_K=beta_K, beta_V=beta_V, iState=iState, style=None)
-        max_plot -= 1
-        if sum(Ts) < wall_time_sum_min:
-            beta_V_min=beta_V
-            beta_K_min=beta_K
-            wall_time_sum_min = sum(Ts)
-        if max_plot < 0:
-            break
-    if max_plot < 0:
-        break
-plt.ylabel("wTime")
-plt.xlabel("(E-E0)/E0")
-plt.title(f"V={beta_V_min}, K={beta_K_min}")
+plt.figure(figsize=(10, 8))
+g=0
+iState="UN"
+style="semi"
+V="HO"
+plot_Es_Ts(beta_V=10, beta_K=0, iState=iState, g=g, V=V,style=style);
+plot_Es_Ts(beta_V=10, beta_K=50, iState=iState, g=g, V=V,style=style);
+plt.ylabel("(E-E0)/E0")
+plt.xlabel("Wall Time")
 plt.legend()
+
+
+plt.figure(figsize=(10, 8))
+g=0
+iState="GM"
+style="semi"
+V="HO"
+plot_Es_Ts(beta_V=30, beta_K=0, iState=iState, g=g, V=V,style=style);
+plot_Es_Ts(beta_V=20, beta_K=30, iState=iState, g=g, V=V,style=style);
+plt.ylabel("(E-E0)/E0")
+plt.xlabel("Wall Time")
+plt.legend()
+
+plt.figure(figsize=(10, 8))
+g=0
+iState="BS"
+style="semi"
+V="HO"
+plot_Es_Ts(beta_V=90, beta_K=0, iState=iState, g=g, V=V,style=style);
+plot_Es_Ts(beta_V=100, beta_K=50, iState=iState, g=g, V=V,style=style);
+plt.ylabel("(E-E0)/E0")
+plt.xlabel("Wall Time")
+plt.legend()
+
 
 
 

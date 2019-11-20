@@ -3,10 +3,10 @@ from mmf_hfb.SolverABM import ABMEvolverAdapter
 import matplotlib.pyplot as plt
 import numpy as np
 import xlwt
-import xlrd
 import time
 import argparse
 import os
+import pandas as pd 
 
 # Instantiate the parser
 
@@ -192,17 +192,19 @@ def benchmark_test_excel(
     calling this function will create a excel file that summarize the
     results, including all parameters used for each case.
     """
-    print(f"N={N}, dx={dx}, g={g}, Ts={Ts}, trail={trail}, use_abm={use_abm},"
-            +f"beta_0={beta_0}, beta_Ks={beta_Ks}, beta_Vs={beta_Vs},"
-            +f"beta_Ds={beta_Ds}, beta_Ys={beta_Ys},ground_state={ground_state}, "
-            +f"init_state_key={init_state_key}, V_key={V_key},"
-            +f"time_out={time_out}, T_ground_state={T_ground_state}"
-            +f",save_interval={save_interval}, verbose={verbose}")
+    print(
+        f"N={N}, dx={dx}, g={g}, Ts={Ts}, trail={trail}, use_abm={use_abm},"
+        +f"beta_0={beta_0}, beta_Ks={beta_Ks}, beta_Vs={beta_Vs},"
+        +f"beta_Ds={beta_Ds}, beta_Ys={beta_Ys},ground_state={ground_state}, "
+        +f"init_state_key={init_state_key}, V_key={V_key},"
+        +f"time_out={time_out}, T_ground_state={T_ground_state}"
+        +f",save_interval={save_interval}, verbose={verbose}")
     # create an excel table to store the result
-    file_name = (
+    file_stem = (
         f"TestCase_N[{N}]_dx[{dx}]_g[{g}]_T[{5}]_Tr[{trail}]"
         +f"_IS[{init_state_key}]_V[{V_key}]_PID=[{os.getpid()}]_"
-        +time.strftime("%Y_%m_%d_%H_%M_%S.xls"))
+        +time.strftime("%Y_%m_%d_%H_%M_%S"))
+    file_name = file_stem+".xls"
     output = xlwt.Workbook(encoding='utf-8')
     sheet = output.add_sheet("overall", cell_overwrite_ok=True)
     col = 0
@@ -273,21 +275,27 @@ def benchmark_test_excel(
                         counter +=1
                         if counter % save_interval == 0:
                             output.save(file_name)
-                            print(f"{counter}: E0={E0}, Ei={Ei}, Ef={Ef}: Saved to {file_name}")
+                            print(
+                                f"{counter}: E0={E0}, Ei={Ei},"
+                                +f"Ef={Ef}: Saved to {file_name}")
+    # convert to csv files
+    data_xls = pd.read_excel(file_name, 'overall', index_col=None)
+    data_xls.to_csv(file_stem+".csv", encoding='utf-8')
 
 
 def do_case_test_excel(
-    N=128, dx=0.2, g=1, beta_0=1, N_beta_V=10, N_beta_K=11,
+        N=128, dx=0.2, g=1, beta_0=1, N_beta_V=10, N_beta_K=11,
         min_beta_V=10, max_beta_V=100, min_beta_K=0, max_beta_K=100,
-            min_T=1, max_T=5, N_T=20, iState="ST", V="HO", trail=0,
-                time_out=60, Ti=4, use_abm=False, save_interval=5, verbose=False):
+        min_T=1, max_T=5, N_T=20, iState="ST", V="HO", trail=0,
+        time_out=60, Ti=4, use_abm=False, save_interval=5, verbose=False):
     """
     a function benchmarks on wall time for given set of parameters.
     change parameters below as needed.
     """
     beta_Vs = np.linspace(min_beta_V, max_beta_V, N_beta_V)
     beta_Ks = np.linspace(min_beta_K, max_beta_K, N_beta_K)
-    Ts = np.linspace(min_T, max_T, N_T)
+    Ts = np.concatenate(
+        [np.linspace(0.001, 0.99, 20), np.linspace(min_T, max_T, N_T)])
     beta_Ds = [0]
     beta_Ys = [0]
     benchmark_test_excel(
@@ -309,24 +317,29 @@ if __name__ == "__main__":
     parser.add_argument('--iState', default="ST", help='Initial State Type: ST/BS/UN/GM')
     parser.add_argument('--V', default="HO", help='Potential Type: HO/V0')
     parser.add_argument('--N_beta_V', type=int, default=10, help='Number of beta_Vs')
-    parser.add_argument('--min_beta_V', type=float, default=10, help='min value of beta_Vs')
+    parser.add_argument(
+        '--min_beta_V', type=float, default=10, help='min value of beta_Vs')
     parser.add_argument(
         '--max_beta_V', type=float, default=100, help='max value of beta_Vs')
     parser.add_argument('--N_beta_K', type=int, default=11, help='Number of beta_Ks')
-    parser.add_argument('--min_beta_K', type=float, default=0, help='min value of beta_Ks')
-    parser.add_argument('--max_beta_K', type=float, default=100, help='max value of beta_Ks')
+    parser.add_argument(
+        '--min_beta_K', type=float, default=0, help='min value of beta_Ks')
+    parser.add_argument(
+        '--max_beta_K', type=float, default=100, help='max value of beta_Ks')
     parser.add_argument('--N_T', type=int, default=25, help='Number of T')
     parser.add_argument('--min_T', type=float, default=1, help='min value of T')
     parser.add_argument('--max_T', type=float, default=5, help='max value of T')
     parser.add_argument('--time_out', type=float, default=60, help='time out')
-    parser.add_argument('--Ti', type=float, default=20.0, help='imaginary cooling Max time')
-    parser.add_argument('--use_abm', type=bool, default=False, help='use ABM or not:True/False')
-    parser.add_argument('--save_interval', type=int, default=5, help='write file interval')
-   # parser.add_argument('--verbose', default=False, action="store_true" , help='print message')
-    parser.add_argument('--verbose', dest='verbose', type=lambda x:bool(True if x=='True' else False))
+    parser.add_argument(
+        '--Ti', type=float, default=20.0, help='imaginary cooling Max time')
+    parser.add_argument(
+        '--use_abm', type=bool, default=False, help='use ABM or not:True/False')
+    parser.add_argument(
+        '--save_interval', type=int, default=5, help='write file interval')
+    parser.add_argument(
+        '--verbose', dest='verbose', type=lambda x: bool(True if x=='True' else False))
     args = vars(parser.parse_args())
     try:
         do_case_test_excel(**args)
     except ValueError:
-        parser.print_help()
-        
+        parser.print_help()    
