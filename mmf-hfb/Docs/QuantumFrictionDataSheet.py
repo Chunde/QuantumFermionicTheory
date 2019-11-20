@@ -164,6 +164,7 @@ class TestCase2D(object):
         _, psis = b.solve([psi_init], T=T, rtol=1e-5, atol=1e-6)
         psi_ground = psis[0][-1]
         E0 = b.get_E_Ns([psi_ground])[0]
+        print(f"Ground state energy={E0}")
         self.E0 = E0
         self.psi_ground=psi_ground
         self.psi_init = psi_init
@@ -183,7 +184,7 @@ class TestCase2D(object):
         return (Ei, Ef, wall_time)
 
 
-c=TestCase2D(g=0, T=5)
+c=TestCase2D(g=1, T=5)
 
 c.get_E_Tw(beta_V=20)
 
@@ -207,12 +208,29 @@ for file in files:
     data_xls.to_csv(csv_file, encoding='utf-8')
     print(f"generated file:{cvs_file}")
 
+
+# +
+def CombineExcelSheetsToCSV(file_path=None):
+    if file_path is None:
+        file_path = join(currentdir, 'CoolingTestData1D.xlsx')
+
+    df = pd.concat(pd.read_excel(file_path, sheet_name=None), ignore_index=True)
+    file_stem = file_path.split()[0] # not right
+    df.to_csv( join(file_stem +".csv"), encoding='utf-8')
+    return df
+
+def ReadAllExcelFile():
+    files = glob.glob(join(currentdir, "*.csv"))
+    data = pd.concat([pd.read_csv(file) for file in files])
+    data.to_excel(join(currentdir, "data.xlsx"), sheet_name='overall')
+    return data
+
+
+# -
+
 # ## Plot $(E-E_0)/E_0$ vs Wall-Time
 
-files = glob.glob(join(currentdir, "*.csv"))
-data = pd.concat([pd.read_csv(file) for file in files])
-
-data.to_excel(join(currentdir, "data.xlsx"), sheet_name='overall')
+data = CombineExcelSheetsToCSV()
 
 istate = set(data['iState'])
 res = data.query(f"iState=='BS'")
@@ -227,71 +245,44 @@ def get_Es_Ts(beta_K, beta_V, iState, V, g):
     dE = (Ef- E0)/E0
     return dE, Ts
 
-def plot_Es_Ts(beta_K, beta_V, g, V, iState, style=None):
+def plot_Es_Ts(beta_K, beta_V, g, V, iState, line='-', style=None):
     Es, Ts = get_Es_Ts(beta_K=beta_K, beta_V=beta_V, V=V, g=g, iState=iState)
     if Ts is None or len(Ts) ==0:
         return
     x = Ts
     y = Es
-    if style is None:
-        plt.plot(x, y, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, iState={iState}, g={g}")
-    elif style=='log':
-        plt.loglog(x,y,  label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, iState={iState}, g={g}")
-    elif style == 'semi':
-        plt.semilogy(x, y, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, iState={iState}, g={g}")
-    else:
-        plt.plot(x, y, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, iState={iState}, g={g}")
+    if len(y) > 0:
+        if style is None:
+            plt.plot(x, y, line, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, iState={iState}, g={g}")
+        elif style=='log':
+            plt.loglog(x,y, line, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, iState={iState}, g={g}")
+        elif style == 'semi':
+            plt.semilogy(x, y, line, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, iState={iState}, g={g}")
+        else:
+            plt.plot(x, y, line, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, iState={iState}, g={g}")
     return Es, Ts
 
 
-# +
-# data.query(f"beta_K=={0} and beta_V=={10} and g=={-1} and V=='HO' and iState== 'ST'")
 # -
 
-plt.figure(figsize=(10, 8))
-g=0
-iState="ST"
-style="semi"
-V="HO"
-plot_Es_Ts(beta_V=30, beta_K=0, iState=iState, g=g, V=V,style=style);
-plot_Es_Ts(beta_V=10, beta_K=60, iState=iState, g=g, V=V,style=style);
-plt.ylabel("(E-E0)/E0")
-plt.xlabel("Wall Time")
-plt.legend()
-
-plt.figure(figsize=(10, 8))
-g=0
-iState="UN"
-style="semi"
-V="HO"
-plot_Es_Ts(beta_V=10, beta_K=0, iState=iState, g=g, V=V,style=style);
-plot_Es_Ts(beta_V=10, beta_K=50, iState=iState, g=g, V=V,style=style);
-plt.ylabel("(E-E0)/E0")
-plt.xlabel("Wall Time")
-plt.legend()
+def BestPlot(v, v1, k1,iState="ST",g=None, style="semi", V="HO"): 
+    plt.figure(figsize=(10, 8))    
+    gs = [-1, 0, 1] if g is None else [g]    
+    for g in gs:
+        plot_Es_Ts(beta_V=v, beta_K=0, iState=iState, g=g, V=V,style=style);
+        plot_Es_Ts(beta_V=v1, beta_K=k1, iState=iState, g=g, V=V,line='--', style=style);
+    plt.ylabel("(E-E0)/E0")
+    plt.xlabel("Wall Time")
+    plt.legend()
 
 
-plt.figure(figsize=(10, 8))
-g=0
-iState="GM"
-style="semi"
-V="HO"
-plot_Es_Ts(beta_V=30, beta_K=0, iState=iState, g=g, V=V,style=style);
-plot_Es_Ts(beta_V=20, beta_K=30, iState=iState, g=g, V=V,style=style);
-plt.ylabel("(E-E0)/E0")
-plt.xlabel("Wall Time")
-plt.legend()
+BestPlot(30, 10, 60, g=1)
 
-plt.figure(figsize=(10, 8))
-g=0
-iState="BS"
-style="semi"
-V="HO"
-plot_Es_Ts(beta_V=90, beta_K=0, iState=iState, g=g, V=V,style=style);
-plot_Es_Ts(beta_V=100, beta_K=50, iState=iState, g=g, V=V,style=style);
-plt.ylabel("(E-E0)/E0")
-plt.xlabel("Wall Time")
-plt.legend()
+BestPlot(10, 10, 50,iState="UN", style="semi", V="HO")
+
+BestPlot(30, 20, 30, iState="GM",g=0, style="semi", V="HO")
+
+BestPlot(90, 100, 50, iState="BS",g=1, style="semi", V="HO")
 
 
 

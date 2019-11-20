@@ -126,6 +126,7 @@ def benchmark_test_excel(
                                 f"{counter}: E0={E0}, Ei={Ei},"
                                 +f"Ef={Ef}: Saved to {file_name}")
     # convert to csv files
+    output.save(file_name)
     data_xls = pd.read_excel(file_name, 'overall', index_col=None)
     data_xls.to_csv(file_stem+".csv", encoding='utf-8')
 
