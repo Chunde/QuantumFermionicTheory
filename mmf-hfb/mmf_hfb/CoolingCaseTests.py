@@ -297,8 +297,8 @@ def do_case_test_excel(
     a function benchmarks on wall time for given set of parameters.
     change parameters below as needed.
     """
-    beta_Vs = np.linspace(min_beta_V, max_beta_V, N_beta_V)
-    beta_Ks = np.linspace(min_beta_K, max_beta_K, N_beta_K)
+    beta_Vs = np.linspace(min_beta_V, max_beta_V, N_beta_V*2)
+    beta_Ks = np.linspace(min_beta_K, max_beta_K, N_beta_K*2)
     Ts = np.concatenate(
         [np.linspace(0.001, 0.99, 20), np.linspace(min_T, max_T, N_T)])
     beta_Ds = [0]
