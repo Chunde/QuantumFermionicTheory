@@ -27,7 +27,7 @@ import json
 import glob
 import os
 from IPython.display import display, clear_output
-from mmf_hfb.CoolingCaseTests import TestCase, Prob, Normalize, dict_to_complex, random_gaussian_mixing
+from mmf_hfb.CoolingCaseTests import TestCase, Prob, Normalize, random_gaussian_mixing
 
 
 # # 1D Cooling
@@ -118,14 +118,16 @@ def test_wall_time(N=128, dx=0.2, beta_V=0, beta_K=0, beta_Y=0):
     plt.legend()
 
 
-plt.figure(figsize=(18, 5))
-plt.subplot(131)
-test_wall_time(beta_V=20, beta_K=0, beta_Y=0)
-plt.subplot(132)
-test_wall_time(beta_V=20, beta_K=20, beta_Y=0)
-plt.subplot(133)
-test_wall_time(beta_V=0, beta_K=20, beta_Y=0)
-clear_output()
+def Test_Beta_H():
+    plt.figure(figsize=(18, 5))
+    plt.subplot(131)
+    test_wall_time(beta_V=20, beta_K=0, beta_Y=0)
+    plt.subplot(132)
+    test_wall_time(beta_V=20, beta_K=20, beta_Y=0)
+    plt.subplot(133)
+    test_wall_time(beta_V=0, beta_K=20, beta_Y=0)
+    clear_output()
+
 
 # # 2D Cooling
 # * not that slow
@@ -138,78 +140,33 @@ x0 = 0.5
 phase = ((x-x0) + 1j*y)*((x+x0) - 1j*y)
 psi0 = 1.0*np.exp(1j*np.angle(phase))
 ts, psis = s.solve([psi0], T=5.0, rtol=1e-5, atol=1e-6)
-#plt.subplot(121)
-s.plot(psis[0][-1])
-#plt.subplot(122)
-Es = [s.get_E_Ns([psi])[0] for psi in psis[0]]
-plt.semilogy(ts[0], Es)
-
-s.beta_0=1
-s.beta_V=20
-ts, psis = s.solve([psi0], T=3, rtol=1e-5, atol=1e-6)
 s.plot(psis[0][-1])
 Es = [s.get_E_Ns([psi])[0] for psi in psis[0]]
 plt.semilogy(ts[0], Es)
-
-import time
-class TestCase2D(object):
-    def __init__(self, T=5, g=0, **args):
-        b = BCSCooling(N=32, dx=0.1, beta_0=-1j, g=g, dim=2, **args)
-        x, y =b.xyz
-        V = sum(_x**2 for _x in b.xyz)
-        b.V = np.array(V)/2
-        x0 = 0.5
-        phase = ((x-x0) + 1j*y)*((x+x0) - 1j*y)
-        psi_init = 1.0*np.exp(1j*np.angle(phase))
-        _, psis = b.solve([psi_init], T=T, rtol=1e-5, atol=1e-6)
-        psi_ground = psis[0][-1]
-        E0 = b.get_E_Ns([psi_ground])[0]
-        print(f"Ground state energy={E0}")
-        self.E0 = E0
-        self.psi_ground=psi_ground
-        self.psi_init = psi_init
-        self.b = b
-        
-    def get_E_Tw(self, beta_V, beta_K=0, beta_D=0, beta_Y=0, T=5):
-        b = self.b
-        b.beta_V = beta_V
-        b.beta_K = beta_K
-        b.beta_D = beta_D
-        b.beta_Y = beta_Y
-        start_time = time.time()
-        _, psis = b.solve([self.psi_init], T=T, rtol=1e-5, atol=1e-6)
-        wall_time = time.time() - start_time
-        Ei = b.get_E_Ns([psis[0][0]])[0]
-        Ef = b.get_E_Ns([psis[0][-1]])[0]
-        return (Ei, Ef, wall_time)
-
-
-c=TestCase2D(g=1, T=5)
-
-c.get_E_Tw(beta_V=20)
 
 # # Load CVS file
 
 import pandas as pd 
 import sys
 
-currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","..", "data")
+currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","FFStateData", "CoolingData")
+
 
 # ## Excel to CVS
 # * conver excel file to cvs
 
-import pandas as pd
-files = glob.glob(join(currentdir, "*.xls"))
-for file in files:
-    csv_file = os.path.splitext(file)[0] + ".csv"
-    if os.path.exists(csv_file):
-        continue
-    data_xls = pd.read_excel(file, 'overall', index_col=None)
-    data_xls.to_csv(csv_file, encoding='utf-8')
-    print(f"generated file:{cvs_file}")
-
-
 # +
+def convert2CSV():
+    files = glob.glob(join(currentdir, "*.xls"))
+    for file in files:
+        csv_file = os.path.splitext(file)[0] + ".csv"
+        if os.path.exists(csv_file):
+            continue
+        data_xls = pd.read_excel(file, 'overall', index_col=None)
+        data_xls.to_csv(csv_file, encoding='utf-8')
+        print(f"generated file:{cvs_file}")
+        
+        
 def CombineExcelSheetsToCSV(file_path=None):
     if file_path is None:
         file_path = join(currentdir, 'CoolingTestData1D.xlsx')
@@ -218,6 +175,7 @@ def CombineExcelSheetsToCSV(file_path=None):
     file_stem = file_path.split()[0] # not right
     df.to_csv( join(file_stem +".csv"), encoding='utf-8')
     return df
+
 
 def ReadAllExcelFile():
     files = glob.glob(join(currentdir, "*.csv"))
@@ -228,13 +186,53 @@ def ReadAllExcelFile():
 
 # -
 
-# ## Plot $(E-E_0)/E_0$ vs Wall-Time
-
 data = CombineExcelSheetsToCSV()
 
-istate = set(data['iState'])
-res = data.query(f"iState=='BS'")
+# ## Query
 
+iStates = set(data['iState'])
+gs = set(data['g'])
+beta_Vs = set(data['beta_V'])
+beta_Ks = set(data['beta_K'])
+
+gs, iStates, beta_Vs, beta_Ks
+
+pers = [1.01, 1.05, 1.1]
+dfs = []
+for per in pers:   
+    df = data[data.E0*per > data.Ef] # find all rows with Ef in per*E0
+    for iState in iStates:
+        df1 = df[df.iState == iState]
+        for g in gs:
+            df2 = df1[df1.g == g]
+            if df2.empty == False:
+                df3 = df2[df2.beta_K==0] # with beta_K = 0
+                if df3.empty == False:
+                    df_v = df3.loc[df3['wTime'].idxmin()]
+                    if df_v.empty == False:
+                        dfs.append(df_v)
+                df_kv = df2.loc[df2['wTime'].idxmin()]
+                if df_kv.empty == False:
+                    dfs.append(df_kv)
+
+# +
+output =pd.concat(dfs, axis=1).transpose()
+#output.drop(output.columns[0],axis=1,inplace=True)
+del output['Trail'] 
+del output['Time']
+del output['N']
+del output['dx']
+del output['beta_D']
+del output['beta_Y']
+del output['gState']
+
+
+output
+
+
+# -
+
+# ## Plot $(E-E_0)/E_0$ vs Wall-Time
 
 # +
 def get_Es_Ts(beta_K, beta_V, iState, V, g):
@@ -245,44 +243,79 @@ def get_Es_Ts(beta_K, beta_V, iState, V, g):
     dE = (Ef- E0)/E0
     return dE, Ts
 
-def plot_Es_Ts(beta_K, beta_V, g, V, iState, line='-', style=None):
+def plot_Es_Ts(beta_K, beta_V, g, V, iState, line='-', style=None, c=None):
     Es, Ts = get_Es_Ts(beta_K=beta_K, beta_V=beta_V, V=V, g=g, iState=iState)
     if Ts is None or len(Ts) ==0:
-        return
+        return (None, None, None)
     x = Ts
     y = Es
     if len(y) > 0:
         if style is None:
-            plt.plot(x, y, line, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, iState={iState}, g={g}")
+            l, = plt.plot(x, y, line, c=c, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, iState={iState}, g={g}")
         elif style=='log':
-            plt.loglog(x,y, line, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, iState={iState}, g={g}")
+            l, = plt.loglog(x,y, line, c=c, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, iState={iState}, g={g}")
         elif style == 'semi':
-            plt.semilogy(x, y, line, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, iState={iState}, g={g}")
+            l, = plt.semilogy(x, y, line,c=c, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, iState={iState}, g={g}")
         else:
-            plt.plot(x, y, line, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, iState={iState}, g={g}")
-    return Es, Ts
-
-
-# -
+            l, =plt.plot(x, y, line,c=c, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, iState={iState}, g={g}")
+        c = l.get_c()
+    return (Es, Ts, c)
 
 def BestPlot(v, v1, k1,iState="ST",g=None, style="semi", V="HO"): 
     plt.figure(figsize=(10, 8))    
     gs = [-1, 0, 1] if g is None else [g]    
     for g in gs:
-        plot_Es_Ts(beta_V=v, beta_K=0, iState=iState, g=g, V=V,style=style);
-        plot_Es_Ts(beta_V=v1, beta_K=k1, iState=iState, g=g, V=V,line='--', style=style);
+        res = plot_Es_Ts(beta_V=v, beta_K=0, iState=iState, g=g, V=V,style=style)
+        plot_Es_Ts(beta_V=v1, beta_K=k1, iState=iState, g=g, V=V,c=res[2], line='--', style=style)
     plt.ylabel("(E-E0)/E0")
     plt.xlabel("Wall Time")
     plt.legend()
 
 
-BestPlot(30, 10, 60, g=1)
+# -
 
-BestPlot(10, 10, 50,iState="UN", style="semi", V="HO")
+kvs =[(0,0,0),(),(),]
+BestPlot(30, 10, 60, g=None, iState="ST", style="semi", V="HO")
 
-BestPlot(30, 20, 30, iState="GM",g=0, style="semi", V="HO")
+df = data[data.E0*1.05 > data.Ef] # find all rows with Ef in per*E0
+df1 = df[df.iState == "ST"]
+df2 = df1[df1.g == 1]
+df3 = df1[df.beta_K==0] # with beta_K = 0
+df_v = df3.loc[df3['wTime'].idxmin()]
+df_kv = df2.loc[df2['wTime'].idxmin()]
+output = pd.concat([df_v,df_kv], axis=1)
 
-BestPlot(90, 100, 50, iState="BS",g=1, style="semi", V="HO")
+output = None
+pers = [1.01, 1.05, 1.1]
+dfs = []
+for per in pers:
+    
+    df = data[data.E0*per > data.Ef] # find all rows with Ef in per*E0
+    for iState in iStates:
+        df1 = df[df.iState == iState]
+        for g in gs:
+            df2 = df1[df1.g == g]
+            if df2.empty == False:
+                df3 = df2[df2.beta_K==0] # with beta_K = 0
+                if df3.empty == False:
+                    df_v = df3.loc[df3['wTime'].idxmin()]
+                    if df_v.empty == False:
+                        dfs.append(df_v)
+                df_kv = df2.loc[df2['wTime'].idxmin()]
+                if df_kv.empty == False:
+                    dfs.append(df_kv)
+            
+
+
+# +
+kvs =[(20, 40, 60), (0,0,0),(),]
+
+BestPlot(10, 10, 50, iState="UN", style="semi", V="HO")
+# -
+
+BestPlot(30, 20, 30, iState="GM",g=None, style="semi", V="HO")
+
+BestPlot(20, 10, 70, iState="BS",g=None, style="semi", V="HO")
 
 
 
