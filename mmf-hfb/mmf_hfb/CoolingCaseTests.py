@@ -289,25 +289,26 @@ def benchmark_test_excel(
 
 
 def do_case_test_excel(
-        N=128, dx=0.2, g=1, beta_0=1, N_beta_V=10, N_beta_K=11,
-        min_beta_V=10, max_beta_V=100, min_beta_K=0, max_beta_K=100,
+        N=128, dx=0.2, g=1, beta_0=1, N_beta_V=25, N_beta_K=11,
+        min_beta_V=20, max_beta_V=100, min_beta_K=0, max_beta_K=100,
         min_T=1, max_T=5, N_T=20, iState="ST", V="HO", trail=0,
         time_out=60, Ti=4, use_abm=False, save_interval=5, verbose=False):
     """
     a function benchmarks on wall time for given set of parameters.
     change parameters below as needed.
     """
-    beta_Vs = np.linspace(min_beta_V, max_beta_V, N_beta_V*2)
-    beta_Ks = np.linspace(min_beta_K, max_beta_K, N_beta_K*2)
+    beta_Vs = np.linspace(min_beta_V, max_beta_V, N_beta_V)
+    beta_Ks = np.linspace(min_beta_K, max_beta_K, N_beta_K)
     Ts = np.concatenate(
         [np.linspace(0.001, 0.99, 20), np.linspace(min_T, max_T, N_T)])
     beta_Ds = [0]
     beta_Ys = [0]
-    benchmark_test_excel(
-        N=N, dx=dx, g=g, trail=trail, Ts=Ts, use_abm=use_abm, time_out=time_out,
-        beta_Vs=beta_Vs, beta_Ks=beta_Ks, beta_Ds=beta_Ds, beta_0=beta_0,
-        beta_Ys=beta_Ys, init_state_key=iState, V_key=V,
-        T_ground_state=Ti, save_interval=save_interval, verbose=verbose)
+    for trail in range(3):
+        benchmark_test_excel(
+            N=N, dx=dx, g=g, trail=trail, Ts=Ts, use_abm=use_abm, time_out=time_out,
+            beta_Vs=beta_Vs, beta_Ks=beta_Ks, beta_Ds=beta_Ds, beta_0=beta_0,
+            beta_Ys=beta_Ys, init_state_key=iState, V_key=V,
+            T_ground_state=Ti, save_interval=save_interval, verbose=verbose)
 
 
 if __name__ == "__main__":
@@ -321,12 +322,12 @@ if __name__ == "__main__":
         '--g', type=float, default=0, help='Interaction')
     parser.add_argument('--iState', default="ST", help='Initial State Type: ST/BS/UN/GM')
     parser.add_argument('--V', default="HO", help='Potential Type: HO/V0')
-    parser.add_argument('--N_beta_V', type=int, default=10, help='Number of beta_Vs')
+    parser.add_argument('--N_beta_V', type=int, default=25, help='Number of beta_Vs')
     parser.add_argument(
-        '--min_beta_V', type=float, default=10, help='min value of beta_Vs')
+        '--min_beta_V', type=float, default=1, help='min value of beta_Vs')
     parser.add_argument(
         '--max_beta_V', type=float, default=100, help='max value of beta_Vs')
-    parser.add_argument('--N_beta_K', type=int, default=11, help='Number of beta_Ks')
+    parser.add_argument('--N_beta_K', type=int, default=21, help='Number of beta_Ks')
     parser.add_argument(
         '--min_beta_K', type=float, default=0, help='min value of beta_Ks')
     parser.add_argument(
