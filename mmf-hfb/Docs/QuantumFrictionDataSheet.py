@@ -81,8 +81,9 @@ def Check_Test_Case(beta_H=1, beta_V=10, beta_K=0,  N=128, dx=0.2, g=1, Tp=20, T
     print(t.E_init, t.Es[-1])
 
 
-Check_Test_Case(g=-1, Tg=5, Tp=5,beta_V=10, beta_K=0, psi_key="ST", V_key="HO")
-
+# +
+#Check_Test_Case(g=-1, Tg=5, Tp=5,beta_V=10, beta_K=0, psi_key="ST", V_key="HO")
+# -
 
 # ## Check Overall factor $\beta_H$ vs Wall Time
 
@@ -132,17 +133,19 @@ def Test_Beta_H():
 # # 2D Cooling
 # * not that slow
 
-s = BCSCooling(N=32, dx=0.1, beta_0=-1.0j, beta_V=0.0, beta_K=0.0,g=0, dim=2)
-x, y = s.xyz
-V = sum(_x**2 for _x in s.xyz)
-s.V = np.array(V)/2
-x0 = 0.5
-phase = ((x-x0) + 1j*y)*((x+x0) - 1j*y)
-psi0 = 1.0*np.exp(1j*np.angle(phase))
-ts, psis = s.solve([psi0], T=5.0, rtol=1e-5, atol=1e-6)
-s.plot(psis[0][-1])
-Es = [s.get_E_Ns([psi])[0] for psi in psis[0]]
-plt.semilogy(ts[0], Es)
+def test_2d_Cooling():
+    s = BCSCooling(N=32, dx=0.1, beta_0=-1.0j, beta_V=0.0, beta_K=0.0,g=0, dim=2)
+    x, y = s.xyz
+    V = sum(_x**2 for _x in s.xyz)
+    s.V = np.array(V)/2
+    x0 = 0.5
+    phase = ((x-x0) + 1j*y)*((x+x0) - 1j*y)
+    psi0 = 1.0*np.exp(1j*np.angle(phase))
+    ts, psis = s.solve([psi0], T=5.0, rtol=1e-5, atol=1e-6)
+    s.plot(psis[0][-1])
+    Es = [s.get_E_Ns([psi])[0] for psi in psis[0]]
+    plt.semilogy(ts[0], Es)
+
 
 # # Load CVS file
 
@@ -197,10 +200,10 @@ beta_Ks = set(data['beta_K'])
 
 gs, iStates, beta_Vs, beta_Ks
 
-pers = [1.01, 1.05, 1.1]
-dfs = []
-for per in pers:   
-    df = data[data.E0*per > data.Ef] # find all rows with Ef in per*E0
+
+def find_best_betas(data, p=1.01):
+    dfs = []
+    df = data[data.E0*p > data.Ef] # find all rows with Ef in per*E0
     for iState in iStates:
         df1 = df[df.iState == iState]
         for g in gs:
@@ -211,26 +214,49 @@ for per in pers:
                     df_v = df3.loc[df3['wTime'].idxmin()]
                     if df_v.empty == False:
                         dfs.append(df_v)
-                df_kv = df2.loc[df2['wTime'].idxmin()]
-                if df_kv.empty == False:
-                    dfs.append(df_kv)
+                df4 = df2[df2.beta_K!=0]
+                if df4.empty == False:
+                    df_kv = df4.loc[df4['wTime'].idxmin()]
+                    if df_kv.empty == False:
+                        dfs.append(df_kv)
+    output =pd.concat(dfs, axis=1).transpose()
+    #output.drop(output.columns[0],axis=1,inplace=True)
+    del output['Trail'] 
+    del output['Time']
+    del output['N']
+    del output['dx']
+    del output['beta_D']
+    del output['beta_Y']
+    del output['gState']
+    del output['Cooling']
+    del output['Evolver']
+    del output['wTime1']
+    del output['wTime2']
+    del output['wTime3']
+    output.reset_index(drop=True, inplace=True)
+    dict_kv = {}
+    for state in iStates:
+        kvs = []
+        df_states = output[output.iState == state]
+        for g in [-1, 0, 1]:
+            g_states = df_states[df_states.g == g]
+            if g_states.empty:
+                kvs.append((0, 0, 0))
+            else:
+                v_state = g_states[g_states.beta_K == 0]
+                kv_state = g_states[g_states.beta_K !=0]
+                if v_state.empty:
+                    kvs.append((0, kv_state.beta_V.values[0], kv_state.beta_K.values[0]))
+                elif kv_state.empty:
+                    kvs.append((v_state.beta_V.values[0], 0, 0))
+                else:
+                    kvs.append((v_state.beta_V.values[0], kv_state.beta_V.values[0], kv_state.beta_K.values[0]))
+        dict_kv[state] = kvs
+    return (output,dict_kv)
 
-# +
-output =pd.concat(dfs, axis=1).transpose()
-#output.drop(output.columns[0],axis=1,inplace=True)
-del output['Trail'] 
-del output['Time']
-del output['N']
-del output['dx']
-del output['beta_D']
-del output['beta_Y']
-del output['gState']
 
+output, dict_kvs = find_best_betas(data, p=1.1)
 
-output
-
-
-# -
 
 # ## Plot $(E-E_0)/E_0$ vs Wall-Time
 
@@ -261,61 +287,24 @@ def plot_Es_Ts(beta_K, beta_V, g, V, iState, line='-', style=None, c=None):
         c = l.get_c()
     return (Es, Ts, c)
 
-def BestPlot(v, v1, k1,iState="ST",g=None, style="semi", V="HO"): 
+def BestPlot(dict_kvs, iState="ST", style="semi", V="HO"): 
+    kvs =dict_kvs[iState]
     plt.figure(figsize=(10, 8))    
-    gs = [-1, 0, 1] if g is None else [g]    
     for g in gs:
+        v, v1, k1 = kvs[g + 1]
         res = plot_Es_Ts(beta_V=v, beta_K=0, iState=iState, g=g, V=V,style=style)
         plot_Es_Ts(beta_V=v1, beta_K=k1, iState=iState, g=g, V=V,c=res[2], line='--', style=style)
     plt.ylabel("(E-E0)/E0")
     plt.xlabel("Wall Time")
+    plt.title(iState)
     plt.legend()
 
 
 # -
 
-kvs =[(0,0,0),(),(),]
-BestPlot(30, 10, 60, g=None, iState="ST", style="semi", V="HO")
+output
 
-df = data[data.E0*1.05 > data.Ef] # find all rows with Ef in per*E0
-df1 = df[df.iState == "ST"]
-df2 = df1[df1.g == 1]
-df3 = df1[df.beta_K==0] # with beta_K = 0
-df_v = df3.loc[df3['wTime'].idxmin()]
-df_kv = df2.loc[df2['wTime'].idxmin()]
-output = pd.concat([df_v,df_kv], axis=1)
-
-output = None
-pers = [1.01, 1.05, 1.1]
-dfs = []
-for per in pers:
-    
-    df = data[data.E0*per > data.Ef] # find all rows with Ef in per*E0
-    for iState in iStates:
-        df1 = df[df.iState == iState]
-        for g in gs:
-            df2 = df1[df1.g == g]
-            if df2.empty == False:
-                df3 = df2[df2.beta_K==0] # with beta_K = 0
-                if df3.empty == False:
-                    df_v = df3.loc[df3['wTime'].idxmin()]
-                    if df_v.empty == False:
-                        dfs.append(df_v)
-                df_kv = df2.loc[df2['wTime'].idxmin()]
-                if df_kv.empty == False:
-                    dfs.append(df_kv)
-            
-
-
-# +
-kvs =[(20, 40, 60), (0,0,0),(),]
-
-BestPlot(10, 10, 50, iState="UN", style="semi", V="HO")
-# -
-
-BestPlot(30, 20, 30, iState="GM",g=None, style="semi", V="HO")
-
-BestPlot(20, 10, 70, iState="BS",g=None, style="semi", V="HO")
+BestPlot(dict_kvs, iState="ST", style="semi", V="HO")
 
 
 
