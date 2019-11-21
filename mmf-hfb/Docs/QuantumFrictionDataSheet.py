@@ -159,6 +159,55 @@ currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.curren
 # * conver excel file to cvs
 
 # +
+def post_process(df0, index,  columns):
+    """remove some uncessary columns"""
+    if index > 0:
+        df0.columns.values[columns - 1] = "wTime0"
+        df0['wTime'] = df0[[f"wTime{id}" for id in range(index + 1)]].mean(axis=1)
+    for id in range(index + 1):
+        del df0[f"wTime{id}"]
+    del df0['Trail'] 
+    del df0['Time']
+    del df0['N']
+    del df0['dx']
+    del df0['beta_D']
+    del df0['beta_Y']
+    del df0['gState']
+    del df0['Cooling']
+    del df0['Evolver']
+    return df0
+        
+def MergeExcels(merge=True):
+    dfs = []
+    # change the data file path if location is different
+    file_paths = glob.glob(join(currentdir, "kamiak", "*.xls"))
+    file_paths.sort()
+    files = [os.path.basename(file[:file.index("_PID")]) for file in file_paths]
+    file0 = files[0]
+    df0 = pd.read_excel(file_paths[0], sheet_name="overall")
+    columns = len(df0.columns)
+    index = 0
+    for i, file_path in enumerate(file_paths):
+        if i == 0:
+            continue
+        if file0 == files[i]:
+            df = pd.read_excel(file_path, sheet_name="overall")
+            last_col = df["wTime"]
+            index += 1
+            df0[f'wTime{index}'] = last_col.values
+        else:           
+            dfs.append(post_process(df0=df0, index=index, columns=columns))
+            # next set
+            file0 = files[i]
+            df0 = pd.read_excel(file_paths[i], sheet_name="overall")
+            columns = len(df0.columns)
+            index = 0
+    dfs.append(post_process(df0=df0, index=index, columns=columns))
+    if merge:
+        return pd.concat(dfs)
+    return dfs
+
+
 def convert2CSV():
     files = glob.glob(join(currentdir, "*.xls"))
     for file in files:
@@ -189,9 +238,15 @@ def ReadAllExcelFile():
 
 # -
 
+df = MergeExcels()
+
 data = CombineExcelSheetsToCSV()
 
 # ## Query
+
+data = df
+
+data.to_csv("merged_data.csv", encoding='utf-8')
 
 iStates = set(data['iState'])
 gs = set(data['g'])
@@ -220,19 +275,7 @@ def find_best_betas(data, p=1.01):
                     if df_kv.empty == False:
                         dfs.append(df_kv)
     output =pd.concat(dfs, axis=1).transpose()
-    #output.drop(output.columns[0],axis=1,inplace=True)
-    del output['Trail'] 
-    del output['Time']
-    del output['N']
-    del output['dx']
-    del output['beta_D']
-    del output['beta_Y']
-    del output['gState']
-    del output['Cooling']
-    del output['Evolver']
-    del output['wTime1']
-    del output['wTime2']
-    del output['wTime3']
+   
     output.reset_index(drop=True, inplace=True)
     dict_kv = {}
     for state in iStates:
@@ -253,9 +296,6 @@ def find_best_betas(data, p=1.01):
                     kvs.append((v_state.beta_V.values[0], kv_state.beta_V.values[0], kv_state.beta_K.values[0]))
         dict_kv[state] = kvs
     return (output,dict_kv)
-
-
-output, dict_kvs = find_best_betas(data, p=1.1)
 
 
 # ## Plot $(E-E_0)/E_0$ vs Wall-Time
@@ -287,25 +327,82 @@ def plot_Es_Ts(beta_K, beta_V, g, V, iState, line='-', style=None, c=None):
         c = l.get_c()
     return (Es, Ts, c)
 
-def BestPlot(dict_kvs, iState="ST", style="semi", V="HO"): 
+def BestPlot(dict_kvs, title=None, iState="ST", style="semi", V="HO"): 
     kvs =dict_kvs[iState]
-    plt.figure(figsize=(10, 8))    
+    #plt.figure(figsize=(10, 8))    
     for g in gs:
         v, v1, k1 = kvs[g + 1]
         res = plot_Es_Ts(beta_V=v, beta_K=0, iState=iState, g=g, V=V,style=style)
         plot_Es_Ts(beta_V=v1, beta_K=k1, iState=iState, g=g, V=V,c=res[2], line='--', style=style)
     plt.ylabel("(E-E0)/E0")
     plt.xlabel("Wall Time")
-    plt.title(iState)
+    if title is None:
+        title=iState
+    plt.title(title)
     plt.legend()
 
 
 # -
 
-output
+# $\beta_V$, $\beta_K$, $V_c$, $K_c$
 
-BestPlot(dict_kvs, iState="ST", style="semi", V="HO")
+output, dict_kvs = find_best_betas(data, p=1.2)
+
+plt.figure(figsize=(15,15))
+for i, state in enumerate(iStates):
+    plt.subplot(2,2, i+1)
+    BestPlot(dict_kvs, title = f"Fig.{i+1}:{state}",iState=state, style="semi", V="HO")
 
 
+# ## Plot Wall-Time vs $\beta$ s
+
+def find_Tw_kvs(data, p1=1.01, p2=1.011):  
+    assert p2 > p1
+    dfs = []
+    dict_tkvs = {}
+    df = data[data.E0*p2 > data.Ef] # find all rows with Ef in per*E0
+    df = df[df.E0*p1 < df.Ef]
+    for iState in iStates:
+        df1 = df[df.iState == iState]
+        res = []
+        for g in [-1,0,1]:
+            df2 = df1[df1.g == g]
+            if df2.empty:
+                res.append(((None,None),)*3) # wall time, beta_V, beta_V1, beta_K1
+                continue
+            df3 = df2[df2.beta_K == 0]
+            df4 = df2[df2.beta_K != 0]
+            if df3.empty:
+                wall_time = df4['wTime'].values
+                res.append(((None, None), (wall_time, df4['beta_V'].values), (wall_time, df4['beta_K'].values)))
+            elif df4.empty:
+                wall_time = df3['wTime'].values
+                res.append(((wall_time, df3['wTime'].values), (wall_time, df3['beta_V'].values), (None, None)))
+            else:
+                wall_time = df3['wTime'].values
+                wall_time1 = df4['wTime'].values
+                res.append(((wall_time, df3['beta_V'].values), (wall_time1, df4['beta_V'].values), (wall_time1, df4['beta_K'].values)))
+        dict_tkvs[iState] = res
+    return dict_tkvs
+
+
+find_Tw_kvs(data)["UN"][0][1]
+
+
+def plot_Tw_kvs(data, state="UN", g=0,  p1=1.01, p2=1.011):
+    dict_tkvs = find_Tw_kvs(data, p1=p1, p2=p2)
+    rs = dict_tkvs[state]
+    labels = [r"$\beta_V$", r"$\beta_V1$", r"$\beta_K1$"]
+    for i, tb in enumerate(rs[g + 1]):
+        ts, betas = tb
+        if ts is not None:
+            plt.plot(ts, betas, 'o', label=labels[i])
+    plt.xlabel("Wall Time")
+    plt.ylabel(r"$\beta s$")
+    plt.legend()
+        
+
+
+plot_Tw_kvs(data, p1=1.01, p2=1.011)
 
 
