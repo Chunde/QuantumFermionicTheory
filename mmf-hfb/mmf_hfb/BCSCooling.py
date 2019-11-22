@@ -177,17 +177,6 @@ class BCSCooling(BCS):
             N = N + psi.dot(psi.conj())*self.dV
         return N
 
-    def _normalize_potential(self, Vc):
-        """
-        normalize a given cooling potential so that its max value
-        is not larger than the maximum energy of the system.
-        """
-        return Vc
-        E0 = 0.01*self.E_max
-        V_max = np.max(abs(Vc))
-        Vc = Vc/V_max*E0
-        return Vc
-
     def get_psis_k(self, psis):
         return [self.fft(psi) for psi in psis]
 
@@ -204,8 +193,6 @@ class BCSCooling(BCS):
             time step. How to rescale the cooling potential is
             not clear yet.
         """
-        
-        N = sum(self.get_ns(psis))  # total density
         Vc = 0
         if divs is None:
             # can also apply_H, result is unchanged.
@@ -215,11 +202,11 @@ class BCSCooling(BCS):
                 Vc = Vc + 2*(psi.conj()*Hpsis[i]).imag
         else:  # Departure from locality
             da, db = self.divs
-            assert da == 1
-            assert db == 1  # now only da=db=1 is tested
-            # compute d^n \psi / d^n x
+            assert da <= 1
+            assert db <= 1  # now only da=db=1 is tested
+            # compute $d^n \psi / d^n x$
             psis_a = [self.Del(psi, n=da) for psi in psis]
-            # d[d^n \psi / d^n x] / dt
+            # $d[d^n \psi / d^n x] / dt$
             Hpsis = np.array(self.apply_H(psis))/(1j*self.hbar)
             Hpsis_a = [self.Del(psi, n=da) for psi in Hpsis]
 
@@ -233,7 +220,7 @@ class BCSCooling(BCS):
                 Vc = Vc + (
                     (psis_a[i]*Hpsis_b[i].conj()
                         +Hpsis_a[i]*psis_b[i].conj()))
-        return Vc/N
+        return Vc/sum(self.get_ns(psis))  # divided by total density
 
     def get_Vc(self, psis):
         """return Vc potential"""
@@ -313,7 +300,12 @@ class BCSCooling(BCS):
             return (0,)*len(psis)
         Vmn = self.beta_D*self.get_Vd(psis=psis)
         da, db = self.divs
-        V11_psis = [-self.Del(Vmn*self.Del(psi=psi, n=da), n=db) for psi in psis]
+        if db == 1:
+            V11_psis = [-self.Del(Vmn*self.Del(psi=psi, n=da), n=db) for psi in psis]
+        elif db == 0:
+            V11_psis = [Vmn*self.Del(psi=psi, n=da) for psi in psis]
+        else:
+            raise ValueError("Derivative order should be no larger than 1")
         return np.array(V11_psis)*self.dV**(2*sum(self.divs))
 
     def _apply_expK(self, psi, Kc, factor=1):
@@ -386,9 +378,13 @@ class BCSCooling(BCS):
         """compute dE/dt"""
         H_psis = self.apply_H(psis)
         Hc_psis = self.apply_Hc(psis=psis)
-        dE_dt = sum(
-            [self.dotc(H_psi, Hc_psi)- self.dotc(Hc_psi, H_psi)
-                for (H_psi, Hc_psi) in zip(H_psis, Hc_psis)])/(1j)
+        # dE_dt = sum(
+        #     [self.dotc(H_psi, Hc_psi)- self.dotc(Hc_psi, H_psi)
+        #         for (H_psi, Hc_psi) in zip(H_psis, Hc_psis)])/(1j)
+        dE_dt= 2*sum(
+            [self.dotc(H_psi, Hc_psi).imag
+                for (H_psi, Hc_psi) in zip(H_psis, Hc_psis)])
+        # assert np.allclose(dE_dt, dE_dt_, rtol=1e-16)
         return dE_dt
 
     def step(self, psis, n=1):
@@ -490,13 +486,5 @@ class BCSCooling(BCS):
         E, N = self.get_E_Ns([psi])
         plt.title(f"E={E:.4f}, N={N:.4f}")
         plt.show()
-
-if __name__ == "__main__":
-    s = BCSCooling(N=32, dx=0.1, beta_0=-1.0j, beta_V=0.0, beta_K=0.0, dim=2)
-    x, y = s.xyz
-    x0 = 0.5
-    phase = ((x-x0) + 1j*y)*((x+x0) - 1j*y)
-    psi0 = 1.0*np.exp(1j*np.angle(phase))
-    ts, psis = s.solve([psi0], T=2.0, rtol=1e-5, atol=1e-6)
-    s.plot(psis[0][0])
-    s.plot(psis[0][-1])
+   
+ 

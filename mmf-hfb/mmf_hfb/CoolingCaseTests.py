@@ -9,7 +9,9 @@ import os
 import pandas as pd 
 
 # Instantiate the parser
-
+#tex:
+  #Formula 1: $$(a+b)^2 = a^2 + 2ab + b^2$$
+  #Formula 2: $$a^2-b^2 = (a+b)(a-b)$$
 
 def Normalize(psi, dx=0.1):
     return psi/(psi.dot(psi.conj())*dx)**0.5

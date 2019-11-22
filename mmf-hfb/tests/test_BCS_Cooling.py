@@ -1,4 +1,5 @@
 from mmf_hfb.BCSCooling import BCSCooling
+from mmf_hfb.Potentials import HarmonicOscillator
 import numpy as np
 import pytest
 
@@ -10,6 +11,9 @@ def Normalize(psi):
 def Prob(psi):
     return np.abs(psi)**2
 
+@pytest.fixture(params=[64, 225, 128])
+def N(request):
+    return request.param
 
 @pytest.fixture(params=[1, 2, 3])
 def n(request):
@@ -46,9 +50,11 @@ def test_derivative_cooling(n, da, db):
     assert np.allclose(E0[1], k0**2/2.0)
     psi = np.exp(1j*n*(k0*x))
     E =n**2*k0**2/2
-    # compute d^n \psi / d^n x
+    #tex:
+    # compute $d^n \psi / d^n x$
     psi_a = b.Del(psi, n=da)
-    # d[d^n \psi / d^n x] / dt
+    #tex:
+    # $\frac{d}{dt}[\frac{d^n\psi}{d^n x}]$
     Hpsi = np.array(b.apply_H([psi]))[0]/(1j)
     Hpsi_a = b.Del(Hpsi, n=da)
 
@@ -67,6 +73,23 @@ def test_derivative_cooling(n, da, db):
     assert np.allclose(
         Hpsi_a*psi_b.conj(),
         (-1j)*(n*k0)**(da+db)*E*psi*psi.conj()*((-1j)**db)*(1j)**da)
+
+
+def test_Vd_to_Vc(N):
+    """if da=db=0, Vd should equal to Vc"""
+    T=0.5
+    args0 = dict(N=N, dx=0.1, divs=(0, 0), beta_D=1, T=T, check_dE=True)
+    args1 = dict(N=N, dx=0.1, divs=(0, 0), beta_V=1, T=T, check_dE=True)
+    b0 = BCSCooling(**args0)
+    h0 = HarmonicOscillator(w=1)
+    h = HarmonicOscillator()
+    x = b0.xyz[0]
+    V = x**2/2
+    psi = h0.get_wf(x, n=2)
+    b1 = BCSCooling(**args1)
+    b0.V = V
+    b1.V = V
+    assert np.allclose(b0.get_Vd([psi]), b1.get_Vc([psi]))
 
 
 def test_apply_Vs(N_state=2):
@@ -108,5 +131,35 @@ def test_apply_Vs(N_state=2):
     assert np.allclose(vc1, vc2)
 
 
+def test_dE_dt(N=128, da=0, db=0, T=0.5):
+    """check dE/dt, should be always negative"""
+    if da > 1 or db > 1:
+        return
+    args = dict(N=N, dx=0.2, divs=(da, db), T=T, check_dE=True)
+    b = BCSCooling(**args)
+    b.restore_max_ks()
+    h0 = HarmonicOscillator(w=1)
+    x = b.xyz[0]
+    V = x**2/2
+    b.V = V
+    psi = h0.get_wf(x, n=2) + 0j
+    b.beta_V = 1
+    b.beta_D = 0
+    # test $V_c$
+    b.solve([psi], T=T, rtol=1e-5, atol=1e-6, V=V, solver=None, method='BDF')
+    b.beta_V = 0
+    b.beta_K = 1
+    # test $V_k$
+    b.solve([psi], T=T, rtol=1e-5, atol=1e-6, V=V, solver=None, method='BDF')
+    b.beta_K = 0
+    b.beta_D = 1
+    # test $V_d$
+    b.solve([psi], T=T, rtol=1e-5, atol=1e-6, V=V, solver=None, method='BDF')
+    b.beta_D = 0
+    b.beta_Y = 1
+    # test $V_y$
+    b.solve([psi], T=T, rtol=1e-5, atol=1e-6, V=V, solver=None, method='BDF')
+
+
 if __name__ == "__main__":
-    test_apply_Vs()
+    test_dE_dt(da=1, db=0)
