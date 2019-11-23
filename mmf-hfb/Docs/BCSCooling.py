@@ -175,9 +175,9 @@ def test_der_cooling(evolve=True, plot_dE=True, T=0.5, **args):
     psi = U0[1]
     if evolve:
         #b.erase_max_ks()
-        plt.figure(figsize=(10,5))
-        plt.subplot(1,2,1)
-        ts, psiss = b.solve([psi], T=T, rtol=1e-5, atol=1e-6, V=V,solver=None, method='BDF')
+        plt.figure(figsize=(10, 5))
+        plt.subplot(1, 2, 1)
+        ts, psiss, _ = b.solve([psi], T=T, rtol=1e-5, atol=1e-6, V=V,solver=None, method='BDF')
         E0, _ = b.get_E_Ns([psi0])
         Es = [b.get_E_Ns([_psi])[0] for _psi in psiss[0]]
         dE_dt= [-1*b.get_dE_dt([_psi]) for _psi in psiss[0]]

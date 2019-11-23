@@ -167,5 +167,5 @@ def ABMEvolverAdapter(fun, t_span, dt, y0, beta_t=0.1, history_step=100, **args)
         history_step = total_step
     e = EvolverABM(y=y0, dt=dt, dy_dt=fun, history_step=history_step, **args)
     e.evolve(steps=total_step)
-    res = namedtuple('res', ['success', 't', 'y'])
-    return res(success=success, t=e.replay_ts, y=np.array(e.replay_ys).T)
+    res = namedtuple('res', ['success', 't', 'y', 'nfev'])
+    return res(success=success, t=e.replay_ts, y=np.array(e.replay_ys).T, nfev=total_step)

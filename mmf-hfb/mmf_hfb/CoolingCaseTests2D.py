@@ -1,5 +1,4 @@
 from mmf_hfb.BCSCooling import BCSCooling
-from mmf_hfb.SolverABM import ABMEvolverAdapter
 import numpy as np
 import xlwt
 import time
@@ -17,7 +16,7 @@ class TestCase2D(object):
         x0 = 0.5
         phase = ((x-x0) + 1j*y)*((x+x0) - 1j*y)
         psi_init = 1.0*np.exp(1j*np.angle(phase))
-        _, psis = b.solve([psi_init], T=T, rtol=1e-5, atol=1e-6)
+        _, psis, _ = b.solve([psi_init], T=T, rtol=1e-5, atol=1e-6)
         psi_ground = psis[0][-1]
         E0 = b.get_E_Ns([psi_ground])[0]
         self.E0 = E0
@@ -32,11 +31,11 @@ class TestCase2D(object):
         b.beta_D = beta_D
         b.beta_Y = beta_Y
         start_time = time.time()
-        _, psis = b.solve([self.psi_init], T=T, rtol=1e-5, atol=1e-6)
+        _, psis, nfevs = b.solve([self.psi_init], T=T, rtol=1e-5, atol=1e-6)
         wall_time = time.time() - start_time
         Ei = b.get_E_Ns([psis[0][0]])[0]
         Ef = b.get_E_Ns([psis[0][-1]])[0]
-        return (Ei, Ef, wall_time)
+        return (Ei, Ef, wall_time, nfevs[-1])
 
 
 def benchmark_test_excel(
@@ -67,7 +66,7 @@ def benchmark_test_excel(
     headers = [
         "Trail", "Time", "beta_0", "beta_V", "beta_K",
         "beta_D", "beta_Y", "g", "E0", "Ei", "Ef", "Evolver",
-        "Cooling", "pTime", "wTime"]
+        "Cooling", "pTime", "nfev", "wTime"]
     for value in headers:
         sheet.write(row, col, value)
         col += 1
@@ -80,6 +79,8 @@ def benchmark_test_excel(
         for beta_D in beta_Ds:
             for beta_K in beta_Ks:
                 for beta_V in beta_Vs:
+                    if beta_V + beta_K + beta_Y + beta_D == 0:
+                        continue
                     for T in Ts:
                         if verbose:
                             print(
@@ -88,18 +89,18 @@ def benchmark_test_excel(
                         if beta_V == 0 and beta_K== 0 and beta_Y==0:
                             continue
                         try:
-                            Ei, Ef, wall_time= t.get_E_Tw(
+                            Ei, Ef, wall_time, nfev= t.get_E_Tw(
                                 T=T, beta_V=beta_V, beta_K=beta_K,
                                 beta_D=beta_D, beta_Y=beta_Y)
                         except ValueError as e:
-                            print('Eception: '+ str(e))
+                            print('Exception: '+ str(e))
                             continue
                         E0 = t.E0
                         dEf = (Ef - E0)/E0
                         col = 0
                         values = [
                             trail, time.strftime("%Y/%m/%d %H:%M:%S"),
-                            beta_0, beta_V, beta_K, beta_D, beta_Y, g, 
+                            beta_0, beta_V, beta_K, beta_D, beta_Y, g,
                             E0, Ei, Ef]
                         for value in values:
                             sheet.write(row, col, value)
@@ -113,13 +114,15 @@ def benchmark_test_excel(
                             sheet.write(row, col, "Failed")
                         else:
                             sheet.write(row, col, "Partially Cooled")
-                        col+=1
+                        col += 1
                         sheet.write(row, col, T)
-                        col+=1
+                        col += 1
+                        sheet.write(row, col, nfev)
+                        col += 1
                         sheet.write(row, col, wall_time)
-                        col+=1
-                        row+=1
-                        counter +=1
+                        col += 1
+                        row += 1
+                        counter += 1
                         if counter % save_interval == 0:
                             output.save(file_name)
                             print(
@@ -182,7 +185,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '--verbose', dest='verbose', type=lambda x: bool(True if x=='True' else False))
     args = vars(parser.parse_args())
-    #try:
-    do_case_test_excel(**args)
-    #except ValueError:
-    #    parser.print_help()
+    try:
+        do_case_test_excel(**args)
+    except ValueError:
+        parser.print_help()

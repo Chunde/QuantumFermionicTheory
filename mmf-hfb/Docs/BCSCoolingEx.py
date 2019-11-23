@@ -234,7 +234,7 @@ def ImaginaryCooling():
             u1 = u1/u1.dot(u1.conj())**0.5
 
             psi_0 = Normalize(V*0 + 1) # np.exp(-r2/2.0)*np.exp(1j*s.xyz[0])
-            ts, psis = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, V=V, method='BDF')
+            ts, psis, _ = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, V=V, method='BDF')
             psi0 = psis[0][-1]
             E0, N0 = s.get_E_Ns([psi0], V=V)
             Es = [s.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]

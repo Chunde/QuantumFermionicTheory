@@ -134,14 +134,14 @@ def Test_Beta_H():
 # * not that slow
 
 def test_2d_Cooling():
-    s = BCSCooling(N=32, dx=0.1, beta_0=-1.0j, beta_V=0.0, beta_K=0.0,g=0, dim=2)
+    s = BCSCooling(N=32, dx=0.1, beta_0=-1.0j, beta_V=0.0, beta_K=0.0, g=0, dim=2)
     x, y = s.xyz
     V = sum(_x**2 for _x in s.xyz)
     s.V = np.array(V)/2
     x0 = 0.5
     phase = ((x-x0) + 1j*y)*((x+x0) - 1j*y)
     psi0 = 1.0*np.exp(1j*np.angle(phase))
-    ts, psis = s.solve([psi0], T=5.0, rtol=1e-5, atol=1e-6)
+    ts, psis, _ = s.solve([psi0], T=5.0, rtol=1e-5, atol=1e-6)
     s.plot(psis[0][-1])
     Es = [s.get_E_Ns([psi])[0] for psi in psis[0]]
     plt.semilogy(ts[0], Es)
@@ -400,9 +400,42 @@ def plot_Tw_kvs(data, state="UN", g=0,  p1=1.01, p2=1.011):
     plt.xlabel("Wall Time")
     plt.ylabel(r"$\beta s$")
     plt.legend()
-        
 
 
 plot_Tw_kvs(data, p1=1.01, p2=1.011)
+
+# # BCS Cases
+
+N=128
+dx=0.2
+eps=1e-2
+N_state=2
+T_max=10
+use_abm=True
+args = {}
+args.update(N=N, dx=dx)
+b = BCSCooling(**args)
+x = b.xyz[0]
+V = x**2/2
+b.V = V
+H0 = b._get_H(mu_eff=0, V=0)  # free particle
+H1 = b._get_H(mu_eff=0, V=V)  # harmonic trap
+U0, Es0 = b.get_U_E(H0, transpose=True)
+U1, Es1 = b.get_U_E(H1, transpose=True)
+psis_init = U0[:N_state]  # change the start states here if needed.
+psis_ground = U1[:N_state]  # change the start states here if needed.
+E0=sum(Es1[:N_state])
+
+Es1
+
+psi1, psi = psis_ground
+
+Es1[0], Es1[1]
+
+np.allclose(H1.dot(psi1), Es1[0]*psi1)
+
+psi1.conj().dot(psi1)
+
+np.array(b.get_E_Ns(psis_ground))/dx
 
 

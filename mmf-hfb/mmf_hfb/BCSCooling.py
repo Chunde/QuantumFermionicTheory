@@ -437,7 +437,7 @@ class BCSCooling(BCS):
     def solve(self, psis, T, dy_dt=None, solver=None, **kw):
         self.psis = psis  # all single particle states
         self.start_time = time.time()
-        ts, ys = [], []
+        ts, ys, nfevs= [], [], []
         if dy_dt is None:
             dy_dt = self.compute_dy_dt
         if solver is None:
@@ -451,7 +451,8 @@ class BCSCooling(BCS):
                 raise Exception(res.message)
             ts.append(res.t)
             ys.append(list(map(self.unpack, res.y.T)))
-        return(ts, ys)
+            nfevs.append(res.nfev)
+        return(ts, ys, nfevs)
 
     def get_ns(self, psis, shrink=False):
         """compute densities"""
