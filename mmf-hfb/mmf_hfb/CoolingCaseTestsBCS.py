@@ -268,7 +268,7 @@ if __name__ == "__main__":
     parser.add_argument('--N_state', type=int, default=2, help='Number of states')
     parser.add_argument('--min_T', type=float, default=1, help='min value of T')
     parser.add_argument('--max_T', type=float, default=5, help='max value of T')
-    parser.add_argument('--time_out', type=float, default=60, help='time out')
+    parser.add_argument('--time_out', type=float, default=120, help='time out')
     parser.add_argument(
         '--use_abm', type=bool, default=False, help='use ABM or not:True/False')
     parser.add_argument(

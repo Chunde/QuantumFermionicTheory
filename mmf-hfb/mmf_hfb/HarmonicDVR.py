@@ -24,7 +24,7 @@ class HarmonicDVR(CylindricalBasis):
 
 if __name__ == "__main__":
     # import matplotlib.pyplot as plt
-    h = HarmonicDVR(nu=0, dim=2)
+    h = HarmonicDVR(nu=0, dim=3)
     H = h.get_H()
     Es, phis = np.linalg.eigh(H)
     print(Es)
