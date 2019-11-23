@@ -41,7 +41,8 @@ class TestCase(object):
         self.b=b
         self.eps = eps
         self.T_max = T_max
-        
+        self.N_state = N_state
+
     def Normalize(self, psi):
         return psi/(psi.dot(psi.conj())*self.dx)**0.5
 
@@ -131,7 +132,7 @@ def benchmark_test_excel(
     results, including all parameters used for each case.
     """
     print(
-        f"N={N}, dx={dx}, Ts={Ts}, trail={trail}, use_abm={use_abm},"
+        f"N={N}, dx={dx}, N_state={N_state},Ts={Ts}, trail={trail}, use_abm={use_abm},"
         +f"beta_0={beta_0}, beta_Ks={beta_Ks}, beta_Vs={beta_Vs},"
         +f"beta_Ds={beta_Ds}, beta_Ys={beta_Ys},time_out={time_out}"
         +f",save_interval={save_interval}, verbose={verbose}")
@@ -146,15 +147,13 @@ def benchmark_test_excel(
     col = 0
     row = 0
     headers = [
-        "Trail", "Time", "N", "dx", "beta_0", "beta_V", "beta_K",
+        "Trail", "Time", "N", "dx", "N_state", "beta_0", "beta_V", "beta_K",
         "beta_D", "beta_Y", "E0", "Ei", "Ef", "Evolver",
         "Cooling", "pTime", "nfev", "wTime"]
     for value in headers:
         sheet.write(row, col, value)
         col += 1
 
-    b = BCSCooling(N=N, dx=dx)
-    x = b.xyz[0]
     args = dict(
         N=N, dx=dx, eps=1e-1, use_abm=use_abm, N_state=N_state,
         check_dE=False, time_out=time_out)
@@ -176,7 +175,7 @@ def benchmark_test_excel(
                             print(
                                 f"Trail#={trail}: beta_V={beta_V}, beta_K={beta_K},"
                                 +f"beta_D={beta_D}, beta_Y={beta_Y},"
-                                +f"T={T}, N={N},dx={dx}")
+                                +f"T={T}, N={N},dx={dx}, N_state={t.N_state}")
                         if beta_V == 0 and beta_K== 0 and beta_Y==0:
                             continue
                         try:
@@ -191,7 +190,7 @@ def benchmark_test_excel(
                         dEf = (Ef - E0)/E0
                         col = 0
                         values = [
-                            trail, time.strftime("%Y/%m/%d %H:%M:%S"), N, dx,
+                            trail, time.strftime("%Y/%m/%d %H:%M:%S"), N, dx, t.N_state,
                             beta_0, beta_V, beta_K, beta_D, beta_Y, E0, Ei, Ef]
                         for value in values:
                             sheet.write(row, col, value)
