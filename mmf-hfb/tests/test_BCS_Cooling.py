@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 
 
-def Normalize(psi):
-    return psi/psi.dot(psi.conj())**0.5
+def Normalize(psi, dx=0.1):
+    return psi/(psi.dot(psi.conj())*dx)**0.5
 
 
 def Prob(psi):
@@ -160,9 +160,10 @@ def test_dE_dt(N=128, da=0, db=0, T=0.5):
     b.solve([psi], T=T, rtol=1e-5, atol=1e-6, V=V, solver=None, method='BDF')
 
 
-def ImaginaryCooling():
+def test_ImaginaryCooling_with_desired_energy_level():
     args = dict(N=128, dx=0.1, beta_0=-1j, beta_K=0, beta_V=0)
     s = BCSCooling(**args)
+    s.E_stop = 0.75
     x = s.xyz[0]
     V = x**2/2
     s.V = V
@@ -171,10 +172,7 @@ def ImaginaryCooling():
     u1=(np.sqrt(2)*x*np.exp(-x**2/2))/np.pi**4
     u1 = u1/u1.dot(u1.conj())**0.5
     psi_0 = Normalize(V*0 + 1+0*1j)
-    ts, psis, _ = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, method='BDF')
+    _, psis, _ = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, method='BDF')
     psi_ground = psis[-1]
-    E, N = s.get_E_Ns([psi_ground])
-    print(E, N)
-
-if __name__ == "__main__":
-    ImaginaryCooling()
+    E= s.get_E_Ns(psi_ground)[0]
+    assert np.allclose(E, s.E_stop, rtol=1e-10)
