@@ -216,6 +216,8 @@ plt.plot(rs, psi)
 import mmf_hfb.HarmonicDVR as HarmonicDVR; reload(HarmonicDVR)
 from mmf_hfb.HarmonicDVR import HarmonicDVR
 
+bessel.j_root(nu=0, N=10)
+
 h = HarmonicDVR(nu=2, dim=2)
 rs = np.linspace(0, 5, 100)
 for r in h.rs:
@@ -228,7 +230,7 @@ plt.plot(h.rs, Fs, '+')
 
 
 def spectrum(nu=0):
-    h = HarmonicDVR(nu=nu, dim=2, w=1)
+    h = HarmonicDVR(nu=nu, dim=3, w=1)
     H = h.get_H()
     Fs = h.get_F_rs()    
     Es, us = np.linalg.eigh(H)
@@ -477,6 +479,68 @@ def xmn(m, n):
 
 X_FBR=fillM(xmn)
 
+# # Test Bed
 
+import scipy.special as sp
+
+# +
+from scipy import arange, pi, sqrt, zeros
+from scipy.special import jv, jvp
+from scipy.optimize import brentq
+from sys import argv
+from pylab import *
+
+def Jn(r,n):
+  return (sqrt(pi/(2*r))*jv(n+0.5,r))
+
+def Jn_zeros(n,nt):
+  zerosj = zeros((n+1, nt))
+  zerosj[0] = arange(1,nt+1)*pi
+  points = arange(1,nt+n+1)*pi
+  racines = zeros(nt+n)
+  for i in range(1,n+1):
+    for j in range(nt+n-i):
+      foo = brentq(Jn, points[j], points[j+1], (i,))
+      racines[j] = foo
+    points = racines
+    zerosj[i][:nt] = racines[:nt]
+  return (zerosj)
+
+def rJnp(r,n):
+  return (0.5*sqrt(pi/(2*r))*jv(n+0.5,r) + sqrt(pi*r/2)*jvp(n+0.5,r))
+
+def rJnp_zeros(n,nt):
+  zerosj = zeros((n+1, nt))
+  zerosj[0] = (2.*arange(1,nt+1)-1)*pi/2
+  points = (2.*arange(1,nt+n+1)-1)*pi/2
+  racines = zeros(nt+n)
+  for i in range(1,n+1):
+    for j in range(nt+n-i):
+      foo = brentq(rJnp, points[j], points[j+1], (i,))
+      racines[j] = foo
+    points = racines
+    zerosj[i][:nt] = racines[:nt]
+  return (zerosj)
+
+n = 0
+nt = 5
+
+dr = 0.01
+eps = dr/1000
+
+jnz = Jn_zeros(n,nt)[n]
+r1 = arange(eps,jnz[len(jnz)-1],dr)
+jnzp = rJnp_zeros(n,nt)[n]
+r2 = arange(eps,jnzp[len(jnzp)-1],dr)
+
+grid(True)
+plot(r1,Jn(r1,n),'b', r2,rJnp(r2,n),'r')
+title((str(nt)+' first zeros'))
+legend((r'$j_{'+str(n)+'}(r)$', r'$(rj_{'+str(n)+'}(r))\'$'))
+plot(jnz,zeros(len(jnz)),'bo', jnzp,zeros(len(jnzp)),'rd')
+gca().xaxis.set_minor_locator(MultipleLocator(1))
+# gca().xaxis.set_minor_formatter(FormatStrFormatter('%d'))
+show()
+# -
 
 

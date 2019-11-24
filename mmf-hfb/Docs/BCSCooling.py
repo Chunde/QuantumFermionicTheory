@@ -292,9 +292,10 @@ U1, Es1 = bcs.get_U_E(H1, transpose=True)
 # + {"id": "TztPB7ZFipxu", "colab_type": "code", "outputId": "08e80d3e-a3e6-4403-cd6c-389dcccd7c0a", "colab": {"base_uri": "https://localhost:8080/", "height": 34}}
 np.random.seed(2)
 psi = [np.random.random(np.prod(bcs.Nxyz)) - 0.5]
-Vc = bcs.get_Vc(psi, V=0)
-Kc = bcs.get_Kc(psi, V=0)
-Hc = bcs.get_Hc(psi, V=0)
+bcs.V=0
+Vc = bcs.get_Vc(psi)
+Kc = bcs.get_Kc(psi)
+Hc = bcs.get_Hc(psi)
 Hc_k = np.fft.ifft(np.fft.fft(Hc, axis=0), axis=1)
 np.allclose(np.diag(Hc_k).real - Kc, 0), np.allclose(np.diag(Hc) - Vc, 0)
 
@@ -321,11 +322,12 @@ def Check_Vc():
             s.g = -1
             x = s.xyz[0]
             V_ext = x**2/2
+            s.V = V_ext
             psi0 = np.exp(-x**2/2.0)*np.exp(1j*x)
             plt.subplot(1,3,1)
             plt.plot(x, Prob(psi0) + offset)
             plt.subplot(1,3,i)
-            Vc = s.get_Vc(s.apply_H([psi0], V=V_ext), V=V_ext) 
+            Vc = s.get_Vc(s.apply_H([psi0])) 
             l, = plt.plot(x, Vc + offset)  # add some offset in y direction to separate plots
     plt.subplot(131)
     plt.xlim(-10, 10)
@@ -354,22 +356,23 @@ def ImaginaryCooling():
             x = s.xyz[0]
             r2 = x**2
             V = x**2/2
+            s.V = V
             u0 = np.exp(-x**2/2)/np.pi**4
             u0 = u0/u0.dot(u0.conj())**0.5
             u1=(np.sqrt(2)*x*np.exp(-x**2/2))/np.pi**4
             u1 = u1/u1.dot(u1.conj())**0.5
 
-            psi_0 = Normalize(V*0 + 1) # np.exp(-r2/2.0)*np.exp(1j*s.xyz[0])
-            ts, psis = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, V=V, method='BDF')
+            psi_0 = Normalize(V*0 + 1+0*1j) # np.exp(-r2/2.0)*np.exp(1j*s.xyz[0])
+            ts, psis,_ = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, method='BDF')
             psi0 = psis[0][-1]
-            E0, N0 = s.get_E_Ns([psi0], V=V)
-            Es = [s.get_E_Ns([_psi], V=V)[0] for _psi in psis[0]]
+            E0, N0 = s.get_E_Ns([psi0])
+            Es = [s.get_E_Ns([_psi + 1j*0])[0] for _psi in psis[0]]
             line, = ax1.semilogy(ts[0][:-2], (Es[:-2] - E0)/abs(E0), label=labels[i] + f":Nx={Nx}")
             plt.sca(ax2)
             l, = plt.plot(x, psi0)  # ground state
             plt.plot(x, psi_0, '--', c=l.get_c(), label=labels[i] + f":Nx={Nx}")  # initial state
             plt.plot(x, u0, '+', c=l.get_c())  # desired ground state
-            E, N = s.get_E_Ns([V], V=V)
+            E, N = s.get_E_Ns([V])
             # plt.title(f"E={E:.4f}, N={N:.4f}")
     plt.sca(ax1)
     plt.legend()
@@ -406,7 +409,9 @@ ImaginaryCooling()
 #
 # -
 
-Cooling(N_state=3, Nx=256, N_data=25, start_state=2,  N_step=1000, beta_V=1, beta_K=1, beta_D=0);
+Cooling(N_state=6, Nx=128, N_data=25, start_state=4,  N_step=100, beta_V=5, beta_K=0, beta_D=0, plot_K=False);
+
+Cooling(N_state=3, Nx=256, N_data=25, start_state=2,  N_step=100, beta_V=1, beta_K=1, beta_D=0);
 
 N_data = 20
 N_step = 100

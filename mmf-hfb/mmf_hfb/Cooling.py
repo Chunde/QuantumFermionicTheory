@@ -84,10 +84,10 @@ def plot_psis(b, psis0, psis, E, E0):
 
 
 def PlayCooling(
-        b, psis0, psis, V, N_data=10, N_step=100,
+        b, psis0, psis, N_data=10, N_step=100,
         plot=True, plot_n=True, plot_k=True, **kw):
     
-    E0, N0 = b.get_E_Ns(psis0[:len(psis)], V=V)
+    E0, N0 = b.get_E_Ns(psis0[:len(psis)])
     Es, Ns = [], []
     plt.rcParams["figure.figsize"] = (18, 6)
     plot_n_k = plot_n and plot_k
@@ -95,8 +95,8 @@ def PlayCooling(
         Ps = get_occupancy(psis0, psis)
         Ns.append(Ps)
         
-        psis = b.step(psis, V=V, n=N_step)
-        E, N = b.get_E_Ns(psis, V=V)
+        psis = b.step(psis, n=N_step)
+        E, N = b.get_E_Ns(psis)
         Es.append(abs(E - E0))
         ts = b.dt*N_step*np.array(list(range(len(Es))))
         if plot:
@@ -117,7 +117,7 @@ def PlayCooling(
             plt.ylabel("Enery Diff")
             plt.axhline(0, linestyle='dashed')
             plt.show()
-            clear_output(wait=True) 
+            clear_output(wait=True)
     return psis, Es, Ns
 
 
@@ -128,6 +128,7 @@ def Cooling(
     b = BCSCooling(N=Nx, L=None, dx=dx, **args)
     x = b.xyz[0]
     V = V0*x**2/2
+    b.V = V
     H0 = b._get_H(mu_eff=0, V=0)  # free particle
     H1 = b._get_H(mu_eff=0, V=V)  # harmonic trap
     U0, Es0 = b.get_U_E(H0, transpose=True)
@@ -142,4 +143,7 @@ def Cooling(
         check_uv_ir_error(psis0[i], plot=False)
     for i in range(len(psis)):
         check_uv_ir_error(psis[i], plot=False)
-    return [x, PlayCooling(b=b, psis0=psis0, psis=psis, V=V, plot_k=plot_k, **args)]
+    return [x, PlayCooling(b=b, psis0=psis0, psis=psis, plot_k=plot_k, **args)]
+
+if __name__ == "__main__":
+    Cooling(N_state=3, Nx=256, N_data=25, start_state=2,  N_step=100, beta_V=1, beta_K=1, beta_D=0)

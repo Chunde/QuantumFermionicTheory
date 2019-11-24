@@ -312,7 +312,7 @@ class BCSCooling(BCS):
         if self.delta == 0:
             psi_k = self.fft(psi)
             psi_new = self.ifft(
-                np.exp(-1j*self.dt*factor*self.beta_H(
+                np.exp(-1j*self.dt*factor*self.beta_H*(
                     self.beta_0*self._K2 + Kc))*psi_k)
             psi_new *= np.sqrt(
                 (abs(psi)**2).sum()/(abs(psi_new)**2).sum())
@@ -409,23 +409,26 @@ class BCSCooling(BCS):
             raise ValueError("Time Out")
 
     def pack(self, psi):
-        return np.ascontiguousarray(psi).view(dtype=float).ravel()
+        return np.ascontiguousarray(psi).view().ravel()
 
     def unpack(self, y):
-        return np.ascontiguousarray(y).view(dtype=complex).reshape(self.Nxyz)
+        n = len(y)//np.prod(self.Nxyz)       
+        shape = (n, ) + self.Nxyz
+        return np.ascontiguousarray(y).view().reshape(shape)
 
-    def compute_dy_dt(self, t, psi, subtract_mu=True, **args):
+    def compute_dy_dt(self, t, psis, subtract_mu=True, **args):
         """Return dy/dt for ODE integration."""
         self.check_time_out()
-        psi = self.unpack(y=psi)
+        psis = self.unpack(y=psis)
         if self.check_dE:
-            dE_dt = self.get_dE_dt(psis=[psi])
+            dE_dt = self.get_dE_dt(psis=psis)
             if abs(dE_dt) > 1e-16:
                 assert dE_dt<= 0
-        Hpsi = self.apply_Hc([psi])[0]
+        Hpsis = self.apply_Hc(psis)
         if subtract_mu:
-            Hpsi -= self.dotc(psi, Hpsi)/self.dotc(psi, psi)*psi
-        return self.pack(Hpsi/(1j*self.hbar))
+            for i, psi in enumerate(psis):
+                Hpsis[i] -= self.dotc(psi, Hpsis[i])/self.dotc(psi, psi)*psi
+        return self.pack(np.array(Hpsis)/(1j*self.hbar))
     
     def get_U_E(self, H, transpose=False):
         """return Us and Vs and energy"""
@@ -437,22 +440,18 @@ class BCSCooling(BCS):
     def solve(self, psis, T, dy_dt=None, solver=None, **kw):
         self.psis = psis  # all single particle states
         self.start_time = time.time()
-        ts, ys, nfevs= [], [], []
         if dy_dt is None:
             dy_dt = self.compute_dy_dt
         if solver is None:
             solver = solve_ivp
         else:
             kw.update(dt=self.dt)
-        for psi0 in psis:  # can be parallelized
-            psi0 = self.pack(psi0)
-            res = solver(fun=dy_dt, t_span=(0, T), y0=psi0, **kw)
-            if not res.success:
-                raise Exception(res.message)
-            ts.append(res.t)
-            ys.append(list(map(self.unpack, res.y.T)))
-            nfevs.append(res.nfev)
-        return(ts, ys, nfevs)
+        psis0 = self.pack(psis)
+        res = solver(fun=dy_dt, t_span=(0, T), y0=psis0, **kw)
+        if not res.success:
+            raise Exception(res.message)
+        ys= list(map(self.unpack, res.y.T))
+        return(res.t, ys, res.nfev)
 
     def get_ns(self, psis, shrink=False):
         """compute densities"""
@@ -487,5 +486,3 @@ class BCSCooling(BCS):
         E, N = self.get_E_Ns([psi])
         plt.title(f"E={E:.4f}, N={N:.4f}")
         plt.show()
-   
- 

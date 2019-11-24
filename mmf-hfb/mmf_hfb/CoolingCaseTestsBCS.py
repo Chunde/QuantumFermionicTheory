@@ -17,7 +17,7 @@ def Prob(psi):
     return np.abs(psi)**2
 
 
-class TestCase(object):
+class TestCaseBCS(object):
     
     def __init__(
             self, N, dx, eps=1e-2, N_state=2, T_max=10, use_abm=True, **args):
@@ -62,28 +62,28 @@ class TestCase(object):
         self.nfevs = []
         for T in reversed(Ts):
             start_time = time.time()
-            ts, psiss, nfevs = b.solve(self.psis_init, T=T, **args)
+            ts, psis, nfev = b.solve(self.psis_init, T=T, **args)
             wall_time = time.time() - start_time
-            E, _ = b.get_E_Ns([psis[0] for psis in psiss])
+            E, _ = b.get_E_Ns(psis[0])
             self.E_init = E
-            E, _ = b.get_E_Ns([psis[-1] for psis in psiss])
+            E, _ = b.get_E_Ns(psis[-1])
             self.wall_time.append(wall_time)
             self.physical_time.append(T)
             self.Es.append(E)
-            self.nfevs.append(sum(nfevs))
-            self.psis.append(psiss[0][-1])
+            self.nfevs.append(nfev)
+            self.psis.append(psis[-1])
             if verbose:
                 print(f"physical time:{T}, wall time:{wall_time},dE:{(E-E0)/abs(E0)} ")
             
             if plot:
-                Es = [b.get_E_Ns([_psi])[0] for _psi in psiss[0]]
+                Es = [b.get_E_Ns([_psi])[0] for _psi in psis]
                 plt.subplot(131)
                 plt.plot(x, self.b.V, label="HO")
                 plt.title(f"Potential")
                 plt.legend()
                 plt.subplot(132)
-                plt.plot(x, Prob(psiss[0][0]), "+", label='init')
-                plt.plot(x, Prob(psiss[0][-1]), '--', label="final")
+                plt.plot(x, Prob(psis[0]), "+", label='init')
+                plt.plot(x, Prob(psis[-1]), '--', label="final")
                 plt.plot(x, Prob(self.psis_ground), label='Ground')
                 plt.title(
                     f"E0={self.E0:5.4},E={E:5.4}, $" + r"\beta_0$" +f"={b.beta_0}, "
@@ -98,7 +98,7 @@ class TestCase(object):
                 else:
                     plt.plot(ts[0][:-1], (Es[:-1] - E0)/abs(E0), label=f"E({alt_text})")
                 if plot_dE:
-                    dE_dt= [-1*b.get_dE_dt([_psi]) for _psi in psiss[0]]
+                    dE_dt= [-1*b.get_dE_dt([_psi]) for _psi in psis[0]]
                     plt.plot(ts[0][:-1], dE_dt[:-1], label='-dE/dt')
                     plt.axhline(0, linestyle='dashed')
                 plt.title(
@@ -120,6 +120,17 @@ class TestCase(object):
             +r"$\beta_V$"+ f"={b.beta_V}, "+ r" $\beta_K$" + f"={b.beta_K}"
             +r" $\beta_D$" + f"={b.beta_D}"+ r" $\beta_Y$" + f"={b.beta_Y}")
         plt.legend()
+
+
+def compute_t(t, beta_V, beta_K, beta_D, beta_Y, T, verbose=False, **args):
+    if t is None:
+        t = TestCaseBCS(**args)
+    t.b.beta_V = beta_V
+    t.b.beta_K = beta_K
+    t.b.beta_D = beta_D
+    t.b.beta_Y = beta_Y
+    t.run(T=T, plot=False, verbose=verbose)
+    return t.wall_time[-1], t.nfevs[-1], t.E0, t.E_init, t.Es[-1]
 
 
 def benchmark_test_excel(
@@ -155,19 +166,15 @@ def benchmark_test_excel(
         col += 1
 
     args = dict(
-        N=N, dx=dx, eps=1e-1, use_abm=use_abm, N_state=N_state,
+        beta_0=beta_0, N=N, dx=dx, eps=1e-1, use_abm=use_abm, N_state=N_state,
         check_dE=False, time_out=time_out)
-    t=TestCase(beta_0=beta_0, **args)
+    t = TestCaseBCS(**args)
     row = 1
     counter = 0
     for beta_Y in beta_Ys:
-        t.b.beta_Y = beta_Y
         for beta_D in beta_Ds:
-            t.b.beta_D = beta_D
             for beta_K in beta_Ks:
-                t.b.beta_K = beta_K
                 for beta_V in beta_Vs:
-                    t.b.beta_V = beta_V
                     if beta_V + beta_K + beta_Y + beta_D == 0:
                         continue
                     for T in Ts:
@@ -179,15 +186,15 @@ def benchmark_test_excel(
                         if beta_V == 0 and beta_K== 0 and beta_Y==0:
                             continue
                         try:
-                            t.run(T=T, plot=False, verbose=verbose)
+                            res = compute_t(
+                                t, beta_V=beta_V, beta_K=beta_K,
+                                beta_D=beta_D, beta_Y=beta_Y,
+                                T=T, verbose=verbose)
                         except ValueError as e:
                             print('Exception: '+ str(e))
                             continue
-                        wall_time = t.wall_time[-1]
-                        nfev = t.nfevs[-1]
-                        E0 = t.E0
-                        Ei, Ef = t.E_init, t.Es[-1]
-                        dEf = (Ef - E0)/E0
+                        wall_time, nfev, E0, Ei, Ef = res
+                        print(res)
                         col = 0
                         values = [
                             trail, time.strftime("%Y/%m/%d %H:%M:%S"), N, dx, t.N_state,
@@ -198,7 +205,7 @@ def benchmark_test_excel(
                         Evoler = "ABM" if t.use_abm else "IVP"
                         sheet.write(row, col, Evoler)
                         col+=1
-                        if abs(dEf) < 1:
+                        if abs((Ef - E0)/E0) < 1:
                             sheet.write(row, col, "Cooled")
                         elif abs((Ef - Ei)/Ei)<0.01:
                             sheet.write(row, col, "Failed")
@@ -225,21 +232,27 @@ def benchmark_test_excel(
 
 
 def do_case_test_excel(
+        beta_Vs=None, beta_Ks=None, Ts=None,
         N=128, dx=0.2, N_state=2, beta_0=1, N_beta_V=25, N_beta_K=11,
         min_beta_V=20, max_beta_V=100, min_beta_K=0, max_beta_K=100,
-        min_T=1, max_T=5, N_T=20, iState="ST", V="HO", trail=0,
+        min_T=1, max_T=5, N_T=20, iState="ST", V="HO", trails=None,
         time_out=60, Ti=4, use_abm=False, save_interval=5, verbose=False):
     """
     a function benchmarks on wall time for given set of parameters.
     change parameters below as needed.
     """
-    beta_Vs = np.linspace(min_beta_V, max_beta_V, N_beta_V)
-    beta_Ks = np.linspace(min_beta_K, max_beta_K, N_beta_K)
-    Ts = np.concatenate(
-        [np.linspace(0.001, 0.99, 20), np.linspace(min_T, max_T, N_T)])
+    if beta_Vs is None:
+        beta_Vs = np.linspace(min_beta_V, max_beta_V, N_beta_V)
+    if beta_Ks is None:
+        beta_Ks = np.linspace(min_beta_K, max_beta_K, N_beta_K)
+    if Ts is None:
+        Ts = np.concatenate(
+            [np.linspace(0.001, 0.99, 20), np.linspace(min_T, max_T, N_T)])
+    if trails is None:
+        trails = 3
     beta_Ds = [0]
     beta_Ys = [0]
-    for trail in range(3):
+    for trail in range(trails):
         benchmark_test_excel(
             N=N, dx=dx, N_state=N_state, trail=trail, Ts=Ts, use_abm=use_abm,
             time_out=time_out, beta_Vs=beta_Vs, beta_Ks=beta_Ks,
@@ -248,10 +261,11 @@ def do_case_test_excel(
 
 
 if __name__ == "__main__":
+    # do_case_test_excel(N_state=1, beta_Vs=[65], beta_Ks=[0], Ts=[5], time_out=300)
     parser = argparse.ArgumentParser(description='Cooling Case Data Generation')
     parser.add_argument('--N', type=int, default=128, help='lattice point number')
     parser.add_argument(
-        '--trail', type=int, default=0, help='trail number used to track different runs')
+        '--trails', type=int, default=1, help='trail number used to track different runs')
     parser.add_argument(
         '--dx', type=float, default=0.2, help='An optional integer positional argument')
     parser.add_argument('--N_beta_V', type=int, default=21, help='Number of beta_Vs')

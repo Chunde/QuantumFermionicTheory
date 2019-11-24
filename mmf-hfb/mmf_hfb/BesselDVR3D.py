@@ -36,7 +36,6 @@ class BesselDVR3D(object):
         
         return (Z0[:i0], Z1[:i1])
 
-
     def _get_K(self, nu, zs):
         """return kinetic matrix for a given angular momentum $\nu$"""
         zi = np.array(list(range(len(zs)))) + 1
@@ -69,7 +68,7 @@ class BesselDVR3D(object):
         # only be accurate when l = l0 ?
         l0 = l % 2
         ll = (l*(l + 1) - l0*(l0 + 1))/2.0
-        r2 = (zs[l0]/self.k_c)**2  #  HO r2/2, here we got k_c as 
+        r2 = (zs[l0]/self.k_c)**2  #  HO r2/2, here we got k_c as
         V_corr = ll/r2
         V_harm = r2/2
         H = Ts[l0] + np.diag(V_corr + V_harm)

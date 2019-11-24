@@ -17,7 +17,7 @@ class TestCase2D(object):
         phase = ((x-x0) + 1j*y)*((x+x0) - 1j*y)
         psi_init = 1.0*np.exp(1j*np.angle(phase))
         _, psis, _ = b.solve([psi_init], T=T, rtol=1e-5, atol=1e-6)
-        psi_ground = psis[0][-1]
+        psi_ground = psis[-1][0]
         E0 = b.get_E_Ns([psi_ground])[0]
         self.E0 = E0
         self.psi_ground=psi_ground
@@ -31,11 +31,11 @@ class TestCase2D(object):
         b.beta_D = beta_D
         b.beta_Y = beta_Y
         start_time = time.time()
-        _, psis, nfevs = b.solve([self.psi_init], T=T, rtol=1e-5, atol=1e-6)
+        _, psis, nfev = b.solve([self.psi_init], T=T, rtol=1e-5, atol=1e-6)
         wall_time = time.time() - start_time
-        Ei = b.get_E_Ns([psis[0][0]])[0]
-        Ef = b.get_E_Ns([psis[0][-1]])[0]
-        return (Ei, Ef, wall_time, nfevs[-1])
+        Ei = b.get_E_Ns(psis[0])[0]
+        Ef = b.get_E_Ns(psis[-1])[0]
+        return (Ei, Ef, wall_time, nfev)
 
 
 def benchmark_test_excel(
@@ -135,30 +135,39 @@ def benchmark_test_excel(
 
 
 def do_case_test_excel(
+        beta_Vs=None, beta_Ks=None, Ts=None,
         g=1, beta_0=1, N_beta_V=10, N_beta_K=11,
         min_beta_V=10, max_beta_V=100, min_beta_K=0, max_beta_K=100,
-        min_T=1, max_T=5, N_T=20, trail=0, time_out=600, Ti=4,
+        min_T=1, max_T=5, N_T=20, trails=None, time_out=600, Ti=20,
         use_abm=False, save_interval=5, verbose=False):
     """
     a function benchmarks on wall time for given set of parameters.
     change parameters below as needed.
     """
-    beta_Vs = np.linspace(min_beta_V, max_beta_V, N_beta_V)
-    beta_Ks = np.linspace(min_beta_K, max_beta_K, N_beta_K)
-    Ts = np.concatenate(
-        [np.linspace(0.001, 0.99, 20), np.linspace(min_T, max_T, N_T)])
+    if beta_Vs is None:
+        beta_Vs = np.linspace(min_beta_V, max_beta_V, N_beta_V)
+    if beta_Ks is None:
+        beta_Ks = np.linspace(min_beta_K, max_beta_K, N_beta_K)
+    if Ts is None:
+        Ts = np.concatenate(
+            [np.linspace(0.001, 0.99, 20), np.linspace(min_T, max_T, N_T)])
+    if trails is None:
+        trails = 3
     beta_Ds = [0]
     beta_Ys = [0]
-    benchmark_test_excel(
-        g=g, trail=trail, Ts=Ts, use_abm=use_abm, time_out=time_out,
-        beta_Vs=beta_Vs, beta_Ks=beta_Ks, beta_Ds=beta_Ds, beta_0=beta_0,
-        beta_Ys=beta_Ys, T_ground_state=Ti, save_interval=save_interval, verbose=verbose)
+    for trail in range(trails):
+        benchmark_test_excel(
+            g=g, trail=trail, Ts=Ts, use_abm=use_abm, time_out=time_out,
+            beta_Vs=beta_Vs, beta_Ks=beta_Ks, beta_Ds=beta_Ds, beta_0=beta_0,
+            beta_Ys=beta_Ys, T_ground_state=Ti,
+            save_interval=save_interval, verbose=verbose)
 
 
 if __name__ == "__main__":
+    # do_case_test_excel(beta_Vs=[65], beta_Ks=[0], Ts=[5], time_out=300)
     parser = argparse.ArgumentParser(description='Cooling Case Data Generation(2D)')
     parser.add_argument(
-        '--trail', type=int, default=0, help='trail number used to track different runs')
+        '--trails', type=int, default=1, help='trail number used to track different runs')
     parser.add_argument(
         '--g', type=float, default=0, help='Interaction')
     parser.add_argument('--N_beta_V', type=int, default=10, help='Number of beta_Vs')
