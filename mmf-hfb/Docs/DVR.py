@@ -213,25 +213,25 @@ rs = np.linspace(0, 2, 100)
 psi = psi10(rs)
 plt.plot(rs, psi)
 
-import mmf_hfb.HarmonicDVR as HarmonicDVR; reload(HarmonicDVR)
-from mmf_hfb.HarmonicDVR import HarmonicDVR
+import mmf_hfb.DVRBasis as HarmonicDVR; reload(HarmonicDVR)
+from mmf_hfb.DVRBasis import HarmonicDVR
 
 bessel.j_root(nu=0, N=10)
 
 h = HarmonicDVR(nu=2, dim=2)
-rs = np.linspace(0, 5, 100)
-for r in h.rs:
-    plt.axvline(r, linestyle='dashed')
+#h.K_max = 1
+rs = np.linspace(24, 55, 200)
+# for r in h.rs:
+#     plt.axvline(r, linestyle='dashed')
 plt.axhline(0, linestyle='dotted')
-Fs = h.get_F(nu=0, n=3, rs=rs)
+Fs = h.get_F(nu=3, n=10, rs=rs)
 plt.plot(rs, Fs)
 Fs = h.get_F_rs()
-plt.plot(h.rs, Fs, '+')
+#plt.plot(h.rs, Fs, '+')
 
-
-def spectrum(nu=0):
+def spectrum(nu=0, l=0):
     h = HarmonicDVR(nu=nu, dim=3, w=1)
-    H = h.get_H()
+    H = h.get_H(l=l)
     Fs = h.get_F_rs()    
     Es, us = np.linalg.eigh(H)
     for i in range(2):
@@ -491,36 +491,36 @@ from sys import argv
 from pylab import *
 
 def Jn(r,n):
-  return (sqrt(pi/(2*r))*jv(n+0.5,r))
+    return (sqrt(pi/(2*r))*jv(n+0.5,r))
 
 def Jn_zeros(n,nt):
-  zerosj = zeros((n+1, nt))
-  zerosj[0] = arange(1,nt+1)*pi
-  points = arange(1,nt+n+1)*pi
-  racines = zeros(nt+n)
-  for i in range(1,n+1):
-    for j in range(nt+n-i):
-      foo = brentq(Jn, points[j], points[j+1], (i,))
-      racines[j] = foo
-    points = racines
-    zerosj[i][:nt] = racines[:nt]
-  return (zerosj)
+    zerosj = zeros((n+1, nt))
+    zerosj[0] = arange(1,nt+1)*pi
+    points = arange(1,nt+n+1)*pi
+    racines = zeros(nt+n)
+    for i in range(1,n+1):
+        for j in range(nt+n-i):
+        foo = brentq(Jn, points[j], points[j+1], (i,))
+        racines[j] = foo
+        points = racines
+        zerosj[i][:nt] = racines[:nt]
+    return (zerosj)
 
 def rJnp(r,n):
-  return (0.5*sqrt(pi/(2*r))*jv(n+0.5,r) + sqrt(pi*r/2)*jvp(n+0.5,r))
+    return (0.5*sqrt(pi/(2*r))*jv(n+0.5,r) + sqrt(pi*r/2)*jvp(n+0.5,r))
 
 def rJnp_zeros(n,nt):
-  zerosj = zeros((n+1, nt))
-  zerosj[0] = (2.*arange(1,nt+1)-1)*pi/2
-  points = (2.*arange(1,nt+n+1)-1)*pi/2
-  racines = zeros(nt+n)
-  for i in range(1,n+1):
-    for j in range(nt+n-i):
-      foo = brentq(rJnp, points[j], points[j+1], (i,))
-      racines[j] = foo
-    points = racines
-    zerosj[i][:nt] = racines[:nt]
-  return (zerosj)
+    zerosj = zeros((n+1, nt))
+    zerosj[0] = (2.*arange(1,nt+1)-1)*pi/2
+    points = (2.*arange(1,nt+n+1)-1)*pi/2
+    racines = zeros(nt+n)
+    for i in range(1,n+1):
+        for j in range(nt+n-i):
+        foo = brentq(rJnp, points[j], points[j+1], (i,))
+        racines[j] = foo
+        points = racines
+        zerosj[i][:nt] = racines[:nt]
+    return (zerosj)
 
 n = 0
 nt = 5

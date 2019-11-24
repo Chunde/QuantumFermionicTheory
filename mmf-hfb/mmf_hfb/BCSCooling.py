@@ -21,14 +21,32 @@ def Normalize(psi):
 
 class BCSCooling(BCS):
     """
-    Local Quantum Friction class that supports GPE(single wavefunctin)
-    and BdG type system. 
+    Local Quantum Friction class that supports GPE(single wavefunction)
+    and BdG type system.
+    -----------
+    EXAMPLE:
+
+    def ImaginaryCooling():
+        args = dict(N=64, dx=0.1, beta_0=-1j)
+        s = BCSCooling(**args)  # dx fixed, L changes, IR        
+        x = s.xyz[0]
+        V = x**2/2
+        s.V = V
+        u0 = np.exp(-x**2/2)/np.pi**4
+        u0 = u0/u0.dot(u0.conj())**0.5
+        u1=(np.sqrt(2)*x*np.exp(-x**2/2))/np.pi**4
+        u1 = u1/u1.dot(u1.conj())**0.5
+        psi_0 = Normalize(V*0 + 1+0*1j)
+        ts, psis, _ = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, method='BDF')
+        psi_ground = psis[-1]
+        E_ground = s.get_E_Ns([psi_ground])
     """
 
     def __init__(
             self, N=256, L=None, dx=0.1, delta=0, mus=(0, 0), dim=1, V=0,
             beta_H=1, beta_0=1.0, beta_V=0, beta_K=0, beta_D=0, beta_Y=0,
-            g=0, dE_dt=1, divs=(0, 0), check_dE=False, time_out=None, **args):
+            g=0, dE_dt=1, divs=(0, 0), check_dE=False, time_out=None,
+            ivp_e=None, **args):
         """
         Arguments
         ---------
@@ -67,6 +85,7 @@ class BCSCooling(BCS):
         self._K2 = self.hbar**2/2/self.m*sum(_k**2 for _k in self.kxyz)
         self.dt =dE_dt*self.hbar/self._K2.max()
         self.E_max = self._K2.max()
+        self.ivp_e = ivp_e
     
     def _get_uv(self, psi):
         """slice a uv into u, and v components"""
@@ -253,14 +272,11 @@ class BCSCooling(BCS):
         use psi as a single wavefunction without
         dividing it in to u, v components.
         """
-        try:
-            psi_k = self.fft(psi)*self.dV
-            Vpsi_k = self.fft(Hpsi)*self.dV
-            Kc = 2*(psi_k.conj()*Vpsi_k).imag/N*self.dV/np.prod(self.Lxyz)
-            return Kc
-        except RuntimeWarning:
-            raise Exception("Value Error")
-
+        psi_k = self.fft(psi)*self.dV
+        Vpsi_k = self.fft(Hpsi)*self.dV
+        Kc = 2*(psi_k.conj()*Vpsi_k).imag/N*self.dV/np.prod(self.Lxyz)
+        return Kc
+     
     def get_Kc(self, psis):
         N = self.get_N(psis)
         Kc = 0*np.array(psis[0])
@@ -378,13 +394,9 @@ class BCSCooling(BCS):
         """compute dE/dt"""
         H_psis = self.apply_H(psis)
         Hc_psis = self.apply_Hc(psis=psis)
-        # dE_dt = sum(
-        #     [self.dotc(H_psi, Hc_psi)- self.dotc(Hc_psi, H_psi)
-        #         for (H_psi, Hc_psi) in zip(H_psis, Hc_psis)])/(1j)
         dE_dt= 2*sum(
             [self.dotc(H_psi, Hc_psi).imag
                 for (H_psi, Hc_psi) in zip(H_psis, Hc_psis)])
-        # assert np.allclose(dE_dt, dE_dt_, rtol=1e-16)
         return dE_dt
 
     def step(self, psis, n=1):
@@ -412,7 +424,7 @@ class BCSCooling(BCS):
         return np.ascontiguousarray(psi).view().ravel()
 
     def unpack(self, y):
-        n = len(y)//np.prod(self.Nxyz)       
+        n = len(y)//np.prod(self.Nxyz)
         shape = (n, ) + self.Nxyz
         return np.ascontiguousarray(y).view().reshape(shape)
 
@@ -436,7 +448,7 @@ class BCSCooling(BCS):
         if transpose:
             return (U.T, Es)
         return (U, Es)
-
+    
     def solve(self, psis, T, dy_dt=None, solver=None, **kw):
         self.psis = psis  # all single particle states
         self.start_time = time.time()
@@ -447,13 +459,26 @@ class BCSCooling(BCS):
         else:
             kw.update(dt=self.dt)
         psis0 = self.pack(psis)
-        res = solver(fun=dy_dt, t_span=(0, T), y0=psis0, **kw)
+        self.cc = 0
+
+        def ivp_event(t, y):
+            psis = self.unpack(y)
+            E = self.get_E_Ns(psis)[0]
+            return E - self.ivp_e
+            
+        ivp_event.terminal = True
+        event = None if self.ivp_e is None else ivp_event
+        
+        res = solver(
+            fun=dy_dt, t_span=(0, T), y0=psis0,
+            events=event, **kw)
+
         if not res.success:
             raise Exception(res.message)
         ys= list(map(self.unpack, res.y.T))
         return(res.t, ys, res.nfev)
 
-    def get_ns(self, psis, shrink=False):
+    def get_ns(self, psis):
         """compute densities"""
         return sum(np.abs(psis)**2)
 

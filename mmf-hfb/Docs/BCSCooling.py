@@ -352,7 +352,7 @@ def ImaginaryCooling():
         ir = BCSCooling(dx=dx, **args)  # dx fixed, L changes, IR
         uv = BCSCooling(dx=dx*64.0/Nx, **args)  # dx changes, L fixed: UV
         for i, s in enumerate([ir, uv]):
-            ir.g = 0# -1
+            s.g = 0# -1
             x = s.xyz[0]
             r2 = x**2
             V = x**2/2

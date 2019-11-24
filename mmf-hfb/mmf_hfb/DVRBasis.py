@@ -65,6 +65,8 @@ class CylindricalBasis(Basis):
         """
         return roots for order $\nu$
         """
+        nn = np.array(list(range(0, self.N_root, 1))) + 1
+        return nn*np.pi
         if nu is None:
             nu = self.nu
         zs = bessel.j_root(nu=nu, N=self.N_root)
@@ -181,3 +183,32 @@ class CylindricalBasis(Basis):
     def get_V_mean_field(self, nu):
         return 0
 
+
+class HarmonicDVR(CylindricalBasis):
+    m=hbar=w=1
+    eps = 7./3 - 4./3 -1  # machine accuracy
+
+    def __init__(self, w=1, nu=0, dim=2):
+        CylindricalBasis.__init__(self, nu=nu, dim=dim)
+        self.w = w
+
+    def get_V(self):
+        """return the external potential"""
+        r2 = (self.rs)**2
+        return self.w**2*r2/2
+
+    def get_H(self):
+        K = self.K
+        V = self.get_V()
+        H = K + np.diag(V)
+        return H
+
+
+if __name__ == "__main__":
+    # import matplotlib.pyplot as plt
+    h = HarmonicDVR(nu=0, dim=3)
+    H = h.get_H()
+    Es, phis = np.linalg.eigh(H)
+    print(Es)
+    # plt.plot(phis[0]/h.rs_scale)
+    # plt.show()
