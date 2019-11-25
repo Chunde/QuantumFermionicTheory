@@ -357,20 +357,21 @@ if __name__ == "__main__":
     parser.add_argument(
         '--max_beta_K', type=float, default=100, help='max value of beta_Ks')
     # beta_Ds settings
-    parser.add_argument('--N_beta_D', type=int, default=21, help='Number of beta_Ds')
+    parser.add_argument('--N_beta_D', type=int, default=1, help='Number of beta_Ds')
     parser.add_argument(
         '--min_beta_D', type=float, default=0, help='min value of beta_Ds')
     parser.add_argument(
-        '--max_beta_D', type=float, default=100, help='max value of beta_Ds')
+        '--max_beta_D', type=float, default=0, help='max value of beta_Ds')
      # beta_Ys settings
-    parser.add_argument('--N_beta_Y', type=int, default=21, help='Number of beta_Ys')
+    parser.add_argument('--N_beta_Y', type=int, default=1, help='Number of beta_Ys')
     parser.add_argument(
         '--min_beta_Y', type=float, default=0, help='min value of beta_Ys')
     parser.add_argument(
-        '--max_beta_Y', type=float, default=100, help='max value of beta_Ys')
+        '--max_beta_Y', type=float, default=0, help='max value of beta_Ys')
     # Ts settings
+    parser.add_argument('--Ts', default=[5], help='Number of T')
     parser.add_argument('--N_T', type=int, default=25, help='Number of T')
-    parser.add_argument('--min_T', type=float, default=1, help='min value of T')
+    parser.add_argument('--min_T', type=float, default=0, help='min value of T')
     parser.add_argument('--max_T', type=float, default=5, help='max value of T')
     # Time out
     parser.add_argument('--time_out', type=float, default=60, help='time out')
