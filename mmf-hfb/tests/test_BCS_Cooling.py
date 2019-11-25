@@ -160,10 +160,11 @@ def test_dE_dt(N=128, da=0, db=0, T=0.5):
     b.solve([psi], T=T, rtol=1e-5, atol=1e-6, V=V, solver=None, method='BDF')
 
 
-def test_ImaginaryCooling_with_desired_energy_level():
+def test_ImaginaryCooling_with_desired_energy():
+    """test energy target setting code"""
     args = dict(N=128, dx=0.1, beta_0=-1j, beta_K=0, beta_V=0)
     s = BCSCooling(**args)
-    s.E_stop = 0.75
+    s.E_stop = 0.75  # target energy should be no less than E0
     x = s.xyz[0]
     V = x**2/2
     s.V = V

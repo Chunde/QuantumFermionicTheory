@@ -49,9 +49,16 @@ def get_potentials(x):
 class TestCase(object):
     
     def __init__(
-            self, g, N, dx, eps=1e-2,
+            self, g, N, dx, eps=1e-2, E_E0=None,
             psi_init=None, psi_ground=None, E0=None, T_max=10,
             T_ground_state=20, V_key=None, use_abm=True, **args):
+        """
+        Arguments
+        ---------
+        E_E0: float
+            the target energy E/E0, should be no smaller than 1 or None
+            used to set the target energy level in BCSCooling object
+        """
         args.update(g=g, N=N, dx=dx)
         b = BCSCooling(**args)
         self.use_abm = use_abm
@@ -71,7 +78,8 @@ class TestCase(object):
             psi_ground = self.get_ground_state(
                 T=T_ground_state, psi_init=self.psi_init)
         self.psi_ground = psi_ground
-        self.E0=E0
+        self.E0 = E0 
+        self.E_E0 = E_E0 if E_E0 >= 1 else None
 
     def get_ground_state(self, psi_init, T=None, plot=False):
         b = BCSCooling(N=self.b.N, dx=self.b.dx, g=self.g, V=self.b.V, beta_0=-1j)
@@ -105,6 +113,7 @@ class TestCase(object):
         b, x = self.b, self.x
         E0, _ = b.get_E_Ns([self.psi_ground])
         self.E0 = E0
+        self.b.E_stop = None if self.E_E0 is None else E0*self.E_E0
         if T is None:
             Ts = (np.array(list(range(N_T)))+1)*0.5
         else:
@@ -180,9 +189,9 @@ class TestCase(object):
 def benchmark_test_excel(
         N=128, dx=0.1, g=0, Ts=[5], trail=1, use_abm=False,
         beta_0=1, beta_Ks=[0], beta_Vs=[10], beta_Ds=[0], beta_Ys=[0],
-        ground_state="Gaussian", init_state_key="ST", V_key="HO",
-        time_out=120, T_ground_state=10, last_file=None,
-        save_interval=5, verbose=False):
+        ground_state="Gaussian", iState="ST", V="HO",
+        time_out=120, Ti=10, last_file=None,
+        save_interval=5, verbose=False, E_E0=0):
     """
     this function is provided to perform test the cooling vs wall time
     calling this function will create a excel file that summarize the
@@ -192,13 +201,13 @@ def benchmark_test_excel(
         f"N={N}, dx={dx}, g={g}, Ts={Ts}, trail={trail}, use_abm={use_abm},"
         +f"beta_0={beta_0}, beta_Ks={beta_Ks}, beta_Vs={beta_Vs},"
         +f"beta_Ds={beta_Ds}, beta_Ys={beta_Ys},ground_state={ground_state}, "
-        +f"init_state_key={init_state_key}, V_key={V_key},"
-        +f"time_out={time_out}, T_ground_state={T_ground_state}"
+        +f"iState={iState}, V_key={V},"
+        +f"time_out={time_out}, T_ground_state={Ti}"
         +f",save_interval={save_interval}, verbose={verbose}")
     # create an excel table to store the result
     file_stem = (
         f"TestCase_N[{N}]_dx[{dx}]_g[{g}]_T[{5}]_Tr[{trail}]"
-        +f"_IS[{init_state_key}]_V[{V_key}]_PID=[{os.getpid()}]_"
+        +f"_IS[{iState}]_V[{V}]_PID=[{os.getpid()}]_"
         +time.strftime("%Y_%m_%d_%H_%M_%S"))
     file_name = file_stem+".xls"
     output = xlwt.Workbook(encoding='utf-8')
@@ -214,13 +223,14 @@ def benchmark_test_excel(
         sheet.write(row, col, value)
         col += 1
     psis_init = get_init_states(N=N, dx=dx)
-    psi_init = psis_init[init_state_key]
+    psi_init = psis_init[iState]
     b = BCSCooling(N=N, dx=dx)
     x = b.xyz[0]
     Vs = get_potentials(x)
     args = dict(
-        N=N, dx=dx, eps=1e-1, T_ground_state=T_ground_state, V=Vs[V_key], V_key=V_key,
-        g=g, psi_init=psi_init, use_abm=use_abm, check_dE=False, time_out=time_out)
+        N=N, dx=dx, eps=1e-1, T_ground_state=Ti, V=Vs[V],
+        V_key=V, g=g, psi_init=psi_init,
+        use_abm=use_abm, check_dE=False, E_E0=E_E0, time_out=time_out)
     t=TestCase(ground_state_eps=1e-1, beta_0=beta_0, **args)
     row = 1
     counter = 0
@@ -239,7 +249,7 @@ def benchmark_test_excel(
                             print(
                                 f"Trail#={trail}: beta_V={beta_V}, beta_K={beta_K},"
                                 +f"beta_D={beta_D}, beta_Y={beta_Y},"
-                                +f"g={g}, T={T}, V={V_key}, N={N},dx={dx}")
+                                +f"g={g}, T={T}, V={V}, N={N},dx={dx}")
                         if beta_V == 0 and beta_K== 0 and beta_Y==0:
                             continue
                         try:
@@ -255,8 +265,8 @@ def benchmark_test_excel(
                         col = 0
                         values = [
                             trail, time.strftime("%Y/%m/%d %H:%M:%S"), N, dx,
-                            beta_0, beta_V, beta_K, beta_D, beta_Y, g, V_key,
-                            ground_state, init_state_key, E0, Ei, Ef]
+                            beta_0, beta_V, beta_K, beta_D, beta_Y, g, V,
+                            ground_state, iState, E0, Ei, Ef]
                         for value in values:
                             sheet.write(row, col, value)
                             col += 1
@@ -290,11 +300,12 @@ def benchmark_test_excel(
 
 
 def do_case_test_excel(
-        beta_Vs=None, beta_Ks=None, Ts=None,
-        N=128, dx=0.2, g=1, beta_0=1, N_beta_V=25, N_beta_K=11,
-        min_beta_V=20, max_beta_V=100, min_beta_K=0, max_beta_K=100,
-        min_T=1, max_T=5, N_T=20, iState="ST", V="HO", trails=None,
-        time_out=60, Ti=4, use_abm=False, save_interval=5, verbose=False):
+        beta_Vs=None, beta_Ks=None, beta_Ds=None, beta_Ys=None,
+        N_beta_V=25, min_beta_V=20, max_beta_V=100,
+        N_beta_K=11, min_beta_K=0, max_beta_K=100,
+        N_beta_D=1, min_beta_D=0, max_beta_D=0,
+        N_beta_Y=1, min_beta_Y=0, max_beta_Y=0,
+        Ts=None, trails=None, min_T=1, max_T=5, N_T=20, **args):
     """
     a function benchmarks on wall time for given set of parameters.
     change parameters below as needed.
@@ -303,24 +314,24 @@ def do_case_test_excel(
         beta_Vs = np.linspace(min_beta_V, max_beta_V, N_beta_V)
     if beta_Ks is None:
         beta_Ks = np.linspace(min_beta_K, max_beta_K, N_beta_K)
+    if beta_Ds is None:
+        beta_Ds = np.linspace(min_beta_D, max_beta_D, N_beta_D)
+    if beta_Ys is None:
+        beta_Ys = np.linspace(min_beta_Y, max_beta_Y, N_beta_Y)
     if Ts is None:
         Ts = np.concatenate(
             [np.linspace(0.001, 0.99, 20), np.linspace(min_T, max_T, N_T)])
     if trails is None:
         trails = 3
-    beta_Ds = [0]
-    beta_Ys = [0]
     for trail in range(trails):
         benchmark_test_excel(
-            N=N, dx=dx, g=g, trail=trail, Ts=Ts, use_abm=use_abm, time_out=time_out,
-            beta_Vs=beta_Vs, beta_Ks=beta_Ks, beta_Ds=beta_Ds, beta_0=beta_0,
-            beta_Ys=beta_Ys, init_state_key=iState, V_key=V,
-            T_ground_state=Ti, save_interval=save_interval, verbose=verbose)
+            trail=trail, Ts=Ts, beta_Vs=beta_Vs, beta_Ks=beta_Ks,
+            beta_Ds=beta_Ds, beta_Ys=beta_Ys, **args)
 
 
 if __name__ == "__main__":
-    # do_case_test_excel(beta_Vs=[65], beta_Ks=[0], Ts=[5], time_out=300)
-
+    #do_case_test_excel(beta_Vs=[65], beta_Ks=[0], Ts=[5], E_E0=1.5, time_out=300)
+    
     parser = argparse.ArgumentParser(description='Cooling Case Data Generation')
     parser.add_argument('--N', type=int, default=128, help='lattice point number')
     parser.add_argument(
@@ -329,22 +340,41 @@ if __name__ == "__main__":
         '--dx', type=float, default=0.2, help='An optional integer positional argument')
     parser.add_argument(
         '--g', type=float, default=0, help='Interaction')
+    parser.add_argument(
+        '--E_E0', type=float, default=0, help='target energy over ground energy')
     parser.add_argument('--iState', default="ST", help='Initial State Type: ST/BS/UN/GM')
     parser.add_argument('--V', default="HO", help='Potential Type: HO/V0')
+    # beta_Vs settings
     parser.add_argument('--N_beta_V', type=int, default=21, help='Number of beta_Vs')
     parser.add_argument(
         '--min_beta_V', type=float, default=0, help='min value of beta_Vs')
     parser.add_argument(
         '--max_beta_V', type=float, default=100, help='max value of beta_Vs')
+    # beta_Vs settings
     parser.add_argument('--N_beta_K', type=int, default=21, help='Number of beta_Ks')
     parser.add_argument(
         '--min_beta_K', type=float, default=0, help='min value of beta_Ks')
     parser.add_argument(
         '--max_beta_K', type=float, default=100, help='max value of beta_Ks')
+    # beta_Ds settings
+    parser.add_argument('--N_beta_D', type=int, default=21, help='Number of beta_Ds')
+    parser.add_argument(
+        '--min_beta_D', type=float, default=0, help='min value of beta_Ds')
+    parser.add_argument(
+        '--max_beta_D', type=float, default=100, help='max value of beta_Ds')
+     # beta_Ys settings
+    parser.add_argument('--N_beta_Y', type=int, default=21, help='Number of beta_Ys')
+    parser.add_argument(
+        '--min_beta_Y', type=float, default=0, help='min value of beta_Ys')
+    parser.add_argument(
+        '--max_beta_Y', type=float, default=100, help='max value of beta_Ys')
+    # Ts settings
     parser.add_argument('--N_T', type=int, default=25, help='Number of T')
     parser.add_argument('--min_T', type=float, default=1, help='min value of T')
     parser.add_argument('--max_T', type=float, default=5, help='max value of T')
+    # Time out
     parser.add_argument('--time_out', type=float, default=60, help='time out')
+    # Time for imaginary cooling to find ground state
     parser.add_argument(
         '--Ti', type=float, default=20.0, help='imaginary cooling Max time')
     parser.add_argument(

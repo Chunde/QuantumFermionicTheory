@@ -40,6 +40,9 @@ class BCSCooling(BCS):
         ts, psis, _ = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, method='BDF')
         psi_ground = psis[-1]
         E_ground = s.get_E_Ns([psi_ground])
+    ------------
+    To too down to some level above ground energy, please check
+    the test case in '/test/test_BCS_Cooling.py'
     """
 
     def __init__(
@@ -60,6 +63,8 @@ class BCSCooling(BCS):
             Portion of the position cooling potential V_c with derivative
         beta_Y: float
             Portion of the Dyadic cooling potential V_Dyadic.
+        E_stop: float
+            the target energy, integration will stop if E_stop is reached
         """
         if L is None:
             L = N*dx
@@ -459,7 +464,6 @@ class BCSCooling(BCS):
         else:
             kw.update(dt=self.dt)
         psis0 = self.pack(psis)
-        self.cc = 0
 
         def ivp_event(t, y):
             psis = self.unpack(y)
