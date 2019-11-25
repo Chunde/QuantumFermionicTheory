@@ -8,7 +8,7 @@ import pandas as pd
 
 
 class TestCase2D(object):
-    def __init__(self, T=5, g=0, **args):
+    def __init__(self, T=5, g=0, E_E0=None, **args):
         b = BCSCooling(N=32, dx=0.1, beta_0=-1j, g=g, dim=2, **args)
         x, y =b.xyz
         V = sum(_x**2 for _x in b.xyz)
@@ -23,6 +23,8 @@ class TestCase2D(object):
         self.psi_ground=psi_ground
         self.psi_init = psi_init
         self.b = b
+        self.E_E0 = E_E0 if E_E0 >= 1 else None
+        self.b.E_stop = None if self.E_E0 is None else E0*self.E_E0
         
     def get_E_Tw(self, beta_V, beta_K=0, beta_D=0, beta_Y=0, T=5):
         b = self.b
@@ -41,8 +43,8 @@ class TestCase2D(object):
 def benchmark_test_excel(
         g=0, Ts=[5], trail=1, use_abm=False,
         beta_0=1, beta_Ks=[0], beta_Vs=[10], beta_Ds=[0], beta_Ys=[0],
-        time_out=120, T_ground_state=10, last_file=None,
-        save_interval=5, verbose=False):
+        time_out=120, Ti=10, last_file=None,
+        save_interval=5, verbose=False, E_E0=0):
     """
     this function is provided to perform test the cooling vs wall time
     calling this function will create a excel file that summarize the
@@ -52,7 +54,7 @@ def benchmark_test_excel(
         f" g={g}, Ts={Ts}, trail={trail}, use_abm={use_abm},"
         +f"beta_0={beta_0}, beta_Ks={beta_Ks}, beta_Vs={beta_Vs},"
         +f"beta_Ds={beta_Ds}, beta_Ys={beta_Ys} "
-        +f"time_out={time_out}, T_ground_state={T_ground_state}"
+        +f"time_out={time_out}, Ti={Ti}"
         +f",save_interval={save_interval}, verbose={verbose}")
     # create an excel table to store the result
     file_stem = (
@@ -71,8 +73,8 @@ def benchmark_test_excel(
         sheet.write(row, col, value)
         col += 1
     
-    args = dict(g=g, use_abm=use_abm, check_dE=False, time_out=time_out)
-    t=TestCase2D(T=T_ground_state, **args)
+    args = dict(g=g, use_abm=use_abm, check_dE=False, E_E0=E_E0, time_out=time_out)
+    t=TestCase2D(T=Ti, **args)
     row = 1
     counter = 0
     for beta_Y in beta_Ys:
@@ -135,11 +137,12 @@ def benchmark_test_excel(
 
 
 def do_case_test_excel(
-        beta_Vs=None, beta_Ks=None, Ts=None,
-        g=1, beta_0=1, N_beta_V=10, N_beta_K=11,
-        min_beta_V=10, max_beta_V=100, min_beta_K=0, max_beta_K=100,
-        min_T=1, max_T=5, N_T=20, trails=None, time_out=600, Ti=20,
-        use_abm=False, save_interval=5, verbose=False):
+        beta_Vs=None, beta_Ks=None, beta_Ds=None, beta_Ys=None, Ts=None,
+        N_beta_V=10, min_beta_V=10, max_beta_V=100,
+        N_beta_K=11, min_beta_K=0, max_beta_K=100,
+        N_beta_D=1, min_beta_D=0, max_beta_D=0,
+        N_beta_Y=1, min_beta_Y=0, max_beta_Y=0,
+        min_T=1, max_T=5, N_T=20, trails=None, **args):
     """
     a function benchmarks on wall time for given set of parameters.
     change parameters below as needed.
@@ -148,6 +151,10 @@ def do_case_test_excel(
         beta_Vs = np.linspace(min_beta_V, max_beta_V, N_beta_V)
     if beta_Ks is None:
         beta_Ks = np.linspace(min_beta_K, max_beta_K, N_beta_K)
+    if beta_Ds is None:
+        beta_Ds = np.linspace(min_beta_D, max_beta_D, N_beta_D)
+    if beta_Ys is None:
+        beta_Ys = np.linspace(min_beta_Y, max_beta_Y, N_beta_Y)
     if Ts is None:
         Ts = np.concatenate(
             [np.linspace(0.001, 0.99, 20), np.linspace(min_T, max_T, N_T)])
@@ -157,10 +164,8 @@ def do_case_test_excel(
     beta_Ys = [0]
     for trail in range(trails):
         benchmark_test_excel(
-            g=g, trail=trail, Ts=Ts, use_abm=use_abm, time_out=time_out,
-            beta_Vs=beta_Vs, beta_Ks=beta_Ks, beta_Ds=beta_Ds, beta_0=beta_0,
-            beta_Ys=beta_Ys, T_ground_state=Ti,
-            save_interval=save_interval, verbose=verbose)
+            trail=trail, Ts=Ts, beta_Vs=beta_Vs, beta_Ks=beta_Ks,
+            beta_Ds=beta_Ds, beta_Ys=beta_Ys, **args)
 
 
 if __name__ == "__main__":
@@ -170,16 +175,32 @@ if __name__ == "__main__":
         '--trails', type=int, default=1, help='trail number used to track different runs')
     parser.add_argument(
         '--g', type=float, default=0, help='Interaction')
-    parser.add_argument('--N_beta_V', type=int, default=10, help='Number of beta_Vs')
     parser.add_argument(
-        '--min_beta_V', type=float, default=10, help='min value of beta_Vs')
+        '--E_E0', type=float, default=0, help='target energy over ground energy')
+    # beta_Vs settings
+    parser.add_argument('--N_beta_V', type=int, default=21, help='Number of beta_Vs')
+    parser.add_argument(
+        '--min_beta_V', type=float, default=0, help='min value of beta_Vs')
     parser.add_argument(
         '--max_beta_V', type=float, default=100, help='max value of beta_Vs')
-    parser.add_argument('--N_beta_K', type=int, default=11, help='Number of beta_Ks')
+    # beta_Vs settings
+    parser.add_argument('--N_beta_K', type=int, default=21, help='Number of beta_Ks')
     parser.add_argument(
         '--min_beta_K', type=float, default=0, help='min value of beta_Ks')
     parser.add_argument(
         '--max_beta_K', type=float, default=100, help='max value of beta_Ks')
+    # beta_Ds settings
+    parser.add_argument('--N_beta_D', type=int, default=1, help='Number of beta_Ds')
+    parser.add_argument(
+        '--min_beta_D', type=float, default=0, help='min value of beta_Ds')
+    parser.add_argument(
+        '--max_beta_D', type=float, default=0, help='max value of beta_Ds')
+    # beta_Ys settings
+    parser.add_argument('--N_beta_Y', type=int, default=1, help='Number of beta_Ys')
+    parser.add_argument(
+        '--min_beta_Y', type=float, default=0, help='min value of beta_Ys')
+    parser.add_argument(
+        '--max_beta_Y', type=float, default=0, help='max value of beta_Ys')
     parser.add_argument('--N_T', type=int, default=25, help='Number of T')
     parser.add_argument('--min_T', type=float, default=1, help='min value of T')
     parser.add_argument('--max_T', type=float, default=5, help='max value of T')

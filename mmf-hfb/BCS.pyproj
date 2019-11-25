@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>d96035f2-d7ba-4540-adc5-a336a7b7a91f</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>mmf_hfb\CoolingCaseTests.py</StartupFile>
+    <StartupFile>mmf_hfb\CoolingCaseTests2D.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -17,7 +17,7 @@
     <InterpreterId>Global|PythonCore|3.7</InterpreterId>
     <SuppressEnvironmentCreationPrompt>True</SuppressEnvironmentCreationPrompt>
     <TestFramework>Pytest</TestFramework>
-    <CommandLineArguments>--trails=1  --save_interval=30 --verbose=False --save_interval=10 --N_T=30   --time_out=120 --E_E0=1.5</CommandLineArguments>
+    <CommandLineArguments>--trails=1  --save_interval=30 --verbose=False --save_interval=10 --N_T=30   --time_out=120 --E_E0=1.5 --N_T=1 --min_T=5 --max_T=5 </CommandLineArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>

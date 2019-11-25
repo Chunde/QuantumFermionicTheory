@@ -78,7 +78,7 @@ class TestCase(object):
             psi_ground = self.get_ground_state(
                 T=T_ground_state, psi_init=self.psi_init)
         self.psi_ground = psi_ground
-        self.E0 = E0 
+        self.E0 = E0
         self.E_E0 = E_E0 if E_E0 >= 1 else None
 
     def get_ground_state(self, psi_init, T=None, plot=False):
@@ -362,7 +362,7 @@ if __name__ == "__main__":
         '--min_beta_D', type=float, default=0, help='min value of beta_Ds')
     parser.add_argument(
         '--max_beta_D', type=float, default=0, help='max value of beta_Ds')
-     # beta_Ys settings
+    # beta_Ys settings
     parser.add_argument('--N_beta_Y', type=int, default=1, help='Number of beta_Ys')
     parser.add_argument(
         '--min_beta_Y', type=float, default=0, help='min value of beta_Ys')
