@@ -369,7 +369,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '--max_beta_Y', type=float, default=0, help='max value of beta_Ys')
     # Ts settings
-    parser.add_argument('--Ts', default=[5], help='Number of T')
+    parser.add_argument('--Ts', nargs='+', default=[5], help='Number of T')
     parser.add_argument('--N_T', type=int, default=25, help='Number of T')
     parser.add_argument('--min_T', type=float, default=0, help='min value of T')
     parser.add_argument('--max_T', type=float, default=5, help='max value of T')

@@ -244,7 +244,7 @@ class BCSCooling(BCS):
                 Vc = Vc + (
                     (psis_a[i]*Hpsis_b[i].conj()
                         +Hpsis_a[i]*psis_b[i].conj()))
-        return Vc/sum(self.get_ns(psis))  # divided by total density
+        return Vc/sum(self.get_ns(psis))/self.dV  # divided by total density
 
     def get_Vc(self, psis):
         """return Vc potential"""

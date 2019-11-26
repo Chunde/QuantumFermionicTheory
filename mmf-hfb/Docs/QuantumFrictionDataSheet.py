@@ -142,10 +142,14 @@ def test_2d_Cooling():
     phase = ((x-x0) + 1j*y)*((x+x0) - 1j*y)
     psi0 = 1.0*np.exp(1j*np.angle(phase))
     ts, psis, _ = s.solve([psi0], T=5.0, rtol=1e-5, atol=1e-6)
-    s.plot(psis[0][-1])
-    Es = [s.get_E_Ns([psi])[0] for psi in psis[0]]
-    plt.semilogy(ts[0], Es)
+    s.plot(psis[-1][0])
+    Es = [s.get_E_Ns(psi)[0] for psi in psis]
+    plt.semilogy(ts, Es)
 
+
+# +
+#test_2d_Cooling()
+# -
 
 # # Load CVS file
 
@@ -153,6 +157,9 @@ import pandas as pd
 import sys
 
 currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","FFStateData", "CoolingData")
+currentdir = 'E:\Physics\quantum-fermion-theories\mmf-hfb\FFStateData\CoolingData'
+
+currentdir
 
 
 # ## Excel to CVS
@@ -164,15 +171,18 @@ def post_process(df0, index,  columns):
     if index > 0:
         df0.columns.values[columns - 1] = "wTime0"
         df0['wTime'] = df0[[f"wTime{id}" for id in range(index + 1)]].mean(axis=1)
-    for id in range(index + 1):
-        del df0[f"wTime{id}"]
+        for id in range(index + 1):
+            del df0[f"wTime{id}"]
     del df0['Trail'] 
     del df0['Time']
-    del df0['N']
-    del df0['dx']
+    if 'N' in df0:
+        del df0['N']
+    if 'dx' in df0:
+        del df0['dx']
     del df0['beta_D']
     del df0['beta_Y']
-    del df0['gState']
+    if 'gState' in df0:
+        del df0['gState']
     del df0['Cooling']
     del df0['Evolver']
     return df0
@@ -180,7 +190,7 @@ def post_process(df0, index,  columns):
 def MergeExcels(merge=True):
     dfs = []
     # change the data file path if location is different
-    file_paths = glob.glob(join(currentdir, "kamiak", "*.xls"))
+    file_paths = glob.glob(join(currentdir, "kamiak", "BCS", "*.xls"))
     file_paths.sort()
     files = [os.path.basename(file[:file.index("_PID")]) for file in file_paths]
     file0 = files[0]
@@ -238,51 +248,62 @@ def ReadAllExcelFile():
 
 # -
 
-df = MergeExcels()
-
-data = CombineExcelSheetsToCSV()
+data = MergeExcels()
+#data.to_csv("merged_data.csv", encoding='utf-8')
 
 # ## Query
 
-data = df
-
-data.to_csv("merged_data.csv", encoding='utf-8')
-
-iStates = set(data['iState'])
-gs = set(data['g'])
+iStates =None
+gs = None
+#data_key = 'iState'
+data_key = 'N_state'
+if data_key in data:
+    iStates = set(data[data_key])
+if 'g' in data:
+    gs = set(data['g'])
 beta_Vs = set(data['beta_V'])
 beta_Ks = set(data['beta_K'])
-
-gs, iStates, beta_Vs, beta_Ks
 
 
 def find_best_betas(data, p=1.01):
     dfs = []
     df = data[data.E0*p > data.Ef] # find all rows with Ef in per*E0
-    for iState in iStates:
-        df1 = df[df.iState == iState]
-        for g in gs:
-            df2 = df1[df1.g == g]
-            if df2.empty == False:
-                df3 = df2[df2.beta_K==0] # with beta_K = 0
-                if df3.empty == False:
-                    df_v = df3.loc[df3['wTime'].idxmin()]
-                    if df_v.empty == False:
-                        dfs.append(df_v)
-                df4 = df2[df2.beta_K!=0]
-                if df4.empty == False:
-                    df_kv = df4.loc[df4['wTime'].idxmin()]
-                    if df_kv.empty == False:
-                        dfs.append(df_kv)
-    output =pd.concat(dfs, axis=1).transpose()
-   
+    def _append_kv(df):
+        if df.empty == False:
+            df3 = df[df.beta_K==0] # with beta_K = 0
+            if df3.empty == False:
+                df_v = df3.loc[df3['wTime'].idxmin()]
+                if df_v.empty == False:
+                    dfs.append(df_v)
+            df4 = df[df.beta_K!=0]
+            if df4.empty == False:
+                df_kv = df4.loc[df4['wTime'].idxmin()]
+                if df_kv.empty == False:
+                    dfs.append(df_kv)
+                        
+    def append_kv(df):
+        if gs is None:
+            _append_kv(df=df)
+        else:
+            for g in gs:
+                df2 = df[df.g == g]
+                _append_kv(df = df2)
+            
+    if iStates is not None:                    
+        for iState in iStates:
+            df1 = df[df[f"{data_key}"] == iState]
+            append_kv(df=df1)
+    else:
+        append_kv(df=df)
+    if len(dfs) == None:
+        return (None, None)
+    output =pd.concat(dfs, axis=1).transpose()   
     output.reset_index(drop=True, inplace=True)
-    dict_kv = {}
-    for state in iStates:
-        kvs = []
-        df_states = output[output.iState == state]
-        for g in [-1, 0, 1]:
-            g_states = df_states[df_states.g == g]
+    
+    if iStates is not None:
+        dict_kv = {}
+        
+        def find_dict_kvs(g_states):
             if g_states.empty:
                 kvs.append((0, 0, 0))
             else:
@@ -294,15 +315,36 @@ def find_best_betas(data, p=1.01):
                     kvs.append((v_state.beta_V.values[0], 0, 0))
                 else:
                     kvs.append((v_state.beta_V.values[0], kv_state.beta_V.values[0], kv_state.beta_K.values[0]))
-        dict_kv[state] = kvs
-    return (output,dict_kv)
+                dict_kv[state] = kvs      
+                
+        for state in iStates:
+            kvs = []
+            df_states = output[output[f"{data_key}"] == state]
+            if gs is not None:
+                for g in [-1, 0, 1]:
+                    g_states = df_states[df_states.g == g]
+                    find_dict_kvs(g_states=g_states)
+            else:
+                    g_states = df_states
+                    find_dict_kvs(g_states=g_states)
+                      
+        return (output,dict_kv)
+    else:
+        return (output, None)
 
 
 # ## Plot $(E-E_0)/E_0$ vs Wall-Time
 
 # +
 def get_Es_Ts(beta_K, beta_V, iState, V, g):
-    res = data.query(f"beta_K=={beta_K} and beta_V=={beta_V}and g=={g} and iState== '{iState}'and V=='{V}'")
+    sql = f"beta_K=={beta_K} and beta_V=={beta_V}"
+    if g is not None:
+        sql = sql + f" and g=={g}"
+    if iState is not None:
+        sql = sql + f" and {data_key}=='{iState}'"
+    if V is not None:
+        sql = sql + f" and V=='{V}'"
+    res = data.query(sql)
     Ts = res['wTime']
     E0 = res['E0']
     Ef = res['Ef']
@@ -317,23 +359,32 @@ def plot_Es_Ts(beta_K, beta_V, g, V, iState, line='-', style=None, c=None):
     y = Es
     if len(y) > 0:
         if style is None:
-            l, = plt.plot(x, y, line, c=c, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, iState={iState}, g={g}")
+            l, = plt.plot(x, y, line, c=c, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, {data_key}={iState}, g={g}")
         elif style=='log':
-            l, = plt.loglog(x,y, line, c=c, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, iState={iState}, g={g}")
+            l, = plt.loglog(x,y, line, c=c, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, {data_key}={iState}, g={g}")
         elif style == 'semi':
-            l, = plt.semilogy(x, y, line,c=c, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, iState={iState}, g={g}")
+            l, = plt.semilogy(x, y, line,c=c, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, {data_key}={iState}, g={g}")
         else:
-            l, =plt.plot(x, y, line,c=c, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, iState={iState}, g={g}")
+            l, =plt.plot(x, y, line,c=c, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, {data_key}={iState}, g={g}")
         c = l.get_c()
     return (Es, Ts, c)
 
-def BestPlot(dict_kvs, title=None, iState="ST", style="semi", V="HO"): 
-    kvs =dict_kvs[iState]
-    #plt.figure(figsize=(10, 8))    
-    for g in gs:
-        v, v1, k1 = kvs[g + 1]
-        res = plot_Es_Ts(beta_V=v, beta_K=0, iState=iState, g=g, V=V,style=style)
-        plot_Es_Ts(beta_V=v1, beta_K=k1, iState=iState, g=g, V=V,c=res[2], line='--', style=style)
+def BestPlot(dict_kvs, title=None, iState="ST", style="semi", V="HO"):
+    if iState is not None and iState in dict_kvs:        
+        kvs =dict_kvs[iState]
+    else:
+        return
+    #plt.figure(figsize=(10, 8))
+    if gs is not None:
+        for g in gs:
+            v, v1, k1 = kvs[g + 1]
+            res = plot_Es_Ts(beta_V=v, beta_K=0, iState=iState, g=g, V=V,style=style)
+            plot_Es_Ts(beta_V=v1, beta_K=k1, iState=iState, g=g, V=V,c=res[2], line='--', style=style)
+    else:
+        print(kvs)
+        v, v1, k1 = kvs[0]
+        res = plot_Es_Ts(beta_V=v, beta_K=0, iState=iState, g=None, V=None, style=style)
+        plot_Es_Ts(beta_V=v1, beta_K=k1, iState=iState, g=None, V=None,c=res[2], line='--', style=style)
     plt.ylabel("(E-E0)/E0")
     plt.xlabel("Wall Time")
     if title is None:
@@ -346,12 +397,12 @@ def BestPlot(dict_kvs, title=None, iState="ST", style="semi", V="HO"):
 
 # $\beta_V$, $\beta_K$, $V_c$, $K_c$
 
-output, dict_kvs = find_best_betas(data, p=1.2)
+output, dict_kvs = find_best_betas(data, p=1.1)
 
 plt.figure(figsize=(15,15))
 for i, state in enumerate(iStates):
-    plt.subplot(2,2, i+1)
-    BestPlot(dict_kvs, title = f"Fig.{i+1}:{state}",iState=state, style="semi", V="HO")
+    plt.subplot(2, 2,i+1)
+    BestPlot(dict_kvs, title = f"Fig.{i+1}:{data_key}={state}",iState=state, style="semi", V="HO")
 
 
 # ## Plot Wall-Time vs $\beta$ s

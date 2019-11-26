@@ -161,7 +161,7 @@ def test_dE_dt(N=128, da=0, db=0, T=0.5):
 
 
 def test_ImaginaryCooling_with_desired_energy():
-    """test energy target setting code"""
+    """test energy level setting code"""
     args = dict(N=128, dx=0.1, beta_0=-1j, beta_K=0, beta_V=0)
     s = BCSCooling(**args)
     s.E_stop = 0.75  # target energy should be no less than E0
@@ -177,3 +177,52 @@ def test_ImaginaryCooling_with_desired_energy():
     psi_ground = psis[-1]
     E= s.get_E_Ns(psi_ground)[0]
     assert np.allclose(E, s.E_stop, rtol=1e-10)
+
+
+def test_uv_ir_Vc():
+    """test the uv and ir error."""
+    dx = 0.1
+    base_value = None
+    for Nx in [128, 256, 512]:
+        uv = BCSCooling(N=256, dx=dx*256/Nx, beta_V=1)
+        ir = BCSCooling(N=Nx, dx=dx, beta_V=1)
+        for s in [uv, ir]:
+            s.g = -1
+            x = s.xyz[0]
+            s.V = x**2/2
+            psi0 = np.exp(-x**2/2.0)*np.exp(1j*x)
+            Vc = s.get_Vc(s.apply_H([psi0]))
+            if base_value is None:
+                base_value = sum(abs(Vc))*s.dx
+            else:
+
+                new_value = sum(abs(Vc))*s.dx
+                assert new_value > 1e-5
+                assert base_value > 1e-5
+                assert np.allclose(base_value, new_value, rtol=0.01)
+
+
+def test_uv_ir_Kc():
+    """test the uv and ir error."""
+    dx = 0.1
+    base_value = None
+    for Nx in [128, 256, 512]:
+        uv = BCSCooling(N=256, dx=dx*256/Nx, beta_K=1)
+        ir = BCSCooling(N=Nx, dx=dx, beta_K=1)
+        for s in [uv, ir]:
+            s.g = -1
+            x = s.xyz[0]
+            s.V = x**2/2
+            psi0 = np.exp(-x**2/2.0)*np.exp(1j*x)
+            Kc = s.get_Kc(s.apply_H([psi0]))
+            if base_value is None:
+                base_value = sum(abs(Kc))*s.dx
+            else:
+
+                new_value = sum(abs(Kc))*s.dx
+                assert new_value > 1e-5
+                assert base_value > 1e-5
+                assert np.allclose(base_value, new_value, rtol=0.01)
+
+if __name__ == "__main__":
+    test_uv_ir_Kc()

@@ -109,9 +109,9 @@ dx = 0.1
 def Check_Vd():
     plt.figure(figsize=(15,5))
     for Nx in [128, 256, 512]:
-        offset = np.log(Nx)*0.01 # add a small offset in y direction
-        uv = BCSCooling(N=256, dx=dx, beta_0=1, beta_K=0, beta_V=0, beta_D=1, beta_Y=0, divs=(1, 1))
-        ir  = BCSCooling(N=Nx, dx=dx, beta_0=1, beta_K=0, beta_V=0, beta_D=1, beta_Y=0, divs=(1, 1))
+        offset = np.log(Nx)*0.1 # add a small offset in y direction
+        uv = BCSCooling(N=256, dx=dx*256/Nx, beta_0=1, beta_K=1, beta_V=1, beta_D=1, beta_Y=0, divs=(1, 1))
+        ir  = BCSCooling(N=Nx, dx=dx, beta_0=1, beta_K=1, beta_V=1, beta_D=1, beta_Y=0, divs=(1, 1))
         for s, i in zip([uv, ir],[2, 3]):           
             s.g = -1
             x = s.xyz[0]
@@ -120,12 +120,12 @@ def Check_Vd():
             plt.subplot(1,3,1)
             plt.plot(x, psi0 + offset)
             plt.subplot(1,3,i)
-            Vc = s.get_Vd(s.apply_H([psi0])) 
+            Vc = s.get_Vc(s.apply_H([psi0]))
             l, = plt.plot(x, Vc + offset)  # add some offset in y direction to separate plots
     plt.subplot(131)
     plt.xlim(-10, 10)
     plt.subplot(132)
-    plt.xlim(-5, 5)
+    plt.xlim(-7, 7)
     plt.subplot(133)
     plt.xlim(-5,5)
 Check_Vd()
