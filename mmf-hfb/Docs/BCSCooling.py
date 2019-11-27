@@ -105,13 +105,29 @@ def check_uv_ir_error(psi, plot=False):
 
 # * The following code check the UV and IR depedence of the derivative potential. 
 
+psi_err = [-0.00218921+4.50738870e-05j, -0.00226835+3.27814682e-04j, -0.00282437+5.97283274e-04j, -0.00360555+1.39230139e-03j,    -0.00501059+2.07960895e-03j, -0.00685029+3.09336714e-03j, -0.00951956+3.68280893e-03j, -0.0127734 +4.12272628e-03j,    -0.01684204+3.54005357e-03j, -0.02124532+2.11877210e-03j,    -0.02588368-9.62888633e-04j, -0.02995909-5.33343049e-03j,    -0.03310807-1.14164114e-02j, -0.03448526-1.83242920e-02j,    -0.03393179-2.59022377e-02j, -0.03113281-3.28407813e-02j,    -0.02663775-3.88468295e-02j, -0.02086866-4.29065158e-02j,    -0.01482283-4.53694929e-02j, -0.0089401 -4.60280349e-02j,    -0.00373432-4.58378021e-02j,  0.00104928-4.47449411e-02j,     0.00547406-4.33346633e-02j,  0.0098595 -4.09341245e-02j,     0.01384601-3.76976409e-02j,  0.01710405-3.30584247e-02j,     0.01897185-2.77803042e-02j,  0.01938578-2.19596106e-02j,     0.01841146-1.65698780e-02j,  0.01652955-1.12854342e-02j,     0.01381004-6.45290020e-03j,  0.01019765-1.48229183e-03j,     0.00539174+2.91830327e-03j, -0.00051897+6.83454930e-03j,    -0.00721161+9.48325482e-03j, -0.01431977+1.14661610e-02j,    -0.02175712+1.24614862e-02j, -0.02969925+1.29921508e-02j,    -0.03800296+1.22802124e-02j, -0.04647457+1.07622808e-02j,    -0.05466709+8.09754723e-03j, -0.06283147+5.04299703e-03j,    -0.07077758+1.04844071e-03j, -0.07868313-3.50850290e-03j,    -0.08590425-8.93007232e-03j, -0.09288341-1.45492125e-02j,    -0.09926526-2.06476776e-02j, -0.10549211-2.70484057e-02j,    -0.11085466-3.37529097e-02j, -0.11593967-4.04560507e-02j,    -0.12040231-4.71200358e-02j, -0.12456927-5.38792982e-02j,    -0.12803744-6.03759482e-02j, -0.13119387-6.66371139e-02j,    -0.13395077-7.25906880e-02j, -0.13628036-7.82334154e-02j,    -0.13820641-8.33861957e-02j, -0.1399491 -8.80135257e-02j,    -0.14125757-9.22296061e-02j, -0.142399  -9.57805140e-02j,    -0.14322768-9.87048205e-02j, -0.14393405-1.01118355e-01j,    -0.14432862-1.02752808e-01j, -0.14463055-1.03759408e-01j,    -0.14470525-1.04155158e-01j, -0.14463055-1.03759408e-01j,    -0.14432862-1.02752808e-01j, -0.14393405-1.01118355e-01j,    -0.14322768-9.87048205e-02j, -0.142399  -9.57805140e-02j,    -0.14125757-9.22296061e-02j, -0.1399491 -8.80135257e-02j,    -0.13820641-8.33861957e-02j, -0.13628036-7.82334154e-02j,    -0.13395077-7.25906880e-02j, -0.13119387-6.66371139e-02j,    -0.12803744-6.03759482e-02j, -0.12456927-5.38792982e-02j,    -0.12040231-4.71200358e-02j, -0.11593967-4.04560507e-02j,    -0.11085466-3.37529097e-02j, -0.10549211-2.70484057e-02j,    -0.09926526-2.06476776e-02j, -0.09288341-1.45492125e-02j,    -0.08590425-8.93007232e-03j, -0.07868313-3.50850290e-03j,    -0.07077758+1.04844071e-03j, -0.06283147+5.04299703e-03j,    -0.05466709+8.09754724e-03j, -0.04647457+1.07622808e-02j,    -0.03800296+1.22802124e-02j, -0.02969925+1.29921508e-02j,    -0.02175712+1.24614862e-02j, -0.01431977+1.14661610e-02j,    -0.00721161+9.48325482e-03j, -0.00051897+6.83454930e-03j,     0.00539174+2.91830327e-03j,  0.01019765-1.48229183e-03j,     0.01381004-6.45290021e-03j,  0.01652955-1.12854342e-02j,     0.01841146-1.65698780e-02j,  0.01938578-2.19596107e-02j,     0.01897185-2.77803042e-02j,  0.01710405-3.30584247e-02j,     0.01384601-3.76976409e-02j,  0.0098595 -4.09341245e-02j,     0.00547406-4.33346633e-02j,  0.00104928-4.47449411e-02j,    -0.00373432-4.58378021e-02j, -0.0089401 -4.60280349e-02j,    -0.01482283-4.53694929e-02j, -0.02086866-4.29065158e-02j,    -0.02663775-3.88468295e-02j, -0.03113281-3.28407813e-02j,    -0.03393179-2.59022377e-02j, -0.03448526-1.83242920e-02j,    -0.03310807-1.14164114e-02j, -0.02995909-5.33343049e-03j,    -0.02588368-9.62888632e-04j, -0.02124532+2.11877210e-03j,    -0.01684204+3.54005357e-03j, -0.0127734 +4.12272628e-03j,    -0.00951956+3.68280893e-03j, -0.00685029+3.09336714e-03j,    -0.00501059+2.07960895e-03j, -0.00360555+1.39230139e-03j,    -0.00282437+5.97283275e-04j, -0.00226835+3.27814682e-04j]
+
+plt.figure(figsize(16,8))
+args = dict(beta_K=1, beta_V=1, beta_D=1, beta_Y=1, divs=(1, 1))
+s = BCSCooling(N=128, dx=0.1, g=-1,**args)
+s.erase_max_ks()
+x = s.xyz[0]
+s.V = x**2/2
+psi0 = psi_err #np.exp(-x**2/2.0)*np.exp(1j*x)
+plt.subplot(121)
+plt.plot(x, psi0)
+plt.subplot(122)
+Vc = s.get_Dyadic(s.apply_H([psi0]))
+plt.plot(x, Vc)
+
 dx = 0.1
 def Check_Vd():
     plt.figure(figsize=(15,5))
+    args = dict(beta_K=1, beta_V=1, beta_D=1, beta_Y=1, divs=(1, 1))
     for Nx in [128, 256, 512]:
         offset = np.log(Nx)*0.1 # add a small offset in y direction
-        uv = BCSCooling(N=256, dx=dx*256/Nx, beta_0=1, beta_K=1, beta_V=1, beta_D=1, beta_Y=0, divs=(1, 1))
-        ir  = BCSCooling(N=Nx, dx=dx, beta_0=1, beta_K=1, beta_V=1, beta_D=1, beta_Y=0, divs=(1, 1))
+        uv = BCSCooling(N=256, dx=dx*256/Nx,**args)
+        ir  = BCSCooling(N=Nx, dx=dx, beta_0=1,**args)
         for s, i in zip([uv, ir],[2, 3]):           
             s.g = -1
             x = s.xyz[0]
@@ -120,43 +136,19 @@ def Check_Vd():
             plt.subplot(1,3,1)
             plt.plot(x, psi0 + offset)
             plt.subplot(1,3,i)
-            Vc = s.get_Vc(s.apply_H([psi0]))
+            psis_k = s.get_psis_k([psi0])
+            Vc = s.get_Vc(s.apply_H([psi0], psis_k=psis_k), psis_k=psis_k)
             l, = plt.plot(x, Vc + offset)  # add some offset in y direction to separate plots
     plt.subplot(131)
     plt.xlim(-10, 10)
     plt.subplot(132)
-    plt.xlim(-7, 7)
+    plt.xlim(-4, 4)
     plt.subplot(133)
-    plt.xlim(-5,5)
+    plt.xlim(-4,4)
 Check_Vd()
 
-dx = 0.1
-def Check_Vy():
-    plt.figure(figsize=(15,5))
-    for Nx in [128, 256, 512]:
-        offset = np.log(Nx)*0.0001 # add a small offset in y direction
-        uv = BCSCooling(N=256, dx=dx, beta_0=1, beta_K=0, beta_V=0, beta_D=0, beta_Y=1, divs=(1, 1))
-        ir  = BCSCooling(N=Nx, dx=dx, beta_0=1, beta_K=0, beta_V=0, beta_D=0, beta_Y=1, divs=(1, 1))
-        for s, i in zip([uv, ir],[2, 3]):           
-            s.g = -1
-            x = s.xyz[0]
-            s.V = x**2/2
-            psi0 = np.exp(-x**2/2.0)*np.exp(1j*x)
-            plt.subplot(1,3,1)
-            plt.plot(x, psi0 + offset)
-            plt.subplot(1,3,i)
-            Vc = s.get_Dyadic(s.apply_H([psi0])) 
-            l, = plt.plot(x, Vc + offset)  # add some offset in y direction to separate plots
-    plt.subplot(131)
-    plt.xlim(-10, 10)
-    plt.subplot(132)
-    plt.xlim(-5, 5)
-    plt.subplot(133)
-    plt.xlim(-5,5)
-Check_Vy()
-
-
-def test_der_cooling(evolve=True, plot_dE=True, T=0.5, **args):   
+import time
+def test_der_cooling(plot=True, plot_dE=True, T=0.5, **args):   
     b = BCSCooling(**args)
     h0 = HarmonicOscillator(w=1)
     h = HarmonicOscillator()
@@ -169,38 +161,56 @@ def test_der_cooling(evolve=True, plot_dE=True, T=0.5, **args):
     H1 = b._get_H(mu_eff=0, V=V)
     U0, E0 = b.get_U_E(H0, transpose=True)
     U1, E1 = b.get_U_E(H1, transpose=True)
-    psi0 = h.get_wf(x)
-    psi0 = U1[0]
-    psi = h0.get_wf(x, n=2)
-    psi = U0[1]
-    if evolve:
+    psi0 = b.Normalize(h.get_wf(x))
+    psi0 = b.Normalize(U1[0])
+    psi = b.Normalize(h0.get_wf(x, n=2))
+    psi = b.Normalize(U0[1])
+    start_time = time.time()
+    ts, psis, nfev = b.solve([psi], T=T, rtol=1e-5, atol=1e-6,solver=None, method='BDF')
+    wall_time = time.time() - start_time
+    if plot:
         #b.erase_max_ks()
         plt.figure(figsize=(10, 5))
         plt.subplot(1, 2, 1)
-        ts, psiss, _ = b.solve([psi], T=T, rtol=1e-5, atol=1e-6,solver=None, method='BDF')
         E0, _ = b.get_E_Ns([psi0])
-        Es = [b.get_E_Ns([_psi])[0] for _psi in psiss[0]]
-        dE_dt= [-1*b.get_dE_dt([_psi]) for _psi in psiss[0]]
-        plt.plot(x, Prob(psiss[0][0]), "+", label='init')
-        plt.plot(x, Prob(psiss[0][-1]), '--',label="final")
+        Es = [b.get_E_Ns(_psi)[0] for _psi in psis]
+        dE_dt= [-1*b.get_dE_dt(_psi) for _psi in psis]
+        plt.plot(x, Prob(psis[0][0]), "+", label='init')
+        plt.plot(x, Prob(psis[-1][0]), '--',label="final")
         plt.plot(x, Prob(psi0), label='Ground')
         plt.legend()
         plt.subplot(1,2,2)
-        plt.plot(ts[0][:-2], (Es[:-2] - E0)/abs(E0), label="E")
+        plt.plot(ts[:-1], (Es[:-1] - E0)/abs(E0), label="E")
         if plot_dE:
-            plt.plot(ts[0][:-2], dE_dt[:-2], label='-dE/dt')
+            plt.plot(ts[:-1], dE_dt[:-1], label='-dE/dt')
             plt.axhline(0, linestyle='dashed')
         plt.legend()
         plt.show()
-    return psiss[0][-1]
+    return (wall_time, nfev)
 
 
 # %%time 
-args = dict(N=128, dx=0.1, divs=(1, 1), beta0=1, beta_K=0, beta_V=1, beta_D=0, beta_Y=0, T=5, check_dE=False)
+args = dict(N=128, dx=0.1, divs=(1, 1), beta_K=0, beta_V=0, beta_D=35, beta_Y=0, T=5, check_dE=True)
+test_der_cooling(plot_dE=False, **args)
+
+# %%time 
+args = dict(N=128, dx=0.1, divs=(1, 1), beta_0=1, beta_K=0, beta_V=0, beta_D=35, beta_Y=0, T=5, check_dE=True)
 psi = test_der_cooling(plot_dE=False, **args)
 
 # %%time 
-args = dict(N=128, dx=0.1, divs=(1, 1), beta0=1, beta_K=0, beta_V=0, beta_D=0, beta_Y=1, T=0.5, check_dE=False)
+args = dict(N=128, dx=0.1, divs=(1, 1), beta_0=1, beta_K=0, beta_V=0, beta_D=15, beta_Y=0, T=5, check_dE=False)
+psi = test_der_cooling(plot_dE=False, **args)
+
+# %%time 
+args = dict(N=128, dx=0.1, divs=(1, 1), beta_0=1, beta_K=0, beta_V=0, beta_D=15, beta_Y=0, T=5, check_dE=True)
+psi = test_der_cooling(plot_dE=False, **args)
+
+# %%time 
+args = dict(N=128, dx=0.1, divs=(1, 1), beta_0=1, beta_K=0, beta_V=0, beta_D=15, beta_Y=0, T=5, check_dE=True)
+psi = test_der_cooling(plot_dE=False, **args)
+
+# %%time 
+args = dict(N=128, dx=0.1, divs=(1, 1), beta_K=0, beta_V=0, beta_D=0, beta_Y=11, T=.5, check_dE=False)
 psi = test_der_cooling(plot_dE=False, **args)
 
 # %%time 
@@ -309,33 +319,6 @@ np.allclose(np.diag(Hc_k).real - Kc, 0), np.allclose(np.diag(Hc) - Vc, 0)
 # N=\braket{\psi|\psi}=\int dx\psi(x)^*\psi(x)\qquad
 # V_c(x) =\braket{x|H_c|x}
 # $$
-
-# + {"id": "uW47ksLDRUia", "colab_type": "code", "colab": {"base_uri": "https://localhost:8080/", "height": 374}, "outputId": "2fc78344-6585-450f-9653-4afdb476f242"}
-dx = 0.1
-def Check_Vc():
-    plt.figure(figsize=(15,5))
-    for Nx in [128, 256, 512]:
-        offset = np.log(Nx)*0.1 # add a small offset in y direction
-        uv = BCSCooling(N=256, dx=dx, beta_0=-1j, beta_K=1, beta_V=1)
-        ir  = BCSCooling(N=Nx, dx=dx, beta_0=-1j, beta_K=1, beta_V=1)
-        for s, i in zip([uv, ir],[2, 3]):           
-            s.g = -1
-            x = s.xyz[0]
-            V_ext = x**2/2
-            s.V = V_ext
-            psi0 = np.exp(-x**2/2.0)*np.exp(1j*x)
-            plt.subplot(1,3,1)
-            plt.plot(x, Prob(psi0) + offset)
-            plt.subplot(1,3,i)
-            Vc = s.get_Vc(s.apply_H([psi0])) 
-            l, = plt.plot(x, Vc + offset)  # add some offset in y direction to separate plots
-    plt.subplot(131)
-    plt.xlim(-10, 10)
-    plt.subplot(132)
-    plt.xlim(-5, 5)
-    plt.subplot(133)
-    plt.xlim(-5,5)
-Check_Vc()
 
 # + {"id": "ysb1C9Hu8ces", "colab_type": "text", "cell_type": "markdown"}
 # # Evolve in Imaginary Time

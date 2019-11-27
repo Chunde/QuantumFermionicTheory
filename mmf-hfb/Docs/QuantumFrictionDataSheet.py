@@ -297,6 +297,8 @@ def find_best_betas(data, p=1.01):
         append_kv(df=df)
     if len(dfs) == None:
         return (None, None)
+    if len(dfs)==0:
+        return (None, None)
     output =pd.concat(dfs, axis=1).transpose()   
     output.reset_index(drop=True, inplace=True)
     
@@ -336,7 +338,7 @@ def find_best_betas(data, p=1.01):
 # ## Plot $(E-E_0)/E_0$ vs Wall-Time
 
 # +
-def get_Es_Ts(beta_K, beta_V, iState, V, g):
+def get_Es_Ts(beta_K, beta_V, iState, V, g, use_nfev):
     sql = f"beta_K=={beta_K} and beta_V=={beta_V}"
     if g is not None:
         sql = sql + f" and g=={g}"
@@ -348,11 +350,13 @@ def get_Es_Ts(beta_K, beta_V, iState, V, g):
     Ts = res['wTime']
     E0 = res['E0']
     Ef = res['Ef']
+    if use_nfev and 'nfev' in res:
+        Ts = res['nfev']
     dE = (Ef- E0)/E0
     return dE, Ts
 
-def plot_Es_Ts(beta_K, beta_V, g, V, iState, line='-', style=None, c=None):
-    Es, Ts = get_Es_Ts(beta_K=beta_K, beta_V=beta_V, V=V, g=g, iState=iState)
+def plot_Es_Ts(beta_K, beta_V, g, V, iState, use_nfev, line='-', style=None, c=None):
+    Es, Ts = get_Es_Ts(beta_K=beta_K, beta_V=beta_V, V=V, g=g, iState=iState, use_nfev=use_nfev)
     if Ts is None or len(Ts) ==0:
         return (None, None, None)
     x = Ts
@@ -369,8 +373,8 @@ def plot_Es_Ts(beta_K, beta_V, g, V, iState, line='-', style=None, c=None):
         c = l.get_c()
     return (Es, Ts, c)
 
-def BestPlot(dict_kvs, title=None, iState="ST", style="semi", V="HO"):
-    if iState is not None and iState in dict_kvs:        
+def BestPlot(dict_kvs, title=None, iState="ST", style="semi", V="HO", use_nfev=False):
+    if iState is not None and dict_kvs is not None and iState in dict_kvs:        
         kvs =dict_kvs[iState]
     else:
         return
@@ -378,13 +382,12 @@ def BestPlot(dict_kvs, title=None, iState="ST", style="semi", V="HO"):
     if gs is not None:
         for g in gs:
             v, v1, k1 = kvs[g + 1]
-            res = plot_Es_Ts(beta_V=v, beta_K=0, iState=iState, g=g, V=V,style=style)
-            plot_Es_Ts(beta_V=v1, beta_K=k1, iState=iState, g=g, V=V,c=res[2], line='--', style=style)
+            res = plot_Es_Ts(beta_V=v, beta_K=0, iState=iState, g=g, V=V, style=style, use_nfev=use_nfev)
+            plot_Es_Ts(beta_V=v1, beta_K=k1, iState=iState, g=g, V=V,c=res[2], line='--', style=style, use_nfev=use_nfev)
     else:
-        print(kvs)
         v, v1, k1 = kvs[0]
-        res = plot_Es_Ts(beta_V=v, beta_K=0, iState=iState, g=None, V=None, style=style)
-        plot_Es_Ts(beta_V=v1, beta_K=k1, iState=iState, g=None, V=None,c=res[2], line='--', style=style)
+        res = plot_Es_Ts(beta_V=v, beta_K=0, iState=iState, g=None, V=None, style=style, use_nfev=use_nfev)
+        plot_Es_Ts(beta_V=v1, beta_K=k1, iState=iState, g=None, V=None,c=res[2], line='--', style=style, use_nfev=use_nfev)
     plt.ylabel("(E-E0)/E0")
     plt.xlabel("Wall Time")
     if title is None:
@@ -397,12 +400,16 @@ def BestPlot(dict_kvs, title=None, iState="ST", style="semi", V="HO"):
 
 # $\beta_V$, $\beta_K$, $V_c$, $K_c$
 
-output, dict_kvs = find_best_betas(data, p=1.1)
-
-plt.figure(figsize=(15,15))
+E_E0=1.4
+use_nfev=True
+output, dict_kvs = find_best_betas(data, p=E_E0)
+plt.figure(figsize=(8,8))
 for i, state in enumerate(iStates):
-    plt.subplot(2, 2,i+1)
-    BestPlot(dict_kvs, title = f"Fig.{i+1}:{data_key}={state}",iState=state, style="semi", V="HO")
+    #plt.subplot(2, 2,i+1)
+    BestPlot(dict_kvs, title = f"Fig.{i+1}:{data_key}={state}",iState=state, style="semi", V="HO", use_nfev=use_nfev)
+if use_nfev:
+    plt.xlabel("nfev")
+plt.title(r"BCS with final energy $E/E0$<"+f"{E_E0} ")
 
 
 # ## Plot Wall-Time vs $\beta$ s
@@ -477,16 +484,10 @@ psis_init = U0[:N_state]  # change the start states here if needed.
 psis_ground = U1[:N_state]  # change the start states here if needed.
 E0=sum(Es1[:N_state])
 
-Es1
-
 psi1, psi = psis_ground
 
 Es1[0], Es1[1]
 
 np.allclose(H1.dot(psi1), Es1[0]*psi1)
-
-psi1.conj().dot(psi1)
-
-np.array(b.get_E_Ns(psis_ground))/dx
 
 

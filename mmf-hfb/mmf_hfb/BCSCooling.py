@@ -8,17 +8,6 @@ import numpy.linalg
 #  warnings.filterwarnings("error")
 
 
-def assert_orth(psis):
-    y1, y2 = psis
-    inner_prod = y1.dot(y2.conj())
-    ret = np.allclose(inner_prod, 0, rtol=1e-16)
-    assert ret
-
-
-def Normalize(psi):
-    return psi/psi.dot(psi.conj())**0.5
-
-
 class BCSCooling(BCS):
     """
     Local Quantum Friction class that supports GPE(single wavefunction)
@@ -96,7 +85,11 @@ class BCSCooling(BCS):
         """slice a uv into u, and v components"""
         uv = psi.reshape(2, len(psi)//2)
         return uv
-    
+
+    def Normalize(self, psi):
+        """Normalize a wave function"""
+        return psi/(self.dotc(psi, psi)*self.dV)**0.5
+
     def get_Vext(self):
         return self.V
 
@@ -120,20 +113,21 @@ class BCSCooling(BCS):
         """Return dot(a.conj(), b) allowing for dim > 1."""
         return np.dot(a.conj().ravel(), b.ravel())
 
-    def _apply_H(self, psi, V):
+    def _apply_H(self, psi, psi_k, V):
+        # if psi_k is None:
+        #      psi_k = self.fft(psi)
         if self.delta == 0:
-            psi_k = self.fft(psi)
             Hpsi = self.ifft(self._K2*psi_k) + V*psi
             return Hpsi
         H = self.get_H(mus_eff=self.mus, delta=self.delta, Vs=(V, V))
         return H.dot(psi)  # apply H on psi
 
-    def apply_H(self, psis):
+    def apply_H(self, psis, psis_k):
         """compute dy/dt=H psi"""
         V_eff = self.get_V(psis)
         Hpsis = []
-        for psi in psis:
-            Hpsi = self._apply_H(psi, V=V_eff)
+        for psi, psi_k in zip(psis, psis_k):
+            Hpsi = self._apply_H(psi, psi_k=psi_k, V=V_eff)
             Hpsis.append(Hpsi)
         return Hpsis
 
@@ -204,7 +198,7 @@ class BCSCooling(BCS):
     def get_psis_k(self, psis):
         return [self.fft(psi) for psi in psis]
 
-    def _get_Vc(self, psis, divs=None):
+    def _get_Vc(self, psis, psis_k, divs=None):
         """
         return Vc or Vd
         -------------------
@@ -221,7 +215,7 @@ class BCSCooling(BCS):
         if divs is None:
             # can also apply_H, result is unchanged.
             # but with pairing, apply_H should be used
-            Hpsis = self.apply_H(psis)
+            Hpsis = self.apply_H(psis, psis_k=psis_k)
             for i, psi in enumerate(psis):
                 Vc = Vc + 2*(psi.conj()*Hpsis[i]).imag
         else:  # Departure from locality
@@ -231,7 +225,7 @@ class BCSCooling(BCS):
             # compute $d^n \psi / d^n x$
             psis_a = [self.Del(psi, n=da) for psi in psis]
             # $d[d^n \psi / d^n x] / dt$
-            Hpsis = np.array(self.apply_H(psis))/(1j*self.hbar)
+            Hpsis = np.array(self.apply_H(psis, psis_k=psis_k))/(1j*self.hbar)
             Hpsis_a = [self.Del(psi, n=da) for psi in Hpsis]
 
             if da == db:
@@ -246,57 +240,65 @@ class BCSCooling(BCS):
                         +Hpsis_a[i]*psis_b[i].conj()))
         return Vc/sum(self.get_ns(psis))/self.dV  # divided by total density
 
-    def get_Vc(self, psis):
+    def get_Vc(self, psis, psis_k=None):
         """return Vc potential"""
+        if psis_k is None:
+            psis_k = self.get_psis_k(psis)
         Vc = 0*np.array(psis[0])
         if self.beta_V != 0:
-            Vc = Vc + self._get_Vc(psis=psis)
+            Vc = Vc + self._get_Vc(psis=psis, psis_k=psis_k)
         return Vc
         
-    def get_Vd(self, psis):
+    def get_Vd(self, psis, psis_k=None):
         """return the derivative cooling potential"""
         Vd = 0*np.array(psis[0])
+        if psis_k is None:
+            psis_k = self.get_psis_k(psis)
         if self.beta_D !=0 and self.divs is not None:
-            Vd = Vd + self._get_Vc(psis=psis, divs=self.divs)
+            Vd = Vd + self._get_Vc(psis=psis, psis_k=psis_k, divs=self.divs)
         return Vd*self.dV
 
     def get_Dyadic(self, psis, psis_k=None):
         """mixed Vc and Kc"""
+        V_dy = 0
         if psis_k is None:
             psis_k = self.get_psis_k(psis)
-        V_dy = 0
-        Hpsis = self.apply_H(psis=psis)
+        Hpsis = self.apply_H(psis=psis, psis_k=psis_k)
         for i, psi_k in enumerate(psis_k):
             V_dy = V_dy + 2*(Hpsis[i]*psi_k.conj()).imag
         return V_dy*self.dV
 
-    def _get_Kc(self, Hpsi, psi, N):
+    def _get_Kc(self, Hpsi, psi, psi_k, N):
         """
         Kc is the diagonal of the H in k space, so
         even in the case with pairing, it is good to
         use psi as a single wavefunction without
         dividing it in to u, v components.
         """
-        psi_k = self.fft(psi)*self.dV
+        psi_k = psi_k*self.dV
         Vpsi_k = self.fft(Hpsi)*self.dV
         Kc = 2*(psi_k.conj()*Vpsi_k).imag/N*self.dV/np.prod(self.Lxyz)
         return Kc
      
-    def get_Kc(self, psis):
+    def get_Kc(self, psis, psis_k=None):
         N = self.get_N(psis)
         Kc = 0*np.array(psis[0])
+        if psis_k is None:
+            psis_k = self.get_psis_k(psis)
         if self.beta_K == 0:
             return Kc
-        Hpsis = self.apply_H(psis)  # use apply_H instead of apply_V for pairing
+        Hpsis = self.apply_H(psis, psis_k=psis_k)  # use apply_H instead of apply_V
         for i, psi in enumerate(psis):
-            Kc = Kc + self._get_Kc(Hpsi=Hpsis[i], psi=psi, N=N)
+            Kc = Kc + self._get_Kc(Hpsi=Hpsis[i], psi=psi, psi_k=psis_k[i], N=N)
         return Kc
 
-    def get_Hc(self, psis):
+    def get_Hc(self, psis, psis_k=None):
         """Return the full cooling Hamiltonian in position space."""
         size = np.prod(self.Nxyz)
         Hc = 0
-        Hpsis = self.apply_H(psis)
+        if psis_k is None:
+            psis_k = self.get_psis_k(psis)
+        Hpsis = self.apply_H(psis, psis_k=psis_k)
         for _, (psi, Hpsi) in enumerate(zip(psis, Hpsis)):
             Hc_ = (1j*psi.reshape(size)[:, None]*Hpsi.conj().reshape(size)[None, :])
             Hc_ += Hc_.conj().T
@@ -304,22 +306,21 @@ class BCSCooling(BCS):
         N = self.get_N(psis)
         return Hc/N
 
-    def apply_Dyadic(self, psis):
+    def apply_Dyadic(self, psis, psis_k):
         if self.beta_Y == 0:
             return (0,)*len(psis)
-        psis_k = self.get_psis_k(psis)
         Vdy = self.beta_Y*self.get_Dyadic(psis=psis, psis_k=psis_k)
         Vdy_psis = [self.ifft(Vdy*psi_k) for psi_k in psis_k]
         return Vdy_psis
 
-    def apply_Vd(self, psis):
+    def apply_Vd(self, psis, psis_k):
         """
             apply Vd such as (V11) to the wave-functions
             NOTE: This may not be unitary
         """
         if self.beta_D == 0:
             return (0,)*len(psis)
-        Vmn = self.beta_D*self.get_Vd(psis=psis)
+        Vmn = self.beta_D*self.get_Vd(psis=psis, psis_k=psis_k)
         da, db = self.divs
         if db == 1:
             V11_psis = [-self.Del(Vmn*self.Del(psi=psi, n=da), n=db) for psi in psis]
@@ -347,8 +348,8 @@ class BCSCooling(BCS):
                     sign, psi_k, Kc) in zip(signs, kuv, kc_uv)]
         return np.array(expK).ravel()
 
-    def apply_expK(self, psis, factor=1):
-        Kc = self.beta_K*self.get_Kc(psis=psis)
+    def apply_expK(self, psis, psis_k, factor=1):
+        Kc = self.beta_K*self.get_Kc(psis=psis, psis_k=psis_k)
         for i, psi in enumerate(psis):
             psis[i] = self._apply_expK(psi, Kc=Kc, factor=factor)
         return psis
@@ -368,37 +369,42 @@ class BCSCooling(BCS):
                     V_, psi, Vc) in zip(Vs, uv, Vc_uv)]
         return np.array(expV).ravel()
 
-    def apply_expV(self, psis, factor=1):
-        Vc = self.get_Vc(psis=psis)
+    def apply_expV(self, psis, psis_k, factor=1):
+        Vc = self.get_Vc(psis=psis, psis_k=psis_k)
         V_eff = self.get_V(psis)
         for i, psi in enumerate(psis):
             psis[i] = self._apply_expV(psi=psi, V=V_eff, Vc=Vc, factor=factor)
         return psis
     
-    def apply_Hc(self, psis):
+    def apply_Hc(self, psis, psis_k=None):
         """
         Apply the cooling Hamiltonian.
         or, compute dy/dt w.r.t to Hc
         """
         Hc_psis = []
-        H_psis = self.apply_H(psis=psis) if self.beta_0 != 0 else 0
-        Vc = self.get_Vc(psis=psis) if self.beta_V !=0 else 0
-        Kc = self.get_Kc(psis=psis) if self.beta_K !=0 else 0
-        Vd_psis = self.apply_Vd(psis=psis)
-        V_Dyadic_psis = self.apply_Dyadic(psis)
+        if psis_k is None:
+            psis_k = self.get_psis_k(psis)
+        H_psis = self.apply_H(psis=psis, psis_k=psis_k) if self.beta_0 != 0 else 0
+        Vc = self.get_Vc(psis=psis, psis_k=psis_k) if self.beta_V !=0 else 0
+        Kc = self.get_Kc(psis=psis, psis_k=psis_k) if self.beta_K !=0 else 0
+        Vd_psis = self.apply_Vd(psis=psis, psis_k=psis_k)
+        V_Dyadic_psis = self.apply_Dyadic(psis, psis_k=psis_k)
+        
         for i, psi in enumerate(psis):
             Vc_psi = Vc*psi
-            Kc_psi = self.ifft(Kc*self.fft(psi))
+            Kc_psi = self.ifft(Kc*psis_k[i])
             Hc_psi = (
                 self.beta_0*H_psis[i] + self.beta_V*Vc_psi
                 +self.beta_K*Kc_psi + Vd_psis[i] + V_Dyadic_psis[i])
             Hc_psis.append(self.beta_H*Hc_psi)
         return Hc_psis
 
-    def get_dE_dt(self, psis):
+    def get_dE_dt(self, psis, psis_k=None):
         """compute dE/dt"""
-        H_psis = self.apply_H(psis)
-        Hc_psis = self.apply_Hc(psis=psis)
+        if psis_k is None:
+            psis_k = self.get_psis_k(psis)
+        H_psis = self.apply_H(psis, psis_k=psis_k)
+        Hc_psis = self.apply_Hc(psis=psis, psis_k=psis_k)
         dE_dt= 2*sum(
             [self.dotc(H_psi, Hc_psi).imag
                 for (H_psi, Hc_psi) in zip(H_psis, Hc_psis)])
@@ -409,11 +415,12 @@ class BCSCooling(BCS):
         Evolve the state psi by applying n steps of the
         Split-Operator method.
         """
-        psis = self.apply_expK(psis=psis, factor=0.5)
+        psis_k = self.get_psis_k(psis)
+        psis = self.apply_expK(psis=psis, psis_k=psis_k, factor=0.5)
         for _ in range(n):
-            psis = self.apply_expV(psis=psis)
-            psis = self.apply_expK(psis=psis)
-        psis = self.apply_expK(psis=psis, factor=-0.5)
+            psis = self.apply_expV(psis=psis, psis_k=psis_k)
+            psis = self.apply_expK(psis=psis, psis_k=psis_k)
+        psis = self.apply_expK(psis=psis, psis_k=psis_k, factor=-0.5)
         return psis
 
     def check_time_out(self):
@@ -422,7 +429,7 @@ class BCSCooling(BCS):
             return
         wall_time = time.time() - self.start_time
         if wall_time > self.time_out:
-            print(f"Solver time out[{wall_time}>{self.time_out}], stop...")
+            print(f"Solver time out[{wall_time}>{self.time_out}], skip...")
             raise ValueError("Time Out")
 
     def pack(self, psi):

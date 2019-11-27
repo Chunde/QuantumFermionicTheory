@@ -11,9 +11,11 @@ def Normalize(psi, dx=0.1):
 def Prob(psi):
     return np.abs(psi)**2
 
+
 @pytest.fixture(params=[64, 225, 128])
 def N(request):
     return request.param
+
 
 @pytest.fixture(params=[1, 2, 3])
 def n(request):
@@ -50,10 +52,10 @@ def test_derivative_cooling(n, da, db):
     assert np.allclose(E0[1], k0**2/2.0)
     psi = np.exp(1j*n*(k0*x))
     E =n**2*k0**2/2
-    #tex:
+    # tex:
     # compute $d^n \psi / d^n x$
     psi_a = b.Del(psi, n=da)
-    #tex:
+    # tex:
     # $\frac{d}{dt}[\frac{d^n\psi}{d^n x}]$
     Hpsi = np.array(b.apply_H([psi]))[0]/(1j)
     Hpsi_a = b.Del(Hpsi, n=da)
@@ -225,4 +227,4 @@ def test_uv_ir_Kc():
                 assert np.allclose(base_value, new_value, rtol=0.01)
 
 if __name__ == "__main__":
-    test_uv_ir_Kc()
+    test_dE_dt()

@@ -152,9 +152,8 @@ def benchmark_test_excel(
         +f",save_interval={save_interval}, verbose={verbose}")
     # create an excel table to store the result
     file_stem = (
-        f"TestCaseBCS_N[{N}]_dx[{dx}]_T[{5}]_Tr[{trail}]"
-        +f"_PID=[{os.getpid()}]_"
-        +time.strftime("%Y_%m_%d_%H_%M_%S"))
+        f"TestCaseBCS_N[{N}]_dNs[{N_state}]_x[{dx}]_T[{5}]_Tr[{trail}]"
+        +f"_PID=[{os.getpid()}]_"  + time.strftime("%Y_%m_%d_%H_%M_%S"))
     file_name = file_stem+".xls"
     output = xlwt.Workbook(encoding='utf-8')
     sheet = output.add_sheet("overall", cell_overwrite_ok=True)
