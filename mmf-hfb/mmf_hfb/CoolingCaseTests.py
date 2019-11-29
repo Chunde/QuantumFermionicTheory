@@ -305,7 +305,7 @@ def do_case_test_excel(
         N_beta_K=11, min_beta_K=0, max_beta_K=100,
         N_beta_D=1, min_beta_D=0, max_beta_D=0,
         N_beta_Y=1, min_beta_Y=0, max_beta_Y=0,
-        Ts=None, trails=None, min_T=1, max_T=5, N_T=20, **args):
+        trails=None, min_T=1, max_T=5, N_T=20, **args):
     """
     a function benchmarks on wall time for given set of parameters.
     change parameters below as needed.
@@ -318,9 +318,7 @@ def do_case_test_excel(
         beta_Ds = np.linspace(min_beta_D, max_beta_D, N_beta_D)
     if beta_Ys is None:
         beta_Ys = np.linspace(min_beta_Y, max_beta_Y, N_beta_Y)
-    if Ts is None:
-        Ts = np.concatenate(
-            [np.linspace(0.001, 0.99, 20), np.linspace(min_T, max_T, N_T)])
+    Ts = np.linspace(min_T, max_T, N_T)
     if trails is None:
         trails = 3
     for trail in range(trails):
@@ -330,7 +328,7 @@ def do_case_test_excel(
 
 
 if __name__ == "__main__":
-    #do_case_test_excel(beta_Vs=[65], beta_Ks=[0], Ts=[5], E_E0=1.5, time_out=300)
+    # do_case_test_excel(beta_Vs=[65], beta_Ks=[0], Ts=[5], E_E0=1.5, time_out=300)
     
     parser = argparse.ArgumentParser(description='Cooling Case Data Generation')
     parser.add_argument('--N', type=int, default=128, help='lattice point number')
@@ -369,7 +367,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '--max_beta_Y', type=float, default=0, help='max value of beta_Ys')
     # Ts settings
-    parser.add_argument('--Ts', nargs='+', default=[5], help='Number of T')
+    # parser.add_argument('--Ts', nargs='+', default=[], help='Number of T')
     parser.add_argument('--N_T', type=int, default=25, help='Number of T')
     parser.add_argument('--min_T', type=float, default=0, help='min value of T')
     parser.add_argument('--max_T', type=float, default=5, help='max value of T')

@@ -17,7 +17,7 @@ class BCSCooling(BCS):
 
     def ImaginaryCooling():
         args = dict(N=64, dx=0.1, beta_0=-1j)
-        s = BCSCooling(**args)  # dx fixed, L changes, IR        
+        s = BCSCooling(**args)  # dx fixed, L changes, IR
         x = s.xyz[0]
         V = x**2/2
         s.V = V
@@ -122,10 +122,12 @@ class BCSCooling(BCS):
         H = self.get_H(mus_eff=self.mus, delta=self.delta, Vs=(V, V))
         return H.dot(psi)  # apply H on psi
 
-    def apply_H(self, psis, psis_k):
+    def apply_H(self, psis, psis_k=None):
         """compute dy/dt=H psi"""
         V_eff = self.get_V(psis)
         Hpsis = []
+        if psis_k is None:
+            psis_k = self.get_psis_k(psis)
         for psi, psi_k in zip(psis, psis_k):
             Hpsi = self._apply_H(psi, psi_k=psi_k, V=V_eff)
             Hpsis.append(Hpsi)
@@ -196,6 +198,7 @@ class BCSCooling(BCS):
         return N
 
     def get_psis_k(self, psis):
+        """return FFT of all wave functions"""
         return [self.fft(psi) for psi in psis]
 
     def _get_Vc(self, psis, psis_k, divs=None):
@@ -256,7 +259,7 @@ class BCSCooling(BCS):
             psis_k = self.get_psis_k(psis)
         if self.beta_D !=0 and self.divs is not None:
             Vd = Vd + self._get_Vc(psis=psis, psis_k=psis_k, divs=self.divs)
-        return Vd*self.dV
+        return Vd
 
     def get_Dyadic(self, psis, psis_k=None):
         """mixed Vc and Kc"""
@@ -264,9 +267,15 @@ class BCSCooling(BCS):
         if psis_k is None:
             psis_k = self.get_psis_k(psis)
         Hpsis = self.apply_H(psis=psis, psis_k=psis_k)
-        for i, psi_k in enumerate(psis_k):
-            V_dy = V_dy + 2*(Hpsis[i]*psi_k.conj()).imag
-        return V_dy*self.dV
+        Hpsis_k = self.get_psis_k(Hpsis)
+        for i in range(len(psis_k)):
+            # tex
+            # $V_dy = \frac{i}{\hbar}\sum_{n}(\braket{x|H|\psi_n}\braket{\psi_n|k} 
+            # -\braket{k|\psi_n}\braket{\psi_n|H|x}$
+            V_dy = V_dy + (Hpsis[i]*psis_k[i].conj() - psis[i]*Hpsis_k[i].conj())
+            # V_dy = V_dy + (Hpsis_k[i]*psis[i].conj() - psi_k*Hpsis[i].conj()).imag
+            # V_dy = V_dy + 2*(Hpsis[i]*psi_k.conj()).imag
+        return -V_dy*self.dV*1j
 
     def _get_Kc(self, Hpsi, psi, psi_k, N):
         """
@@ -275,9 +284,9 @@ class BCSCooling(BCS):
         use psi as a single wavefunction without
         dividing it in to u, v components.
         """
-        psi_k = psi_k*self.dV
-        Vpsi_k = self.fft(Hpsi)*self.dV
-        Kc = 2*(psi_k.conj()*Vpsi_k).imag/N*self.dV/np.prod(self.Lxyz)
+        psi_k = psi_k*self.dV  # this line is confusing[check]
+        Vpsi_k = self.fft(Hpsi)*self.dV/np.prod(self.Lxyz)
+        Kc = 2*(psi_k.conj()*Vpsi_k).imag/N*self.dV
         return Kc
      
     def get_Kc(self, psis, psis_k=None):
@@ -311,6 +320,7 @@ class BCSCooling(BCS):
             return (0,)*len(psis)
         Vdy = self.beta_Y*self.get_Dyadic(psis=psis, psis_k=psis_k)
         Vdy_psis = [self.ifft(Vdy*psi_k) for psi_k in psis_k]
+        # Vdy_psis = [Vdy*psi_k for psi_k in psis_k]
         return Vdy_psis
 
     def apply_Vd(self, psis, psis_k):
@@ -522,3 +532,18 @@ class BCSCooling(BCS):
         E, N = self.get_E_Ns([psi])
         plt.title(f"E={E:.4f}, N={N:.4f}")
         plt.show()
+
+
+if __name__ == "__main__":
+    args = dict(beta_K=1, beta_V=1, beta_D=1, beta_Y=1, divs=(1, 1))
+    s = BCSCooling(N=128, dx=0.1, g=-1,**args)
+    s.erase_max_ks()
+    x = s.xyz[0]
+    s.V = x**2/2
+    psi0 = np.exp(-x**2/2.0)*np.exp(1j*x)
+    plt.subplot(121)
+    plt.plot(x, psi0)
+    plt.subplot(122)
+    Vc = s.get_Dyadic(s.apply_H([psi0]))
+    plt.plot(x, Vc)
+    plt.show()

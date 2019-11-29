@@ -190,7 +190,7 @@ def post_process(df0, index,  columns):
 def MergeExcels(merge=True):
     dfs = []
     # change the data file path if location is different
-    file_paths = glob.glob(join(currentdir, "kamiak", "BCS", "*.xls"))
+    file_paths = glob.glob(join(currentdir, "kamiak", "BCS", "*.xls")) # 1D_without_E_E0_nfev
     file_paths.sort()
     files = [os.path.basename(file[:file.index("_PID")]) for file in file_paths]
     file0 = files[0]
@@ -255,8 +255,10 @@ data = MergeExcels()
 
 iStates =None
 gs = None
-#data_key = 'iState'
-data_key = 'N_state'
+if 'iState' in data:
+    data_key = 'iState'
+else:
+    data_key = 'N_state'
 if data_key in data:
     iStates = set(data[data_key])
 if 'g' in data:
@@ -400,12 +402,12 @@ def BestPlot(dict_kvs, title=None, iState="ST", style="semi", V="HO", use_nfev=F
 
 # $\beta_V$, $\beta_K$, $V_c$, $K_c$
 
-E_E0=1.4
+E_E0=1.5
 use_nfev=True
 output, dict_kvs = find_best_betas(data, p=E_E0)
-plt.figure(figsize=(8,8))
+plt.figure(figsize=(16,16))
 for i, state in enumerate(iStates):
-    #plt.subplot(2, 2,i+1)
+    plt.subplot(2, 2,i+1)
     BestPlot(dict_kvs, title = f"Fig.{i+1}:{data_key}={state}",iState=state, style="semi", V="HO", use_nfev=use_nfev)
 if use_nfev:
     plt.xlabel("nfev")

@@ -71,7 +71,7 @@ class FFState(object):
     def get_g(self, delta, mu=None, dmu=None, q=0, dq=0, **kw):
         assert (mu is None) == (dmu is None)
         if mu is None:
-            mu_a, mu_b = self.mu
+            mu_a, mu_b = self.mus
             mu, dmu = (mu_a + mu_b)/2.0, (mu_a - mu_b)/2.0
         args = dict(self._tf_args, q=q, dq=dq, delta=delta)
         args.update(kw, mu_a=mu+dmu, mu_b=mu-dmu)
