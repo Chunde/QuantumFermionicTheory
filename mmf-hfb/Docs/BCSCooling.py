@@ -151,7 +151,7 @@ def Check_UV_IR():
 Check_UV_IR()
 
 import time
-def test_der_cooling(plot=True, plot_dE=True, T=0.5, **args):   
+def test_der_cooling(plot=True, plot_dE=True, T=0.5, log=False, **args):   
     b = BCSCooling(**args)
     h0 = HarmonicOscillator(w=1)
     h = HarmonicOscillator()
@@ -189,7 +189,10 @@ def test_der_cooling(plot=True, plot_dE=True, T=0.5, **args):
         plt.ylabel(r"$\psi(x)$")
         plt.legend()
         plt.subplot(1,N_plot,2)
-        plt.plot(ts[:-1], (Es[:-1] - E0)/abs(E0), label="E")
+        if log:
+            plt.semilogy(ts[:-1], (Es[:-1] - E0)/abs(E0), label="E")
+        else:
+            plt.plot(ts[:-1], (Es[:-1] - E0)/abs(E0), label="E")
         if (Es[-1] - E0)/abs(E0) < 2.5:
             plt.axhline(1, linestyle='dashed')
         plt.xlabel("Time")
@@ -206,7 +209,10 @@ def test_der_cooling(plot=True, plot_dE=True, T=0.5, **args):
     return (wall_time, nfev)
 
 
-args = dict(N=128, dx=.1, divs=(1, 1), beta_K=0, beta_V=0, beta_D=0, beta_Y=2, T=0.3, check_dE=False)
+args = dict(N=128, dx=.1, divs=(1, 1), beta_Y=0, beta_S=5, T=0.05, check_dE=False)
+psi = test_der_cooling(plot_dE=True, **args)
+
+args = dict(N=128, dx=.1, divs=(1, 1), beta_0=-1j, beta_S=0, T=.05, log=False,check_dE=False)
 psi = test_der_cooling(plot_dE=True, **args)
 
 args = dict(N=128, dx=0.2, divs=(1, 1), beta_K=0, beta_V=5, beta_D=0, T=3, check_dE=True)

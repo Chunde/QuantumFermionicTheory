@@ -140,16 +140,14 @@ def test_2d_Cooling():
     s.V = np.array(V)/2
     x0 = 0.5
     phase = ((x-x0) + 1j*y)*((x+x0) - 1j*y)
-    psi0 = 1.0*np.exp(1j*np.angle(phase))
+    psi0 = s.Normalize(1.0*np.exp(1j*np.angle(phase)))
     ts, psis, _ = s.solve([psi0], T=5.0, rtol=1e-5, atol=1e-6)
     s.plot(psis[-1][0])
     Es = [s.get_E_Ns(psi)[0] for psi in psis]
     plt.semilogy(ts, Es)
 
 
-# +
-#test_2d_Cooling()
-# -
+test_2d_Cooling()
 
 # # Load CVS file
 

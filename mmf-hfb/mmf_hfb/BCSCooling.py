@@ -37,8 +37,8 @@ class BCSCooling(BCS):
     def __init__(
             self, N=256, L=None, dx=0.1, delta=0, mus=(0, 0), dim=1, V=0,
             beta_H=1, beta_0=1.0, beta_V=0, beta_K=0, beta_D=0, beta_Y=0,
-            g=0, dE_dt=1, divs=(0, 0), check_dE=False, time_out=None,
-            E_stop=None, **args):
+            beta_S=0, g=0, dE_dt=1, divs=(0, 0), check_dE=False,
+            time_out=None,E_stop=None, **args):
         """
         Arguments
         ---------
@@ -69,6 +69,7 @@ class BCSCooling(BCS):
         self.beta_K = beta_K
         self.beta_D = beta_D
         self.beta_Y = beta_Y
+        self.beta_S = beta_S
         self.g = g
         self.V = V
         self.time_out = time_out
@@ -88,7 +89,8 @@ class BCSCooling(BCS):
 
     def Normalize(self, psi):
         """Normalize a wave function"""
-        return psi/(self.dotc(psi, psi)*self.dV)**0.5
+        psi_new = psi/(self.dotc(psi, psi)*self.dV)**0.5
+        return psi_new.reshape(self.Nxyz)
 
     def get_Vext(self):
         return self.V
@@ -262,20 +264,44 @@ class BCSCooling(BCS):
         return Vd
 
     def get_Dyadic(self, psis, psis_k=None):
-        """mixed Vc and Kc"""
+        """
+        mixed Vc and Kc
+        $$
+        H_C=f(\bra{K}\ket{x}+\bra{x}\ket{k})
+        $$
+        """
         V_dy = 0
         if psis_k is None:
             psis_k = self.get_psis_k(psis)
         Hpsis = self.apply_H(psis=psis, psis_k=psis_k)
         Hpsis_k = self.get_psis_k(Hpsis)
         for i in range(len(psis_k)):
-            # tex
-            # $V_dy = \frac{i}{\hbar}\sum_{n}(\braket{x|H|\psi_n}\braket{\psi_n|k} 
-            # -\braket{k|\psi_n}\braket{\psi_n|H|x}$
-            V_dy = V_dy + (Hpsis[i]*psis_k[i].conj() - psis[i]*Hpsis_k[i].conj())
-            # V_dy = V_dy + (Hpsis_k[i]*psis[i].conj() - psi_k*Hpsis[i].conj()).imag
-            # V_dy = V_dy + 2*(Hpsis[i]*psi_k.conj()).imag
-        return -V_dy*self.dV*1j
+            V_dy = (
+                V_dy + (Hpsis_k[i].conj()*psis[i] + Hpsis[i].conj()*psis_k[i]
+                -psis_k[i].conj()*Hpsis[i] - psis[i].conj()*Hpsis_k[i]))
+        return 1j*V_dy/self.hbar*self.dV
+
+    def get_Sc(self, psis, psis_k=None):
+        """
+        Note: experiemental code trying to cool
+            to ground state as soon as possible
+        """
+        Sc = 0
+        if psis_k is None:
+            psis_k = self.get_psis_k(psis)
+        Hpsis = self.apply_H(psis=psis, psis_k=psis_k)
+        Hpsis_k = self.get_psis_k(Hpsis)
+        for i in range(len(psis_k)):
+            Sc = Sc + (Hpsis[i]*psis_k[i].conj() - psis[i]*Hpsis_k[i].conj())
+        return -1j*Sc/self.hbar*self.dV
+
+    def apply_Sc(self, psis, psis_k):
+        if self.beta_S == 0:
+            return (0,)*len(psis)
+        Sc = self.beta_S*self.get_Sc(psis=psis, psis_k=psis_k)
+        Sc_psis = [self.ifft(Sc*psi_k) for psi_k in psis_k]  # Sharp Cooling
+        # Vdy_psis = [Vdy*psi_k for psi_k in psis_k]
+        return Sc_psis
 
     def _get_Kc(self, Hpsi, psi, psi_k, N):
         """
@@ -290,12 +316,12 @@ class BCSCooling(BCS):
         return Kc
      
     def get_Kc(self, psis, psis_k=None):
-        N = self.get_N(psis)
         Kc = 0*np.array(psis[0])
-        if psis_k is None:
-            psis_k = self.get_psis_k(psis)
         if self.beta_K == 0:
             return Kc
+        N = self.get_N(psis)
+        if psis_k is None:
+            psis_k = self.get_psis_k(psis)
         Hpsis = self.apply_H(psis, psis_k=psis_k)  # use apply_H instead of apply_V
         for i, psi in enumerate(psis):
             Kc = Kc + self._get_Kc(Hpsi=Hpsis[i], psi=psi, psi_k=psis_k[i], N=N)
@@ -319,8 +345,7 @@ class BCSCooling(BCS):
         if self.beta_Y == 0:
             return (0,)*len(psis)
         Vdy = self.beta_Y*self.get_Dyadic(psis=psis, psis_k=psis_k)
-        Vdy_psis = [self.ifft(Vdy*psi_k) for psi_k in psis_k]
-        # Vdy_psis = [Vdy*psi_k for psi_k in psis_k]
+        Vdy_psis = [self.ifft(Vdy*psi) + Vdy*psi_k for (psi, psi_k) in zip(psis, psis_k)]
         return Vdy_psis
 
     def apply_Vd(self, psis, psis_k):
@@ -399,13 +424,14 @@ class BCSCooling(BCS):
         Kc = self.get_Kc(psis=psis, psis_k=psis_k) if self.beta_K !=0 else 0
         Vd_psis = self.apply_Vd(psis=psis, psis_k=psis_k)
         V_Dyadic_psis = self.apply_Dyadic(psis, psis_k=psis_k)
-        
+        Vs_psis = self.apply_Sc(psis, psis_k=psis_k)
+
         for i, psi in enumerate(psis):
             Vc_psi = Vc*psi
             Kc_psi = self.ifft(Kc*psis_k[i])
             Hc_psi = (
                 self.beta_0*H_psis[i] + self.beta_V*Vc_psi
-                +self.beta_K*Kc_psi + Vd_psis[i] + V_Dyadic_psis[i])
+                +self.beta_K*Kc_psi + Vd_psis[i] + V_Dyadic_psis[i] + Vs_psis[i])
             Hc_psis.append(self.beta_H*Hc_psi)
         return Hc_psis
 
@@ -456,7 +482,7 @@ class BCSCooling(BCS):
         psis = self.unpack(y=psis)
         if self.check_dE:
             dE_dt = self.get_dE_dt(psis=psis)
-            if abs(dE_dt) > 1e-16:
+            if abs(dE_dt) > 1e-10:
                 assert dE_dt<= 0
         Hpsis = self.apply_Hc(psis)
         if subtract_mu:
@@ -536,7 +562,7 @@ class BCSCooling(BCS):
 
 if __name__ == "__main__":
     args = dict(beta_K=1, beta_V=1, beta_D=1, beta_Y=1, divs=(1, 1))
-    s = BCSCooling(N=128, dx=0.1, g=-1,**args)
+    s = BCSCooling(N=128, dx=0.1, g=-1, **args)
     s.erase_max_ks()
     x = s.xyz[0]
     s.V = x**2/2
