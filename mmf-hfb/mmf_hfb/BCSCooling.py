@@ -29,6 +29,31 @@ class BCSCooling(BCS):
         ts, psis, _ = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, method='BDF')
         psi_ground = psis[-1]
         E_ground = s.get_E_Ns([psi_ground])
+
+    2D BCS EXAMPLE:
+
+    def BCS2D_Cooling(N_state=2, T=0.5,**args):  
+        b = BCSCooling(**args)
+        da, db=b.divs    
+        k0 = 2*np.pi/b.L
+        x, y = b.xyz
+        V = x**2/2
+        V = sum(_x**2 for _x in b.xyz)
+        b.V = V/2    
+        x0 = 0.5
+        H0 = b._get_H(mu_eff=0, V=0)
+        H1 = b._get_H(mu_eff=0, V=V)
+        U0, E0 = b.get_U_E(H0, transpose=True)
+        U1, E1 = b.get_U_E(H1, transpose=True)
+        psi0 = [b.Normalize(U1[i]) for i in range(N_state)]
+        phase = ((x-x0) + 1j*y)*((x+x0) - 1j*y)
+        psi =  [b.Normalize(U0[i]) for i in range(N_state)]
+        ts, psis, nfev = b.solve([psi], T=T, rtol=1e-5, atol=1e-6, method='BDF')
+        E, N = b.get_E_Ns(psis[-1])
+        print(f"Final Energy={E}, nfev={nfev}")
+        
+    args = dict(N=32, dx=0.25, dim=2, N_state=2, beta_V=0.3, T=20, check_dE=False)
+    BCS2D_Cooling(**args)
     ------------
     To too down to some level above ground energy, please check
     the test case in '/test/test_BCS_Cooling.py'
@@ -38,7 +63,7 @@ class BCSCooling(BCS):
             self, N=256, L=None, dx=0.1, delta=0, mus=(0, 0), dim=1, V=0,
             beta_H=1, beta_0=1.0, beta_V=0, beta_K=0, beta_D=0, beta_Y=0,
             beta_S=0, g=0, dE_dt=1, divs=(0, 0), check_dE=False,
-            time_out=None,E_stop=None, **args):
+            time_out=None, E_stop=None, **args):
         """
         Arguments
         ---------
@@ -277,9 +302,10 @@ class BCSCooling(BCS):
         Hpsis_k = self.get_psis_k(Hpsis)
         for i in range(len(psis_k)):
             V_dy = (
-                V_dy + (Hpsis_k[i].conj()*psis[i] + Hpsis[i].conj()*psis_k[i]
-                -psis_k[i].conj()*Hpsis[i] - psis[i].conj()*Hpsis_k[i]))
-        return 1j*V_dy/self.hbar*self.dV
+                V_dy + (
+                    Hpsis_k[i].conj()*psis[i]- psis[i].conj()*Hpsis_k[i]
+                     + Hpsis[i].conj()*psis_k[i]-psis_k[i].conj()*Hpsis[i] ))
+        return -1j*V_dy/self.hbar*self.dV  # minus sign?
 
     def get_Sc(self, psis, psis_k=None):
         """
@@ -296,6 +322,10 @@ class BCSCooling(BCS):
         return -1j*Sc/self.hbar*self.dV
 
     def apply_Sc(self, psis, psis_k):
+        """
+        Note: experiemental code trying to cool
+            to ground state as soon as possible
+        """
         if self.beta_S == 0:
             return (0,)*len(psis)
         Sc = self.beta_S*self.get_Sc(psis=psis, psis_k=psis_k)

@@ -55,7 +55,6 @@ def plot_occupancy_n(ts, nss):
 
 def plot_occupancy_k(b, psis):
     n_k = 0
-    dx = b.dxyz[0]
     ks = b.kxyz[0]
     for psi in psis:
         n_k += abs(np.fft.fft(psi))**2

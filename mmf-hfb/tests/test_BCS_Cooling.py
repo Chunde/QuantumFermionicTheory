@@ -102,7 +102,6 @@ def test_apply_Vs(N_state=2):
     args = dict(N=128, dx=0.1, beta_0=1, divs=(1, 1), beta_K=0, beta_V=0, beta_D=1)
     b = BCSCooling(**args)
     x = b.xyz[0]
-    V = x**2/2
     H0 = b._get_H(mu_eff=0, V=0)
     U0, E0 = b.get_U_E(H0, transpose=True)
     psis = U0[:N_state]
@@ -227,6 +226,7 @@ def test_uv_ir_Kc():
                 assert new_value > 1e-5
                 assert base_value > 1e-5
                 assert np.allclose(base_value, new_value, rtol=0.01)
+
 
 if __name__ == "__main__":
     test_dE_dt()
