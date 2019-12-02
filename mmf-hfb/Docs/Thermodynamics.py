@@ -48,6 +48,7 @@ E, mu, P = [sympy.lambdify([n_], f_)
             for f_ in [E_, mu_, P_]]
 
 # + {"id": "SxVmohcn5VD7", "colab_type": "code", "outputId": "8823595a-8103-4be2-856e-29079de7ef4a", "colab": {"base_uri": "https://localhost:8080/", "height": 355}}
+plt.figure(figsize=(15, 6))
 n = np.linspace(-0.01, 1.5, 100)
 plt.figure(figsize=(10,5))
 ax = plt.subplot(221);
@@ -103,15 +104,22 @@ def plot_occupancy_k(b, psis):
     plt.ylabel("n_k")
 
 
-def BCS2D_Cooling(plot=True, N_state=2, plot_dE=True, T=0.5, log=False, **args):  
-    b = BCSCooling(**args)
+class FissionCooling(BCSCooling):
+    """Fission Potential??"""
+    def get_Vint(self, psis):
+        ns = self.get_ns(psis)
+        return (ns**2 - 1)**2
+
+
+def Cooling(plot=True, N_state=2, plot_dE=True, T=0.5, log=False, **args):  
+    b = FissionCooling(**args)
     da, db=b.divs    
     k0 = 2*np.pi/b.L
     x, y = b.xyz
     V = x**2/2
     V = sum(_x**2 for _x in b.xyz)
     #b.V = V/2
-    b.g = -1
+    #b.g = -1
     x0 = 0.5
     H0 = b._get_H(mu_eff=0, V=0)
     H1 = b._get_H(mu_eff=0, V=V)
@@ -134,10 +142,8 @@ def BCS2D_Cooling(plot=True, N_state=2, plot_dE=True, T=0.5, log=False, **args):
     return (wall_time, nfev, b, psis)
 
 
-args = dict(N=32, dx=0.25, dim=2, N_state=2, beta_0=1, beta_V=0.3, beta_S=0, T=12, log=False, check_dE=False)
-res=BCS2D_Cooling(**args)
-
-wall_time, nfev, b, psis=res
+args = dict(N=32, dx=0.25, dim=2, N_state=2, beta_0=1, beta_V=0.1, beta_S=0, T=1, log=False, check_dE=False)
+wall_time, nfev, b, psis=BCS2D_Cooling(**args)
 
 from mmfutils import plot as mmfplt            
 def plot_occupancy_k(b, psis):
