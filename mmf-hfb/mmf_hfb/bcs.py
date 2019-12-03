@@ -89,6 +89,10 @@ class BCS(object):
     def dV(self):
         return numpy.prod(self.dxyz)
 
+    @property
+    def shape(self):
+        return (2,) + (self.Nxyz)
+        
     def erase_max_ks(self):
         """set the max abs(ks) to zero as they may cause problems"""
         self.max_ks = []
@@ -221,8 +225,8 @@ class BCS(object):
             axes = range(self.dim)
         return np.fft.ifftn(y, axes=axes)
 
-    def fft_axes(self, is_bdg=True):
-        if is_bdg:
+    def axes(self, bdg=True):
+        if bdg:
             return range(1, self.dim + 1)
         return range(self.dim)
 

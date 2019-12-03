@@ -106,12 +106,23 @@ class BCSCooling(BCS):
         self.dt =dE_dt*self.hbar/self._K2.max()
         self.E_max = self._K2.max()
         self.E_stop = E_stop
-    
+
+    @property
+    def V(self):
+        return self._V
+
+    @V.setter
+    def V(self, V):
+        self._V = V
+        if self.delta !=0:
+            self.H = self.get_H(mus_eff=self.mus, delta=self.delta, Vs=(self._V, )*2)
+        else:
+            self.H = None
+
     def _get_uv(self, psi):
         """slice a uv into u, and v components"""
         shape = (2,) + self.Nxyz
-        uv = psi.reshape(shape)
-        return uv
+        return psi.reshape(shape)
 
     def Normalize(self, psi):
         """Normalize a wave function"""
@@ -163,11 +174,12 @@ class BCSCooling(BCS):
             Hpsis.append(Hpsi)
         return Hpsis
 
-    def _apply_K(self, psi):
+    def _apply_K(self, psi, psi_k):
         if self.delta == 0:
-            psi_k = self.fft(psi)
+            # psi_k = self.fft(psi)
             Kpsi = self.ifft(self._K2*psi_k)
             return Kpsi
+        # 
         u, v = self._get_uv(psi)
         uv = (u, -v)
         Kpsi = []
@@ -176,11 +188,11 @@ class BCSCooling(BCS):
             Kpsi.extend(self.ifft(self._K2*psi_k))
         return Kpsi
 
-    def apply_K(self, psis):
+    def apply_K(self, psis, psis_k):
         """compute dy/dt with kinetic part only"""
         Hpsis = []
-        for psi in psis:
-            Kpsi = self._apply_K(psi=psi)
+        for (i, psi) in enumerate(psis):
+            Kpsi = self._apply_K(psi=psi, psi_k=psis_k[i])
             Hpsis.append(Kpsi)
         return Hpsis
 
@@ -232,13 +244,9 @@ class BCSCooling(BCS):
         if self.delta == 0:
             return [self.fft(psi) for psi in psis]
         else:  # can be optimized in consice way
-            psis_k = []
-            for psi in psis:
-                uv = self._get_uv(psi)
-                uv_k = self.fft(uv, axes=self.fft_axes(is_bdg=True))
-                psi_k = np.concatenate(uv_k)
-                psis_k.append(psi_k)
-            return psis_k
+            return [
+                self.fft(self._get_uv(psi), axes=self.axes(bdg=True)).reshape(psi.shape) for psi in psis]
+           
 
     def _get_Vc(self, psis, psis_k, divs=None):
         """
@@ -408,44 +416,51 @@ class BCSCooling(BCS):
         return np.array(V11_psis)*self.dV**(2*sum(self.divs))
 
     def _apply_expK(self, psi, psi_k, Kc, factor=1):
+        factor_ = -1j*self.dt*factor*self.beta_H
         if self.delta == 0:
             psi_new = self.ifft(
-                np.exp(-1j*self.dt*factor*self.beta_H*(
+                np.exp(factor_*(
                     self.beta_0*self._K2 + Kc))*psi_k)
             psi_new *= np.sqrt(
                 (abs(psi)**2).sum()/(abs(psi_new)**2).sum())
             return psi_new
-        kuv = [self.fft(psi) for psi in self._get_uv(psi)]
         kc_uv = self._get_uv(Kc)
+        kuv = psi_k.reshape(kc_uv.shape)
+        # [bug]
         signs = [1, -1]  # used to change the sign of k2
         expK = [self.ifft(
-            np.exp(-1j*self.dt*factor*self.beta_H*(
+            np.exp(factor_*(
                 self.beta_0*self._K2*sign + Kc))*psi_k) for (
                     sign, psi_k, Kc) in zip(signs, kuv, kc_uv)]
         return np.array(expK).ravel()
 
-    def apply_expK(self, psis, psis_k, factor=1):
+    def apply_expK(self, psis, psis_k=None, factor=1):
+        if psis_k is None:
+            psis_k = self.get_psis_k(psis)
         Kc = self.beta_K*self.get_Kc(psis=psis, psis_k=psis_k)
         for i, psi in enumerate(psis):
             psis[i] = self._apply_expK(psi, psi_k=psis_k[i], Kc=Kc, factor=factor)
         return psis
 
     def _apply_expV(self, psi, V, Vc, factor):
+        factor_ = -1j*self.dt*factor*self.beta_H
         if self.delta == 0:
             psi_new = np.exp(
-                -1j*self.dt*factor*self.beta_H*(self.beta_0*V +self.beta_V*Vc))*psi
+                factor_*(self.beta_0*V +self.beta_V*Vc))*psi
             psi_new *= np.sqrt((abs(psi)**2).sum()/(abs(psi_new)**2).sum())
             return psi_new
         Vc_uv = self._get_uv(Vc)
         uv = self._get_uv(psi)
         Vs = (V - self.mus[0], -V + self.mus[1])
         expV = [np.exp(
-            -1j*self.dt*factor*self.beta_H*(
+            factor_*(
                 self.beta_0*V_ +self.beta_V*Vc))*psi for (
                     V_, psi, Vc) in zip(Vs, uv, Vc_uv)]
         return np.array(expV).ravel()
 
-    def apply_expV(self, psis, psis_k, factor=1):
+    def apply_expV(self, psis, psis_k=None, factor=1):
+        if psis_k is None:
+            psis_k = self.get_psis_k(psis)
         Vc = self.get_Vc(psis=psis, psis_k=psis_k)
         V_eff = self.get_V(psis)
         for i, psi in enumerate(psis):
@@ -492,12 +507,11 @@ class BCSCooling(BCS):
         Evolve the state psi by applying n steps of the
         Split-Operator method.
         """
-        psis_k = self.get_psis_k(psis)
-        psis = self.apply_expK(psis=psis, psis_k=psis_k, factor=0.5)
+        psis = self.apply_expK(psis=psis, factor=0.5)
         for _ in range(n):
-            psis = self.apply_expV(psis=psis, psis_k=psis_k)
-            psis = self.apply_expK(psis=psis, psis_k=psis_k)
-        psis = self.apply_expK(psis=psis, psis_k=psis_k, factor=-0.5)
+            psis = self.apply_expV(psis=psis)
+            psis = self.apply_expK(psis=psis)
+        psis = self.apply_expK(psis=psis, factor=-0.5)
         return psis
 
     def check_time_out(self):
