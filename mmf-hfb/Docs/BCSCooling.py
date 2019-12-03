@@ -209,11 +209,17 @@ def test_der_cooling(plot=True, plot_dE=True, T=0.5, log=False, **args):
     return (wall_time, nfev)
 
 
+# ## A Fast Cooling Due to Bug
+
 args = dict(N=128, dx=.1, divs=(1, 1), beta_Y=0, beta_S=5, T=0.05, check_dE=False)
 psi = test_der_cooling(plot_dE=True, **args)
 
-args = dict(N=128, dx=.1, divs=(1, 1), beta_0=-1j, beta_S=0, T=.05, log=False,check_dE=False)
+# ## Imaginary Cooling
+
+args = dict(N=128, dx=.1, divs=(1, 1), beta_0=-1j,T=.05, log=False,check_dE=False)
 psi = test_der_cooling(plot_dE=True, **args)
+
+# ## Unitary Cooling
 
 args = dict(N=128, dx=0.2, divs=(1, 1), beta_K=0, beta_V=5, beta_D=0, T=3, check_dE=True)
 res = test_der_cooling(plot_dE=True, **args)
@@ -465,7 +471,7 @@ plt.legend()
 # * to-do: update the code to support BCS with pairing field.
 # -
 
-b = BCSCooling(N=64, dx=0.1, beta_0=1, beta_V=1, delta=1, mus=(2, 2))
+b = BCSCooling(N=64, dx=0.1, beta_V=1, delta=1, mus=(2, 2))
 x = b.xyz[0]
 V0 = x**2/3
 V1 = x**2/2
@@ -473,18 +479,18 @@ H0 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(V0, V0))
 H1 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(V1, V1))
 U0, Es0 = b.get_U_E(H0, transpose=True)
 U1, Es1 = b.get_U_E(H1, transpose=True)
-N_state = 1
-psi0 = U1[64]
-psi = U0[64]
+psi0 = U1[0]
+psi = U0[0]
 plt.plot(psi0)
-E0, N0 = b.get_E_Ns(psis=[U1[64]], V=V1)
+b.V = V1
+E0, N0 = b.get_E_Ns(psis=[psi0])
 psis = [psi]
 for i in range(20):
-    psis = b.step(psis=psis, n=10, V=V1)
+    psis = b.step(psis=psis, n=10)
     plt.plot(psis[0],'--')
     plt.plot(psi0,'-')
     #print(psis[0].real)
-    E, N = b.get_E_Ns(psis=psis, V=V1)
+    E, N = b.get_E_Ns(psis=psis)
     plt.title(f"E0={E0.real},E={E.real}")
     plt.show()
     clear_output(wait=True)

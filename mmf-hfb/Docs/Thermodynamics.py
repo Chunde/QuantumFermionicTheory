@@ -163,4 +163,36 @@ def plot_occupancy_k(b, psis):
 
 plot_occupancy_k(b, psis[-1])
 
+b = BCSCooling(N=64, dx=0.1,beta_K=1, delta=1, mus=(2, 2))
+x = b.xyz[0]
+V0 = x**2/3
+V1 = x**2/2
+H0 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(V0, V0))
+H1 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(V1, V1))
+U0, Es0 = b.get_U_E(H0, transpose=True)
+U1, Es1 = b.get_U_E(H1, transpose=True)
+psi0 = U1[0]
+psi = U0[10]
+plt.plot(psi0)
+b.V = V1
+E0, N0 = b.get_E_Ns(psis=[psi0])
+psis = [psi]
+Es = []
+for i in range(100):
+    plt.figure(figsize=(15, 6))
+
+    psis = b.step(psis=psis, n=100)
+    plt.subplot(121)
+    plt.plot(abs(psis[0])**2,'--')
+    plt.plot(abs(psi0)**2,'-')
+    #print(psis[0].real)
+    E, N = b.get_E_Ns(psis=psis)
+    Es.append(E)
+    plt.title(f"E0={E0.real},E={E.real}")
+    plt.subplot(122)
+    plt.semilogy(abs((np.array(Es)-E0)/E0))
+    plt.show()
+    
+    clear_output(wait=True)
+
 

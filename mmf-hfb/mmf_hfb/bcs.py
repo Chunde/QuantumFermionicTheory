@@ -221,6 +221,11 @@ class BCS(object):
             axes = range(self.dim)
         return np.fft.ifftn(y, axes=axes)
 
+    def fft_axes(self, is_bdg=True):
+        if is_bdg:
+            return range(1, self.dim + 1)
+        return range(self.dim)
+
     def get_v_ext(self, **kw):
         """Return the external potential."""
         return (0, 0)

@@ -109,7 +109,8 @@ class BCSCooling(BCS):
     
     def _get_uv(self, psi):
         """slice a uv into u, and v components"""
-        uv = psi.reshape(2, len(psi)//2)
+        shape = (2,) + self.Nxyz
+        uv = psi.reshape(shape)
         return uv
 
     def Normalize(self, psi):
@@ -121,6 +122,8 @@ class BCSCooling(BCS):
         return self.V
 
     def get_Vint(self, psis):
+        if self.g == 0:
+            return 0
         ns = self.get_ns(psis)
         if self.delta !=0:  # n_a + n_b
             ns = ns[:len(ns)//2] + ns[len(ns)//2:]
@@ -226,7 +229,16 @@ class BCSCooling(BCS):
 
     def get_psis_k(self, psis):
         """return FFT of all wave functions"""
-        return [self.fft(psi) for psi in psis]
+        if self.delta == 0:
+            return [self.fft(psi) for psi in psis]
+        else:  # can be optimized in consice way
+            psis_k = []
+            for psi in psis:
+                uv = self._get_uv(psi)
+                uv_k = self.fft(uv, axes=self.fft_axes(is_bdg=True))
+                psi_k = np.concatenate(uv_k)
+                psis_k.append(psi_k)
+            return psis_k
 
     def _get_Vc(self, psis, psis_k, divs=None):
         """
@@ -395,9 +407,8 @@ class BCSCooling(BCS):
             raise ValueError("Derivative order should be no larger than 1")
         return np.array(V11_psis)*self.dV**(2*sum(self.divs))
 
-    def _apply_expK(self, psi, Kc, factor=1):
+    def _apply_expK(self, psi, psi_k, Kc, factor=1):
         if self.delta == 0:
-            psi_k = self.fft(psi)
             psi_new = self.ifft(
                 np.exp(-1j*self.dt*factor*self.beta_H*(
                     self.beta_0*self._K2 + Kc))*psi_k)
@@ -408,7 +419,7 @@ class BCSCooling(BCS):
         kc_uv = self._get_uv(Kc)
         signs = [1, -1]  # used to change the sign of k2
         expK = [self.ifft(
-            np.exp(-1j*self.dt*factor*self.beta_H(
+            np.exp(-1j*self.dt*factor*self.beta_H*(
                 self.beta_0*self._K2*sign + Kc))*psi_k) for (
                     sign, psi_k, Kc) in zip(signs, kuv, kc_uv)]
         return np.array(expK).ravel()
@@ -416,7 +427,7 @@ class BCSCooling(BCS):
     def apply_expK(self, psis, psis_k, factor=1):
         Kc = self.beta_K*self.get_Kc(psis=psis, psis_k=psis_k)
         for i, psi in enumerate(psis):
-            psis[i] = self._apply_expK(psi, Kc=Kc, factor=factor)
+            psis[i] = self._apply_expK(psi, psi_k=psis_k[i], Kc=Kc, factor=factor)
         return psis
 
     def _apply_expV(self, psi, V, Vc, factor):
@@ -429,7 +440,7 @@ class BCSCooling(BCS):
         uv = self._get_uv(psi)
         Vs = (V - self.mus[0], -V + self.mus[1])
         expV = [np.exp(
-            -1j*self.dt*factor*self.beta_H(
+            -1j*self.dt*factor*self.beta_H*(
                 self.beta_0*V_ +self.beta_V*Vc))*psi for (
                     V_, psi, Vc) in zip(Vs, uv, Vc_uv)]
         return np.array(expV).ravel()

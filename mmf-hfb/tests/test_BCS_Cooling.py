@@ -228,5 +228,27 @@ def test_uv_ir_Kc():
                 assert np.allclose(base_value, new_value, rtol=0.01)
 
 
+def test_cooling_with_pairing():
+    b = BCSCooling(N=64, dx=0.1, beta_K=1, delta=1, mus=(2, 2))
+    x = b.xyz[0]
+    V0 = x**2/3
+    V1 = x**2/2
+    H0 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(V0, V0))
+    H1 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(V1, V1))
+    U0, Es0 = b.get_U_E(H0, transpose=True)
+    U1, Es1 = b.get_U_E(H1, transpose=True)
+    psi0 = U1[0]
+    psi = U0[10]
+    b.V = V1
+    E0, N0 = b.get_E_Ns(psis=[psi0])
+    psis = [psi]
+    E_old = 1e10
+    for i in range(100):
+        psis = b.step(psis=psis, n=100)
+        E, N = b.get_E_Ns(psis=psis)
+        assert E<= E_old
+        E_old = E
+
+
 if __name__ == "__main__":
-    test_dE_dt()
+    test_cooling_with_pairing()
