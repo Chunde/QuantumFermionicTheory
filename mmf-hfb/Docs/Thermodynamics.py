@@ -106,19 +106,17 @@ def plot_occupancy_k(b, psis):
 
 class FissionCooling(BCSCooling):
     """Fission Potential??"""
-    def get_Vint(self, psis):
-        ns = self.get_ns(psis)
-        return (ns**2 - 1)**2
+    pass
+#     def get_Vint(self, psis):
+#         ns = self.get_ns(psis)
+#         return (ns**2 - 1)**2
 
 
 def Cooling(plot=True, N_state=2, plot_dE=True, T=0.5, log=False, **args):  
     b = FissionCooling(**args)
-    da, db=b.divs    
-    k0 = 2*np.pi/b.L
     x, y = b.xyz
-    V = x**2/2
     V = sum(_x**2 for _x in b.xyz)
-    #b.V = V/2
+    b.V = V/2
     #b.g = -1
     x0 = 0.5
     H0 = b._get_H(mu_eff=0, V=0)
@@ -137,13 +135,13 @@ def Cooling(plot=True, N_state=2, plot_dE=True, T=0.5, log=False, **args):
         dE_dt= [-1*b.get_dE_dt(_psi) for _psi in psis]
         for i in range(N_state):
             b.plot(psis[-1][i])
-        plt.semilogy(ts, Es)
+        plt.plot(ts, Es)
     print(f"Wall Time={wall_time}, nfev={nfev}")
     return (wall_time, nfev, b, psis)
 
 
-args = dict(N=32, dx=0.25, dim=2, N_state=2, beta_0=1, beta_V=0.1, beta_S=0, T=1, log=False, check_dE=False)
-wall_time, nfev, b, psis=BCS2D_Cooling(**args)
+args = dict(N=32, dx=0.25, dim=2, N_state=2, beta_0=1, beta_V=0.25, T=1, log=False, check_dE=False)
+wall_time, nfev, b, psis=Cooling(**args)
 
 from mmfutils import plot as mmfplt            
 def plot_occupancy_k(b, psis):
@@ -161,33 +159,44 @@ def plot_occupancy_k(b, psis):
     plt.colorbar()
 
 
+plt.figure(figsize=(14, 5))
+plt.subplot(121)
+plot_occupancy_k(b, psis[0])
+plt.subplot(122)
 plot_occupancy_k(b, psis[-1])
 
+
 # # Cooling with Pairing
+# * Now only V_C works, K_c has some issue. But V_c may also has some issue as the enery may oscillate sometime.
+
+def plot_psis(psis, s='--'):
+    l = None
+    for psi in psis:
+        if l is not None:
+            l, = plt.plot(abs(psi)**2,s, c=l.get_c())
+        else:
+            l, = plt.plot(abs(psi)**2,s)
+
 
 b = BCSCooling(N=64, dx=0.1,beta_V=1, delta=1, mus=(2, 2))
 x = b.xyz[0]
-V0 = x**2/3
+V0 = x**2
 V1 = x**2/2
 H0 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(V0, V0))
 H1 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(V1, V1))
 U0, Es0 = b.get_U_E(H0, transpose=True)
 U1, Es1 = b.get_U_E(H1, transpose=True)
-psi0 = U1[0]
-psi = U0[3]
-plt.plot(psi0)
+psis0 = U1[:3]
+psis = U0[7:10]
 b.V = V1
-E0, N0 = b.get_E_Ns(psis=[psi0])
-psis = [psi]
+E0, N0 = b.get_E_Ns(psis=psis0)
 Es = []
-for i in range(10):
+for i in range(50):
     plt.figure(figsize=(15, 6))
-
-    psis = b.step(psis=psis, n=100)
-    plt.subplot(121)
-    plt.plot(abs(psis[0])**2,'--')
-    plt.plot(abs(psi0)**2,'-')
-    #print(psis[0].real)
+    psis = b.step(psis=psis, n=300)
+    plt.subplot(121)    
+    plot_psis(psis,'-')
+    plot_psis(psis0,'--')
     E, N = b.get_E_Ns(psis=psis)
     Es.append(E)
     plt.title(f"E0={E0.real},E={E.real}")
@@ -196,5 +205,34 @@ for i in range(10):
     plt.show()
     
     clear_output(wait=True)
+
+b = BCSCooling(N=128, dx=0.1)
+x = b.xyz[0]
+V = x**2/2
+b.V = V
+H0 = b._get_H(mu_eff=0, V=V)
+psis0, Es0 = b.get_U_E(H0, transpose=True)
+H = b._get_H(mu_eff=0, V=0)
+psis, _ = b.get_U_E(H, transpose=True)
+for n, T in zip([2,3,4,5],[5,2,2,2]):
+   
+    psis_init = [b.Normalize(psis[i]) for i in range(n)]
+
+    def compute_dy_dt(t, psis, **args):
+        """Return dy/dt for ODE integration."""
+        psis = b.unpack(y=psis)
+        Hc = b.get_Hc(psis=psis)
+        Hpsis = (Hc.dot(psis.T)).T
+        for i, psi in enumerate(psis):
+            Hpsis[i] -= b.dotc(psi, Hpsis[i])/b.dotc(psi, psi)*psi
+        return b.pack(np.array(Hpsis)/(1j*b.hbar))
+
+    ts, ys, nfev = b.solve(
+        psis=psis_init, T=T, dy_dt=compute_dy_dt,
+        rtol=1e-5, atol=1e-6, method='BDF')
+    E, N= b.get_E_Ns(psis=ys[-1])
+    E0 = np.sum(Es0[:n])
+    print(f"State Num={n}, E0={E0},E={E},N={N}, nfev={nfev}")
+    assert np.allclose(E, E0, rtol=1e-2)
 
 

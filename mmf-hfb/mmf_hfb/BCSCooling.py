@@ -62,7 +62,7 @@ class BCSCooling(BCS):
     def __init__(
             self, N=256, L=None, dx=0.1, delta=0, mus=(0, 0), dim=1, V=0,
             beta_H=1, beta_0=1.0, beta_V=0, beta_K=0, beta_D=0, beta_Y=0,
-            beta_S=0, g=0, dE_dt=1, divs=(0, 0), check_dE=False,
+            beta_S=0, g=0, dE_dt=1, divs=(1, 1), check_dE=False,
             time_out=None, E_stop=None, **args):
         """
         Arguments
@@ -106,18 +106,6 @@ class BCSCooling(BCS):
         self.dt =dE_dt*self.hbar/self._K2.max()
         self.E_max = self._K2.max()
         self.E_stop = E_stop
-
-    @property
-    def V(self):
-        return self._V
-
-    @V.setter
-    def V(self, V):
-        self._V = V
-        if self.delta !=0:
-            self.H = self.get_H(mus_eff=self.mus, delta=self.delta, Vs=(self._V, )*2)
-        else:
-            self.H = None
 
     def _get_uv(self, psi):
         """slice a uv into u, and v components"""
@@ -176,20 +164,17 @@ class BCSCooling(BCS):
 
     def _apply_K(self, psi, psi_k):
         if self.delta == 0:
-            # psi_k = self.fft(psi)
             Kpsi = self.ifft(self._K2*psi_k)
             return Kpsi
-        # 
-        u, v = self._get_uv(psi)
-        uv = (u, -v)
-        Kpsi = []
-        for psi in uv:
-            psi_k = self.fft(psi)
-            Kpsi.extend(self.ifft(self._K2*psi_k))
-        return Kpsi
+       
+        Kpsi = [self.ifft(self._K2*psi_k) for psi_k_ in self._get_uv(psi_k) ]               
+        return Kpsi.reshape(psi.shape)
 
     def apply_K(self, psis, psis_k):
-        """compute dy/dt with kinetic part only"""
+        """
+        compute dy/dt with kinetic part only
+        NOTE: Should be tested
+        """
         Hpsis = []
         for (i, psi) in enumerate(psis):
             Kpsi = self._apply_K(psi=psi, psi_k=psis_k[i])
@@ -211,6 +196,7 @@ class BCSCooling(BCS):
         return Hpsis
 
     def _div(self, psi, n=1):
+        assert self.dim == 1     
         if self.delta == 0:
             for _ in range(n):
                 psi = self._Del(alpha=(np.array([psi]).T,))[:, 0, ...][0].T[0]
@@ -245,9 +231,10 @@ class BCSCooling(BCS):
             return [self.fft(psi) for psi in psis]
         else:  # can be optimized in consice way
             return [
-                self.fft(self._get_uv(psi), axes=self.axes(bdg=True)).reshape(psi.shape) for psi in psis]
-           
-
+                self.fft(
+                    self._get_uv(psi),
+                    axes=self.axes(bdg=True)).reshape(psi.shape) for psi in psis]
+         
     def _get_Vc(self, psis, psis_k, divs=None):
         """
         return Vc or Vd
@@ -272,6 +259,8 @@ class BCSCooling(BCS):
             da, db = self.divs
             assert da <= 1
             assert db <= 1  # now only da=db=1 is tested
+            if da != db:
+                raise ValueError("Only support V11(da=db=1)")
             # compute $d^n \psi / d^n x$
             psis_a = [self.Del(psi, n=da) for psi in psis]
             # $d[d^n \psi / d^n x] / dt$
@@ -324,12 +313,12 @@ class BCSCooling(BCS):
             V_dy = (
                 V_dy + (
                     Hpsis_k[i].conj()*psis[i]- psis[i].conj()*Hpsis_k[i]
-                     + Hpsis[i].conj()*psis_k[i]-psis_k[i].conj()*Hpsis[i] ))
+                     + Hpsis[i].conj()*psis_k[i]-psis_k[i].conj()*Hpsis[i]))
         return -1j*V_dy/self.hbar*self.dV  # minus sign?
 
     def get_Sc(self, psis, psis_k=None):
         """
-        Note: experiemental code trying to cool
+        NOTE: experiemental code trying to cool
             to ground state as soon as possible
         """
         Sc = 0
@@ -430,8 +419,8 @@ class BCSCooling(BCS):
         signs = [1, -1]  # used to change the sign of k2
         expK = [self.ifft(
             np.exp(factor_*(
-                self.beta_0*self._K2*sign + Kc))*psi_k) for (
-                    sign, psi_k, Kc) in zip(signs, kuv, kc_uv)]
+                self.beta_0*self._K2*sign + kc))*psi_k) for (
+                    sign, psi_k, kc) in zip(signs, kuv, kc_uv)]
         return np.array(expK).ravel()
 
     def apply_expK(self, psis, psis_k=None, factor=1):
