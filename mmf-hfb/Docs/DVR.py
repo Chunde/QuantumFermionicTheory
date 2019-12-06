@@ -195,56 +195,85 @@ plt.axhline(0, linestyle='dashed')
 
 # +
 def Normalize(psi):
-    return psi
-    return psi/psi.dot(psi.conj())**0.5
+    """Normalize a wave function"""
+    return psi/(psi.conj().dot(psi))**0.5
 
-def psi00(rs):
-    psi = np.sqrt(1.0/np.pi)*np.exp(-rs**2/2)
-    return psi
-
-def psi10(rs):
-    psi = np.sqrt(2.0)*psi00(rs)*rs
-    return psi
+def HO_psi(n, m, rs):
+    """
+    n = E -1
+        e.g if E=1, to select the corresponding
+        wavefunction, use n=E-1=0, and m = 0
+    m is used to pick the degerated wavefunciton
+    m <=n
+    """
+    assert n < 4 and n >=0
+    assert m <=n
+    P=1
+    if n ==1:
+        P = rs
+    elif n == 2:
+        P=rs**2
+        if m == 1:
+            P=P-1
+    elif n == 3:
+        P = rs**3
+        if m == 1 or m==2:
+            P=P - r/2
+    return P*np.exp(-rs**2/2)
 
 
 # -
 
-rs = np.linspace(0, 2, 100)
-psi = psi10(rs)
-plt.plot(rs, psi)
-
 import mmf_hfb.DVRBasis as HarmonicDVR; reload(HarmonicDVR)
 from mmf_hfb.DVRBasis import HarmonicDVR
 
-bessel.j_root(nu=0, N=10)
-
-h = HarmonicDVR(nu=2, dim=2)
+h = HarmonicDVR(nu=0, dim=2)
 #h.K_max = 1
-rs = np.linspace(24, 55, 200)
-# for r in h.rs:
-#     plt.axvline(r, linestyle='dashed')
+rs = np.linspace(0, 5, 200)
+for r in h.rs:
+    plt.axvline(r, linestyle='dashed')
 plt.axhline(0, linestyle='dotted')
-Fs = h.get_F(nu=3, n=10, rs=rs)
+Fs = h.get_F(nu=1, n=0, rs=rs)
 plt.plot(rs, Fs)
 Fs = h.get_F_rs()
 #plt.plot(h.rs, Fs, '+')
 
-def spectrum(nu=0, l=0):
-    h = HarmonicDVR(nu=nu, dim=3, w=1)
-    H = h.get_H(l=l)
-    Fs = h.get_F_rs()    
-    Es, us = np.linalg.eigh(H)
-    for i in range(2):
-        psi = h.get_psi(us[:,i])*Fs
-        plt.plot(h.rs,psi, label=f'{i}')
-    plt.plot(psi00(h.rs), '--', label='00')
-    plt.plot(psi10(h.rs), '+', label='01')
-    print(Es)
-    plt.axhline(0, linestyle='dashed')
-    plt.legend()
+# ## Construct Wavefunction from a basis
 
+# +
+plt.figure(figsize=(16, 8))
+h = HarmonicDVR(nu=0, dim=2, w=1)
+H = h.get_H()
+Fs = h.get_F_rs()    
+Es, us = np.linalg.eigh(H)
+print(Es[:10])
+rs = np.linspace(0.01, 5, 200)
+wf = 0
+for i, u in enumerate(us.T[1]):
+    wf += u*h.get_F(nu=0, n=i, rs=rs)
+plt.plot(rs, -Normalize(wf/rs**0.5), label='Reconstructed')
+plt.plot(rs, Normalize(HO_psi(n=2, m=1, rs=rs)), '+', label='Analytical')
 
-spectrum(nu=0)
+plt.axhline(0, linestyle='dashed')
+plt.legend()
+
+# +
+plt.figure(figsize=(16, 8))
+h = HarmonicDVR(nu=1, dim=2, w=1)
+H = h.get_H()
+Fs = h.get_F_rs()    
+Es, us = np.linalg.eigh(H)
+print(Es[:10])
+rs = np.linspace(0.01, 5, 200)
+wf = 0
+for i, u in enumerate(us.T[0]):
+    wf += u*h.get_F(n=i, rs=rs)
+plt.plot(rs, -Normalize(wf/rs**0.5), label='Reconstructed')
+plt.plot(rs, Normalize(HO_psi(n=1, m=1, rs=rs)), '+', label='Analytical')
+
+plt.axhline(0, linestyle='dashed')
+plt.legend()
+# -
 
 # # Harmonic in Plane Basis
 # * Make sure the plane wave basis yields the desired result

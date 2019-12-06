@@ -25,6 +25,7 @@ import mmf_setup;mmf_setup.nbinit()
 from nbimports import *
 from mmf_hfb.BCSCooling import BCSCooling
 import matplotlib.pyplot as plt
+from mmfutils import plot as mmfplt            
 import numpy as np
 import numpy
 import time
@@ -112,14 +113,19 @@ class FissionCooling(BCSCooling):
 #         return (ns**2 - 1)**2
 
 
+# +
+
 def Cooling(plot=True, N_state=2, plot_dE=True, T=0.5, log=False, **args):  
     b = FissionCooling(**args)
     x, y = b.xyz
-    V = sum(_x**2 for _x in b.xyz)
-    b.V = V/2
     #b.g = -1
     x0 = 0.5
-    H0 = b._get_H(mu_eff=0, V=0)
+    V = sum(w*_x**2 for (_x, w) in zip(b.xyz, (1, 9)))
+    mmfplt.imcontourf(x, y, V)
+    plt.show()
+    H0 = b._get_H(mu_eff=0, V=V)
+    V = sum(_x**2 for _x in b.xyz)
+    b.V = V/2
     H1 = b._get_H(mu_eff=0, V=V)
     U0, E0 = b.get_U_E(H0, transpose=True)
     U1, E1 = b.get_U_E(H1, transpose=True)
@@ -140,10 +146,12 @@ def Cooling(plot=True, N_state=2, plot_dE=True, T=0.5, log=False, **args):
     return (wall_time, nfev, b, psis)
 
 
-args = dict(N=32, dx=0.25, dim=2, N_state=2, beta_0=1, beta_V=0.25, T=1, log=False, check_dE=False)
+# -
+
+args = dict(N=32, dx=0.45, dim=2, N_state=10,  beta_0=1, beta_V=0.2, T=2, log=False, check_dE=False)
 wall_time, nfev, b, psis=Cooling(**args)
 
-from mmfutils import plot as mmfplt            
+
 def plot_occupancy_k(b, psis):
     n_k = 0
     kx, ky = b.kxyz
@@ -158,6 +166,11 @@ def plot_occupancy_k(b, psis):
     mmfplt.imcontourf(x, y, n_k)
     plt.colorbar()
 
+
+psis[0][0].shape
+
+x, y = b.xyz
+mmfplt.imcontourf(x,y, abs(psis[0][1]))
 
 plt.figure(figsize=(14, 5))
 plt.subplot(121)

@@ -15,7 +15,7 @@ class CylindricalBasis(Basis):
     eps = 7./3 - 4./3 -1  # machine precision
     m = hbar = 1
 
-    def __init__(self, N_root=None, R_max=None, K_max=None, a0=None, nu=0, dim=3, **args):
+    def __init__(self, N_root=None, R_max=None, K_max=None, a0=None, nu=0, **args):
         """
         Parameters
         --------------
@@ -39,7 +39,7 @@ class CylindricalBasis(Basis):
             self.R_max = R_max
             self.K_max = K_max
         self._align_K_max()
-        self.dim = dim
+        self.dim = 2
         self.nu = nu
         self.zs = self.get_zs(nu=nu)
         self.rs = self.get_rs(zs=self.zs)
@@ -65,8 +65,6 @@ class CylindricalBasis(Basis):
         """
         return roots for order $\nu$
         """
-        nn = np.array(list(range(0, self.N_root, 1))) + 1
-        return nn*np.pi
         if nu is None:
             nu = self.nu
         zs = bessel.j_root(nu=nu, N=self.N_root)
@@ -82,7 +80,7 @@ class CylindricalBasis(Basis):
             zs = self.get_zs(nu=nu)
         return zs/self.K_max
 
-    def get_F(self, nu, n, rs):
+    def get_F(self, nu=None, n=0, rs=None):
         """return the nth basis function for nu"""
         if nu is None:
             nu = self.nu
@@ -115,7 +113,7 @@ class CylindricalBasis(Basis):
 
     def _rs_scaling_factor(self, zs=None):
         """
-        the dimension dependent scaling factor used to 
+        the dimension dependent scaling factor used to
         convert from u(r) to psi(r)=u(r)/rs_, or u(r)=psi(r)*rs_
         """
         if zs is None:
@@ -181,7 +179,7 @@ class CylindricalBasis(Basis):
         return (nu**2 - self.nu**2)*self.hbar**2/2.0/self.rs**2
 
     def get_V_mean_field(self, nu):
-        return 0
+        raise NotImplementedError("Not implemented yet")
 
 
 class HarmonicDVR(CylindricalBasis):
