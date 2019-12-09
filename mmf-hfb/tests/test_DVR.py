@@ -27,7 +27,7 @@ def HO_psi(n, m, rs):
     elif n == 3:
         P = rs**3
         if m == 1 or m==2:
-            P=P - r/2
+            P=P - rs/2
     return P*np.exp(-rs**2/2)
 
 
@@ -38,9 +38,7 @@ def test_wave_function_reconstruction():
     H = h.get_H()
     _, us = np.linalg.eigh(H)
     rs = np.linspace(0.01, 5, 200)
-    wf = 0
-    for i, u in enumerate(us.T[1]):
-        wf += u*h.get_F(nu=0, n=i, rs=rs)
+    wf =sum([u*h.get_F(n=i, rs=rs) for (i, u) in enumerate(us.T[1])])
     psi_rec = -Normalize(wf/rs**0.5)
     psi_ana = Normalize(HO_psi(n=2, m=1, rs=rs))
     assert np.allclose(psi_rec, psi_ana)
@@ -49,9 +47,7 @@ def test_wave_function_reconstruction():
     h = HarmonicDVR(nu=1, dim=2, w=1)
     H = h.get_H()
     _, us = np.linalg.eigh(H)
-    wf = 0
-    for i, u in enumerate(us.T[0]):
-        wf += u*h.get_F(n=i, rs=rs)
+    wf =sum([u*h.get_F(n=i, rs=rs) for (i, u) in enumerate(us.T[0])])
     psi_rec = -Normalize(wf/rs**0.5)
     psi_ana = Normalize(HO_psi(n=1, m=1, rs=rs))
     assert np.allclose(psi_rec, psi_ana)

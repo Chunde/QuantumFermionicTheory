@@ -1,4 +1,4 @@
-from mmf_hfb.CylindricalDVRBasis import CylindricalBasis
+from mmf_hfb.DVRBasis import CylindricalBasis
 from mmf_hfb.utils import block
 from mmf_hfb import homogeneous
 import numpy as np
@@ -13,7 +13,7 @@ class VortexDVR(object):
         Construct and cache some information of bases
 
         """
-        self.bases = [CylindricalBasis(dim=2, nu=nu, **args) for nu in range(bases_N)]
+        self.bases = [CylindricalBasis(nu=nu, **args) for nu in range(bases_N)]
         self.l_max = max(l_max, 1)  # the angular momentum cut_off
         assert T==0
         self.T=T
@@ -46,7 +46,7 @@ class VortexDVR(object):
         """
         basis = self.bases[self.basis_match_rule(nu)]
         T = basis.K
-        Delta = np.diag(np.zeros_like(np.diag(T))+delta)
+        Delta = np.diag(basis.zero + delta)
         mu_a, mu_b = mus
         V_corr = basis.get_V_correction(nu=nu)
         V_mean_field = basis.get_V_mean_field(nu=nu)
@@ -60,7 +60,7 @@ class VortexDVR(object):
         """
         the interaction strength
         """
-        h = homogeneous.Homogeneous(dim=3) 
+        h = homogeneous.Homogeneous(dim=3)
         res = h.get_densities(mus_eff=(mu, mu), delta=delta)
         g = delta/res.nu
         return g
@@ -96,6 +96,7 @@ class VortexDVR(object):
             dens = dens + self._get_den(H)
         n_a, n_b, kappa = dens
         return (n_a, n_b, kappa)
+
 
 if __name__ == "__main__":
     mu=10

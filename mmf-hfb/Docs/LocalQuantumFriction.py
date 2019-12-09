@@ -443,6 +443,13 @@ assert(np.allclose(psi_, np.fft.ifft(psi_k)))
 # \right)\\  
 # \end{align}
 
+# ## With Pairing
+
+# \begin{pmatrix}
+#     H&\Delta\\
+#     \Delta^*&-H\\
+#   \end{pmatrix}
+
 # # Explicit Demonstration
 
 # Here we provide an explicit demonstration with a 1D or 2D BEC in a box.  We start with a simple class that uses the split-operator evolution method to evolve with:

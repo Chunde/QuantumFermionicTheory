@@ -19,6 +19,11 @@ import mmf_setup;mmf_setup.nbinit()
 from nbimports import *
 import numpy as np
 import matplotlib.pyplot as plt
+import mmf_hfb.DVRBasis as HarmonicDVR; reload(HarmonicDVR)
+from mmf_hfb.DVRBasis import HarmonicDVR
+from scipy.integrate import quad
+from mmfutils.math import bessel
+from mmf_hfb.bcs import BCS
 
 # # Definition of DVR
 
@@ -179,9 +184,6 @@ import matplotlib.pyplot as plt
 
 # # Example: 2D Harmonic
 
-from scipy.integrate import quad
-from mmfutils.math import bessel
-
 xs = np.linspace(0, 10*np.pi, 500)
 for nu in range(4):
     js = bessel.J(nu, 0)(xs)
@@ -224,36 +226,17 @@ def HO_psi(n, m, rs):
 
 # -
 
-import mmf_hfb.DVRBasis as HarmonicDVR; reload(HarmonicDVR)
-from mmf_hfb.DVRBasis import HarmonicDVR
-
-h = HarmonicDVR(nu=0, dim=2)
-#h.K_max = 1
-rs = np.linspace(0, 5, 200)
-for r in h.rs:
-    plt.axvline(r, linestyle='dashed')
-plt.axhline(0, linestyle='dotted')
-Fs = h.get_F(nu=1, n=0, rs=rs)
-plt.plot(rs, Fs)
-Fs = h.get_F_rs()
-#plt.plot(h.rs, Fs, '+')
-
 # ## Construct Wavefunction from a basis
 
-# +
 plt.figure(figsize=(16, 8))
 h = HarmonicDVR(nu=0, dim=2, w=1)
 H = h.get_H()
-Fs = h.get_F_rs()    
 Es, us = np.linalg.eigh(H)
 print(Es[:10])
 rs = np.linspace(0.01, 5, 200)
-wf = 0
-for i, u in enumerate(us.T[1]):
-    wf += u*h.get_F(nu=0, n=i, rs=rs)
+wf =sum([u*h.get_F(nu=0, n=i, rs=rs) for (i, u) in enumerate(us.T[1])])
 plt.plot(rs, -Normalize(wf/rs**0.5), label='Reconstructed')
 plt.plot(rs, Normalize(HO_psi(n=2, m=1, rs=rs)), '+', label='Analytical')
-
 plt.axhline(0, linestyle='dashed')
 plt.legend()
 
@@ -261,13 +244,10 @@ plt.legend()
 plt.figure(figsize=(16, 8))
 h = HarmonicDVR(nu=1, dim=2, w=1)
 H = h.get_H()
-Fs = h.get_F_rs()    
 Es, us = np.linalg.eigh(H)
 print(Es[:10])
 rs = np.linspace(0.01, 5, 200)
-wf = 0
-for i, u in enumerate(us.T[0]):
-    wf += u*h.get_F(n=i, rs=rs)
+wf =sum([u*h.get_F(n=i, rs=rs) for (i, u) in enumerate(us.T[0])])
 plt.plot(rs, -Normalize(wf/rs**0.5), label='Reconstructed')
 plt.plot(rs, Normalize(HO_psi(n=1, m=1, rs=rs)), '+', label='Analytical')
 
@@ -277,8 +257,6 @@ plt.legend()
 
 # # Harmonic in Plane Basis
 # * Make sure the plane wave basis yields the desired result
-
-from mmf_hfb.bcs import BCS
 
 Nx = 128
 L = 23
@@ -376,8 +354,8 @@ class DVRPeriodic(DVR1D):
 Ns = [30, 40, 50]
 
 def V(x):
-   r"""HO potential"""
-   return w**2*x**2/2.0
+    r"""HO potential"""
+    return w**2*x**2/2.0
 
 fig = plt.figure(figsize=(10,5))
 ax = []
@@ -571,5 +549,4 @@ gca().xaxis.set_minor_locator(MultipleLocator(1))
 # gca().xaxis.set_minor_formatter(FormatStrFormatter('%d'))
 show()
 # -
-
 

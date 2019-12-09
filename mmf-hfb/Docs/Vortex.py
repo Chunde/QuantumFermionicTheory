@@ -365,17 +365,17 @@ from IPython.display import display, clear_output
 
 # +
 mu = 10
-delta = 5
 dmu = 0
 mus = (mu + dmu, mu - dmu)
 dvr = VortexDVR(mu=mu, delta=delta)
+delta = 5 + dvr.bases[0].zero
 
 while(True):
     n_a, n_b, kappa = dvr.get_densities(mus=(mu,mu), delta=delta)
     delta_ = -dvr.g*kappa
     delta_, delta    
-    plt.plot(delta_)
-    plt.plot(delta,'+')
+    plt.plot(dvr.bases[0].rs, delta_)
+    plt.plot(dvr.bases[0].rs, delta,'+')
     plt.title(f"Error={(delta-delta_).max()}")
     plt.ylabel(r"$\Delta$")
     plt.show()

@@ -44,6 +44,7 @@ class CylindricalBasis(Basis):
         self.zs = self.get_zs(nu=nu)
         self.rs = self.get_rs(zs=self.zs)
         self.K = self.get_K(zs=self.zs, nu=nu)
+        self.zero = np.zeros_like(self.zs)
         self.rs_scale = self._rs_scaling_factor(zs=self.zs)
 
     def _init(self, a0=None):
@@ -179,7 +180,8 @@ class CylindricalBasis(Basis):
         return (nu**2 - self.nu**2)*self.hbar**2/2.0/self.rs**2
 
     def get_V_mean_field(self, nu):
-        raise NotImplementedError("Not implemented yet")
+        return 0
+        # raise NotImplementedError("Not implemented yet")
 
 
 class HarmonicDVR(CylindricalBasis):
@@ -200,13 +202,3 @@ class HarmonicDVR(CylindricalBasis):
         V = self.get_V()
         H = K + np.diag(V)
         return H
-
-
-if __name__ == "__main__":
-    # import matplotlib.pyplot as plt
-    h = HarmonicDVR(nu=0, dim=3)
-    H = h.get_H()
-    Es, phis = np.linalg.eigh(H)
-    print(Es)
-    # plt.plot(phis[0]/h.rs_scale)
-    # plt.show()
