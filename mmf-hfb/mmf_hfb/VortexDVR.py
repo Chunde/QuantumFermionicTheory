@@ -65,7 +65,12 @@ class VortexDVR(object):
         g = delta/res.nu
         return g
 
-    def _get_den(self, H):
+    def _get_psi(self, nu, u):
+        """apply weight on the u(v) to get the actual radial wave-function"""
+        b = self.bases[self.basis_match_rule(nu)]
+        return u*b.ws
+
+    def _get_den(self, H, nu):
         """
         return the densities for a given H
         """
@@ -76,6 +81,8 @@ class VortexDVR(object):
         for i in range(len(es)):
             E, uv = es[i], phis[i]
             u, v = uv[: offset], uv[offset:]
+            u = self._get_psi(nu=nu, u=v)
+            v = self._get_psi(nu=nu, u=v)
             fe = self.f(E=E)
             n_a = (1 - fe)*v**2
             n_b = fe*u**2
@@ -93,15 +100,22 @@ class VortexDVR(object):
         dens = 0
         for nu in range(self.l_max):  # sum over angular momentum
             H = self.get_H(mus=mus, delta=delta, nu=nu)
-            dens = dens + self._get_den(H)
+            dens = dens + self._get_den(H, nu=nu)
         n_a, n_b, kappa = dens
         return (n_a, n_b, kappa)
 
 
 if __name__ == "__main__":
-    mu=10
-    dmu = 5.5
+    mu = 10
+    dmu = 0
     mus = (mu + dmu, mu - dmu)
     delta=5
     dvr = VortexDVR(mu=mu, delta=delta)
-    dvr.get_densities(mus=mus, delta=delta)
+    delta = delta + dvr.bases[0].zero
+
+    while(True):
+        n_a, n_b, kappa = dvr.get_densities(mus=(mu, mu), delta=delta)
+        delta_ = -dvr.g*kappa
+        if np.allclose(delta, delta_):
+            break
+        delta=delta_

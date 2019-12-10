@@ -359,35 +359,6 @@ class BCS(object):
         n_b = np.diag(r_b).reshape(self.Nxyz).real
         nu = np.diag(nu_).reshape(self.Nxyz)
         return namedtuple('Densities', ['n_a', 'n_b', 'nu'])(n_a, n_b, nu)
-
-    def get_1d_currents(self, mus_eff, delta, N_twist=1):
-        """return current for 1d only"""
-        twistss = itertools.product(
-            *(np.arange(0, N_twist)*2.0*np.pi/N_twist,)*self.dim)
-        j_a = 0
-        j_b = 0
-        
-        def df(k, f):
-            return np.fft.ifft(1j*k*np.fft.fft(f))
-
-        for twists in twistss:
-            ks_bloch = np.divide(twists, self.Lxyz)
-            k = [_k + _kb for _k, _kb in zip(self.kxyz, ks_bloch)][0]
-
-            H = self.get_H(mus_eff=mus_eff, delta=delta, twists=twists)
-            N = self.Nxyz[0]
-            d, psi = np.linalg.eigh(H)
-            us, vs = psi.reshape(2, N, N * 2)
-            us, vs = us.T, vs.T
-            j_a_ = -0.5j*sum(
-                (us[i].conj()*df(k, us[i])
-                    -us[i]*df(k, us[i]).conj())*self.f(d[i]) for i in range(len(us)))
-            j_b_ = -0.5j*sum(
-                (vs[i]*df(k, vs[i]).conj()
-                    -vs[i].conj()*df(k, vs[i]))*self.f(-d[i]) for i in range(len(vs)))
-            j_a = j_a + j_a_
-            j_b = j_b + j_b_
-        return (j_a/N_twist/np.prod(self.dxyz), j_b/N_twist/np.prod(self.dxyz))
     
     def get_U_V(self, H, UV=None, transpose=False):
         """return U and V"""

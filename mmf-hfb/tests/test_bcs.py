@@ -3,6 +3,8 @@ import pytest
 import numpy as np
 import numpy
 from mmf_hfb import bcs, homogeneous
+import itertools
+
 
 @pytest.fixture(params=[1, 2, 3])
 def dim(request):
@@ -124,6 +126,36 @@ def test_BCS_get_densities(dim, NLx, T, N_twist):
         assert numpy.allclose(res.nu.get(), res_R.nu.get())
 
 
+def get_1d_currents(self, mus_eff, delta, N_twist=1):
+    """return current for 1d only"""
+    twistss = itertools.product(
+        *(np.arange(0, N_twist)*2.0*np.pi/N_twist,)*self.dim)
+    j_a = 0
+    j_b = 0
+    
+    def df(k, f):
+        return np.fft.ifft(1j*k*np.fft.fft(f))
+
+    for twists in twistss:
+        ks_bloch = np.divide(twists, self.Lxyz)
+        k = [_k + _kb for _k, _kb in zip(self.kxyz, ks_bloch)][0]
+
+        H = self.get_H(mus_eff=mus_eff, delta=delta, twists=twists)
+        N = self.Nxyz[0]
+        d, psi = np.linalg.eigh(H)
+        us, vs = psi.reshape(2, N, N * 2)
+        us, vs = us.T, vs.T
+        j_a_ = -0.5j*sum(
+            (us[i].conj()*df(k, us[i])
+                -us[i]*df(k, us[i]).conj())*self.f(d[i]) for i in range(len(us)))
+        j_b_ = -0.5j*sum(
+            (vs[i]*df(k, vs[i]).conj()
+                -vs[i].conj()*df(k, vs[i]))*self.f(-d[i]) for i in range(len(vs)))
+        j_a = j_a + j_a_
+        j_b = j_b + j_b_
+    return (j_a/N_twist/np.prod(self.dxyz), j_b/N_twist/np.prod(self.dxyz))
+
+
 def test_BCS_get_currents_1d(dim, NLx, T, N_twist):
     if dim != 1:
         return
@@ -148,13 +180,13 @@ def test_BCS_get_currents_1d(dim, NLx, T, N_twist):
 
     delta = np.exp(1j*b.xyz[0])
     res = b.get_densities((mu, mu), delta, N_twist=N_twist)
-    j_a, j_b = b.get_1d_currents((mu, mu), delta, N_twist=N_twist)
+    j_a, j_b = get_1d_currents(b, mus_eff=(mu, mu), delta=delta, N_twist=N_twist)
 
     assert np.allclose(res.j_a[0], j_a)
     assert np.allclose(res.j_b[0], j_b)  
 
 
 if __name__ == "__main__":
-    test_twist_average(dim=1, T=0)
+    test_BCS_get_currents_1d(dim=1, T=0)
 
     # test_BCS(dim=2, NLx=(4, 10.0, None), T=0, N_twist=2)

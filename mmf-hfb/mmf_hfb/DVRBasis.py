@@ -46,6 +46,7 @@ class CylindricalBasis(Basis):
         self.K = self.get_K(zs=self.zs, nu=nu)
         self.zero = np.zeros_like(self.zs)
         self.rs_scale = self._rs_scaling_factor(zs=self.zs)
+        self.ws = self.get_F_rs()/self.rs_scale  # weight
 
     def _init(self, a0=None):
         """evaluate R_max and K_max using Gaussian wavefunction"""
@@ -122,6 +123,10 @@ class CylindricalBasis(Basis):
         rs = self.get_rs(zs=zs)
         rs_ = rs**((self.dim - 1)/2.0)
         return rs_
+        
+    def _get_psi(self, u):
+        """apply weight on the u(v) to get the actual radial wave-function"""
+        return u*self.ws
 
     def get_u(self, psi):
         """convert psi to u"""
