@@ -125,6 +125,15 @@ from importlib import reload  # Python 3.4+
 # \right\} \tag{9}
 # \end{align}
 
+# $$
+# \phi(x,y)=\sum_{k_x,k_y}f(k_x,k_y)e^{-i(k_xx+k_yy)}\left(
+#         \left[\psi(x'_1,y'_1)e^{i(k_xx'_1+k_yy'_1)} + \psi(x'_1,y'_2)e^{i(k_xx'_1+k_yy'_2)} +...+\psi(x'_1,y'_{N_y})e^{i(k_xx'_1+k_yy'_{N_y})}\right] +\\
+#         \left[\psi(x'_2,y'_1)e^{i(k_xx'_2+k_yy'_1)} + \psi(x'_2,y'_2)e^{i(k_xx'_2+k_yy'_2)} +...+\psi(x'_2,y'_{N_y})e^{i(k_xx'_2+k_yy'_{N_y})}\right] +\\
+#         \vdots \\
+#         \left[\psi(x'_{N_x},y'_1)e^{i(k_xx'_{N_x}+k_yy'_1)} + \psi(x'_{N_x},y'_{N_x})e^{i(k_xx'_{N_x}+k_yy'_2)} +...+\psi(x'_{N_x},y'_{N_y})e^{i(k_xx'_{N_x}+k_yy'_{N_y})}\right]
+# \right)
+# $$
+
 # The braket terms can be rearragned as:
 # $$
 # e^{ik_xx'_1}\left[\psi(x'_1,y'_1)e^{ik_yy'_1} + \psi(x'_1,y'_2)e^{ik_yy'_2}+...\psi(x'_1,y'_{N_y})e^{ik_yy'_{N_y}}\right] +\\

@@ -367,8 +367,9 @@ from IPython.display import display, clear_output
 mu = 10
 dmu = 0
 mus = (mu + dmu, mu - dmu)
+delta=5
 dvr = VortexDVR(mu=mu, delta=delta)
-delta = 5 + dvr.bases[0].zero
+delta = delta + dvr.bases[0].zero
 
 while(True):
     n_a, n_b, kappa = dvr.get_densities(mus=(mu,mu), delta=delta)

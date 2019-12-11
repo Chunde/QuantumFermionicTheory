@@ -5,8 +5,8 @@
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.3'
-#       jupytext_version: 1.0.3
+#       format_version: '1.4'
+#       jupytext_version: 1.2.3
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -15,9 +15,12 @@
 
 # # BdG in Ratating Frame Transform
 
+# * In theoretical calculation, some quantities may gain space-dependence phase that would make calculation hard or more expensive. To transform a rotating phase away one can transform the Hamiltonian to a rotating frame.In theoretical calculation, some quantities may gain space-dependence phase that would make calculation hard or more expensive. To transform a rotating phase away one can transform the Hamiltonian to a rotating frame. A typical application of the rotating frame is in the GPE simulation, where the time dependent driving potential from laser beam to couple different pseudo-spin states can be absorbed into kinetics terms by transforming to the rotating frame from a lab frame. In BCS theories, similar application can be found in literature too.
+#
+
 # * Mathmatical identity
 # \begin{align}
-# \nabla^2(U(x)e^{iqx}
+# \nabla^2\left[U(x)e^{iqx}\right]
 # &=\nabla\left[\nabla U(x)e^{iqx}+U(x)iqe^{iqx}\right]\\
 # &=\nabla^2U(x)e^{iqx}+2iq\nabla U(x)e^{iqx}-q^2U(x)e^{iqx}\\
 # &=(\nabla+iq)^2U(x)e^{iqx}
