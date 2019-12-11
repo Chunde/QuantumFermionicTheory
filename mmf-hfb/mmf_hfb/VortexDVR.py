@@ -83,10 +83,14 @@ class VortexDVR(object):
             u, v = uv[: offset], uv[offset:]
             u = self._get_psi(nu=nu, u=v)
             v = self._get_psi(nu=nu, u=v)
-            fe = self.f(E=E)
-            n_a = (1 - fe)*v**2
-            n_b = fe*u**2
-            kappa = (1 - 2*fe)*u*v
+            f_p, f_m = self.f(E=E), self.f(E=-E)
+            n_a = u*u.conj()*f_p
+            n_b = v*v.conj()*f_m
+            kappa = u*v.conj()*(f_p - f_m)/2
+            # fe = self.f(E=E)
+            # n_a = (1 - fe)*v**2
+            # n_b = fe*u**2
+            # kappa = (1 - 2*fe)*u*v
             den = den + np.array([n_a, n_b, kappa])
         return den
 

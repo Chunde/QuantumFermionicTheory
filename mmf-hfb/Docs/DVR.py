@@ -316,13 +316,14 @@ class VortexDVR(object):
         for i in range(len(es)):
             E, uv = es[i], phis[i]
             u, v = uv[: offset], uv[offset:]
-            u = self._get_psi(nu=nu, u=v)
-            v = self._get_psi(nu=nu, u=v)
-            fe = self.f(E=E)
             f_p, f_m = self.f(E=E), self.f(E=-E)
-            n_a = (1 - fe)*v**2
-            n_b = fe*u**2
-            kappa = (1 - 2*fe)*u*v
+            n_a = u*u.conj()*f_p
+            n_b = v*v.conj()*f_m
+            kappa = -u*v.conj()*(f_p - f_m)/2
+            # fe = self.f(E=E)
+            # n_a = (1 - fe)*v**2
+            # n_b = fe*u**2
+            # kappa = (1 - 2*fe)*u*v
             den = den + np.array([n_a, n_b, kappa])
         return den
 
@@ -363,5 +364,65 @@ while(True):
         break      
     delta=delta_
 # -
+# # Compare to 2D Box
+
+
+from mmf_hfb import bcs, homogeneous
+
+# +
+dim = 2
+T=0
+N_twist = 1
+
+"""Compare the BCS lattice class with the homogeneous results."""
+np.random.seed(1)
+hbar, m, kF = 1, 1, 10
+eF = (hbar*kF)**2/2/m
+print(eF)
+mu = 0.28223521359748843*eF
+delta = 0.411726229961806*eF
+
+N, L, dx = 16, None, 0.1
+if dx is None:
+    args = dict(Nxyz=(N,)*dim, Lxyz=(L,)*dim)
+elif L is None:
+    args = dict(Nxyz=(N,)*dim, dx=dx)
+else:
+    args = dict(Lxyz=(L,)*dim, dx=dx)
+
+args.update(T=T)
+
+h = homogeneous.Homogeneous(**args)
+b = bcs.BCS(**args)
+
+res_h = h.get_densities((mu, mu), delta, N_twist=N_twist)
+res_b = b.get_densities((mu, mu), delta, N_twist=N_twist)
+print(res_h.n_a.n, res_b.n_a.mean())
+print(res_h.n_b.n, res_b.n_b.mean())
+print(res_h.nu.n, res_b.nu.mean().real)
+
+# +
+dmu = 0
+mus = (mu + dmu, mu - dmu)
+dvr = VortexDVR(mu=mu, delta=delta)
+delta = delta + dvr.bases[0].zero
+
+while(True):
+    n_a, n_b, kappa = dvr.get_densities(mus=(mu,mu), delta=delta)
+    delta_ = -dvr.g*kappa
+    plt.plot(dvr.bases[0].rs, delta_)
+    plt.plot(dvr.bases[0].rs, delta,'+')
+    plt.title(f"Error={(delta-delta_).max()}")
+    plt.ylabel(r"$\Delta$")
+    plt.show()
+    clear_output(wait=True)
+    if np.allclose(delta, delta_, atol=1e-8):
+        break      
+    delta=delta_
+# -
+
+n_a
+
+n_b
 
 
