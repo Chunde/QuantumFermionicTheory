@@ -40,6 +40,10 @@ class VortexDVR(object):
         assert len(self.bases) > 1  # make sure the number of bases is at least two
         return nu % 2
 
+    def get_Vext(self, rs):
+        """return external potential"""
+        return 0
+
     def get_H(self, mus, delta, nu=0):
         """
         return the full Hamiltonian(with pairing field)
@@ -48,9 +52,10 @@ class VortexDVR(object):
         T = basis.K
         Delta = np.diag(basis.zero + delta)
         mu_a, mu_b = mus
+        V_ext = self.get_Vext(rs=basis.rs)
         V_corr = basis.get_V_correction(nu=nu)
         V_mean_field = basis.get_V_mean_field(nu=nu)
-        V_eff = V_corr + V_mean_field
+        V_eff = V_ext + V_corr + V_mean_field
         H_a = T + np.diag(V_eff - mu_b)
         H_b = T + np.diag(V_eff - mu_a)
         H = block(H_a, Delta, Delta.conj(), -H_b)
@@ -107,6 +112,12 @@ class VortexDVR(object):
             dens = dens + self._get_den(H, nu=nu)
         n_a, n_b, kappa = dens
         return (n_a, n_b, kappa)
+
+
+class DVR2D(VortexDVR):
+    
+    def get_Vext(self, rs):
+        return rs**2/2
 
 
 if __name__ == "__main__":

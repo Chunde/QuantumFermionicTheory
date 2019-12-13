@@ -239,6 +239,7 @@ from mmf_hfb.utils import block
 from mmf_hfb import homogeneous
 import numpy as np
 
+
 class VortexDVR(object):
     """
     A 2D and 3D vortex class without external potential
@@ -275,6 +276,10 @@ class VortexDVR(object):
         assert len(self.bases) > 1  # make sure the number of bases is at least two
         return nu % 2
 
+    def get_Vext(self, rs):
+        """return external potential"""
+        return 0
+
     def get_H(self, mus, delta, nu=0):
         """
         return the full Hamiltonian(with pairing field)
@@ -283,9 +288,10 @@ class VortexDVR(object):
         T = basis.K
         Delta = np.diag(basis.zero + delta)
         mu_a, mu_b = mus
+        V_ext = self.get_Vext(rs=basis.rs)
         V_corr = basis.get_V_correction(nu=nu)
         V_mean_field = basis.get_V_mean_field(nu=nu)
-        V_eff = V_corr + V_mean_field
+        V_eff = V_ext + V_corr + V_mean_field
         H_a = T + np.diag(V_eff - mu_b)
         H_b = T + np.diag(V_eff - mu_a)
         H = block(H_a, Delta, Delta.conj(), -H_b)
@@ -316,10 +322,12 @@ class VortexDVR(object):
         for i in range(len(es)):
             E, uv = es[i], phis[i]
             u, v = uv[: offset], uv[offset:]
+            u = self._get_psi(nu=nu, u=v)
+            v = self._get_psi(nu=nu, u=v)
             f_p, f_m = self.f(E=E), self.f(E=-E)
             n_a = u*u.conj()*f_p
             n_b = v*v.conj()*f_m
-            kappa = -u*v.conj()*(f_p - f_m)/2
+            kappa = u*v.conj()*(f_p - f_m)/2
             # fe = self.f(E=E)
             # n_a = (1 - fe)*v**2
             # n_b = fe*u**2
@@ -367,7 +375,7 @@ while(True):
 # # Compare to 2D Box
 
 
-from mmf_hfb import bcs, homogeneous
+from mmfutils.plot import imcontourf
 
 # +
 dim = 2
@@ -378,18 +386,11 @@ N_twist = 1
 np.random.seed(1)
 hbar, m, kF = 1, 1, 10
 eF = (hbar*kF)**2/2/m
-print(eF)
 mu = 0.28223521359748843*eF
 delta = 0.411726229961806*eF
 
 N, L, dx = 16, None, 0.1
-if dx is None:
-    args = dict(Nxyz=(N,)*dim, Lxyz=(L,)*dim)
-elif L is None:
-    args = dict(Nxyz=(N,)*dim, dx=dx)
-else:
-    args = dict(Lxyz=(L,)*dim, dx=dx)
-
+args = dict(Nxyz=(N,)*dim, dx=dx)
 args.update(T=T)
 
 h = homogeneous.Homogeneous(**args)
@@ -410,19 +411,124 @@ delta = delta + dvr.bases[0].zero
 while(True):
     n_a, n_b, kappa = dvr.get_densities(mus=(mu,mu), delta=delta)
     delta_ = -dvr.g*kappa
+    plt.figure(figsize=(16, 5))
+    plt.subplot(121)
     plt.plot(dvr.bases[0].rs, delta_)
     plt.plot(dvr.bases[0].rs, delta,'+')
     plt.title(f"Error={(delta-delta_).max()}")
     plt.ylabel(r"$\Delta$")
+    plt.subplot(122)
+    plt.plot(dvr.bases[0].rs, n_a)
+    plt.plot(dvr.bases[0].rs, n_b, '+')
     plt.show()
     clear_output(wait=True)
     if np.allclose(delta, delta_, atol=1e-8):
-        break      
+        break
     delta=delta_
+
+# +
+# # Harmonic in Plane Basis
+# * Make sure the plane wave basis yields the desired result
 # -
 
-n_a
+Nx = 32
+L = 16
+dim = 2
+dx = L/Nx
+bcs = BCS(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
+x = bcs.xyz
+V=sum(np.array(x)**2/2.0).ravel()
+K = bcs._get_K()
+H = K + np.diag(V)
+Es, phis = np.linalg.eigh(H)
+Es[:10]
 
-n_b
+
+# ## 2D Harmonic in a lattice
+
+class HO2D(BCS):
+    """2D harmonic"""
+    def get_v_ext(self, **kw):
+        """Return the external potential."""
+        V=sum(np.array(self.xyz)**2/2.0)
+        return (V, V)
+    
+
+
+Nx = 32
+L = 16
+dim = 2
+dx = L/Nx
+mu = 10
+dmu = 0
+delta = 1
+b2 = HO2D(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
+res = b2.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta)
+n_a, n_b = res.n_a, res.n_b
+
+x, y = b2.xyz
+plt.figure(figsize=(14, 5))
+plt.subplot(121)
+imcontourf(x, y, n_a)
+plt.colorbar()
+plt.subplot(122)
+imcontourf(x, y, n_b)
+plt.colorbar()
+
+
+# ## Visualize single 2D wavefunction
+
+Nx = 32
+L = 16
+dim = 2
+dx = L/Nx
+bcs = BCS(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
+x = bcs.xyz
+V=sum(np.array(x)**2/2.0).ravel()
+K = bcs._get_K()
+H = K + np.diag(V)
+Es, psis = np.linalg.eigh(H)
+Es[:10]
+
+x, y = bcs.xyz
+plt.figure(figsize=(7, 5))
+psi = psis[10].reshape((bcs.Nxyz))
+n0 = abs(psi)**2
+imcontourf(x, y, n0.real)
+plt.colorbar()
+
+psi.real[16]
+
+
+# ## 2D harmonic in DVR basis
+
+class DVR2D(VortexDVR):
+    """a 2D DVR with harmonic potential class"""
+    def get_Vext(self, rs):
+        return rs**2/2
+
+
+# +
+dvr = DVR2D(mu=mu, dmu=dmu, delta=delta)
+delta = delta + dvr.bases[0].zero
+
+while(True):
+    n_a, n_b, kappa = dvr.get_densities(mus=(mu,mu), delta=delta)
+    delta_ = -dvr.g*kappa
+    plt.figure(figsize=(16, 5))
+    plt.subplot(121)
+    plt.plot(dvr.bases[0].rs, delta_)
+    plt.plot(dvr.bases[0].rs, delta,'+')
+    plt.title(f"Error={(delta-delta_).max()}")
+    plt.ylabel(r"$\Delta$")
+    plt.subplot(122)
+    plt.plot(dvr.bases[0].rs, n_a)
+    plt.plot(dvr.bases[0].rs, n_b, '+')
+    plt.show()
+    clear_output(wait=True)
+    if np.allclose(delta, delta_, atol=1e-8):
+        break
+    delta=delta_
+# -
 
 
