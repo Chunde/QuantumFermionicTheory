@@ -373,6 +373,7 @@ class BCS(object):
     def _get_densities_H(self, H, twists=0):
         """return densities for a given H"""
         d, UV = np.linalg.eigh(H)
+        self._d = d  #
         U, V = U_V = self.get_U_V(H=H, UV=UV)
         dU_Vs = self._Del(U_V, twists=twists)
         dUs, dVs = dU_Vs[:, 0, ...], dU_Vs[:, 1, ...]

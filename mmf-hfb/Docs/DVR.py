@@ -19,132 +19,11 @@ import mmf_setup;mmf_setup.nbinit()
 from nbimports import *
 import numpy as np
 import matplotlib.pyplot as plt
-import mmf_hfb.DVRBasis as HarmonicDVR; reload(HarmonicDVR)
-from mmf_hfb.DVRBasis import HarmonicDVR
 from scipy.integrate import quad
 from mmfutils.math import bessel
 from mmf_hfb.bcs import BCS
+from mmf_hfb.DVRBasis import CylindricalBasis
 
-
-# # Definition of DVR
-
-# Let $\phi_1(x), \phi_2(x)\dots \phi_n(x)$ be normalized and orthogonal basis in the Hilbert space $H$, $\{x_\alpha\}=(x_1, x_2, \dots, x_m)$ be a set of grid point in the configuration space of the system on which the coordinate system is based. Define the projector operator as:
-#
-# $$
-# P=\sum_n{\ket{\phi_n}\bra{\phi_n}}\qquad \text{It may be easy to prove}:  P^2=P=P^{\dagger}
-# $$
-# Then let:
-# $$
-# \ket{\Delta_\alpha}=P\ket{x_\alpha}=\sum_n{\ket{\phi_n}\braket{\phi_n| x_\alpha}}=\sum_n{\phi_n^*(x_\alpha)}\ket{\phi_n}
-# $$
-# If these $(\ket{\Delta_1}, \ket{\Delta_2},\dots, \ket{\Delta_m})$ is complete in the subspace $S=PH$, and orthogonal, ie:
-#
-# $$
-# \braket{\Delta_\alpha|\Delta_\beta}=N_{\alpha}\delta_{\alpha\beta}\qquad N_\alpha > 0 \tag{1}
-# $$
-#
-# Then we say $(\ket{\Delta_1}, \ket{\Delta_2},\dots, \ket{\Delta_m})$ is the DVR set of the space $S$, we may also call $\ket{\Delta_{\alpha}}$ a DVR state, and each of such state is associated with a grid point, i.e: $x_{\alpha}$ as it's defined upon.
-
-# ## Example
-
-# Say we have three function in the basis: $\phi_1(x), \phi_2(x), \phi_3(x)$ associated with a set of abscissa{$x_n$}={$x_1, x_2, x_3, x_4$}, they are orthogonal,ie:
-# $$
-# \braket{\phi_i|\phi_j}=\int_a^b{\phi^*_i(x)\phi_j(x)}dx=\delta_{ij} \qquad
-# $$
-# Then:
-# $$
-# \ket{\Delta_1}=\sum_{n=1}^3{\phi_n^*(x_1)}\ket{\phi_n}=\phi_1^*(x_1)\ket{\phi_1}+\phi_2^*(x_1)\ket{\phi_2}+\phi_3^*(x_1)\ket{\phi_3}\\
-# \ket{\Delta_2}=\sum_{n=1}^3{\phi_n^*(x_2)}\ket{\phi_n}=\phi_1^*(x_2)\ket{\phi_1}+\phi_2^*(x_2)\ket{\phi_2}+\phi_3^*(x_2)\ket{\phi_3}\\
-# \ket{\Delta_3}=\sum_{n=1}^3{\phi_n^*(x_3)}\ket{\phi_n}=\phi_1^*(x_3)\ket{\phi_1}+\phi_2^*(x_3)\ket{\phi_2}+\phi_3^*(x_3)\ket{\phi_3}\\
-# \ket{\Delta_4}=\sum_{n=1}^3{\phi_n^*(x_4)}\ket{\phi_n}=\phi_1^*(x_4)\ket{\phi_1}+\phi_2^*(x_4)\ket{\phi_2}+\phi_3^*(x_4)\ket{\phi_3}\\
-# $$
-#
-# With the condition (1):
-
-# $$
-# \braket{\Delta_i|\Delta_j}=\phi^*_1(x_i)\phi_1(x_j)+\phi^*_2(x_i)\phi_2(x_j)+\phi^*_3(x_i)\phi_3(x_j)=N_i\delta_{ij}
-# $$
-#
-# where
-# $$
-# N_i=\sum_{n=1}^3{\phi_n^*(x_i)\phi_n(x_i)}
-# $$
-
-# Let:
-# $$
-# \mat{G}=\begin{pmatrix}
-# \phi_1(x_1) & \phi_1(x_2) & \phi_1(x_3) &\phi_1(x_4)\\
-# \phi_2(x_1) & \phi_2(x_2) & \phi_2(x_3) &\phi_2(x_4)\\
-# \phi_3(x_1) & \phi_3(x_2) & \phi_3(x_3) &\phi_3(x_4)\\
-# \end{pmatrix}
-# $$
-# Hence, we arrive:
-# $$
-# G^{\dagger}G=\mat{G}=\begin{pmatrix}
-# N_1 & 0 & 0 & 0\\
-# 0 & N_2 & 0 & 0\\
-# 0 & 0 & N_3 & 0\\
-# 0 & 0 & 0 & N_4
-# \end{pmatrix}
-# $$
-#
-
-# Now let consider the properity of $\braket{x|\Delta_i}$
-# $$
-# \Delta_i(x)=\braket{x|\Delta_i}=\psi^*_1(x_i)\psi_1(x)+\psi^*_2(x_i)\psi_2(x)+\psi^*_3(x_i)\psi_3(x)
-# $$
-#
-# if evaluate the $\Delta_i(x)$ at those grid points, it can be found:
-#
-# $$
-# \Delta_i(x_j)=N_i\delta_{ij}
-# $$
-#
-# This is an interesting property, the DVR state $\ket{\Delta_i}$ is localized at it's own grid point $x_i$, which means, it's only non-zero at it's own grid point. In other words, the DVR states satisfy simultaneously two properties: $Orthogonality$ and $Interpolation.$
-
-# ## Normalized DVR
-# if define:
-# $$
-# \ket{F_{\alpha}}=\frac{1}{\sqrt{N_{\alpha}}}\ket{\Delta_{\alpha}}\qquad\\
-# $$
-#
-# Then
-#
-# $$
-# \braket{F_i|F_j}=\delta_{ij} \qquad (Normalized)
-# $$
-
-# ## Expansion of States
-# For a general state $\ket{\psi}$ in the sub space $\mat{H}$, then it can be expanded exactly in the DVR basis:
-#
-# $$
-# \ket{\psi}=\sum_{n=1}^m\ket{F_n}\braket{F_n|\psi}
-# $$
-#
-# As:
-# $$
-# \ket{F_i}=\frac{1}{\sqrt{N_i}}\ket{\Delta_i}=\frac{1}{\sqrt{N_i}}P\ket{x_i}
-# $$
-
-# So:
-# $$
-# \braket{F_i|\psi}=\frac{1}{\sqrt{N_i}}\bra{x_i}P^{\dagger}\ket{\psi}=\frac{1}{\sqrt{N_i}}\bra{x_i}P\ket{\psi}
-# $$
-
-# Because we assume $\ket{\psi}$ is in the subspace spaned by the basis, then $P\ket{\psi}=\psi$ as it's being projected to the same space.
-# So the result is:
-# $$
-# \braket{F_i|\psi}=\frac{1}{\sqrt{N_i}}\psi(x_i)\\
-# \ket{\psi}=\sum_{n=1}^m\frac{1}{\sqrt{N_i}}\psi(x_i)\ket{F_n}
-# $$
-
-# This result shows that the expansion coefficient of a state is simply connect to its value at grid points.
-
-# ## Scalar Product
-# To compute integral $\braket{\phi|\psi}$, we insert the unitary relation into the integral to get:
-# $$
-# \braket{\phi|\psi}=\sum_i\braket{\phi|F_i}\braket{F_i|\psi}=\sum_i \frac{1}{N_i}\phi^*(x_i)\psi(x_i)
-# $$
 
 # # 2D Harmonic System
 #
@@ -157,6 +36,9 @@ def Normalize(psi):
 
 def HO_psi(n, m, rs):
     """
+    return 2d radia wave function for a 
+    harmonic oscillator.
+    ------------------------------------
     n = E -1
         e.g if E=1, to select the corresponding
         wavefunction, use n=E-1=0, and m = 0
@@ -181,6 +63,31 @@ def HO_psi(n, m, rs):
 
 # -
 
+# ## Harmonic DVR Class
+
+class HarmonicDVR(CylindricalBasis):
+    m=hbar=w=1
+    eps = 7./3 - 4./3 -1  # machine accuracy
+
+    def __init__(self, w=1, nu=0, dim=2, **args):
+        CylindricalBasis.__init__(self, nu=nu, dim=dim, **args)
+        self.w = w
+
+    def get_V(self):
+        """return the external potential"""
+        r2 = (self.rs)**2
+        return self.w**2*r2/2
+
+    def get_H(self, nu=None):
+        if nu is None:
+            nu = self.nu
+        K = self.K
+        V = self.get_V()
+        V_corr = self.get_V_correction(nu=nu)  # correction centrifigal piece due to different angular quantum number
+        H = K + np.diag(V + V_corr)
+        return H
+
+
 # ## Construct Wavefunction from a basis
 
 # +
@@ -190,20 +97,25 @@ H = h.get_H()
 Es, us = np.linalg.eigh(H)
 Fs = h.get_F_rs()
 print(Es[:10])
-rs = np.linspace(0.01, 8, 500)
-wf =sum([u*h.get_F(nu=0, n=i, rs=rs) for (i, u) in enumerate(us.T[1])])
-wf_ = us.T[1]*h.ws
-plt.subplot(211)
-scale_factor = HO_psi(n=2, m=1, rs=rs[0])*rs[0]**0.5/wf[0]
-plt.plot(rs, HO_psi(n=2, m=1, rs=rs), '+', label='Analytical')
-plt.plot(h.rs, wf_*scale_factor,'o', label='Reconstructed(Fs)')
-plt.plot(rs, (wf*scale_factor/rs**0.5), '-',label='Reconstructed')
+rs = np.linspace(0.01, 8, 100)
+
+for n in [0, 1]:
+    wf =sum([u*h.get_F(nu=0, n=i, rs=rs) for (i, u) in enumerate(us.T[n])])
+    wf_ = us.T[n]*h.ws
+    plt.subplot(211)
+    scale_factor = HO_psi(n=2*n, m=2*n-1, rs=rs[0])*rs[0]**0.5/wf[0]
+
+    plt.plot(rs, HO_psi(n=2*n, m=2*n-1, rs=rs), '+', label='Analytical')
+    plt.plot(h.rs, wf_*scale_factor,'o', label='Reconstructed(Fs)')
+    plt.plot(rs, (wf*scale_factor/rs**0.5), '-',label='Reconstructed')
+
 plt.xlabel("r")
 plt.ylabel("F(r)")
 plt.axhline(0, c='r', linestyle='dashed')
 plt.legend()
 
 plt.subplot(212)
+rs = np.linspace(0.01, 8, 500)
 plt.plot(h.rs, Fs, 'o')
 for i in range(10):
     l, = plt.plot(rs, h.get_F(n=i, rs=rs), label=r'$\nu$'+f'{i}')
@@ -213,7 +125,7 @@ plt.legend()
 # -
 
 plt.figure(figsize=(16, 8))
-h = HarmonicDVR(nu=1, dim=2, w=1)
+h = HarmonicDVR(nu=1, w=1)
 H = h.get_H()
 Es, us = np.linalg.eigh(H)
 print(Es[:10])
@@ -303,7 +215,7 @@ class VortexDVR(object):
         """
         h = homogeneous.Homogeneous(dim=3)
         res = h.get_densities(mus_eff=(mu, mu), delta=delta)
-        g = delta/res.nu
+        g = 0 if res.nu == 0 else delta/res.nu
         return g
 
     def _get_psi(self, nu, u):
@@ -348,30 +260,8 @@ class VortexDVR(object):
             dens = dens + self._get_den(H, nu=nu)
         n_a, n_b, kappa = dens
         return (n_a, n_b, kappa)
-
-
-
-# +
-mu = 10
-dmu = 0
-mus = (mu + dmu, mu - dmu)
-delta=5
-dvr = VortexDVR(mu=mu, delta=delta)
-delta = delta + dvr.bases[0].zero
-
-while(True):
-    n_a, n_b, kappa = dvr.get_densities(mus=(mu,mu), delta=delta)
-    delta_ = -dvr.g*kappa
-    plt.plot(dvr.bases[0].rs, delta_)
-    plt.plot(dvr.bases[0].rs, delta,'+')
-    plt.title(f"Error={(delta-delta_).max()}")
-    plt.ylabel(r"$\Delta$")
-    plt.show()
-    clear_output(wait=True)
-    if np.allclose(delta, delta_):
-        break      
-    delta=delta_
 # -
+
 # # Compare to 2D Box
 
 
@@ -394,7 +284,7 @@ args = dict(Nxyz=(N,)*dim, dx=dx)
 args.update(T=T)
 
 h = homogeneous.Homogeneous(**args)
-b = bcs.BCS(**args)
+b = BCS(**args)
 
 res_h = h.get_densities((mu, mu), delta, N_twist=N_twist)
 res_b = b.get_densities((mu, mu), delta, N_twist=N_twist)
@@ -403,33 +293,31 @@ print(res_h.n_b.n, res_b.n_b.mean())
 print(res_h.nu.n, res_b.nu.mean().real)
 
 # +
-dmu = 0
-mus = (mu + dmu, mu - dmu)
-dvr = VortexDVR(mu=mu, delta=delta)
-delta = delta + dvr.bases[0].zero
+# dmu = 0
+# mus = (mu + dmu, mu - dmu)
+# dvr = VortexDVR(mu=mu, delta=delta)
+# delta = delta + dvr.bases[0].zero
 
-while(True):
-    n_a, n_b, kappa = dvr.get_densities(mus=(mu,mu), delta=delta)
-    delta_ = -dvr.g*kappa
-    plt.figure(figsize=(16, 5))
-    plt.subplot(121)
-    plt.plot(dvr.bases[0].rs, delta_)
-    plt.plot(dvr.bases[0].rs, delta,'+')
-    plt.title(f"Error={(delta-delta_).max()}")
-    plt.ylabel(r"$\Delta$")
-    plt.subplot(122)
-    plt.plot(dvr.bases[0].rs, n_a)
-    plt.plot(dvr.bases[0].rs, n_b, '+')
-    plt.show()
-    clear_output(wait=True)
-    if np.allclose(delta, delta_, atol=1e-8):
-        break
-    delta=delta_
-
-# +
-# # Harmonic in Plane Basis
-# * Make sure the plane wave basis yields the desired result
+# while(True):
+#     n_a, n_b, kappa = dvr.get_densities(mus=(mu,mu), delta=delta)
+#     delta_ = -dvr.g*kappa
+#     plt.figure(figsize=(16, 5))
+#     plt.subplot(121)
+#     plt.plot(dvr.bases[0].rs, delta_)
+#     plt.plot(dvr.bases[0].rs, delta,'+')
+#     plt.title(f"Error={(delta-delta_).max()}")
+#     plt.ylabel(r"$\Delta$")
+#     plt.subplot(122)
+#     plt.plot(dvr.bases[0].rs, n_a)
+#     plt.plot(dvr.bases[0].rs, n_b, '+')
+#     plt.show()
+#     clear_output(wait=True)
+#     if np.allclose(delta, delta_, atol=1e-8):
+#         break
+#     delta=delta_
 # -
+
+# ### Lattice Spectrum
 
 Nx = 32
 L = 16
@@ -443,26 +331,47 @@ H = K + np.diag(V)
 Es, phis = np.linalg.eigh(H)
 Es[:10]
 
+# ### DVR Spectrum
+
+Es = []
+h = HarmonicDVR(nu=0, w=1, N_root=10)
+H = h.get_H(nu=None)
+Es_, us = np.linalg.eigh(H)
+Es.extend(Es_)
+print(np.sort(Es))
+
+Nx = 128
+L = 23
+dim = 1
+dx = L/Nx
+mu = 0
+dmu = 0
+delta = 0
+b2 = HO_bcs(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
+res = b2.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta)
+n_a, n_b = res.n_a, res.n_b
+
+b2._d[Nx: Nx+32]
+
 
 # ## 2D Harmonic in a lattice
 
-class HO2D(BCS):
+class HO_bcs(BCS):
     """2D harmonic"""
     def get_v_ext(self, **kw):
         """Return the external potential."""
         V=sum(np.array(self.xyz)**2/2.0)
         return (V, V)
-    
 
 
 Nx = 32
-L = 16
+L = 10
 dim = 2
 dx = L/Nx
-mu = 10
+mu = 5
 dmu = 0
 delta = 1
-b2 = HO2D(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
+b2 = HO_bcs(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
 res = b2.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta)
 n_a, n_b = res.n_a, res.n_b
 
@@ -476,9 +385,11 @@ imcontourf(x, y, n_b)
 plt.colorbar()
 
 
+b2._d[1024:1050]
+
 # ## Visualize single 2D wavefunction
 
-Nx = 32
+Nx = 64
 L = 16
 dim = 2
 dx = L/Nx
@@ -488,16 +399,15 @@ V=sum(np.array(x)**2/2.0).ravel()
 K = bcs._get_K()
 H = K + np.diag(V)
 Es, psis = np.linalg.eigh(H)
+psis = psis.T
 Es[:10]
 
 x, y = bcs.xyz
 plt.figure(figsize=(7, 5))
-psi = psis[10].reshape((bcs.Nxyz))
+psi = psis[1].reshape((bcs.Nxyz))
 n0 = abs(psi)**2
 imcontourf(x, y, n0.real)
 plt.colorbar()
-
-psi.real[16]
 
 
 # ## 2D harmonic in DVR basis
@@ -509,6 +419,9 @@ class DVR2D(VortexDVR):
 
 
 # +
+mu=10
+dmu=0
+delta=0
 dvr = DVR2D(mu=mu, dmu=dmu, delta=delta)
 delta = delta + dvr.bases[0].zero
 

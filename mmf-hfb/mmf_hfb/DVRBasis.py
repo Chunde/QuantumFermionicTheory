@@ -33,6 +33,7 @@ class CylindricalBasis(Basis):
             dimensionality
         """
         if N_root is None or R_max is None or K_max is None:
+            Warning("Parameters N_root, R_max and K_max are ignored as not all of them are not None")
             self._init(a0=a0)
         else:
             self.N_root = N_root
@@ -193,8 +194,8 @@ class HarmonicDVR(CylindricalBasis):
     m=hbar=w=1
     eps = 7./3 - 4./3 -1  # machine accuracy
 
-    def __init__(self, w=1, nu=0, dim=2):
-        CylindricalBasis.__init__(self, nu=nu, dim=dim)
+    def __init__(self, w=1, nu=0, dim=2, **args):
+        CylindricalBasis.__init__(self, nu=nu, dim=dim, **args)
         self.w = w
 
     def get_V(self):
@@ -202,8 +203,20 @@ class HarmonicDVR(CylindricalBasis):
         r2 = (self.rs)**2
         return self.w**2*r2/2
 
-    def get_H(self):
+    def get_H(self, nu=None):
+        if nu is None:
+            nu = self.nu
         K = self.K
         V = self.get_V()
-        H = K + np.diag(V)
+        V_corr = self.get_V_correction(nu=nu)  # correction centrifugal piece due to different angular quantum number
+        H = K + np.diag(V + V_corr)
         return H
+    
+
+if __name__ == "__main__":
+    Es = []
+    h = HarmonicDVR(nu=0, w=1, N_root=10)
+    H = h.get_H(nu=2)
+    Es_, us = np.linalg.eigh(H)
+    Es.extend(Es_)
+    print(np.sort(Es))
