@@ -103,7 +103,7 @@ for n in [0, 1]:
     wf =sum([u*h.get_F(nu=0, n=i, rs=rs) for (i, u) in enumerate(us.T[n])])
     wf_ = us.T[n]*h.ws
     plt.subplot(211)
-    scale_factor = HO_psi(n=2*n, m=2*n-1, rs=rs[0])*rs[0]**0.5/wf[0]
+    scale_factor = 1# HO_psi(n=2*n, m=2*n-1, rs=rs[0])*rs[0]**0.5/wf[0]
 
     plt.plot(rs, HO_psi(n=2*n, m=2*n-1, rs=rs), '+', label='Analytical')
     plt.plot(h.rs, wf_*scale_factor,'o', label='Reconstructed(Fs)')
@@ -136,7 +136,143 @@ plt.plot(rs, Normalize(HO_psi(n=1, m=1, rs=rs)), '+', label='Analytical')
 plt.axhline(0, linestyle='dashed')
 plt.legend()
 
-# # DVR Vortices
+# # Compare to 2D Box
+
+
+from mmfutils.plot import imcontourf
+
+# +
+dim = 2
+T=0
+N_twist = 1
+
+"""Compare the BCS lattice class with the homogeneous results."""
+np.random.seed(1)
+hbar, m, kF = 1, 1, 10
+eF = (hbar*kF)**2/2/m
+mu = 0.28223521359748843*eF
+delta = 0.411726229961806*eF
+
+N, L, dx = 16, None, 0.1
+args = dict(Nxyz=(N,)*dim, dx=dx)
+args.update(T=T)
+
+h = homogeneous.Homogeneous(**args)
+b = BCS(**args)
+
+res_h = h.get_densities((mu, mu), delta, N_twist=N_twist)
+res_b = b.get_densities((mu, mu), delta, N_twist=N_twist)
+print(res_h.n_a.n, res_b.n_a.mean())
+print(res_h.n_b.n, res_b.n_b.mean())
+print(res_h.nu.n, res_b.nu.mean().real)
+# -
+
+# ## Lattice Spectrum
+
+Nx = 32
+L = 16
+dim = 2
+dx = L/Nx
+bcs = BCS(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
+x = bcs.xyz
+V=sum(np.array(x)**2/2.0).ravel()
+K = bcs._get_K()
+H = K + np.diag(V)
+Es, phis = np.linalg.eigh(H)
+Es[:40]
+
+# ## DVR Spectrum
+# * <font color='red'> It can be seen, all states in $\nu !=0$ basis are double degeneracy<font/>
+
+Es = []
+for nu in range(10):
+    h = HarmonicDVR(nu=nu, w=1, N_root=10)
+    H = h.get_H(nu=nu)
+    Es_, us = np.linalg.eigh(H)
+    print(Es_[:10])
+    if nu == 0:
+        Es.extend(Es_)
+    else:
+        Es.extend(Es_)
+        Es.extend(Es_)
+print("-----------------------")
+print(np.sort(Es)[:40])
+
+
+# ## 2D Harmonic in a lattice
+
+class HO_bcs(BCS):
+    """2D harmonic"""
+    def get_v_ext(self, **kw):
+        """Return the external potential."""
+        V=sum(np.array(self.xyz)**2/2.0)
+        return (V, V)
+
+
+# ## 1D BCS double-check
+
+Nx = 128
+L = 23
+dim = 1
+dx = L/Nx
+mu = 0
+dmu = 0
+delta = 0
+b2 = HO_bcs(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
+res = b2.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta)
+n_a, n_b = res.n_a, res.n_b
+
+b2._d[Nx: Nx+32]
+
+# ## 2D BCS double-check
+
+Nx = 32
+L = 10
+dim = 2
+dx = L/Nx
+mu = 5
+dmu = 0
+delta = 1
+b2 = HO_bcs(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
+res = b2.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta)
+n_a, n_b = res.n_a, res.n_b
+
+x, y = b2.xyz
+plt.figure(figsize=(14, 5))
+plt.subplot(121)
+imcontourf(x, y, n_a)
+plt.colorbar()
+plt.subplot(122)
+imcontourf(x, y, n_b)
+plt.colorbar()
+
+
+b2._d[1014:1034]
+
+# ## Visualize single 2D wavefunction
+# * For BCS uses a plance wave basis, the angular momentum part is automatically incooporated to the wavefunction
+
+Nx = 64
+L = 16
+dim = 2
+dx = L/Nx
+bcs = BCS(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
+x = bcs.xyz
+V=sum(np.array(x)**2/2.0).ravel()
+K = bcs._get_K()
+H = K + np.diag(V)
+Es, psis = np.linalg.eigh(H)
+psis = psis.T
+Es[:10]
+
+x, y = bcs.xyz
+plt.figure(figsize=(7, 5))
+psi = psis[1].reshape((bcs.Nxyz))
+n0 = abs(psi)**2
+imcontourf(x, y, n0.real)
+plt.colorbar()
+
+# # DVR Vortex Class
 #
 # Steps:
 #
@@ -145,6 +281,8 @@ plt.legend()
 # * compute $n_a = \psi_a^*\psi_a, n_b=\psi_b^*\psi_b, \kappa = \psi_a\psi_b$
 # * update $\Delta=-g\kappa$, return to first step to iterate
 
+# ## 2D harmonic in DVR basis
+
 # +
 from mmf_hfb.DVRBasis import CylindricalBasis
 from mmf_hfb.utils import block
@@ -152,7 +290,7 @@ from mmf_hfb import homogeneous
 import numpy as np
 
 
-class VortexDVR(object):
+class vortex_dvr(object):
     """
     A 2D and 3D vortex class without external potential
     """
@@ -260,39 +398,62 @@ class VortexDVR(object):
             dens = dens + self._get_den(H, nu=nu)
         n_a, n_b, kappa = dens
         return (n_a, n_b, kappa)
+
+
 # -
 
-# # Compare to 2D Box
+class vortex_dvr_ho(vortex_dvr):
+    """a 2D DVR with harmonic potential class"""
+    def get_Vext(self, rs):
+        return rs**2/2
 
 
-from mmfutils.plot import imcontourf
+mu=0
+dmu=0
+delta=0
+mus = (mu+dmu, mu-dmu)
+d = vortex_dvr_ho(mu=mu, dmu=dmu, delta=delta)
+H = d.get_H(mus=mus, delta=delta, nu=0)
+es, phis = np.linalg.eigh(H)
+ps=phis.T
 
-# +
-dim = 2
-T=0
-N_twist = 1
+i=35
+print(es[i])
+plt.plot( ps[i], label='u')
+psi_a = d._get_psi(nu=0, u=ps[i][:33])
+plt.plot(psi_a, label=r'$\phi_a$')
+psi_a = d._get_psi(nu=0, u=ps[i][33:])
+plt.plot(psi_a, label=r'$\phi_b$')
+plt.axhline(0, linestyle='dashed', c='r')
+plt.legend()
 
-"""Compare the BCS lattice class with the homogeneous results."""
-np.random.seed(1)
-hbar, m, kF = 1, 1, 10
-eF = (hbar*kF)**2/2/m
-mu = 0.28223521359748843*eF
-delta = 0.411726229961806*eF
-
-N, L, dx = 16, None, 0.1
-args = dict(Nxyz=(N,)*dim, dx=dx)
-args.update(T=T)
-
-h = homogeneous.Homogeneous(**args)
-b = BCS(**args)
-
-res_h = h.get_densities((mu, mu), delta, N_twist=N_twist)
-res_b = b.get_densities((mu, mu), delta, N_twist=N_twist)
-print(res_h.n_a.n, res_b.n_a.mean())
-print(res_h.n_b.n, res_b.n_b.mean())
-print(res_h.nu.n, res_b.nu.mean().real)
+# #  Test Bed
 
 # +
+# mu=0
+# dmu=0
+# delta=0
+# dvr = DVR2D(mu=mu, dmu=dmu, delta=delta)
+# delta = delta + dvr.bases[0].zero
+# dvr.l_max=1
+# while(True):
+#     n_a, n_b, kappa = dvr.get_densities(mus=(mu,mu), delta=delta)
+#     delta_ = -dvr.g*kappa
+#     plt.figure(figsize=(16, 5))
+#     plt.subplot(121)
+#     plt.plot(dvr.bases[0].rs, delta_)
+#     plt.plot(dvr.bases[0].rs, delta,'+')
+#     plt.title(f"Error={(delta-delta_).max()}")
+#     plt.ylabel(r"$\Delta$")
+#     plt.subplot(122)
+#     plt.plot(dvr.bases[0].rs, n_a)
+#     plt.plot(dvr.bases[0].rs, n_b, '+')
+#     plt.show()
+#     clear_output(wait=True)
+#     if np.allclose(delta, delta_, atol=1e-8):
+#         break
+#     delta=delta_
+# + {}
 # dmu = 0
 # mus = (mu + dmu, mu - dmu)
 # dvr = VortexDVR(mu=mu, delta=delta)
@@ -317,131 +478,5 @@ print(res_h.nu.n, res_b.nu.mean().real)
 #     delta=delta_
 # -
 
-# ### Lattice Spectrum
-
-Nx = 32
-L = 16
-dim = 2
-dx = L/Nx
-bcs = BCS(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
-x = bcs.xyz
-V=sum(np.array(x)**2/2.0).ravel()
-K = bcs._get_K()
-H = K + np.diag(V)
-Es, phis = np.linalg.eigh(H)
-Es[:10]
-
-# ### DVR Spectrum
-
-Es = []
-h = HarmonicDVR(nu=0, w=1, N_root=10)
-H = h.get_H(nu=None)
-Es_, us = np.linalg.eigh(H)
-Es.extend(Es_)
-print(np.sort(Es))
-
-Nx = 128
-L = 23
-dim = 1
-dx = L/Nx
-mu = 0
-dmu = 0
-delta = 0
-b2 = HO_bcs(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
-res = b2.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta)
-n_a, n_b = res.n_a, res.n_b
-
-b2._d[Nx: Nx+32]
-
-
-# ## 2D Harmonic in a lattice
-
-class HO_bcs(BCS):
-    """2D harmonic"""
-    def get_v_ext(self, **kw):
-        """Return the external potential."""
-        V=sum(np.array(self.xyz)**2/2.0)
-        return (V, V)
-
-
-Nx = 32
-L = 10
-dim = 2
-dx = L/Nx
-mu = 5
-dmu = 0
-delta = 1
-b2 = HO_bcs(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
-res = b2.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta)
-n_a, n_b = res.n_a, res.n_b
-
-x, y = b2.xyz
-plt.figure(figsize=(14, 5))
-plt.subplot(121)
-imcontourf(x, y, n_a)
-plt.colorbar()
-plt.subplot(122)
-imcontourf(x, y, n_b)
-plt.colorbar()
-
-
-b2._d[1024:1050]
-
-# ## Visualize single 2D wavefunction
-
-Nx = 64
-L = 16
-dim = 2
-dx = L/Nx
-bcs = BCS(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
-x = bcs.xyz
-V=sum(np.array(x)**2/2.0).ravel()
-K = bcs._get_K()
-H = K + np.diag(V)
-Es, psis = np.linalg.eigh(H)
-psis = psis.T
-Es[:10]
-
-x, y = bcs.xyz
-plt.figure(figsize=(7, 5))
-psi = psis[1].reshape((bcs.Nxyz))
-n0 = abs(psi)**2
-imcontourf(x, y, n0.real)
-plt.colorbar()
-
-
-# ## 2D harmonic in DVR basis
-
-class DVR2D(VortexDVR):
-    """a 2D DVR with harmonic potential class"""
-    def get_Vext(self, rs):
-        return rs**2/2
-
-
-# +
-mu=10
-dmu=0
-delta=0
-dvr = DVR2D(mu=mu, dmu=dmu, delta=delta)
-delta = delta + dvr.bases[0].zero
-
-while(True):
-    n_a, n_b, kappa = dvr.get_densities(mus=(mu,mu), delta=delta)
-    delta_ = -dvr.g*kappa
-    plt.figure(figsize=(16, 5))
-    plt.subplot(121)
-    plt.plot(dvr.bases[0].rs, delta_)
-    plt.plot(dvr.bases[0].rs, delta,'+')
-    plt.title(f"Error={(delta-delta_).max()}")
-    plt.ylabel(r"$\Delta$")
-    plt.subplot(122)
-    plt.plot(dvr.bases[0].rs, n_a)
-    plt.plot(dvr.bases[0].rs, n_b, '+')
-    plt.show()
-    clear_output(wait=True)
-    if np.allclose(delta, delta_, atol=1e-8):
-        break
-    delta=delta_
-# -
 
 
