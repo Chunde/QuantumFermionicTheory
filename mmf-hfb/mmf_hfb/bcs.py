@@ -100,6 +100,15 @@ class BCS(object):
             self.max_ks.append(self.kxyz[i][self.Nxyz[i]//2])
             if self.Nxyz[i] % 2 == 0:
                 self.kxyz[i][self.Nxyz[i]//2]=0
+    
+    def dotc(self, a, b):
+        """Return dot(a.conj(), b) allowing for dim > 1."""
+        return np.dot(a.conj().ravel(), b.ravel())
+     
+    def Normalize(self, psi):
+        """Normalize a wave function"""
+        psi_new = psi/(self.dotc(psi, psi)*self.dV)**0.5
+        return psi_new.reshape(self.Nxyz)
 
     def restore_max_ks(self):
         """restore the original max ks"""

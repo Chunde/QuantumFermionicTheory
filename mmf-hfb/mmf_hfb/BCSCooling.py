@@ -112,11 +112,6 @@ class BCSCooling(BCS):
         shape = (2,) + self.Nxyz
         return psi.reshape(shape)
 
-    def Normalize(self, psi):
-        """Normalize a wave function"""
-        psi_new = psi/(self.dotc(psi, psi)*self.dV)**0.5
-        return psi_new.reshape(self.Nxyz)
-
     def get_Vext(self):
         return self.V
 
@@ -137,10 +132,6 @@ class BCSCooling(BCS):
         Vext = self.get_Vext()
         Vint = self.get_Vint(psis)
         return Vint + Vext
-    
-    def dotc(self, a, b):
-        """Return dot(a.conj(), b) allowing for dim > 1."""
-        return np.dot(a.conj().ravel(), b.ravel())
 
     def _apply_H(self, psi, psi_k, V):
         # if psi_k is None:

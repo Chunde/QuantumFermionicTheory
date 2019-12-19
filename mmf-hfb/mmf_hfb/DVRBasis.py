@@ -32,13 +32,12 @@ class CylindricalBasis(Basis):
         dim: int
             dimensionality
         """
+        self.N_root = N_root
+        self.R_max = R_max
+        self.K_max = K_max
         if N_root is None or R_max is None or K_max is None:
-            Warning("Parameters N_root, R_max and K_max are ignored as not all of them are not None")
             self._init(a0=a0)
-        else:
-            self.N_root = N_root
-            self.R_max = R_max
-            self.K_max = K_max
+            
         self._align_K_max()
         self.dim = 2
         self.nu = nu
@@ -53,9 +52,12 @@ class CylindricalBasis(Basis):
         """evaluate R_max and K_max using Gaussian wavefunction"""
         if a0 is None:
             a0 = 1
-        self.R_max = np.sqrt(-2*a0**2*np.log(self.eps))
-        self.K_max = np.sqrt(-np.log(self.eps)/a0**2)
-        self.N_root = int(np.ceil(self.K_max*2*self.R_max/np.pi))
+        if self.R_max is None:
+            self.R_max = np.sqrt(-2*a0**2*np.log(self.eps))
+        if self.K_max is None:
+            self.K_max = np.sqrt(-np.log(self.eps)/a0**2)
+        if self.N_root is None:
+            self.N_root = int(np.ceil(self.K_max*2*self.R_max/np.pi))
 
     def _align_K_max(self):
         """

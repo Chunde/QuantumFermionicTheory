@@ -27,3 +27,28 @@ class HarmonicOscillator(object):
     def get_E(self, n):
         """return eigen value"""
         return self.hbar*self.w*(n+0.5)
+
+
+class HarmonicOscillator2D(object):
+    """
+    1D quantum harmonic Oscillator class
+    to give exact wave function
+    """
+    w = m = hbar= 1
+
+    def __init__(self, w=1, m=1):
+        """support 1d, will be generalized later"""
+        self.w = w
+        self.m = m
+        self.h = HarmonicOscillator(w=w, m=m)
+    
+    def get_wf(self, r, n=0, m=0):
+        """return the wavefunction"""
+        x = self.h.get_wf(x=r, n=n)
+        y = self.h.get_wf(x=r, n=m)
+        xx, yy = np.meshgrid(x, y, sparse=True)
+        return xx*yy
+    
+    def get_E(self, n, m):
+        """return eigen value"""
+        return self.hbar*self.w*(n+ m + 1)

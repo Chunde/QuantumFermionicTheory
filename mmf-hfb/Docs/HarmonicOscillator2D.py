@@ -56,6 +56,17 @@
 # u_{2}(x)&=C\left(1-2 \frac{m \omega x^{2}}{\hbar}\right) e^{-m \omega x^{2} / 2 \hbar}\qquad \text{second excited state}
 # \end{align}
 #
+# For $n>3$:
+# $$
+# u_{n}(x)=\sum_{k=0}^{\infty} a_{k} y^{k} e^{-y^{2} / 2}
+# $$
+# where
+#
+# \begin{align}
+# a_{k+2}&=\frac{2(k-n)}{(k+1)(k+2)} a_{k}\\
+# y&=\sqrt{\frac{m\omega}{\hbar}x}
+# \end{align}
+#
 # We discuss the angular momentum from the perspective of the spectrum, for example, for $E=1$, the only possible combination is $E_x=E_y=1/2$,  since the two components have same energy in this case and also in ground state, they should be no "oscillation" in neither x or y direction(as $E=(\frac{1}{2}+n)\hbar\omega$, and n=0 for this case, the ground state is Gaussian without spatial factor in front of it), then the overall monition of the system should have no angular momentum.
 # However, for $E=2$ case, we need the first excited state in 1D.
 # if $n_x=1, n_y=0$, or $n_x=0, n_y=1$, their corresponding wave functions are:
