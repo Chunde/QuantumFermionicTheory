@@ -302,10 +302,8 @@ plt.plot(d.rs, psi.conj()*psi)
 # * Summing up the density of the first 6 states
 # * It's clear that the DVR case should count the degeneracy properly
 
-# +
 b = b0
 x, y = b.xyz
-
 n0 = b.Normalize((sum(abs(psis0[0:6])**2)).reshape(b.Nxyz))
 plt.figure(figsize=(13,5))
 plt.subplot(121)
@@ -317,8 +315,6 @@ plt.plot(d0.dvr.rs, Normalize(n1), label="DVR")
 plt.plot(rs, n0.ravel(), '+', label="Grid")
 plt.legend()
 
-
-# -
 
 # ## 2D Harmonic in a lattice
 
@@ -369,8 +365,8 @@ imcontourf(x, y, n_b)
 plt.colorbar()
 plt.subplot(133)
 rs = np.sqrt(sum(_x**2 for _x in b2.xyz)).ravel()
-plt.plot(rs, n_a.ravel(),'+')
-plt.plot(rs, n_b.ravel(),'o')
+plt.plot(rs, n_a.ravel(), '+')
+plt.plot(rs, n_b.ravel(), 'o')
 
 
 # # DVR Vortex Class
@@ -384,16 +380,17 @@ plt.plot(rs, n_b.ravel(),'o')
 
 # ## 2D harmonic in DVR basis
 
+# ### Bugs
+
 # * when N_root = 32, the $n_b$ is different from N_root=33, where the former value yields zero $n_b$, and the later yields more consistent result.
 # * the $n_a$ $n_b$ are not excaly the same even when $d\mu=0$, some thing get wrong.
 # * Seem for current version of code, N_root=48 works "best" due to the way of normalization(which is not right).
-# * the $n_a, n_b$ in DVR are switched compared to grid BCS case, a potential bug again.
 
 delta = 2
 dvr = vortex_dvr_ho(mu=mu, dmu=dmu, E_c=None, N_root=48, delta=delta)
 delta = delta + dvr.bases[0].zero
 dvr.l_max=100
-na, nb, kappa = dvr.get_densities(mus=(mu - dmu,mu + dmu), delta=delta)
+na, nb, kappa = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta)
 plt.figure(figsize=(15, 5))
 plt.subplot(121)
 plt.plot(dvr.bases[0].rs, Normalize(na))
@@ -402,25 +399,6 @@ plt.subplot(122)
 plt.plot(dvr.bases[0].rs, Normalize(nb))
 plt.plot(rs, n_b.ravel(), '+')
 clear_output()
-
-mu=0
-dmu=0
-delta=0
-mus = (mu+dmu, mu-dmu)
-d = vortex_dvr_ho(mu=mu, dmu=dmu, delta=delta)
-H = d.get_H(mus=mus, delta=delta, nu=0)
-es, phis = np.linalg.eigh(H)
-ps=phis.T
-
-i=35
-print(es[i])
-plt.plot( ps[i], label='u')
-psi_a = d._get_psi(nu=0, u=ps[i][:33])
-plt.plot(psi_a, label=r'$\phi_a$')
-psi_a = d._get_psi(nu=0, u=ps[i][33:])
-plt.plot(psi_a, label=r'$\phi_b$')
-plt.axhline(0, linestyle='dashed', c='r')
-plt.legend()
 
 # #  Test Bed
 

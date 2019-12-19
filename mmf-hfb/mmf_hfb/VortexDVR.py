@@ -58,8 +58,8 @@ class vortex_dvr(object):
         V_corr = basis.get_V_correction(nu=nu)
         V_mean_field = basis.get_V_mean_field(nu=nu)
         V_eff = V_ext + V_corr + V_mean_field
-        H_a = T + np.diag(V_eff - mu_b)
-        H_b = T + np.diag(V_eff - mu_a)
+        H_a = T + np.diag(V_eff - mu_a)
+        H_b = T + np.diag(V_eff - mu_b)
         H = block(H_a, Delta, Delta.conj(), -H_b)
         return H
 
@@ -133,12 +133,5 @@ if __name__ == "__main__":
     dvr = vortex_dvr_ho(mu=mu, dmu=dmu, E_c=None, delta=delta)
     delta = delta + dvr.bases[0].zero
     dvr.l_max=100
-    na, nb, kappa = dvr.get_densities(mus=(mu,mu), delta=delta)
-    plt.figure(figsize=(15, 5))
-    plt.subplot(121)
-    plt.plot(dvr.bases[0].rs, na)
-    plt.plot(rs, n_a.ravel(), '+')
-    plt.subplot(122)
-    plt.plot(dvr.bases[0].rs, nb)
-    plt.plot(rs, n_b.ravel(), '+')
-    clear_output()
+    na, nb, kappa = dvr.get_densities(mus=(mu, mu), delta=delta)
+    
