@@ -2,13 +2,14 @@ from mmf_hfb.DVRBasis import CylindricalBasis
 from mmf_hfb.utils import block
 from mmf_hfb import homogeneous
 import numpy as np
+import sys
 
 
-class VortexDVR(object):
+class vortex_dvr(object):
     """
     A 2D and 3D vortex class without external potential
     """
-    def __init__(self, bases_N=2, mu=1, dmu=0, delta=1, T=0, l_max=100, **args):
+    def __init__(self, bases_N=2, mu=1, dmu=0, delta=1, E_c=None, T=0, l_max=100, **args):
         """
         Construct and cache some information of bases
 
@@ -19,6 +20,7 @@ class VortexDVR(object):
         self.T=T
         self.g = self.get_g(mu=mu, delta=delta)
         self.mus = (mu + dmu, mu - dmu)
+        self.E_c = sys.maxsize if E_c is None else E_c
 
     def f(self, E, T=0):
         if T is None:
@@ -67,7 +69,7 @@ class VortexDVR(object):
         """
         h = homogeneous.Homogeneous(dim=3)
         res = h.get_densities(mus_eff=(mu, mu), delta=delta)
-        g = delta/res.nu
+        g = 0 if res.nu == 0 else delta/res.nu
         return g
 
     def _get_psi(self, nu, u):
@@ -85,8 +87,11 @@ class VortexDVR(object):
         den = 0
         for i in range(len(es)):
             E, uv = es[i], phis[i]
+            if abs(E) >  self.E_c:
+                continue
+            
             u, v = uv[: offset], uv[offset:]
-            u = self._get_psi(nu=nu, u=v)
+            u = self._get_psi(nu=nu, u=u)
             v = self._get_psi(nu=nu, u=v)
             f_p, f_m = self.f(E=E), self.f(E=-E)
             n_a = u*u.conj()*f_p
@@ -106,31 +111,34 @@ class VortexDVR(object):
         instead of \nu so it's not that confusing when \nu has
         been used as angular momentum quantum number.
         """
-        dens = 0
-        for nu in range(self.l_max):  # sum over angular momentum
+        # l=0
+        dens = self._get_den(self.get_H(mus=mus, delta=delta, nu=0), nu=0)
+        for nu in range(1, self.l_max):  # sum over angular momentum
             H = self.get_H(mus=mus, delta=delta, nu=nu)
-            dens = dens + self._get_den(H, nu=nu)
+            dens = dens + 2*self._get_den(H, nu=nu) # double-degenerate
         n_a, n_b, kappa = dens
         return (n_a, n_b, kappa)
 
 
-class DVR2D(VortexDVR):
-    
+class vortex_dvr_ho(vortex_dvr):
+    """a 2D DVR with harmonic potential class"""
     def get_Vext(self, rs):
         return rs**2/2
 
 
 if __name__ == "__main__":
-    mu = 10
-    dmu = 0
-    mus = (mu + dmu, mu - dmu)
-    delta=5
-    dvr = VortexDVR(mu=mu, delta=delta)
+    delta = 2
+    mu = 5
+    dmu = 3.5
+    dvr = vortex_dvr_ho(mu=mu, dmu=dmu, E_c=None, delta=delta)
     delta = delta + dvr.bases[0].zero
-
-    while(True):
-        n_a, n_b, kappa = dvr.get_densities(mus=(mu, mu), delta=delta)
-        delta_ = -dvr.g*kappa
-        if np.allclose(delta, delta_):
-            break
-        delta=delta_
+    dvr.l_max=100
+    na, nb, kappa = dvr.get_densities(mus=(mu,mu), delta=delta)
+    plt.figure(figsize=(15, 5))
+    plt.subplot(121)
+    plt.plot(dvr.bases[0].rs, na)
+    plt.plot(rs, n_a.ravel(), '+')
+    plt.subplot(122)
+    plt.plot(dvr.bases[0].rs, nb)
+    plt.plot(rs, n_b.ravel(), '+')
+    clear_output()

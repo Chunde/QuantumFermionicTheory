@@ -27,6 +27,7 @@ from mmf_hfb import homogeneous
 from mmfutils.plot import imcontourf
 from collections import namedtuple
 from mmf_hfb.Potentials import HarmonicOscillator2D
+from mmf_hfb.VortexDVR import vortex_dvr, vortex_dvr_ho
 
 
 # # 2D Harmonic System
@@ -291,29 +292,37 @@ def den_dvr(di, n):
     return psi.conj()*psi
 
 
+# * within a factor of normalization, things look right!
+
 d=d0.dvr
 plt.plot(d.rs, den_dvr(d0, 0))
 psi = HO_psi(n=0, m=0, rs=d.rs)
 plt.plot(d.rs, psi.conj()*psi)
 
+# * Summing up the density of the first 6 states
+# * It's clear that the DVR case should count the degeneracy properly
+
+# +
 b = b0
 x, y = b.xyz
-rs = np.sqrt(sum(_x**2 for _x in b.xyz)).ravel()
-n0 = b.Normalize((sum(abs(psis0[0:7])**2)).reshape(b.Nxyz))
+
+n0 = b.Normalize((sum(abs(psis0[0:6])**2)).reshape(b.Nxyz))
 plt.figure(figsize=(13,5))
 plt.subplot(121)
 imcontourf(x, y, n0)
 plt.colorbar()
 plt.subplot(122)
 n1 = den_dvr(d0, 0) + den_dvr(d0, 1) + den_dvr(d1, 0)*2 + den_dvr(d2, 0)*2
-plt.plot(d0.dvr.rs, Normalize(n1))
-plt.plot(rs, n0.ravel(), '+')
+plt.plot(d0.dvr.rs, Normalize(n1), label="DVR")
+plt.plot(rs, n0.ravel(), '+', label="Grid")
 plt.legend()
 
 
+# -
+
 # ## 2D Harmonic in a lattice
 
-class HO_bcs(BCS):
+class BCS_ho(BCS):
     """2D harmonic"""
     def get_v_ext(self, **kw):
         """Return the external potential."""
@@ -327,10 +336,10 @@ Nx = 128
 L = 23
 dim = 1
 dx = L/Nx
-mu = 0
+mu = 5
 dmu = 0
-delta = 0
-b1 = HO_bcs(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
+delta = 1
+b1 = BCS_ho(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
 res = b1.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta)
 n_a, n_b = res.n_a, res.n_b
 b1._d[Nx: Nx+10]
@@ -341,24 +350,28 @@ Nx = 32
 L = 10
 dim = 2
 dx = L/Nx
-mu = 0
-dmu = 0
-delta = 0
-b2 = HO_bcs(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
+mu = 5
+dmu = 3.5
+delta = 2
+b2 = BCS_ho(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
 res = b2.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta)
 n_a, n_b = res.n_a, res.n_b
+n_a = b2.Normalize(n_a)
+n_b = b2.Normalize(n_b)
 
 x, y = b2.xyz
-plt.figure(figsize=(14, 5))
-plt.subplot(121)
+plt.figure(figsize=(18, 4))
+plt.subplot(131)
 imcontourf(x, y, n_a)
 plt.colorbar()
-plt.subplot(122)
+plt.subplot(132)
 imcontourf(x, y, n_b)
 plt.colorbar()
+plt.subplot(133)
+rs = np.sqrt(sum(_x**2 for _x in b2.xyz)).ravel()
+plt.plot(rs, n_a.ravel(),'+')
+plt.plot(rs, n_b.ravel(),'o')
 
-
-b2._d[1014:1034]
 
 # # DVR Vortex Class
 #
@@ -371,130 +384,24 @@ b2._d[1014:1034]
 
 # ## 2D harmonic in DVR basis
 
-# +
-from mmf_hfb.DVRBasis import CylindricalBasis
-from mmf_hfb.utils import block
-import numpy as np
+# * when N_root = 32, the $n_b$ is different from N_root=33, where the former value yields zero $n_b$, and the later yields more consistent result.
+# * the $n_a$ $n_b$ are not excaly the same even when $d\mu=0$, some thing get wrong.
+# * Seem for current version of code, N_root=48 works "best" due to the way of normalization(which is not right).
+# * the $n_a, n_b$ in DVR are switched compared to grid BCS case, a potential bug again.
 
-
-class vortex_dvr(object):
-    """
-    A 2D and 3D vortex class without external potential
-    """
-    def __init__(self, bases_N=2, mu=1, dmu=0, delta=1, T=0, l_max=100, **args):
-        """
-        Construct and cache some information of bases
-
-        """
-        self.bases = [CylindricalBasis(nu=nu, **args) for nu in range(bases_N)]
-        self.l_max = max(l_max, 1)  # the angular momentum cut_off
-        assert T==0
-        self.T=T
-        self.g = self.get_g(mu=mu, delta=delta)
-        self.mus = (mu + dmu, mu - dmu)
-
-    def f(self, E, T=0):
-        if T is None:
-            T = self.T
-        if T == 0:
-            if E < 0:
-                return 1
-            return 0
-        else:
-            return 1./(1+np.exp(E/T))
-
-    def basis_match_rule(self, nu):
-        """
-            Assign different bases to different angular momentum \nu
-            it assign 0 to even \nu and 1 to odd \nu
-        Note:
-            inherit a child class to override this function
-        """
-        assert len(self.bases) > 1  # make sure the number of bases is at least two
-        return nu % 2
-
-    def get_Vext(self, rs):
-        """return external potential"""
-        return 0
-
-    def get_H(self, mus, delta, nu=0):
-        """
-        return the full Hamiltonian(with pairing field)
-        """
-        basis = self.bases[self.basis_match_rule(nu)]
-        T = basis.K
-        Delta = np.diag(basis.zero + delta)
-        mu_a, mu_b = mus
-        V_ext = self.get_Vext(rs=basis.rs)
-        V_corr = basis.get_V_correction(nu=nu)
-        V_mean_field = basis.get_V_mean_field(nu=nu)
-        V_eff = V_ext + V_corr + V_mean_field
-        H_a = T + np.diag(V_eff - mu_b)
-        H_b = T + np.diag(V_eff - mu_a)
-        H = block(H_a, Delta, Delta.conj(), -H_b)
-        return H
-
-    def get_g(self, mu=1.0, delta=0.2):
-        """
-        the interaction strength
-        """
-        h = homogeneous.Homogeneous(dim=3)
-        res = h.get_densities(mus_eff=(mu, mu), delta=delta)
-        g = 0 if res.nu == 0 else delta/res.nu
-        return g
-
-    def _get_psi(self, nu, u):
-        """apply weight on the u(v) to get the actual radial wave-function"""
-        b = self.bases[self.basis_match_rule(nu)]
-        return u*b.ws
-
-    def _get_den(self, H, nu):
-        """
-        return the densities for a given H
-        """
-        es, phis = np.linalg.eigh(H)
-        phis = phis.T
-        offset = phis.shape[0] // 2
-        den = 0
-        for i in range(len(es)):
-            E, uv = es[i], phis[i]
-            u, v = uv[: offset], uv[offset:]
-            u = self._get_psi(nu=nu, u=v)
-            v = self._get_psi(nu=nu, u=v)
-            f_p, f_m = self.f(E=E), self.f(E=-E)
-            n_a = u*u.conj()*f_p
-            n_b = v*v.conj()*f_m
-            kappa = u*v.conj()*(f_p - f_m)/2
-            # fe = self.f(E=E)
-            # n_a = (1 - fe)*v**2
-            # n_b = fe*u**2
-            # kappa = (1 - 2*fe)*u*v
-            den = den + np.array([n_a, n_b, kappa])
-        return den
-
-    def get_densities(self, mus, delta):
-        """
-        return the particle number density and anomalous density
-        Note: Here the anomalous density is represented as kappa
-        instead of \nu so it's not that confusing when \nu has
-        been used as angular momentum quantum number.
-        """
-        # l=0
-        dens = self._get_den(self.get_H(mus=mus, delta=delta, nu=0), nu=0)
-        for nu in range(1, self.l_max):  # sum over angular momentum
-            H = self.get_H(mus=mus, delta=delta, nu=nu)
-            dens = dens + 2*self._get_den(H, nu=nu) # double-degenerate
-        n_a, n_b, kappa = dens
-        return (n_a, n_b, kappa)
-
-
-# -
-
-class vortex_dvr_ho(vortex_dvr):
-    """a 2D DVR with harmonic potential class"""
-    def get_Vext(self, rs):
-        return rs**2/2
-
+delta = 2
+dvr = vortex_dvr_ho(mu=mu, dmu=dmu, E_c=None, N_root=48, delta=delta)
+delta = delta + dvr.bases[0].zero
+dvr.l_max=100
+na, nb, kappa = dvr.get_densities(mus=(mu - dmu,mu + dmu), delta=delta)
+plt.figure(figsize=(15, 5))
+plt.subplot(121)
+plt.plot(dvr.bases[0].rs, Normalize(na))
+plt.plot(rs, n_a.ravel(), '+')
+plt.subplot(122)
+plt.plot(dvr.bases[0].rs, Normalize(nb))
+plt.plot(rs, n_b.ravel(), '+')
+clear_output()
 
 mu=0
 dmu=0
@@ -517,30 +424,29 @@ plt.legend()
 
 # #  Test Bed
 
-# +
-# mu=0
-# dmu=0
-# delta=0
-# dvr = DVR2D(mu=mu, dmu=dmu, delta=delta)
-# delta = delta + dvr.bases[0].zero
-# dvr.l_max=1
-# while(True):
-#     n_a, n_b, kappa = dvr.get_densities(mus=(mu,mu), delta=delta)
-#     delta_ = -dvr.g*kappa
-#     plt.figure(figsize=(16, 5))
-#     plt.subplot(121)
-#     plt.plot(dvr.bases[0].rs, delta_)
-#     plt.plot(dvr.bases[0].rs, delta,'+')
-#     plt.title(f"Error={(delta-delta_).max()}")
-#     plt.ylabel(r"$\Delta$")
-#     plt.subplot(122)
-#     plt.plot(dvr.bases[0].rs, n_a)
-#     plt.plot(dvr.bases[0].rs, n_b, '+')
-#     plt.show()
-#     clear_output(wait=True)
-#     if np.allclose(delta, delta_, atol=1e-8):
-#         break
-#     delta=delta_
+mu=0
+dmu=0
+delta=0
+dvr = DVR2D(mu=mu, dmu=dmu, delta=delta)
+delta = delta + dvr.bases[0].zero
+dvr.l_max=1
+while(True):
+    n_a, n_b, kappa = dvr.get_densities(mus=(mu,mu), delta=delta)
+    delta_ = -dvr.g*kappa
+    plt.figure(figsize=(16, 5))
+    plt.subplot(121)
+    plt.plot(dvr.bases[0].rs, delta_)
+    plt.plot(dvr.bases[0].rs, delta,'+')
+    plt.title(f"Error={(delta-delta_).max()}")
+    plt.ylabel(r"$\Delta$")
+    plt.subplot(122)
+    plt.plot(dvr.bases[0].rs, n_a)
+    plt.plot(dvr.bases[0].rs, n_b, '+')
+    plt.show()
+    clear_output(wait=True)
+    if np.allclose(delta, delta_, atol=1e-8):
+        break
+    delta=delta_
 # + {}
 # dmu = 0
 # mus = (mu + dmu, mu - dmu)
@@ -564,24 +470,4 @@ plt.legend()
 #     if np.allclose(delta, delta_, atol=1e-8):
 #         break
 #     delta=delta_
-# -
 
-
-#
-
-
-
-
-
-x, y = bcs.xyz
-rs = np.sqrt(sum(_x**2 for _x in bcs.xyz)).ravel()
-psi = bcs.Normalize((psis[5]).reshape(bcs.Nxyz))
-plt.figure(figsize=(13,5))
-plt.subplot(121)
-imcontourf(x, y, abs(psi))
-plt.colorbar()
-plt.subplot(122)
-plt.plot(rs, abs(psi.ravel()), '+', label="Grid")
-plt.plot(h.rs, abs(Normalize(h._get_psi(us.T[0]))), 'o', label="DVR")
-plt.plot(h.rs, abs(Normalize(HO_psi(n=2, m=0, rs=h.rs))), '-', label='Analytical')
-plt.legend()
