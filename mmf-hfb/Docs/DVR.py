@@ -27,7 +27,8 @@ from mmf_hfb import homogeneous
 from mmfutils.plot import imcontourf
 from collections import namedtuple
 from mmf_hfb.Potentials import HarmonicOscillator2D
-from mmf_hfb.VortexDVR import vortex_dvr, vortex_dvr_ho
+from mmf_hfb.VortexDVR import bdg_dvr, bdg_dvr_ho
+from mmfutils.math.special import mstep
 
 
 # # 2D Harmonic System
@@ -367,6 +368,9 @@ plt.subplot(133)
 rs = np.sqrt(sum(_x**2 for _x in b2.xyz)).ravel()
 plt.plot(rs, n_a.ravel(), '+')
 plt.plot(rs, n_b.ravel(), 'o')
+plt.plot(rs, n_a.ravel(), '+', label=r"$n_a$")
+plt.plot(rs, n_b.ravel(), 'o', label=r"$n_b$")
+plt.legend()
 
 
 # # DVR Vortex Class
@@ -387,17 +391,97 @@ plt.plot(rs, n_b.ravel(), 'o')
 # * Seem for current version of code, N_root=48 works "best" due to the way of normalization(which is not right).
 
 delta = 2
-dvr = vortex_dvr_ho(mu=mu, dmu=dmu, E_c=None, N_root=48, delta=delta)
+dvr = bdg_dvr_ho(mu=mu, dmu=dmu, E_c=None, N_root=48, delta=delta)
 delta = delta + dvr.bases[0].zero
 dvr.l_max=100
 na, nb, kappa = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta)
 plt.figure(figsize=(15, 5))
 plt.subplot(121)
-plt.plot(dvr.bases[0].rs, Normalize(na))
-plt.plot(rs, n_a.ravel(), '+')
+plt.plot(dvr.bases[0].rs, Normalize(na), label=r'$n_a$(DVR)')
+plt.plot(rs, n_a.ravel(), '+', label=r'$n_a$(Grid)')
+plt.legend()
 plt.subplot(122)
-plt.plot(dvr.bases[0].rs, Normalize(nb))
-plt.plot(rs, n_b.ravel(), '+')
+plt.plot(dvr.bases[0].rs, Normalize(nb), label=r'$n_b$(DVR)')
+plt.plot(rs, n_b.ravel(), '+', label=r'$n_b$(Grid)')
+plt.legend()
+clear_output()
+
+
+# # Vortex
+
+# +
+class BCS_vortex(BCS):
+    """BCS Vortex"""
+    barrier_width = 0.2
+    barrier_height = 100.0
+    
+    def get_v_ext(self, **kw):
+        self.R = min(self.Lxyz)/2
+        r = np.sqrt(sum([_x**2 for _x in self.xyz[:2]]))
+        R0 = self.barrier_width * self.R
+        V = self.barrier_height * mstep(r-self.R+R0, R0)
+        return (V, V)
+    
+class dvr_vortex(bdg_dvr):
+    """BCS Vortex"""
+    barrier_width = 0.2
+    barrier_height = 100.0
+    
+    def get_Vext(self, rs):
+        self.R = 5
+        R0 = self.barrier_width * self.R
+        V = self.barrier_height * mstep(rs-self.R+R0, R0)
+        return V
+
+
+# -
+
+# ## BCS Vortex
+
+Nx = 32
+L = 10
+dim = 2
+dx = L/Nx
+mu = 5
+dmu = 3.5
+delta = 2
+delta*(x+1j*y)
+b3 = BCS_vortex(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
+res = b3.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta)
+n_a, n_b = res.n_a, res.n_b
+n_a = b3.Normalize(n_a)
+n_b = b3.Normalize(n_b)
+
+x, y = b3.xyz
+plt.figure(figsize=(18, 4))
+plt.subplot(131)
+imcontourf(x, y, n_a)
+plt.colorbar()
+plt.subplot(132)
+imcontourf(x, y, n_b)
+plt.colorbar()
+plt.subplot(133)
+rs = np.sqrt(sum(_x**2 for _x in b3.xyz)).ravel()
+plt.plot(rs, n_a.ravel(), '+', label=r"$n_a$")
+plt.plot(rs, n_b.ravel(), 'o', label=r"$n_b$")
+plt.legend()
+
+# ## DVR Vortex
+
+delta = 2
+dvr = dvr_vortex(mu=mu, dmu=dmu, E_c=None, N_root=48, delta=delta)
+delta = delta + dvr.bases[0].zero
+dvr.l_max=100
+na, nb, kappa = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta)
+plt.figure(figsize=(15, 5))
+plt.subplot(121)
+plt.plot(dvr.bases[0].rs, Normalize(na), label=r'$n_a$(DVR)')
+plt.plot(rs, n_a.ravel(), '+', label=r'$n_a$(Grid)')
+plt.legend()
+plt.subplot(122)
+plt.plot(dvr.bases[0].rs, Normalize(nb), label=r'$n_b$(DVR)')
+plt.plot(rs, n_b.ravel(), '+', label=r'$n_b$(Grid)')
+plt.legend()
 clear_output()
 
 # #  Test Bed

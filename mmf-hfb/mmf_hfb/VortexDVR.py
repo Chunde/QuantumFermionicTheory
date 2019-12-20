@@ -3,9 +3,9 @@ from mmf_hfb.utils import block
 from mmf_hfb import homogeneous
 import numpy as np
 import sys
+from mmfutils.math.special import mstep
 
-
-class vortex_dvr(object):
+class bdg_dvr(object):
     """
     A 2D and 3D vortex class without external potential
     """
@@ -87,7 +87,7 @@ class vortex_dvr(object):
         den = 0
         for i in range(len(es)):
             E, uv = es[i], phis[i]
-            if abs(E) >  self.E_c:
+            if abs(E) > self.E_c:
                 continue
             
             u, v = uv[: offset], uv[offset:]
@@ -120,17 +120,29 @@ class vortex_dvr(object):
         return (n_a, n_b, kappa)
 
 
-class vortex_dvr_ho(vortex_dvr):
+class bdg_dvr_ho(bdg_dvr):
     """a 2D DVR with harmonic potential class"""
     def get_Vext(self, rs):
         return rs**2/2
+
+
+class dvr_vortex(bdg_dvr):
+    """BCS Vortex"""
+    barrier_width = 0.2
+    barrier_height = 100.0
+    
+    def get_Vext(self, rs):
+        self.R = 5
+        R0 = self.barrier_width * self.R
+        V = self.barrier_height * mstep(rs-self.R+R0, R0)
+        return V
 
 
 if __name__ == "__main__":
     delta = 2
     mu = 5
     dmu = 3.5
-    dvr = vortex_dvr_ho(mu=mu, dmu=dmu, E_c=None, delta=delta)
+    dvr = dvr_vortex(mu=mu, dmu=dmu, E_c=None, delta=delta)
     delta = delta + dvr.bases[0].zero
     dvr.l_max=100
     na, nb, kappa = dvr.get_densities(mus=(mu, mu), delta=delta)

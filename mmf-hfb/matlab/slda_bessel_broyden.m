@@ -256,7 +256,7 @@ for  N = 2:30          % total particle number
             end
             [phi, eigen] = eig(HH);
             ener = diag(eigen);
-            al =   (2*l+1)/four_pi;  % sum(L_z)
+            al =   (2*l+1)/four_pi;  % sum(L_z)  # degeneracy
             e = 0;
                 for ie = 1:size(ener,1)
                     en_t    = ener(ie)/(Temp+eps);
