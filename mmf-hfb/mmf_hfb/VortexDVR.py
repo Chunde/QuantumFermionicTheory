@@ -5,6 +5,7 @@ import numpy as np
 import sys
 from mmfutils.math.special import mstep
 
+
 class bdg_dvr(object):
     """
     A 2D and 3D vortex class without external potential
