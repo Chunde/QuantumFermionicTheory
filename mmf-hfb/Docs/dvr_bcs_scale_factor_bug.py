@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # ---
 # jupyter:
 #   jupytext:
@@ -377,5 +378,166 @@ plt.legend()
 # -
 np.diff(d.rs)
 
+
+# # BdG in Ratating Frame Transform
+
+# * Mathmatical identity
+# \begin{align}
+# \nabla^2\left[U(x)e^{iqx}\right]
+# &=\nabla\left[\nabla U(x)e^{iqx}+U(x)iqe^{iqx}\right]\\
+# &=\nabla^2U(x)e^{iqx}+2iq\nabla U(x)e^{iqx}-q^2U(x)e^{iqx}\\
+# &=(\nabla+iq)^2U(x)e^{iqx}
+# \end{align}
+#
+# * Let $2q=q_a + q_b$
+# \begin{align}
+# \begin{pmatrix}
+# -\nabla^2-\mu_a & \Delta e^{2iqx}\\
+# \Delta^*  e^{-2iqx} & \nabla^2 + \mu_b\\
+# \end{pmatrix}
+# \begin{pmatrix}
+# U(x)e^{iq_a x}\\
+# V^*(x)e^{-iq_bx}
+# \end{pmatrix}
+# &=\begin{pmatrix}
+# (-\nabla^2-\mu_a)U(x)e^{iq_a x}+ \Delta e^{2iqx}V^*(x)e^{-iq_bx}\\
+# \Delta^*  e^{-2iqx}U(x)e^{iq_a x} + (\nabla^2 + \mu_b)V^*(x)e^{-iq_bx}\\
+# \end{pmatrix}\\
+# &=\begin{pmatrix}\left[-(\nabla+iq_a)^2-\mu_a\right]U(x)e^{iq_a x}+ \Delta V^*(x)e^{iq_ax}\\
+# \Delta^*  U(x)e^{-iq_b x} + \left[(\nabla-iq_b)^2 + \mu_b)\right]V^*(x)e^{-iq_bx}\\
+# \end{pmatrix}\\
+# &=\begin{pmatrix}\left[-(\nabla+iq_a)^2-\mu_a\right]U(x)e^{iq_a x}+ \Delta V*(x)e^{iq_ax}\\
+# \Delta^* U(x)e^{-iq_b x} + \left[(\nabla-iq_b)^2 + \mu_b)\right]V^*(x)e^{-iq_bx}\\
+# \end{pmatrix}
+# =\begin{pmatrix}
+# E & 0\\
+# 0&-E
+# \end{pmatrix}\begin{pmatrix}
+# U(x)e^{iq_a x}\\
+# V(x)^*e^{-iq_bx}
+# \end{pmatrix}
+# \end{align}
+# * By canceling out the phase terms:
+#
+# \begin{align}
+# \begin{pmatrix}\left[(i\nabla-q_a)^2-\mu_a\right] &\Delta\\
+# \Delta^* & -\left[(i\nabla + q_b)^2 - \mu_b)\right]\\
+# \end{pmatrix}
+# \begin{pmatrix}
+# U(x)\\
+# V^*(x)\\
+# \end{pmatrix}=\begin{pmatrix}
+# E & 0\\
+# 0&-E
+# \end{pmatrix}
+# \begin{pmatrix}
+# U(x)\\
+# V^*(x)
+# \end{pmatrix}
+# \end{align}
+#
+# * Let $\delta q = q_a - q_b$, then:
+# $$
+# q_a = q + \delta q\\
+# q_b = q - \delta q
+# $$
+# * So:
+#     
+# \begin{align}
+# \begin{pmatrix}\left[(i\nabla-q - \delta q)^2-\mu_a\right] &\Delta\\
+# \Delta^* & -\left[(i\nabla + q - \delta q)^2 - \mu_b)\right]\\
+# \end{pmatrix}
+# \begin{pmatrix}
+# U(x)\\
+# V^*(x)\\
+# \end{pmatrix}=\begin{pmatrix}
+# E & 0\\
+# 0&-E
+# \end{pmatrix}
+# \begin{pmatrix}
+# U(x)\\
+# V^*(x)
+# \end{pmatrix}
+# \end{align}
+
+# For simplest case, $q_a=q_b=q$:
+# \begin{align}
+# \begin{pmatrix}\left[(i\nabla-q )^2-\mu_a\right] &\Delta\\
+# \Delta^* & -\left[(i\nabla + q)^2 - \mu_b)\right]\\
+# \end{pmatrix}
+# \begin{pmatrix}
+# U(x)\\
+# V^*(x)\\
+# \end{pmatrix}=\begin{pmatrix}
+# E & 0\\
+# 0&-E
+# \end{pmatrix}
+# \begin{pmatrix}
+# U(x)\\
+# V^*(x)
+# \end{pmatrix}
+# \end{align}
+#
+
+# # First Order Derivative Operator
+
+# In the case of free particles of energy E5\2k2/2m, the radial wave function is:
+# $$
+# \phi_{k}(r)=\langle r | k \nu\rangle=\sqrt{k r} J_{\nu}(k r)
+# $$
+#
+# where we have the relation:
+# $$
+# \left\langle k \nu | k^{\prime} \nu\right\rangle=\int_{0}^{\infty} d r\langle k \nu | r\rangle\left\langle r | k^{\prime} \nu\right\rangle=\delta\left(k-k^{\prime}\right)
+# $$
+#
+# Useful integrals
+#
+# $$
+# \begin{array}{l}{\int_{0}^{R} r d r J_{\nu}(k r) J_{\nu}\left(k^{\prime} r\right)} \\ {\quad=\frac{R}{k^{2}-k^{\prime 2}}\left[k^{\prime} J_{\nu}(k R) J_{\nu}^{\prime}\left(k^{\prime} R\right)-k J_{\nu}^{\prime}(k R) J_{\nu}\left(k^{\prime} R\right)\right]}\end{array}
+# $$
+# when $k\rightarrow k'$
+#
+# $$
+# \begin{array}{l}{\int_{0}^{R} r d r J_{\nu}(k r)^{2}} \\ {\quad=\frac{1}{2 k^{2}}\left[k^{2} R^{2} J_{\nu}^{\prime}(k R)^{2}+\left(k^{2} R^{2}-\nu^{2}\right) J_{\nu}(k R)^{2}\right]}\end{array}
+# $$
+#
+# Given the DVR basis function to be:
+# $$
+# F_{\nu n}(r)=(-1)^{n+1} \frac{K z_{\nu n} \sqrt{2 r}}{K^{2} r^{2}-z_{\nu n}^{2}} J_{\nu}(K r)
+# $$
+#
+# The matrix element for the kenitic with centrifugal term can be computed as：
+# $$
+# \begin{array}{l}{\left\langle F_{\nu n}\left|k_{r}^{2}+\frac{\nu^{2}-\frac{1}{4}}{r^{2}}\right| F_{\nu n^{\prime}}\right\rangle} \\ {\qquad=\left\{\begin{array}{ll}{\frac{K^{2}}{3}\left[1+\frac{2\left(\nu^{2}-1\right)}{z_{\nu n}^{2}}\right],} & {n=n^{\prime}} \\ {(-1)^{n-n^{\prime}} 8 K^{2} \frac{z_{\nu n} z_{\nu n^{\prime}}}{\left(z_{\nu n}^{2}-z_{\nu n^{\prime}}^{2}\right)^{2}},} & {n \neq n^{\prime}}\end{array}\right.}\end{array}
+# $$
+#
+# Where $K_r^2=-\frac{d^2}{dr^2}$
+
+# ## Addtional Terms in Rotating Frame
+# * To get rid of the phase term in the pairing field, the BdG matrix can be transformed into the rotating frame, where two additional terms will show up in the kenitic matrix, one of them is just constant($q^2$) which is trivial, the other term is the first order derivatie $\nabla=\frac{d}{dr}$
+# * Bessel Functions are so messy, hard to compute by hand????
+#
+# $$
+# \begin{array}{l}{\left\langle F_{\nu n}\left|\frac{d}{dr}\right| F_{\nu n^{\prime}}\right\rangle} \\ {\qquad=\left\{\begin{array}{ll}{\frac{K^{2}}{3}\left[1+\frac{2\left(\nu^{2}-1\right)}{z_{\nu n}^{2}}\right],} & {n=n^{\prime}} \\ {(-1)^{n-n^{\prime}} 8 K^{2} \frac{z_{\nu n} z_{\nu n^{\prime}}}{\left(z_{\nu n}^{2}-z_{\nu n^{\prime}}^{2}\right)^{2}},} & {n \neq n^{\prime}}\end{array}\right.}\end{array}
+# $$
+
+# Let try to compute $\frac{d F_{vn}}{dr}$
+#
+# \begin{align}
+# \frac{d F_{vn}}{dr}
+# &=(-1)^{n+1} K z_{\nu n}\frac{d }{dr}\left[\frac{ \sqrt{2 r}}{K^{2} r^{2}-z_{\nu n}^{2}} J_{\nu}(K r)\right]\\
+# &=(-1)^{n+1} K z_{\nu n}\left[\frac{J_{\nu}(Kr)}{\sqrt{2r}(K^2r^2-z_{\nu n}^2)} - \frac{2\sqrt{2r}K^2rJ_{\nu}(Kr) }{(K^2r^2-z_{\nu n}^2)^2}+\frac{K\sqrt{2r}J'_{\nu}(Kr)}{K^2r^2-z_{\nu n}^2}\right]
+# \end{align}
+
+# * Check the defination of $F_{\nu n}$, we can try to rewrite the above expression as:
+# $$
+# \frac{d F_{\nu n}}{dr}= \frac{F_{\nu n}}{2r} - \frac{2K^2r F_{\nu n}}{K^2r^2-z^2_{\nu n}} +\frac{1}{2}\left(F_{(\nu-1) n}-F_{(\nu+1) n}\right)
+# $$
+#
+# In the last term, we use the following relations: 
+# $$
+# \frac{\partial J_{v}(z)}{\partial z}=\frac{1}{2}\left[J_{v-1}(z)-J_{v+1}(z)\right]
+# $$
 
 
