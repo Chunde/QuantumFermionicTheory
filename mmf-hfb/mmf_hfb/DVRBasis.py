@@ -7,15 +7,12 @@ def nan0(data):
     return np.nan_to_num(data, 0)
 
 
-class Basis(object):
-    pass
-
-
-class CylindricalBasis(Basis):
+class CylindricalBasis(object):
     eps = 7./3 - 4./3 -1  # machine precision
     m = hbar = 1
+    N_root_max = 128
 
-    def __init__(self, N_root=None, R_max=None, K_max=None, a0=None, nu=0, **args):
+    def __init__(self, R_max=None, N_root=None, K_max=None, a0=None, nu=0, **args):
         """
         Parameters
         --------------
@@ -32,15 +29,13 @@ class CylindricalBasis(Basis):
         dim: int
             dimensionality
         """
-        self.N_root = N_root
-        self.R_max = R_max
-        self.K_max = K_max
-        if N_root is None or R_max is None or K_max is None:
-            self._init(a0=a0)
-            
-        self._align_K_max()
         self.dim = 2
         self.nu = nu
+        self.R_max = R_max
+        self.K_max = K_max
+        self._N_root = N_root
+        # if N_root is None or R_max is None or K_max is None:
+        self._init(a0=a0)
         self.zs = self.get_zs(nu=nu)
         self.rs = self.get_rs(zs=self.zs)
         self.K = self.get_K(zs=self.zs, nu=nu)
@@ -56,23 +51,40 @@ class CylindricalBasis(Basis):
             self.R_max = np.sqrt(-2*a0**2*np.log(self.eps))
         if self.K_max is None:
             self.K_max = np.sqrt(-np.log(self.eps)/a0**2)
-        if self.N_root is None:
-            self.N_root = int(np.ceil(self.K_max*2*self.R_max/np.pi))
+        # if self.N_root is None:
+        #     self.N_root = int(np.ceil(self.K_max*2*self.R_max/np.pi))
+        if self._N_root is None:
+            n_ = 0
+            zs = self.get_zs(N=self.N_root_max)
+            for z in zs:
+                if z < self.K_max*self.R_max:
+                    n_ += 1
+                else:
+                    break
+            self._N_root = n_
+        else:  # if N_root is specified, we need to change k_max and keep R_max unchanged
+            self._align_K_max()
+
+    @property
+    def N_root(self):
+        return self._N_root
 
     def _align_K_max(self):
         """
         For large n, the roots of the bessel function are approximately
         z[n] = (n + 0.75)*pi, so R = R_max = z_max/K_max = (N-0.25)*pi/K_max
         """
-        self.K_max = (self.N_root - 0.25)*np.pi/self.R_max
+        self.K_max = (self._N_root - 0.25)*np.pi/self.R_max
     
-    def get_zs(self, nu=None):
+    def get_zs(self, nu=None, N=None):
         """
         return roots for order $\nu$
         """
         if nu is None:
             nu = self.nu
-        zs = bessel.j_root(nu=nu, N=self.N_root)
+        if N is None:
+            N = self._N_root
+        zs = bessel.j_root(nu=nu, N=N)
         return zs
 
     def get_rs(self, zs=None, nu=None):
@@ -131,18 +143,6 @@ class CylindricalBasis(Basis):
         """apply weight on the u(v) to get the actual radial wave-function"""
         return u*self.ws
 
-    def get_u(self, psi):
-        """convert psi to u"""
-        rs_ = self._rs_scaling_factor()
-        u = psi*rs_
-        return u
-    
-    def get_psi(self, u):
-        """convert u to psi"""
-        rs_ = self._rs_scaling_factor()
-        psi = u/rs_
-        return psi
-
     def get_nu(self, nu=None):
         """
          `nu + d/2 - 1` for the centrifugal term
@@ -179,6 +179,7 @@ class CylindricalBasis(Basis):
         to its representation in the target basis
         """
         assert basis_target.dim == self.dim
+        raise NotImplementedError("Not implemented")
 
     def get_V_correction(self, nu):
         """
@@ -186,10 +187,6 @@ class CylindricalBasis(Basis):
             should be made to the centrifugal potential
         """
         return (nu**2 - self.nu**2)*self.hbar**2/2.0/self.rs**2
-
-    def get_V_mean_field(self, nu):
-        return 0
-        # raise NotImplementedError("Not implemented yet")
 
 
 class HarmonicDVR(CylindricalBasis):
@@ -210,15 +207,6 @@ class HarmonicDVR(CylindricalBasis):
             nu = self.nu
         K = self.K
         V = self.get_V()
-        V_corr = self.get_V_correction(nu=nu)  # correction centrifugal piece due to different angular quantum number
+        V_corr = self.get_V_correction(nu=nu)
         H = K + np.diag(V + V_corr)
         return H
-    
-
-if __name__ == "__main__":
-    Es = []
-    h = HarmonicDVR(nu=0, w=1, N_root=10)
-    H = h.get_H(nu=2)
-    Es_, us = np.linalg.eigh(H)
-    Es.extend(Es_)
-    print(np.sort(Es))

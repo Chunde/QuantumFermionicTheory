@@ -544,12 +544,6 @@ plt.plot(rs, scale_factor* n_b.ravel(), '+', label=r'$n_b$(Grid)')
 plt.legend()
 clear_output()
 
-# # K-Matrix
+# # Base Transform Matrix
 
 #
-
-#
-
-#
-
-

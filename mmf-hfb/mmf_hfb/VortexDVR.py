@@ -57,8 +57,7 @@ class bdg_dvr(object):
         mu_a, mu_b = mus
         V_ext = self.get_Vext(rs=basis.rs)
         V_corr = basis.get_V_correction(nu=nu)
-        V_mean_field = basis.get_V_mean_field(nu=nu)
-        V_eff = V_ext + V_corr + V_mean_field
+        V_eff = V_ext + V_corr
         H_a = T + np.diag(V_eff - mu_a)
         H_b = T + np.diag(V_eff - mu_b)
         H = block(H_a, Delta, Delta.conj(), -H_b)
@@ -116,7 +115,7 @@ class bdg_dvr(object):
         dens = self._get_den(self.get_H(mus=mus, delta=delta, nu=0), nu=0)
         for nu in range(1, self.l_max):  # sum over angular momentum
             H = self.get_H(mus=mus, delta=delta, nu=nu)
-            dens = dens + 2*self._get_den(H, nu=nu) # double-degenerate
+            dens = dens + 2*self._get_den(H, nu=nu)  # double-degenerate
         n_a, n_b, kappa = dens
         return (n_a, n_b, kappa)
 
@@ -143,7 +142,7 @@ if __name__ == "__main__":
     delta = 2
     mu = 5
     dmu = 3.5
-    dvr = dvr_vortex(mu=mu, dmu=dmu, E_c=None, delta=delta)
+    dvr = dvr_vortex(mu=mu, dmu=dmu, E_c=None, N_root=32, delta=delta)
     delta = delta + dvr.bases[0].zero
     dvr.l_max=100
     na, nb, kappa = dvr.get_densities(mus=(mu, mu), delta=delta)

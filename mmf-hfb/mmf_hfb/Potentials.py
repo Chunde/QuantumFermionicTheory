@@ -51,4 +51,4 @@ class HarmonicOscillator2D(object):
     
     def get_E(self, n, m):
         """return eigen value"""
-        return self.hbar*self.w*(n+ m + 1)
+        return self.hbar*self.w*(n + m + 1)

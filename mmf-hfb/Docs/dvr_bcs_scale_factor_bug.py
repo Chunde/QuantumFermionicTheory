@@ -540,4 +540,45 @@ np.diff(d.rs)
 # \frac{\partial J_{v}(z)}{\partial z}=\frac{1}{2}\left[J_{v-1}(z)-J_{v+1}(z)\right]
 # $$
 
+# # Transform Matrix
+
+# Since differnet bases have different abcissas, the final result should be presented expanded in single basis or we can't compare anything. 
+# Expand a function in two different bases $\ket{F}, \ket{F'}$. where $\braket{F_{n}|F_{n'}}=\delta(n, n')$ and $\braket{F'_{n}|F'_{n'}}=\delta(n, n')$
+# $$
+# \ket{\psi}=\sum_i C_i\ket{F_i}=\sum_i C'_i\ket{F'_i}
+# $$
+# To get $C_i$, multiply $\bra{F_j}$ from the left to get:
+
+# $$
+# \bra{F_j}\sum_i C_i\ket{F_i}=\bra{F_j}\sum_i C'_i\ket{F'_i}
+# $$
+#
+# Use the orthognal relations:
+#
+# $$
+# C_j=\bra{F_j}\sum_i C_i\ket{F_i}=\bra{F_j}\sum_i C'_i\ket{F'_i}=\sum_i \braket{F_j|F'_i}C'_i
+# $$
+
+# $$
+# \begin{pmatrix}
+# C_1\\
+# C_2\\
+# \vdots\\
+# C_n
+# \end{pmatrix}=
+# \begin{pmatrix}
+# \braket{F_1|F'_1}&\braket{F_1|F'_2}&\dots\braket{F_1|F'_m}\\
+# \braket{F_2|F'_1}&\braket{F_2|F'_2}&\dots\braket{F_2|F'_m}\\
+# \vdots&\vdots&\vdots\\
+# \braket{F_n|F'_1}&\braket{F_n|F'_2}&\dots\braket{F_n|F'_m}\\
+# \end{pmatrix}\begin{pmatrix}
+# C'_1\\
+# C'_2\\
+# \vdots\\
+# C'_m
+# \end{pmatrix}
+# $$
+
+# ## 3D cases
+
 
