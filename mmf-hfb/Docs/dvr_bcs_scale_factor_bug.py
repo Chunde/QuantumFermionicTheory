@@ -51,7 +51,7 @@ psis0 = psis0.T
 # $$
 # where $P(r)$ is a polynomial function of $r$, and $C$ is a normalization factor.
 #
-# For $E=1 (Ground State$
+# For $E=1 \qquad \text{Ground State}$
 #
 # $P(r)=1$
 # Then 
@@ -63,7 +63,7 @@ psis0 = psis0.T
 #
 # $P(r)=r$
 # $$
-# \int_0^{\infty} R(r)^2 dr = \int_0^{\infty} e^{-r^2} dr = \frac{\sqrt{\pi}}{4}, \qquad C=\sqrt{\frac{\sqrt{\pi}}{4}}
+# \int_0^{\infty} R(r)^2 dr = \int_0^{\infty}r^2 e^{-r^2} dr = \frac{\sqrt{\pi}}{4}, \qquad C=\sqrt{\frac{\sqrt{\pi}}{4}}
 # $$
 #
 # For $E=3$
@@ -80,6 +80,46 @@ psis0 = psis0.T
 # $$
 #
 
+# ### Another nomalization scheme 
+# * Above scheme does not take the angular component into consideration, the real wavefunction in 2D polar coordinate can be put as:
+# $$
+# \braket{r,\theta|\psi}=\psi(r, \theta)=\psi(r)e^{in\theta}
+# $$
+# The physical way to normalize a single particle wavefunction is:
+# $$
+# \braket{\psi|\psi}=1=\int dr d\theta{\braket{\psi|r, \theta}\braket{r, \theta|\psi}}=\int_{r=0}^{r=\infty}\int_{\theta=0}^{\theta=2\pi}\phi(r)^*\phi(r)r dr d\theta= 2\pi\int_{r=0}^{r=\infty}\phi(r)^*\phi(r)r dr d\theta
+# $$
+
+#
+# For $E=1 \qquad \text{Ground State}$
+#
+# $P(r)=1$
+# Then 
+# $$
+# 2\pi\int_0^{\infty} R(r)^2 r dr = 2\pi\int_0^{\infty} r e^{-r^2} dr =\pi, \qquad C=\sqrt{\pi}
+# $$
+#
+# For $E=2$, there are two degenerate states, with $L=1$, and $L=-1$
+#
+# $P(r)=r$
+# $$ 
+# 2\pi\int_0^{\infty} r R(r)^2 dr = 2\pi\int_0^{\infty} r^3e^{-r^2} dr =\pi, \qquad C=\sqrt{\pi}
+# $$
+#
+# For $E=3$
+# There are two different $P(r)$, corresponding to $L=0$ and $L=\pm2$
+# $$
+# 2\pi\int_0^{\infty} r R(r)^2 dr=2\pi, \qquad P(r)=r^2 ,\qquad C=\sqrt{2\pi}\\
+# 2\pi\int_0^{\infty} r R(r)^2 dr=\pi,\qquad \text{and} \qquad P(r)=r^2 -1,\qquad C=\sqrt{\pi}
+# $$
+#
+# For $E=4$
+# There are two different $P(r)$
+# $$
+# 2\pi\int_0^{\infty} r R(r)^2 dr=6\pi, \qquad P(r)=r^3, \qquad C=\sqrt{6\pi}\\
+# 2\pi\int_0^{\infty} r R(r)^2 dr=\frac{17\pi}{4}, \qquad P(r)=r^3 -r/2, \qquad C=\sqrt{\frac{17\pi}{4}}
+# $$
+
 # +
 def Normalize(psi):
     """Normalize a wave function"""
@@ -91,7 +131,7 @@ def nan0(data):
     return np.nan_to_num(data, 0)
 
 
-def HO_psi(n, m, rs):
+def get_2d_ho_wf_p(n, m, rs):
     """
     return 2d radial wave function for a 
     harmonic oscillator.
@@ -102,6 +142,39 @@ def HO_psi(n, m, rs):
     m is used to pick the degerated wavefunciton
     m <=n
     """
+    assert n < 4 and n >=0
+    assert m <=n
+    P, pi = 1, np.pi
+    C= (pi)**0.5
+    if n ==1:  # E=2
+        P = rs
+    elif n == 2: # E=3
+        P=rs**2
+        C=(2*pi)**0.5
+        if m == 1:
+            P=P-1
+            C = pi**0.5
+    elif n == 3: #  E=4
+        P = rs**3
+        C= (6*pi)**0.5
+        if m == 1 or m==2:
+            P=P - rs/2
+            C= (17*pi/4)**0.5
+    return P*np.exp(-rs**2/2)/C
+
+def get_2d_ho_wf(n, m, rs, p=False):
+    """
+    return 2d radial wave function for a 
+    harmonic oscillator.
+    ------------------------------------
+    n = E -1
+        e.g if E=1, to select the corresponding
+        wavefunction, use n=E-1=0, and m = 0
+    m is used to pick the degerated wavefunciton
+    m <=n
+    """
+    if p:
+        return get_2d_ho_wf(n=n, m=m, rs=rs)
     assert n < 4 and n >=0
     assert m <=n
     P, pi = 1, np.pi
@@ -118,7 +191,7 @@ def HO_psi(n, m, rs):
         P = rs**3
         C= (15*pi**0.5/16)**0.5
         if m == 1 or m==2:
-            P=P - rs/2
+            P= P - rs/2
             C= (5*pi**0.5/8)**0.5
     return P*np.exp(-rs**2/2)/C
 
@@ -139,16 +212,28 @@ plt.figure(figsize(16, 6))
 for n in range(4):
     for m in range(n + 1):
         def f(r):
-            return HO_psi(n, m, r)**2
+            return get_2d_ho_wf(n, m, r)**2
         ret =quad(f, 0, 10)
         assert np.allclose(ret[0], 1)
-        plt.plot(rs, HO_psi(n=n, m=m, rs=rs), label=f"n={n},m={m}")
+        plt.plot(rs, get_2d_ho_wf(n=n, m=m, rs=rs), label=f"n={n},m={m}")
+plt.axhline(0, linestyle='dashed', c='red')
+plt.legend()
+
+rs = np.linspace(0.0000, 5, 200)
+plt.figure(figsize(16, 6))
+for n in range(4):
+    for m in range(n + 1):
+        def f(r):
+            return 2*np.pi*r*get_2d_ho_wf_p(n, m, r)**2
+        ret =quad(f, 0, 10)
+        assert np.allclose(ret[0], 1)
+        plt.plot(rs, get_2d_ho_wf_p(n=n, m=m, rs=rs), label=f"n={n},m={m}")
 plt.axhline(0, linestyle='dashed', c='red')
 plt.legend()
 
 n=0
 rs = np.linspace(0.0000, 5, 100)
-wf_an = HO_psi(n=2, m=1, rs=rs)**2
+wf_an = get_2d_ho_wf(n=2, m=1, rs=rs)**2
 sum(wf_an)*np.diff(rs).mean()
 
 # ## Cylindrical DVR Class
@@ -292,7 +377,7 @@ class CylindricalBasis(object):
         
     def _get_psi(self, u):
         """apply weight on the u(v) to get the actual radial wave-function"""
-        return u*self.ws
+        return u*self.ws/((2*np.pi)**0.5)
 
     def get_nu(self, nu=None):
         """
@@ -413,6 +498,8 @@ for c, N in enumerate([10, 20, 30, 40]):
         else:
             l, = plt.semilogy(ns, errs, linestyles[i])
             c = l.get_c()      
+plt.xlabel(r"$E_n$")
+plt.ylabel(r"$(E-E_0)/E_0$")
 
 # ### Construct Wave Function from DVR Basis
 # * Note: To get the radial wavefunction, we should divide the functionconstructed from the DVR basis by a factor of $\sqrt{r}$, the $\phi(r)$ is not the radial wavefunction:
@@ -424,6 +511,16 @@ for c, N in enumerate([10, 20, 30, 40]):
 # \psi(r)=\frac{\phi(r)}{\sqrt{r}} \qquad \text{Not normalized}
 # $$
 # will be not properly normalized, so we should renomalize it if necessary
+
+# In other world, to properly normalize single particle state, ie:
+# $$
+# \braket{\Psi|\Psi}=1
+# $$
+# where $\Psi(r,\theta)=\psi(r)e^{in\theta}$
+# $$
+# \braket{\Psi|\Psi}=2\pi\int {r\psi^*(r)\psi(r) dr}=2\pi\int{\phi^*(r)\phi(r) dr}=2\pi\braket{\phi|\phi}=2\pi\sum_i{u^2_i}=1
+# $$
+# Which means the results from diagonizing the Hamiltonian should have a weight of $\frac{1}{\sqrt{2\pi}}$
 
 plt.figure(figsize=(16, 8))
 h = HarmonicDVR(nu=0, dim=2, w=1, R_max=None, N_root=32)
@@ -439,8 +536,8 @@ for n in [0, 1]:  # E=1, E=3
     assert np.allclose(sum(abs(phi_dvr_full)**2)*dr, 1, atol=1e-4)  # phi is normalized
     psi_dvr_full = phi_dvr_full/rs**0.5 # psi=phi/sqrt(r) is not normalized
     psi_dvr_abscissa = us.T[n]*h.ws
-    psi_analytical = HO_psi(n=2*n, m=2*n-1, rs=rs)
-    factor = HO_psi(n=2*n, m=2*n-1, rs=h.rs[0])/psi_dvr_abscissa[0]
+    psi_analytical = get_2d_ho_wf(n=2*n, m=2*n-1, rs=rs)
+    factor = get_2d_ho_wf(n=2*n, m=2*n-1, rs=h.rs[0])/psi_dvr_abscissa[0]
     plt.plot(rs, psi_analytical, '+', label='Analytical')
     plt.plot(h.rs, factor*psi_dvr_abscissa,'o', label='Reconstructed(Fs)')
     plt.plot(rs, factor*(psi_dvr_full), '-',label='Reconstructed')
@@ -495,9 +592,10 @@ imcontourf(x, y, abs(psi_bcs))
 plt.colorbar()
 
 plt.subplot(132)
-psi_dvr = d._get_psi(us.T[0])
+psi_dvr = d._get_psi(us.T[0])/((2*np.pi)**0.5)
 plt.plot(rs, abs(psi_bcs.ravel()), '+', label="Grid")
 plt.plot(d.rs, abs(psi_dvr), 'o', label="DVR")
+plt.plot(d.rs, abs(get_2d_ho_wf_p(0,0, d.rs)), label="Analytical")
 plt.title("Unnormalized Wavefunctions")
 plt.legend()
 
@@ -509,9 +607,6 @@ plt.plot(d.rs, abs(psi_dvr), 'o', label="DVR")
 plt.title("Normalized Wavefunction")
 plt.legend()
 # -
-np.diff(d.rs)
-
-
 # # BdG in Rotating Frame Transform
 #
 # $$
