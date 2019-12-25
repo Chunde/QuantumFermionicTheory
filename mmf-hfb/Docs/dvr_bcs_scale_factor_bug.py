@@ -44,7 +44,41 @@ psis0 = psis0.T
 
 # # DVR
 
-# ## Some Helper functions
+# ## Analytical Radial Wavefunction
+#
+# $$
+# \phi(r)=C R(r)=CP(r)e^{-r^2/2}
+# $$
+# where $P(r)$ is a polynomial function of $r$, and $C$ is a normalization factor.
+#
+# For $E=1 (Ground State$
+#
+# $P(r)=1$
+# Then 
+# $$
+# \int_0^{\infty} R(r)^2 dr = \int_0^{\infty} e^{-r^2} dr = \frac{\sqrt{\pi}}{2}, \qquad C=\sqrt{\frac{\sqrt{\pi}}{2}}
+# $$
+#
+# For $E=2$, there are two degenerate states, with $L=1$, and $L=-1$
+#
+# $P(r)=r$
+# $$
+# \int_0^{\infty} R(r)^2 dr = \int_0^{\infty} e^{-r^2} dr = \frac{\sqrt{\pi}}{4}, \qquad C=\sqrt{\frac{\sqrt{\pi}}{4}}
+# $$
+#
+# For $E=3$
+# There are two different $P(r)$, corresponding to $L=0$ and $L=\pm2$
+# $$
+# \int_0^{\infty} R(r)^2 dr=\frac{3\sqrt{\pi}}{8}, \qquad P(r)=r^2 \qquad \text{and} \qquad P(r)=r^2 -1, \qquad C=\sqrt{\frac{3\sqrt{\pi}}{8}}
+# $$
+#
+# For $E=4$
+# There are two different $P(r)$
+# $$
+# \int_0^{\infty} R(r)^2 dr=\frac{15\sqrt{\pi}}{16}, \qquad P(r)=r^3, \qquad C=\sqrt{\frac{15\sqrt{\pi}}{16}}\\
+# \int_0^{\infty} R(r)^2 dr=\frac{5\sqrt{\pi}}{8}, \qquad P(r)=r^3 -r/2, \qquad C=\sqrt{\frac{5\sqrt{\pi}}{8}}
+# $$
+#
 
 # +
 def Normalize(psi):
@@ -70,18 +104,23 @@ def HO_psi(n, m, rs):
     """
     assert n < 4 and n >=0
     assert m <=n
-    P=1
-    if n ==1:
+    P, pi = 1, np.pi
+    C= (pi**0.5/2)**0.5
+    if n ==1:  # E=2
         P = rs
-    elif n == 2:
+        C=(pi**0.5/4)**0.5
+    elif n == 2: # E=3
         P=rs**2
         if m == 1:
             P=P-1
-    elif n == 3:
+        C = (3*pi**0.5/8)**0.5
+    elif n == 3: #  E=4
         P = rs**3
+        C= (15*pi**0.5/16)**0.5
         if m == 1 or m==2:
             P=P - rs/2
-    return P*np.exp(-rs**2/2)
+            C= (5*pi**0.5/8)**0.5
+    return P*np.exp(-rs**2/2)/C
 
 def show_2d_harmonic_oscillator_den(m=0, n=0, L=5, N=100):
     """Show 2D harmonic oscillator density"""
@@ -93,16 +132,37 @@ def show_2d_harmonic_oscillator_den(m=0, n=0, L=5, N=100):
 
 # -
 
+# ## Anaylical wavefunctions normalization
+
+rs = np.linspace(0.0000, 5, 200)
+plt.figure(figsize(16, 6))
+for n in range(4):
+    for m in range(n + 1):
+        def f(r):
+            return HO_psi(n, m, r)**2
+        ret =quad(f, 0, 10)
+        assert np.allclose(ret[0], 1)
+        plt.plot(rs, HO_psi(n=n, m=m, rs=rs), label=f"n={n},m={m}")
+plt.axhline(0, linestyle='dashed', c='red')
+plt.legend()
+
+n=0
+rs = np.linspace(0.0000, 5, 100)
+wf_an = HO_psi(n=2, m=1, rs=rs)**2
+sum(wf_an)*np.diff(rs).mean()
+
 # ## Cylindrical DVR Class
 
 # +
 from mmfutils.math import bessel
 
+
 class CylindricalBasis(object):
     eps = 7./3 - 4./3 -1  # machine precision
     m = hbar = 1
+    N_root_max = 128
 
-    def __init__(self, N_root=None, R_max=None, K_max=None, a0=None, nu=0, **args):
+    def __init__(self, R_max=None, N_root=None, K_max=None, a0=None, nu=0, **args):
         """
         Parameters
         --------------
@@ -119,23 +179,25 @@ class CylindricalBasis(object):
         dim: int
             dimensionality
         """
-        self.N_root = N_root
-        self.R_max = R_max
-        self.K_max = K_max
-        if N_root is None or R_max is None or K_max is None:
-            self._init(a0=a0)
-            
-        self._align_K_max()
         self.dim = 2
         self.nu = nu
-        self.zs = self.get_zs(nu=nu)
+        self.R_max = R_max
+        self.K_max = K_max
+        self.N_root = N_root
+        self.a0 = a0
+        self.init()
+        
+    def init(self):
+        # if N_root is None or R_max is None or K_max is None:
+        self.get_N_K_R(a0=self.a0)
+        self.zs = self.get_zs(nu=self.nu)
         self.rs = self.get_rs(zs=self.zs)
-        self.K = self.get_K(zs=self.zs, nu=nu)
+        self.K = self.get_K(zs=self.zs, nu=self.nu)
         self.zero = np.zeros_like(self.zs)
         self.rs_scale = self._rs_scaling_factor(zs=self.zs)
         self.ws = self.get_F_rs()/self.rs_scale  # weight
 
-    def _init(self, a0=None):
+    def get_N_K_R(self, a0=None):
         """evaluate R_max and K_max using Gaussian wavefunction"""
         if a0 is None:
             a0 = 1
@@ -143,9 +205,21 @@ class CylindricalBasis(object):
             self.R_max = np.sqrt(-2*a0**2*np.log(self.eps))
         if self.K_max is None:
             self.K_max = np.sqrt(-np.log(self.eps)/a0**2)
+        # if self.N_root is None:
+        #     self.N_root = int(np.ceil(self.K_max*2*self.R_max/np.pi))
         if self.N_root is None:
-            self.N_root = int(np.ceil(self.K_max*2*self.R_max/np.pi))
+            n_ = 0
+            zs = self.get_zs(N=self.N_root_max)
+            for z in zs:
+                if z <= self.K_max*self.R_max:
+                    n_ += 1
+                else:
+                    break
+            self.N_root = n_
+        else:  # if N_root is specified, we need to change k_max and keep R_max unchanged
+            self._align_K_max()
 
+ 
     def _align_K_max(self):
         """
         For large n, the roots of the bessel function are approximately
@@ -153,13 +227,15 @@ class CylindricalBasis(object):
         """
         self.K_max = (self.N_root - 0.25)*np.pi/self.R_max
     
-    def get_zs(self, nu=None):
+    def get_zs(self, nu=None, N=None):
         """
         return roots for order $\nu$
         """
         if nu is None:
             nu = self.nu
-        zs = bessel.j_root(nu=nu, N=self.N_root)
+        if N is None:
+            N = self.N_root
+        zs = bessel.j_root(nu=nu, N=N)
         return zs
 
     def get_rs(self, zs=None, nu=None):
@@ -248,13 +324,13 @@ class CylindricalBasis(object):
         K = self.K_max**2*K_off/2.0  # factor of 1/2 include
         return K
 
-
     def get_V_correction(self, nu):
         """
             if nu is not the same as the basis, a piece of correction
             should be made to the centrifugal potential
         """
         return (nu**2 - self.nu**2)*self.hbar**2/2.0/self.rs**2
+
 
 # -
 
@@ -282,40 +358,96 @@ class HarmonicDVR(CylindricalBasis):
         return H
 
 
-# +
-plt.figure(figsize=(16, 16))
+# ### Make sure DVR basis funtioncs are normalized
+
 h = HarmonicDVR(nu=0, dim=2, w=1)
+H = h.get_H()
+for i in range(h.N_root):
+    def f(r):
+        return h.get_F(n=i, rs=r)**2
+    ret =quad(f, 0, np.inf)
+    assert np.allclose(ret[0], 1)
+clear_output()
+
+# ### Make sure DVR basis functions are Orthogonal
+
+h = HarmonicDVR(nu=0, dim=2, w=1)
+H = h.get_H()
+N = min(4, h.N_root)
+for i in range(N):
+    for j in range(i + 1, N):
+        def f(r):
+            return h.get_F(n=j, rs=r)*h.get_F(n=i, rs=r)
+        ret =quad(f, 0, h.R_max*10)
+        assert np.allclose(ret[0], 0, atol=1e-6)
+clear_output()
+
+# ### Reproduce the graphs in the Paper
+# * Figure 2 in paper [Bessel discrete variable representation bases](https://aip.scitation.org/doi/10.1063/1.1481388)
+
+h.K_max =1
+paras = [(0,0),(3,0), (10,0), (3, 10)]
+for i in range(len(paras)):
+    rs = np.linspace(0 if i < 3 else 20, 30 if i < 3 else 50, 1000)
+    plt.subplot(2,2,i+1)
+    plt.plot(rs, h.get_F(nu=paras[i][0], n=paras[i][1], rs=rs))
+    plt.axhline(0, linestyle='dashed', c='red')
+
+# ### Check Errors
+# * check how energy spectrum errors scales as number of abscissa and level of energy
+
+plt.figure(figsize=(16,6))
+linestyles = ['--', '+']
+for c, N in enumerate([10, 20, 30, 40]):
+    dvr_o = HarmonicDVR(nu=0, w=1, N_root=N)
+    dvr_e = HarmonicDVR(nu=1, w=1, N_root=N)
+    c = None
+    for (i, dvr) in enumerate([dvr_o, dvr_e]):
+        H = dvr.get_H()
+        Es, us = np.linalg.eigh(H)
+        ns = np.array(list(range(len(Es))))
+        Es0 = 2*ns + 2**i  # analytica energy spectrum
+        errs = (Es - Es0)/Es0
+        if c is not None:
+            plt.semilogy(ns, errs, linestyles[i], c=c)
+        else:
+            l, = plt.semilogy(ns, errs, linestyles[i])
+            c = l.get_c()      
+
+# ### Construct Wave Function from DVR Basis
+# * Note: To get the radial wavefunction, we should divide the functionconstructed from the DVR basis by a factor of $\sqrt{r}$, the $\phi(r)$ is not the radial wavefunction:
+# $$
+#  \ket{\phi}=\sum_i{ u_i\ket{F_i}} \qquad \text{Normalized}
+# $$
+# by doing this, the resulted radio wavefunction $\psi(r)$:
+# $$
+# \psi(r)=\frac{\phi(r)}{\sqrt{r}} \qquad \text{Not normalized}
+# $$
+# will be not properly normalized, so we should renomalize it if necessary
+
+plt.figure(figsize=(16, 8))
+h = HarmonicDVR(nu=0, dim=2, w=1, R_max=None, N_root=32)
 H = h.get_H()
 Es, us = np.linalg.eigh(H)
 Fs = h.get_F_rs()
 print(Es[:10])
-rs = np.linspace(0.01, 8, 100)
-
-for n in [0, 1]:
-    wf =sum([u*h.get_F(nu=0, n=i, rs=rs) for (i, u) in enumerate(us.T[n])])
-    wf_ = us.T[n]*h.ws
-    plt.subplot(211)
-    scale_factor = HO_psi(n=2*n, m=2*n-1, rs=rs[0])*rs[0]**0.5/wf[0]
-
-    plt.plot(rs, HO_psi(n=2*n, m=2*n-1, rs=rs), '+', label='Analytical')
-    plt.plot(h.rs, wf_*scale_factor,'o', label='Reconstructed(Fs)')
-    plt.plot(rs, (wf*scale_factor/rs**0.5), '-',label='Reconstructed')
-
+rs = np.linspace(0.000001, 5, 250)
+dr = rs[1]-rs[0]
+for n in [0, 1]:  # E=1, E=3
+    u = us.T[n]
+    phi_dvr_full =sum([u*h.get_F(nu=0, n=i, rs=rs) for (i, u) in enumerate(us.T[n])])
+    assert np.allclose(sum(abs(phi_dvr_full)**2)*dr, 1, atol=1e-4)  # phi is normalized
+    psi_dvr_full = phi_dvr_full/rs**0.5 # psi=phi/sqrt(r) is not normalized
+    psi_dvr_abscissa = us.T[n]*h.ws
+    psi_analytical = HO_psi(n=2*n, m=2*n-1, rs=rs)
+    factor = HO_psi(n=2*n, m=2*n-1, rs=h.rs[0])/psi_dvr_abscissa[0]
+    plt.plot(rs, psi_analytical, '+', label='Analytical')
+    plt.plot(h.rs, factor*psi_dvr_abscissa,'o', label='Reconstructed(Fs)')
+    plt.plot(rs, factor*(psi_dvr_full), '-',label='Reconstructed')
 plt.xlabel("r")
 plt.ylabel("F(r)")
-plt.axhline(0, c='r', linestyle='dashed')
+plt.axhline(0, c='black', linestyle='dashed')
 plt.legend()
-
-plt.subplot(212)
-rs = np.linspace(0.01, 8, 500)
-plt.plot(h.rs, Fs, 'o')
-for i in range(10):
-    l, = plt.plot(rs, h.get_F(n=i, rs=rs), label=r'$\nu$'+f'{i}')
-    plt.axvline(h.rs[i], linestyle='dashed', c=l.get_c())
-plt.xlim(0, 3)
-plt.legend()
-
-# -
 
 # # Compare Radial Wavefunctions
 
@@ -348,6 +480,7 @@ def get_dvr(nu=0):
 ds = [get_dvr(nu=nu) for nu in range(3)]
 
 # ## Compare Radial Functions
+# * Normalization: For 2D lattice, $\psi^* \psi dx dy = 1$, for DVR $\psi^* \psi dx=1$
 
 # +
 d, Es, us = ds[0]
@@ -379,7 +512,15 @@ plt.legend()
 np.diff(d.rs)
 
 
-# # BdG in Ratating Frame Transform
+# # BdG in Rotating Frame Transform
+#
+# $$
+# \Delta = \Delta_0 r e^{i2n\theta}=\Delta_0(x + iy)^{2n}/r^{2n-1}=\Delta_0f(r)(x + iy)^{2n}
+# $$
+#
+# $$
+# R\psi(x,y)=e^{i\theta \hat{L}_z/\hbar}\psi(x,y)
+# $$
 
 # * Mathmatical identity
 # \begin{align}
@@ -477,6 +618,13 @@ np.diff(d.rs)
 # V^*(x)
 # \end{pmatrix}
 # \end{align}
+#
+
+#
+# In a vortex, the pairing field is
+# $$
+# \Delta = \Delta_0(x + iy)=\Delta_0 r e^{i\theta}
+# $$
 #
 
 # # First Order Derivative Operator
