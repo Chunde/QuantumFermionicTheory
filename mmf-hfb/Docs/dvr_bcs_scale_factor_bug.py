@@ -237,10 +237,8 @@ rs = np.linspace(0.0000, 5, 100)
 wf_an = get_2d_ho_wf(n=2, m=1, rs=rs)**2
 sum(wf_an)*np.diff(rs).mean()
 
+
 # ## Cylindrical DVR Class
-
-
-
 
 # ## Harmonic Oscillator Class
 
@@ -453,18 +451,33 @@ psis=psis.T
 Es[:10]
 
 
-# ## DVR
+# ## DVR Densities Check
+# For example, if $E=3$, there are three states with the same energy(degeneracy)
+# * Triple degeneracy, sum up all three state densities
+# * To see how close they are, increase the DVR absissa number to 64
 
-def get_dvr(nu=0):
-    dvr = HarmonicDVR(nu=nu%2, w=1, R_max=None, N_root=64)
+# +
+def get_dvr(nu=0, N_root=None):
+    dvr = HarmonicDVR(nu=nu%2, w=1, R_max=None, N_root=N_root)
     H = dvr.get_H(nu=nu)
     Es, us = np.linalg.eigh(H)
-    print(Es[:5])
     res = namedtuple(
                 'res', ['dvr', 'Es', 'us'])
     return res(dvr=dvr, Es=Es, us=us)
-ds = [get_dvr(nu=nu) for nu in range(10)]
 
+ds = [get_dvr(nu=nu, N_root=64) for nu in range(10)]
+
+def get_den_dvr(n, m):
+    d, Es, us = ds[n]
+    psi_dvr = d._get_psi(us.T[m])
+    return abs(psi_dvr)**2
+    
+def plot_den_dvr(n, m, d0=1):
+    den_dvr = get_den_dvr(n, m)
+    plt.plot(d.rs, d0*den_dvr, '--', label="DVR")
+
+
+# -
 
 def compare_bcs_dvr_dens(E=3):
     start_index = sum(list(range(E)))
@@ -472,11 +485,11 @@ def compare_bcs_dvr_dens(E=3):
     b = b0
     x, y = b.xyz
     rs = np.sqrt(sum(_x**2 for _x in b.xyz)).ravel()
-
     # BCS densities
-    print(f"start={start_index}, end={end_index}")
-
     psis_bcs = np.array([b.Normalize((psis0[i]).reshape(b.Nxyz)) for i in range(start_index, end_index)])
+    den_bcs=0
+    for i in range(len(psis_bcs)):
+        den_bcs = abs(psis_bcs[i])**2
     den_bcs = sum(abs(psis_bcs)**2)
     plt.figure(figsize=(14,5))
     plt.subplot(121)
@@ -488,79 +501,21 @@ def compare_bcs_dvr_dens(E=3):
     parity = E%2
     den_dvr = 0
     if parity == 1:
-        d, Es, us = ds[0]
-        print(d.rs[:5])
         psi_index = E//2
-        print(f"nu={0}, index={psi_index}")
-        psi_dvr = d._get_psi(us.T[psi_index])
-        den_dvr += abs(psi_dvr)**2
+        den_dvr += get_den_dvr(0, psi_index) # abs(psi_dvr)**2
+        
     for i in range(1 + parity, E + 1, 2):
-        d, Es, us = ds[i]
-        psi_index = E-1-i
-        print(d.rs[:5])
-        print(f"nu={i}, index={psi_index}")
-        psi_dvr = d._get_psi(us.T[psi_index])
-        den_dvr += 2*abs(psi_dvr)**2
+        psi_index = E//2 + parity - 1 - i//2
+        den_dvr += 2*get_den_dvr(i, psi_index)  # 2*abs(psi_dvr)**2
+
     plt.plot(rs, den_bcs.ravel(), '+', label="Grid")
-    plt.plot(d.rs, den_dvr, '--', label="DVR")
+    plt.plot(d.rs, den_dvr, '-', label="DVR")
     plt.legend()
 
 
-# ## Compare Radial Functions
-# * Normalization: For 2D lattice, $\psi^* \psi dx dy = 1$, for DVR $\psi^* \psi dx=1$
-
-compare_bcs_dvr_dens(7)
-
-# ### $E=1$ case
-
-# +
-d, Es, us = ds[0]
-print(Es[:10])
-x, y = b.xyz
-rs = np.sqrt(sum(_x**2 for _x in b.xyz)).ravel()
-psi_bcs = b.Normalize(psis[0]).reshape(b.Nxyz)
-
-plt.figure(figsize=(14,5))
-plt.subplot(121)
-imcontourf(x, y, abs(psi_bcs))
-plt.colorbar()
-
-plt.subplot(122)
-psi_dvr = d._get_psi(us.T[0])
-plt.plot(rs, abs(psi_bcs.ravel()), '+', label="Grid")
-plt.plot(d.rs, abs(psi_dvr), 'o', label="DVR")
-plt.plot(d.rs, abs(get_2d_ho_wf_p(0,0, d.rs)), label="Analytical")
-plt.title("Unnormalized Wavefunctions")
-plt.legend()
-# -
-# ### $E=3$ case
-# * Triple degeneracy, sum up all three state densities(not just radia wavefunction)
-# * To see how close they are, increase the DVR absissa number to 64
-
-# +
-x, y = b.xyz
-rs = np.sqrt(sum(_x**2 for _x in b.xyz)).ravel()
-psis_bcs = np.array([b.Normalize(psis[i]).reshape(b.Nxyz) for i in range(3, 6)])
-den_bcs = sum(abs(psis_bcs)**2)
-plt.figure(figsize=(14,5))
-plt.subplot(121)
-imcontourf(x, y, den_bcs )
-plt.colorbar()
-
-plt.subplot(122)
-d, Es, us = ds[0]
-print(Es[:10])
-psi_dvr = d._get_psi(us.T[1])
-den_dvr =abs(psi_dvr)**2
-d, Es, us = ds[2]
-print(Es[:10])
-psi_dvr = d._get_psi(us.T[0])
-den_dvr += 2*abs(psi_dvr)**2  # double-degeneracy
-plt.plot(rs, abs(den_bcs.ravel()), '+', label="Grid")
-plt.plot(d.rs, abs(den_dvr), 'o', label="DVR")
-plt.title("Unnormalized Wavefunctions")
-plt.legend()
-# -
+for E in range(1, 10):
+    compare_bcs_dvr_dens(E=E)
+    plt.show()
 
 # # BdG in Rotating Frame Transform
 #

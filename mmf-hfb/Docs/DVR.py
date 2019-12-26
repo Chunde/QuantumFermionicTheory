@@ -182,7 +182,7 @@ Es[:20]
 # ## Check Radia Wavefunction
 
 def get_dvr(nu=0):
-    dvr = HarmonicDVR(nu=nu%2, w=1, R_max=8.5, N_root=32)
+    dvr = HarmonicDVR(nu=nu%2, w=1, R_max=8.5, N_root=64)
     H = dvr.get_H(nu=nu)
     Es, us = np.linalg.eigh(H)
     print(Es[:5])
@@ -191,6 +191,19 @@ def get_dvr(nu=0):
     return res(dvr=dvr, Es=Es, us=us)
 ds = [get_dvr(nu=nu) for nu in range(10)]
 
+
+# +
+def get_den_dvr(n, m):
+    d, Es, us = ds[n]
+    psi_dvr = d._get_psi(us.T[m])
+    return abs(psi_dvr)**2
+    
+def plot_den_dvr(n, m, d0=1):
+    den_dvr = get_den_dvr(n, m)
+    plt.plot(d.rs, d0*den_dvr, '--', label="DVR")
+
+
+# -
 
 # ### $\nu=0$
 
@@ -202,8 +215,10 @@ def compare_bcs_dvr_dens(E=3):
     rs = np.sqrt(sum(_x**2 for _x in b.xyz)).ravel()
 
     # BCS densities
-    print(f"start={start_index}, end={end_index}")
     psis_bcs = np.array([b.Normalize((psis0[i]).reshape(b.Nxyz)) for i in range(start_index, end_index)])
+    den_bcs=0
+    for i in range(len(psis_bcs)):
+        den_bcs = abs(psis_bcs[i])**2
     den_bcs = sum(abs(psis_bcs)**2)
     plt.figure(figsize=(14,5))
     plt.subplot(121)
@@ -215,55 +230,21 @@ def compare_bcs_dvr_dens(E=3):
     parity = E%2
     den_dvr = 0
     if parity == 1:
-        d, Es, us = ds[0]
         psi_index = E//2
-        psi_dvr = d._get_psi(us.T[psi_index])
-        den_dvr += abs(psi_dvr)**2
-        print(0, psi_index)
+        den_dvr += get_den_dvr(0, psi_index) # abs(psi_dvr)**2
+        
     for i in range(1 + parity, E + 1, 2):
-        d, Es, us = ds[i]
-        psi_index = E-1-i
-        psi_dvr = d._get_psi(us.T[psi_index])
-        den_dvr += 2*abs(psi_dvr)**2
-        print(i, psi_index)
+        psi_index = E//2 + parity - 1 - i//2
+        den_dvr += 2*get_den_dvr(i, psi_index)  # 2*abs(psi_dvr)**2
 
 
     plt.plot(rs, den_bcs.ravel(), '+', label="Grid")
     plt.plot(d.rs, den_dvr, 'o', label="DVR")
     plt.legend()
 
-compare_bcs_dvr_dens(4)
-
-x, y = bcs.xyz
-d, Es, us = ds[0]
-rs = np.sqrt(sum(_x**2 for _x in bcs.xyz)).ravel()
-psi = bcs.Normalize((sum(psis[3:5])).reshape(bcs.Nxyz))
-plt.figure(figsize=(13,5))
-plt.subplot(121)
-imcontourf(x, y, abs(psi))
-plt.colorbar()
-plt.subplot(122)
-plt.plot(rs, abs(psi.ravel()), '+', label="Grid")
-plt.plot(d.rs, abs((d._get_psi(us.T[1]))), 'o', label="DVR")
-plt.plot(d.rs, abs((get_2d_ho_wf_p(n=2, m=1, rs=d.rs))), '-', label='Analytical')
-plt.legend()
-
-# ### $\nu=2$
-
-b = b0
-d, Es, us = ds[2]
-x, y = b.xyz
-rs = np.sqrt(sum(_x**2 for _x in b.xyz)).ravel()
-psi = b.Normalize((psis0[3]).reshape(b.Nxyz))
-plt.figure(figsize=(14,5))
-plt.subplot(121)
-imcontourf(x, y, abs(psi))
-plt.colorbar()
-plt.subplot(122)
-plt.plot(rs, abs(psi.ravel()), '+', label="Grid")
-plt.plot(d.rs, abs((d._get_psi(us.T[0]))), 'o', label="DVR")
-plt.plot(d.rs, abs((get_2d_ho_wf_p(n=2, m=0, rs=d.rs))), '-', label='Analytical')
-plt.legend()
+for E in range(1, 10):
+    compare_bcs_dvr_dens(E=E)
+    plt.show()
 
 # ### Overall Density
 
@@ -276,27 +257,8 @@ def den_dvr(di, n):
 
 # * within a factor of normalization, things look right!
 
-d=d0.dvr
-plt.plot(d.rs, den_dvr(d0, 0))
-psi = get_2d_ho_wf_p(n=0, m=0, rs=d.rs)
-plt.plot(d.rs, psi.conj()*psi, '+')
-
 # * Summing up the density of the first 6 states
 # * It's clear that the DVR case should count the degeneracy properly
-
-b = b0
-x, y = b.xyz
-n0 = b.Normalize((sum(abs(psis0[0:1])**2)).reshape(b.Nxyz))
-plt.figure(figsize=(13,5))
-plt.subplot(121)
-imcontourf(x, y, n0)
-plt.colorbar()
-plt.subplot(122)
-n1 = den_dvr(d0, 0) + den_dvr(d0, 1) + den_dvr(d1, 0)*2 + den_dvr(d2, 0)*2
-plt.plot(d0.dvr.rs, n1, label="DVR")
-plt.plot(rs, n0.ravel(), '+', label="Grid")
-plt.legend()
-
 
 # ## 2D Harmonic in a lattice
 
