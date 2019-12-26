@@ -52,3 +52,69 @@ class HarmonicOscillator2D(object):
     def get_E(self, n, m):
         """return eigen value"""
         return self.hbar*self.w*(n + m + 1)
+
+
+def get_2d_ho_wf_p(n, m, rs):
+    """
+    return 2d radial wave function for a
+    harmonic oscillator.
+    ------------------------------------
+    n = E -1
+        e.g if E=1, to select the corresponding
+        wavefunction, use n=E-1=0, and m = 0
+    m is used to pick the degerated wavefunciton
+    m <=n
+    """
+    assert n < 4 and n >=0
+    assert m <=n
+    P, pi = 1, np.pi
+    C= (pi)**0.5
+    if n ==1:  # E=2
+        P = rs
+    elif n == 2:  # E=3
+        P=rs**2
+        C=(2*pi)**0.5
+        if m == 1:
+            P=P-1
+            C = pi**0.5
+    elif n == 3:  #  E=4
+        P = rs**3
+        C= (6*pi)**0.5
+        if m == 1 or m==2:
+            P=P - rs/2
+            C= (17*pi/4)**0.5
+    return P*np.exp(-rs**2/2)/C
+
+
+def get_2d_ho_wf(n, m, rs, p=False):
+    """
+    return 2d radial wave function for a 
+    harmonic oscillator.
+    ------------------------------------
+    n = E -1
+        e.g if E=1, to select the corresponding
+        wavefunction, use n=E-1=0, and m = 0
+    m is used to pick the degerated wavefunciton
+    m <=n
+    """
+    if p:
+        return get_2d_ho_wf(n=n, m=m, rs=rs)
+    assert n < 4 and n >=0
+    assert m <=n
+    P, pi = 1, np.pi
+    C= (pi**0.5/2)**0.5
+    if n ==1:  # E=2
+        P = rs
+        C=(pi**0.5/4)**0.5
+    elif n == 2:  # E=3
+        P=rs**2
+        if m == 1:
+            P=P-1
+        C = (3*pi**0.5/8)**0.5
+    elif n == 3:  #  E=4
+        P = rs**3
+        C= (15*pi**0.5/16)**0.5
+        if m == 1 or m==2:
+            P= P - rs/2
+            C= (5*pi**0.5/8)**0.5
+    return P*np.exp(-rs**2/2)/C

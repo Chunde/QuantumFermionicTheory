@@ -33,17 +33,21 @@ class CylindricalBasis(object):
         self.nu = nu
         self.R_max = R_max
         self.K_max = K_max
-        self._N_root = N_root
+        self.N_root = N_root
+        self.a0 = a0
+        self.init()
+        
+    def init(self):
         # if N_root is None or R_max is None or K_max is None:
-        self._init(a0=a0)
-        self.zs = self.get_zs(nu=nu)
+        self.get_N_K_R(a0=self.a0)
+        self.zs = self.get_zs(nu=self.nu)
         self.rs = self.get_rs(zs=self.zs)
-        self.K = self.get_K(zs=self.zs, nu=nu)
+        self.K = self.get_K(zs=self.zs, nu=self.nu)
         self.zero = np.zeros_like(self.zs)
         self.rs_scale = self._rs_scaling_factor(zs=self.zs)
         self.ws = self.get_F_rs()/self.rs_scale  # weight
 
-    def _init(self, a0=None):
+    def get_N_K_R(self, a0=None):
         """evaluate R_max and K_max using Gaussian wavefunction"""
         if a0 is None:
             a0 = 1
@@ -53,28 +57,24 @@ class CylindricalBasis(object):
             self.K_max = np.sqrt(-np.log(self.eps)/a0**2)
         # if self.N_root is None:
         #     self.N_root = int(np.ceil(self.K_max*2*self.R_max/np.pi))
-        if self._N_root is None:
+        if self.N_root is None:
             n_ = 0
             zs = self.get_zs(N=self.N_root_max)
             for z in zs:
-                if z < self.K_max*self.R_max:
+                if z <= self.K_max*self.R_max:
                     n_ += 1
                 else:
                     break
-            self._N_root = n_
+            self.N_root = n_
         else:  # if N_root is specified, we need to change k_max and keep R_max unchanged
             self._align_K_max()
-
-    @property
-    def N_root(self):
-        return self._N_root
 
     def _align_K_max(self):
         """
         For large n, the roots of the bessel function are approximately
         z[n] = (n + 0.75)*pi, so R = R_max = z_max/K_max = (N-0.25)*pi/K_max
         """
-        self.K_max = (self._N_root - 0.25)*np.pi/self.R_max
+        self.K_max = (self.N_root - 0.25)*np.pi/self.R_max
     
     def get_zs(self, nu=None, N=None):
         """
@@ -83,7 +83,7 @@ class CylindricalBasis(object):
         if nu is None:
             nu = self.nu
         if N is None:
-            N = self._N_root
+            N = self.N_root
         zs = bessel.j_root(nu=nu, N=N)
         return zs
 
@@ -140,8 +140,13 @@ class CylindricalBasis(object):
         return rs_
         
     def _get_psi(self, u):
-        """apply weight on the u(v) to get the actual radial wave-function"""
-        return u*self.ws
+        """
+        apply weight on the u(v) to get the actual radial wave-function
+        ----------
+        NOTE: divided by a factor of $\sqrt(2\pi)$ because that $2 \pi$ is
+            from the angular integration in 2D
+        """
+        return u*self.ws/((2*np.pi)**0.5)
 
     def get_nu(self, nu=None):
         """
@@ -173,14 +178,6 @@ class CylindricalBasis(object):
         K = self.K_max**2*K_off/2.0  # factor of 1/2 include
         return K
 
-    def get_transform_matrix(self, basis_target):
-        """
-        return the transform matrix that will map current data
-        to its representation in the target basis
-        """
-        assert basis_target.dim == self.dim
-        raise NotImplementedError("Not implemented")
-
     def get_V_correction(self, nu):
         """
             if nu is not the same as the basis, a piece of correction
@@ -210,3 +207,19 @@ class HarmonicDVR(CylindricalBasis):
         V_corr = self.get_V_correction(nu=nu)
         H = K + np.diag(V + V_corr)
         return H
+
+
+if __name__ == "__main__":
+    dvr0 = CylindricalBasis(nu=0, R_max=9, N_root=49)
+    dvr1 = CylindricalBasis(nu=1, R_max=9, N_root=48)
+    z0 = dvr0.zs
+    z1 = dvr1.zs
+    a = np.sin(z1)/np.sqrt(z1)
+    b = -np.cos(z0)/np.sqrt(z0)
+    U10 = []
+    for j in range(len(z0)):
+        for i in range(len(z1)):
+            v = 2*b[j]*(z0[j]*z1[i])**0.5/a[i]/(z1[i]**2 - z0[j]**2)
+            U10.append(v)
+    U10 = np.array(U10).reshape(len(z0), len(z1))
+    print(U10)

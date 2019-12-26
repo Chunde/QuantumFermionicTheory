@@ -26,7 +26,7 @@ from mmf_hfb.DVRBasis import CylindricalBasis
 from mmf_hfb import homogeneous
 from mmfutils.plot import imcontourf
 from collections import namedtuple
-from mmf_hfb.Potentials import HarmonicOscillator2D
+from mmf_hfb.Potentials import HarmonicOscillator2D,get_2d_ho_wf_p
 from mmf_hfb.VortexDVR import bdg_dvr, bdg_dvr_ho
 from mmfutils.math.special import mstep
 
@@ -39,32 +39,6 @@ from mmfutils.math.special import mstep
 def Normalize(psi):
     """Normalize a wave function"""
     return psi/(psi.conj().dot(psi))**0.5
-
-def HO_psi(n, m, rs):
-    """
-    return 2d radia wave function for a 
-    harmonic oscillator.
-    ------------------------------------
-    n = E -1
-        e.g if E=1, to select the corresponding
-        wavefunction, use n=E-1=0, and m = 0
-    m is used to pick the degerated wavefunciton
-    m <=n
-    """
-    assert n < 4 and n >=0
-    assert m <=n
-    P=1
-    if n ==1:
-        P = rs
-    elif n == 2:
-        P=rs**2
-        if m == 1:
-            P=P-1
-    elif n == 3:
-        P = rs**3
-        if m == 1 or m==2:
-            P=P - rs/2
-    return P*np.exp(-rs**2/2)
 
 def get_2d_den(m=0, n=0, L=5, N=100):
     """Show 2D harmonic osciallater density"""
@@ -132,21 +106,20 @@ class HarmonicDVR(CylindricalBasis):
 # ## Construct Wavefunction from a basis
 
 # +
-plt.figure(figsize=(16, 16))
-h = HarmonicDVR(nu=0, dim=2, w=1)
+plt.figure(figsize=(16, 7))
+h = HarmonicDVR(nu=0, dim=2, w=1, N_root=32)
 H = h.get_H()
 Es, us = np.linalg.eigh(H)
 Fs = h.get_F_rs()
 print(Es[:10])
-rs = np.linspace(0.01, 8, 100)
+rs = np.linspace(0.01, 5, 100)
 
 for n in [0, 1]:
     wf =sum([u*h.get_F(nu=0, n=i, rs=rs) for (i, u) in enumerate(us.T[n])])
     wf_ = us.T[n]*h.ws
-    plt.subplot(211)
-    scale_factor = HO_psi(n=2*n, m=2*n-1, rs=rs[0])*rs[0]**0.5/wf[0]
+    scale_factor = get_2d_ho_wf_p(n=2*n, m=2*n-1, rs=rs[0])*rs[0]**0.5/wf[0]
 
-    plt.plot(rs, HO_psi(n=2*n, m=2*n-1, rs=rs), '+', label='Analytical')
+    plt.plot(rs, get_2d_ho_wf_p(n=2*n, m=2*n-1, rs=rs), '+', label='Analytical')
     plt.plot(h.rs, wf_*scale_factor,'o', label='Reconstructed(Fs)')
     plt.plot(rs, (wf*scale_factor/rs**0.5), '-',label='Reconstructed')
 
@@ -154,16 +127,6 @@ plt.xlabel("r")
 plt.ylabel("F(r)")
 plt.axhline(0, c='r', linestyle='dashed')
 plt.legend()
-
-plt.subplot(212)
-rs = np.linspace(0.01, 8, 500)
-plt.plot(h.rs, Fs, 'o')
-for i in range(10):
-    l, = plt.plot(rs, h.get_F(n=i, rs=rs), label=r'$\nu$'+f'{i}')
-    plt.axvline(h.rs[i], linestyle='dashed', c=l.get_c())
-plt.xlim(0, 3)
-plt.legend()
-
 # -
 
 # # Compare to 2D Box
@@ -201,22 +164,17 @@ Nx = 32
 L = 16
 dim = 2
 dx = L/Nx
-bcs = BCS(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
-x = bcs.xyz
+b1 = BCS(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
+x = b1.xyz
 V=sum(np.array(x)**2/2.0).ravel()
 K = bcs._get_K()
 H = K + np.diag(V)
 Es, psis = np.linalg.eigh(H)
 psis=psis.T
-Es[:10]
+Es[:20]
+
 
 # ### Total Density
-
-n = sum([psi.conj()*psi for psi in psis])
-x, y = bcs.xyz
-imcontourf(x, y, abs(n.reshape(bcs.Nxyz)))
-plt.colorbar()
-
 
 # ## DVR Spectrum
 # * <font color='red'> It can be seen, all states in $\nu !=0$ basis are double degeneracy<font/>
@@ -224,34 +182,57 @@ plt.colorbar()
 # ## Check Radia Wavefunction
 
 def get_dvr(nu=0):
-    dvr = HarmonicDVR(nu=nu, w=1, N_root=30)
+    dvr = HarmonicDVR(nu=nu%2, w=1, R_max=8.5, N_root=32)
     H = dvr.get_H(nu=nu)
     Es, us = np.linalg.eigh(H)
-    print(Es[:10])
+    print(Es[:5])
     res = namedtuple(
                 'res', ['dvr', 'Es', 'us'])
     return res(dvr=dvr, Es=Es, us=us)
-ds = [get_dvr(nu=nu) for nu in range(3)]
+ds = [get_dvr(nu=nu) for nu in range(10)]
+
 
 # ### $\nu=0$
 
-get_2d_den(5, 5, N=256)
+def compare_bcs_dvr_dens(E=3):
+    start_index = sum(list(range(E)))
+    end_index = start_index + E
+    b = b0
+    x, y = b.xyz
+    rs = np.sqrt(sum(_x**2 for _x in b.xyz)).ravel()
 
-b = bcs
-d, Es, us = ds[2]
-print(Es[:10])
-x, y = b.xyz
-rs = np.sqrt(sum(_x**2 for _x in b.xyz)).ravel()
-psi = b.Normalize((psis[5]).reshape(b.Nxyz))
-plt.figure(figsize=(13,5))
-plt.subplot(121)
-imcontourf(x, y, abs(psi))
-plt.colorbar()
-plt.subplot(122)
-plt.plot(rs, abs(psi.ravel()), '+', label="Grid")
-plt.plot(d.rs, abs(Normalize(d._get_psi(us.T[0]))), 'o', label="DVR")
-plt.plot(d.rs, abs(Normalize(HO_psi(n=2, m=0, rs=d.rs))), '-', label='Analytical')
-plt.legend()
+    # BCS densities
+    print(f"start={start_index}, end={end_index}")
+    psis_bcs = np.array([b.Normalize((psis0[i]).reshape(b.Nxyz)) for i in range(start_index, end_index)])
+    den_bcs = sum(abs(psis_bcs)**2)
+    plt.figure(figsize=(14,5))
+    plt.subplot(121)
+    imcontourf(x, y, den_bcs)
+    plt.colorbar()
+
+    # DVR densities
+    plt.subplot(122)
+    parity = E%2
+    den_dvr = 0
+    if parity == 1:
+        d, Es, us = ds[0]
+        psi_index = E//2
+        psi_dvr = d._get_psi(us.T[psi_index])
+        den_dvr += abs(psi_dvr)**2
+        print(0, psi_index)
+    for i in range(1 + parity, E + 1, 2):
+        d, Es, us = ds[i]
+        psi_index = E-1-i
+        psi_dvr = d._get_psi(us.T[psi_index])
+        den_dvr += 2*abs(psi_dvr)**2
+        print(i, psi_index)
+
+
+    plt.plot(rs, den_bcs.ravel(), '+', label="Grid")
+    plt.plot(d.rs, den_dvr, 'o', label="DVR")
+    plt.legend()
+
+compare_bcs_dvr_dens(4)
 
 x, y = bcs.xyz
 d, Es, us = ds[0]
@@ -263,8 +244,8 @@ imcontourf(x, y, abs(psi))
 plt.colorbar()
 plt.subplot(122)
 plt.plot(rs, abs(psi.ravel()), '+', label="Grid")
-plt.plot(d.rs, abs(Normalize(d._get_psi(us.T[1]))), 'o', label="DVR")
-plt.plot(d.rs, abs(Normalize(HO_psi(n=2, m=1, rs=d.rs))), '-', label='Analytical')
+plt.plot(d.rs, abs((d._get_psi(us.T[1]))), 'o', label="DVR")
+plt.plot(d.rs, abs((get_2d_ho_wf_p(n=2, m=1, rs=d.rs))), '-', label='Analytical')
 plt.legend()
 
 # ### $\nu=2$
@@ -280,8 +261,8 @@ imcontourf(x, y, abs(psi))
 plt.colorbar()
 plt.subplot(122)
 plt.plot(rs, abs(psi.ravel()), '+', label="Grid")
-plt.plot(d.rs, abs(Normalize(d._get_psi(us.T[0]))), 'o', label="DVR")
-plt.plot(d.rs, abs(Normalize(HO_psi(n=2, m=0, rs=d.rs))), '-', label='Analytical')
+plt.plot(d.rs, abs((d._get_psi(us.T[0]))), 'o', label="DVR")
+plt.plot(d.rs, abs((get_2d_ho_wf_p(n=2, m=0, rs=d.rs))), '-', label='Analytical')
 plt.legend()
 
 # ### Overall Density
@@ -297,22 +278,22 @@ def den_dvr(di, n):
 
 d=d0.dvr
 plt.plot(d.rs, den_dvr(d0, 0))
-psi = HO_psi(n=0, m=0, rs=d.rs)
-plt.plot(d.rs, psi.conj()*psi)
+psi = get_2d_ho_wf_p(n=0, m=0, rs=d.rs)
+plt.plot(d.rs, psi.conj()*psi, '+')
 
 # * Summing up the density of the first 6 states
 # * It's clear that the DVR case should count the degeneracy properly
 
 b = b0
 x, y = b.xyz
-n0 = b.Normalize((sum(abs(psis0[0:6])**2)).reshape(b.Nxyz))
+n0 = b.Normalize((sum(abs(psis0[0:1])**2)).reshape(b.Nxyz))
 plt.figure(figsize=(13,5))
 plt.subplot(121)
 imcontourf(x, y, n0)
 plt.colorbar()
 plt.subplot(122)
 n1 = den_dvr(d0, 0) + den_dvr(d0, 1) + den_dvr(d1, 0)*2 + den_dvr(d2, 0)*2
-plt.plot(d0.dvr.rs, Normalize(n1), label="DVR")
+plt.plot(d0.dvr.rs, n1, label="DVR")
 plt.plot(rs, n0.ravel(), '+', label="Grid")
 plt.legend()
 
@@ -353,8 +334,8 @@ delta = 2
 b2 = BCS_ho(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
 res = b2.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta)
 n_a, n_b = res.n_a, res.n_b
-n_a = b2.Normalize(n_a)
-n_b = b2.Normalize(n_b)
+# n_a = b2.Normalize(n_a)
+# n_b = b2.Normalize(n_b)
 
 x, y = b2.xyz
 plt.figure(figsize=(18, 4))
@@ -366,8 +347,6 @@ imcontourf(x, y, n_b)
 plt.colorbar()
 plt.subplot(133)
 rs = np.sqrt(sum(_x**2 for _x in b2.xyz)).ravel()
-plt.plot(rs, n_a.ravel(), '+')
-plt.plot(rs, n_b.ravel(), 'o')
 plt.plot(rs, n_a.ravel(), '+', label=r"$n_a$")
 plt.plot(rs, n_b.ravel(), 'o', label=r"$n_b$")
 plt.legend()
@@ -397,11 +376,11 @@ dvr.l_max=100
 na, nb, kappa = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta)
 plt.figure(figsize=(15, 5))
 plt.subplot(121)
-plt.plot(dvr.bases[0].rs, Normalize(na), label=r'$n_a$(DVR)')
+plt.plot(dvr.bases[0].rs, (na), label=r'$n_a$(DVR)')
 plt.plot(rs, n_a.ravel(), '+', label=r'$n_a$(Grid)')
 plt.legend()
 plt.subplot(122)
-plt.plot(dvr.bases[0].rs, Normalize(nb), label=r'$n_b$(DVR)')
+plt.plot(dvr.bases[0].rs, (nb), label=r'$n_b$(DVR)')
 plt.plot(rs, n_b.ravel(), '+', label=r'$n_b$(Grid)')
 plt.legend()
 clear_output()

@@ -26,6 +26,7 @@ from mmf_hfb import homogeneous
 from mmfutils.plot import imcontourf
 from collections import namedtuple
 from mmfutils.math.special import mstep
+from mmf_hfb.DVRBasis import CylindricalBasis
 
 # # BCS
 
@@ -238,186 +239,8 @@ sum(wf_an)*np.diff(rs).mean()
 
 # ## Cylindrical DVR Class
 
-# +
-from mmfutils.math import bessel
 
 
-class CylindricalBasis(object):
-    eps = 7./3 - 4./3 -1  # machine precision
-    m = hbar = 1
-    N_root_max = 128
-
-    def __init__(self, R_max=None, N_root=None, K_max=None, a0=None, nu=0, **args):
-        """
-        Parameters
-        --------------
-        N_root: int
-            number of roots
-        R_max: float
-            max radius range
-        K_max: float
-            momentum cutoff
-        a0: float
-            wavefunction position scale
-        nu: int
-            angular momentum quantum number
-        dim: int
-            dimensionality
-        """
-        self.dim = 2
-        self.nu = nu
-        self.R_max = R_max
-        self.K_max = K_max
-        self.N_root = N_root
-        self.a0 = a0
-        self.init()
-        
-    def init(self):
-        # if N_root is None or R_max is None or K_max is None:
-        self.get_N_K_R(a0=self.a0)
-        self.zs = self.get_zs(nu=self.nu)
-        self.rs = self.get_rs(zs=self.zs)
-        self.K = self.get_K(zs=self.zs, nu=self.nu)
-        self.zero = np.zeros_like(self.zs)
-        self.rs_scale = self._rs_scaling_factor(zs=self.zs)
-        self.ws = self.get_F_rs()/self.rs_scale  # weight
-
-    def get_N_K_R(self, a0=None):
-        """evaluate R_max and K_max using Gaussian wavefunction"""
-        if a0 is None:
-            a0 = 1
-        if self.R_max is None:
-            self.R_max = np.sqrt(-2*a0**2*np.log(self.eps))
-        if self.K_max is None:
-            self.K_max = np.sqrt(-np.log(self.eps)/a0**2)
-        # if self.N_root is None:
-        #     self.N_root = int(np.ceil(self.K_max*2*self.R_max/np.pi))
-        if self.N_root is None:
-            n_ = 0
-            zs = self.get_zs(N=self.N_root_max)
-            for z in zs:
-                if z <= self.K_max*self.R_max:
-                    n_ += 1
-                else:
-                    break
-            self.N_root = n_
-        else:  # if N_root is specified, we need to change k_max and keep R_max unchanged
-            self._align_K_max()
-
- 
-    def _align_K_max(self):
-        """
-        For large n, the roots of the bessel function are approximately
-        z[n] = (n + 0.75)*pi, so R = R_max = z_max/K_max = (N-0.25)*pi/K_max
-        """
-        self.K_max = (self.N_root - 0.25)*np.pi/self.R_max
-    
-    def get_zs(self, nu=None, N=None):
-        """
-        return roots for order $\nu$
-        """
-        if nu is None:
-            nu = self.nu
-        if N is None:
-            N = self.N_root
-        zs = bessel.j_root(nu=nu, N=N)
-        return zs
-
-    def get_rs(self, zs=None, nu=None):
-        """
-        return cooridnate in postition space
-        """
-        if nu is None:
-            nu = self.nu
-        if zs is None:
-            zs = self.get_zs(nu=nu)
-        return zs/self.K_max
-
-    def get_F(self, nu=None, n=0, rs=None):
-        """return the nth basis function for nu"""
-        if nu is None:
-            nu = self.nu
-        if rs is None:
-            rs = self.rs
-        zs = self.get_zs(nu=nu)
-        F = (-1)**(n+1)*self.K_max*zs[n]*np.sqrt(2*rs)/(
-            self.K_max**2*rs**2-zs[n]**2)*bessel.J(nu, 0)(self.K_max*rs)
-        F=nan0(F)
-        return F
-
-    def get_F_rs(self, zs=None, nu=None):
-        """
-        return the basis function values at abscissa r_n
-        for the nth basis function. Since each basis function
-        have non-zero value only at its own r_n, we just need to
-        compute that value, all other values are simply zero
-
-        """
-        if nu is None:
-            nu = self.nu
-        if zs is None:
-            rs = self.rs
-            zs = self.zs
-        else:
-            rs = zs/self.K_max
-        Fs = [(-1)**(n+1)*self.K_max*np.sqrt(2*rs[n]*zs[n])/(2*zs[n])*bessel.J_sqrt_pole(
-            nu=nu, zn=zs[n])(zs[n]) for n in range(len(rs))]
-        return Fs
-
-    def _rs_scaling_factor(self, zs=None):
-        """
-        the dimension dependent scaling factor used to
-        convert from u(r) to psi(r)=u(r)/rs_, or u(r)=psi(r)*rs_
-        """
-        if zs is None:
-            zs = self.zs
-        rs = self.get_rs(zs=zs)
-        rs_ = rs**((self.dim - 1)/2.0)
-        return rs_
-        
-    def _get_psi(self, u):
-        """apply weight on the u(v) to get the actual radial wave-function"""
-        return u*self.ws/((2*np.pi)**0.5)
-
-    def get_nu(self, nu=None):
-        """
-         `nu + d/2 - 1` for the centrifugal term
-         Note:
-            the naming convention use \nu as angular momentum quantum number
-            but it's also being used as the order number of bessel function
-         """
-        if nu is None:
-            nu = self.nu
-        return nu + self.dim/2.0 - 1
-
-    def get_K(self, zs=None, nu=None):
-        """
-        return the kinetic matrix for a given nu
-        Note: the centrifugal potential is already include
-        """
-        if nu is None:
-            nu = self.nu
-        if zs is None:
-            zs = self.get_zs(nu=nu)
-        zi = np.array(list(range(len(zs)))) + 1
-        xx, yy = np.meshgrid(zi, zi, sparse=False, indexing='ij')
-        zx, zy = np.meshgrid(zs, zs, sparse=False, indexing='ij')
-        nu = self.get_nu(nu)  # see get_nu(...)
-        K_diag = (1+2*(nu**2 - 1)/zs**2)/3.0  # diagonal terms
-        K_off = 8*(-1)**(abs(xx - yy))*zx*zy/(zx**2 - zy**2 + self.eps)**2
-        np.fill_diagonal(K_off, K_diag)
-        K = self.K_max**2*K_off/2.0  # factor of 1/2 include
-        return K
-
-    def get_V_correction(self, nu):
-        """
-            if nu is not the same as the basis, a piece of correction
-            should be made to the centrifugal potential
-        """
-        return (nu**2 - self.nu**2)*self.hbar**2/2.0/self.rs**2
-
-
-# -
 
 # ## Harmonic Oscillator Class
 
@@ -546,7 +369,73 @@ plt.ylabel("F(r)")
 plt.axhline(0, c='black', linestyle='dashed')
 plt.legend()
 
-# # Compare Radial Wavefunctions
+# # Bases Transform Matrix
+
+# Since differnet bases have different abcissas, the final result should be presented expanded in single basis or we can't compare anything. 
+# Expand a function in two different bases $\ket{F}, \ket{F'}$. where $\braket{F_{n}|F_{n'}}=\delta(n, n')$ and $\braket{F'_{n}|F'_{n'}}=\delta(n, n')$
+# $$
+# \ket{\psi}=\sum_i C_i\ket{F_i}=\sum_i C'_i\ket{F'_i}
+# $$
+# To get $C_i$, multiply $\bra{F_j}$ from the left to get:
+#
+# $$
+# \bra{F_j}\sum_i C_i\ket{F_i}=\bra{F_j}\sum_i C'_i\ket{F'_i}
+# $$
+#
+# Use the orthognal relations:
+#
+# $$
+# C_j=\bra{F_j}\sum_i C_i\ket{F_i}=\bra{F_j}\sum_i C'_i\ket{F'_i}=\sum_i \braket{F_j|F'_i}C'_i
+# $$
+#
+# $$
+# \begin{pmatrix}
+# C_1\\
+# C_2\\
+# \vdots\\
+# C_n
+# \end{pmatrix}=
+# \begin{pmatrix}
+# \braket{F_1|F'_1}&\braket{F_1|F'_2}&\dots\braket{F_1|F'_m}\\
+# \braket{F_2|F'_1}&\braket{F_2|F'_2}&\dots\braket{F_2|F'_m}\\
+# \vdots&\vdots&\vdots\\
+# \braket{F_n|F'_1}&\braket{F_n|F'_2}&\dots\braket{F_n|F'_m}\\
+# \end{pmatrix}\begin{pmatrix}
+# C'_1\\
+# C'_2\\
+# \vdots\\
+# C'_m
+# \end{pmatrix}
+# $$
+
+# ## 3D Case
+# In 3D case, the grid point set are the zeros  of spherical Bessel function. For frist four sphereical Bessel functions are:
+# $$
+# \begin{aligned}
+# &j_{0}(x)=\frac{\sin x}{x}\\
+# &j_{1}(x)=\frac{\sin x}{x^{2}}-\frac{\cos x}{x}\\
+# &j_{2}(x)=\left(\frac{3}{x^{2}}-1\right) \frac{\sin x}{x}-\frac{3 \cos x}{x^{2}}\\
+# &j_{3}(x)=\left(\frac{15}{x^{3}}-\frac{6}{x}\right) \frac{\sin x}{x}-\left(\frac{15}{x^{2}}-1\right) \frac{\cos x}{x}
+# \end{aligned}
+# $$
+
+# The transform matrix from $\nu=1$ to $\nu=0$ is given(Aurel's code):
+# \begin{align}
+# a_i &= \frac{sin(z_{1i})}{\sqrt{z_{1i}}}\\
+# b_j &= -\frac{cos(z_{0j})}{\sqrt{z_{0j}}}\\
+# U_{ji}&=\frac{2b_j\sqrt{z_{0j}z_{1i}}}{a_i(z^2_{1i}-z^2_{0j})}
+# \end{align}
+
+dvr0 = CylindricalBasis(nu=0, R_max=9, N_root=49)
+dvr1 = CylindricalBasis(nu=1, R_max=9, N_root=48)
+z0 = dvr0.zs
+z1 = dvr1.zs
+a = np.sin(z1)/np.sqrt(z1)
+b = -np.cos(z0)/np.sqrt(z0)
+U10 = 2*b[:,None]*(z0[:, None]*z1[None,:])**0.5/a[None,:]/(z1[None,:]**2 - z0[:,None]**2)
+
+# # Compare Radial Wavefunctions & Densities
+# * When compute DVR radial densites, since there are more than one DVR bases, all resulted wavefunctions should be transformed to the same basis(say basis when $\nu=0$), or simply adding up the densities from different bases may not yield right results as the grid point set are general not the same.
 
 # ## 2D BCS Lattice
 
@@ -554,10 +443,10 @@ Nx = 32
 L = 16
 dim = 2
 dx = L/Nx
-b = BCS(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
-x = b.xyz
+b1 = BCS(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
+x = b1.xyz
 V=sum(np.array(x)**2/2.0).ravel()
-K = b._get_K()
+K = b1._get_K()
 H = K + np.diag(V)
 Es, psis = np.linalg.eigh(H)
 psis=psis.T
@@ -567,17 +456,62 @@ Es[:10]
 # ## DVR
 
 def get_dvr(nu=0):
-    dvr = HarmonicDVR(nu=nu, w=1, N_root=30)
+    dvr = HarmonicDVR(nu=nu%2, w=1, R_max=None, N_root=64)
     H = dvr.get_H(nu=nu)
     Es, us = np.linalg.eigh(H)
-    print(Es[:10])
+    print(Es[:5])
     res = namedtuple(
                 'res', ['dvr', 'Es', 'us'])
     return res(dvr=dvr, Es=Es, us=us)
-ds = [get_dvr(nu=nu) for nu in range(3)]
+ds = [get_dvr(nu=nu) for nu in range(10)]
+
+
+def compare_bcs_dvr_dens(E=3):
+    start_index = sum(list(range(E)))
+    end_index = start_index + E
+    b = b0
+    x, y = b.xyz
+    rs = np.sqrt(sum(_x**2 for _x in b.xyz)).ravel()
+
+    # BCS densities
+    print(f"start={start_index}, end={end_index}")
+
+    psis_bcs = np.array([b.Normalize((psis0[i]).reshape(b.Nxyz)) for i in range(start_index, end_index)])
+    den_bcs = sum(abs(psis_bcs)**2)
+    plt.figure(figsize=(14,5))
+    plt.subplot(121)
+    imcontourf(x, y, den_bcs)
+    plt.colorbar()
+
+    # DVR densities
+    plt.subplot(122)
+    parity = E%2
+    den_dvr = 0
+    if parity == 1:
+        d, Es, us = ds[0]
+        print(d.rs[:5])
+        psi_index = E//2
+        print(f"nu={0}, index={psi_index}")
+        psi_dvr = d._get_psi(us.T[psi_index])
+        den_dvr += abs(psi_dvr)**2
+    for i in range(1 + parity, E + 1, 2):
+        d, Es, us = ds[i]
+        psi_index = E-1-i
+        print(d.rs[:5])
+        print(f"nu={i}, index={psi_index}")
+        psi_dvr = d._get_psi(us.T[psi_index])
+        den_dvr += 2*abs(psi_dvr)**2
+    plt.plot(rs, den_bcs.ravel(), '+', label="Grid")
+    plt.plot(d.rs, den_dvr, '--', label="DVR")
+    plt.legend()
+
 
 # ## Compare Radial Functions
 # * Normalization: For 2D lattice, $\psi^* \psi dx dy = 1$, for DVR $\psi^* \psi dx=1$
+
+compare_bcs_dvr_dens(7)
+
+# ### $E=1$ case
 
 # +
 d, Es, us = ds[0]
@@ -586,27 +520,48 @@ x, y = b.xyz
 rs = np.sqrt(sum(_x**2 for _x in b.xyz)).ravel()
 psi_bcs = b.Normalize(psis[0]).reshape(b.Nxyz)
 
-plt.figure(figsize=(18,4))
-plt.subplot(131)
+plt.figure(figsize=(14,5))
+plt.subplot(121)
 imcontourf(x, y, abs(psi_bcs))
 plt.colorbar()
 
-plt.subplot(132)
-psi_dvr = d._get_psi(us.T[0])/((2*np.pi)**0.5)
+plt.subplot(122)
+psi_dvr = d._get_psi(us.T[0])
 plt.plot(rs, abs(psi_bcs.ravel()), '+', label="Grid")
 plt.plot(d.rs, abs(psi_dvr), 'o', label="DVR")
 plt.plot(d.rs, abs(get_2d_ho_wf_p(0,0, d.rs)), label="Analytical")
 plt.title("Unnormalized Wavefunctions")
 plt.legend()
+# -
+# ### $E=3$ case
+# * Triple degeneracy, sum up all three state densities(not just radia wavefunction)
+# * To see how close they are, increase the DVR absissa number to 64
 
-plt.subplot(133)
-psi_bcs = b.Normalize(psi = psis[0].reshape(b.Nxyz))
-psi_dvr = Normalize(d._get_psi(us.T[0]))
-plt.plot(rs, abs(psi_bcs.ravel()), '+', label="Grid")
-plt.plot(d.rs, abs(psi_dvr), 'o', label="DVR")
-plt.title("Normalized Wavefunction")
+# +
+x, y = b.xyz
+rs = np.sqrt(sum(_x**2 for _x in b.xyz)).ravel()
+psis_bcs = np.array([b.Normalize(psis[i]).reshape(b.Nxyz) for i in range(3, 6)])
+den_bcs = sum(abs(psis_bcs)**2)
+plt.figure(figsize=(14,5))
+plt.subplot(121)
+imcontourf(x, y, den_bcs )
+plt.colorbar()
+
+plt.subplot(122)
+d, Es, us = ds[0]
+print(Es[:10])
+psi_dvr = d._get_psi(us.T[1])
+den_dvr =abs(psi_dvr)**2
+d, Es, us = ds[2]
+print(Es[:10])
+psi_dvr = d._get_psi(us.T[0])
+den_dvr += 2*abs(psi_dvr)**2  # double-degeneracy
+plt.plot(rs, abs(den_bcs.ravel()), '+', label="Grid")
+plt.plot(d.rs, abs(den_dvr), 'o', label="DVR")
+plt.title("Unnormalized Wavefunctions")
 plt.legend()
 # -
+
 # # BdG in Rotating Frame Transform
 #
 # $$
@@ -782,46 +737,3 @@ plt.legend()
 # $$
 # \frac{\partial J_{v}(z)}{\partial z}=\frac{1}{2}\left[J_{v-1}(z)-J_{v+1}(z)\right]
 # $$
-
-# # Transform Matrix
-
-# Since differnet bases have different abcissas, the final result should be presented expanded in single basis or we can't compare anything. 
-# Expand a function in two different bases $\ket{F}, \ket{F'}$. where $\braket{F_{n}|F_{n'}}=\delta(n, n')$ and $\braket{F'_{n}|F'_{n'}}=\delta(n, n')$
-# $$
-# \ket{\psi}=\sum_i C_i\ket{F_i}=\sum_i C'_i\ket{F'_i}
-# $$
-# To get $C_i$, multiply $\bra{F_j}$ from the left to get:
-
-# $$
-# \bra{F_j}\sum_i C_i\ket{F_i}=\bra{F_j}\sum_i C'_i\ket{F'_i}
-# $$
-#
-# Use the orthognal relations:
-#
-# $$
-# C_j=\bra{F_j}\sum_i C_i\ket{F_i}=\bra{F_j}\sum_i C'_i\ket{F'_i}=\sum_i \braket{F_j|F'_i}C'_i
-# $$
-
-# $$
-# \begin{pmatrix}
-# C_1\\
-# C_2\\
-# \vdots\\
-# C_n
-# \end{pmatrix}=
-# \begin{pmatrix}
-# \braket{F_1|F'_1}&\braket{F_1|F'_2}&\dots\braket{F_1|F'_m}\\
-# \braket{F_2|F'_1}&\braket{F_2|F'_2}&\dots\braket{F_2|F'_m}\\
-# \vdots&\vdots&\vdots\\
-# \braket{F_n|F'_1}&\braket{F_n|F'_2}&\dots\braket{F_n|F'_m}\\
-# \end{pmatrix}\begin{pmatrix}
-# C'_1\\
-# C'_2\\
-# \vdots\\
-# C'_m
-# \end{pmatrix}
-# $$
-
-# ## 3D cases
-
-
