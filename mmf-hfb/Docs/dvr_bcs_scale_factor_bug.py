@@ -421,16 +421,28 @@ plt.legend()
 # \begin{align}
 # a_i &= \frac{sin(z_{1i})}{\sqrt{z_{1i}}}\\
 # b_j &= -\frac{cos(z_{0j})}{\sqrt{z_{0j}}}\\
-# U_{ji}&=\frac{2b_j\sqrt{z_{0j}z_{1i}}}{a_i(z^2_{1i}-z^2_{0j})}
+# U_{ji}&=\frac{2b_j\sqrt{z_{0j}z_{1i}}}{a_i(z^2_{0j}-z^2_{1i})}
 # \end{align}
 
-dvr0 = CylindricalBasis(nu=0, R_max=9, N_root=49)
-dvr1 = CylindricalBasis(nu=1, R_max=9, N_root=48)
+dvr0 = CylindricalBasis(nu=0, R_max=9, N_root=128)
+dvr1 = CylindricalBasis(nu=1, R_max=9, N_root=127)
 z0 = dvr0.zs
 z1 = dvr1.zs
 a = np.sin(z1)/np.sqrt(z1)
 b = -np.cos(z0)/np.sqrt(z0)
-U10 = 2*b[:,None]*(z0[:, None]*z1[None,:])**0.5/a[None,:]/(z1[None,:]**2 - z0[:,None]**2)
+U10 = 2*b[:,None]*(z0[:, None]*z1[None,:])**0.5/a[None,:]/(z0[:,None]**2-z1[None,:]**2)
+
+# ## Test the Transform Matrix in 2D
+# * if the basis set have similar basis function size, the $U$ matrix in 3D seems to work nicely in 2D case
+
+import random
+us1 = np.cos(np.linspace(0, 5 + 15*np.random.random(), len(z1))) 
+us0 = U10.dot(us1)
+psi1= dvr1._get_psi(us1)
+psi0 = dvr0._get_psi(us0)
+plt.plot(dvr1.rs, psi1, label="DVR1")
+plt.plot(dvr0.rs, psi0, '+', label="DVR0")
+plt.legend()
 
 # # Compare Radial Wavefunctions & Densities
 # * When compute DVR radial densites, since there are more than one DVR bases, all resulted wavefunctions should be transformed to the same basis(say basis when $\nu=0$), or simply adding up the densities from different bases may not yield right results as the grid point set are general not the same.
@@ -513,7 +525,7 @@ def compare_bcs_dvr_dens(E=3):
     plt.legend()
 
 
-for E in range(1, 10):
+for E in range(7, 10):
     compare_bcs_dvr_dens(E=E)
     plt.show()
 

@@ -41,7 +41,7 @@ def Normalize(psi):
     return psi/(psi.conj().dot(psi))**0.5
 
 def get_2d_den(m=0, n=0, L=5, N=100):
-    """Show 2D harmonic osciallater density"""
+    """Show 2D harmonic oscillator density"""
     ho = HarmonicOscillator2D()
     rs = np.linspace(-L, L, N)
     zs = ho.get_wf(rs, n=n, m=m)
@@ -49,34 +49,6 @@ def get_2d_den(m=0, n=0, L=5, N=100):
 
 
 # -
-
-# ## Visualize single 2D wavefunction
-# * For BCS uses a plance wave basis, the angular momentum part is automatically incooporated to the wavefunction
-
-Nx = 64
-L = 16
-dim = 2
-dx = L/Nx
-b0 = BCS(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
-x = b0.xyz
-V=sum(np.array(x)**2/2.0).ravel()
-K = b0._get_K()
-H = K + np.diag(V)
-Es0, psis0 = np.linalg.eigh(H)
-psis0 = psis0.T
-
-
-Es0[:10]
-
-n = 5
-print(Es0[n])
-x, y = b0.xyz
-plt.figure(figsize=(7, 5))
-psi = psis0[n].reshape((b0.Nxyz))
-n0 = abs(psi)**2
-imcontourf(x, y, n0.real)
-plt.colorbar()
-
 
 # ## Harmonic DVR Class
 
@@ -98,36 +70,11 @@ class HarmonicDVR(CylindricalBasis):
             nu = self.nu
         K = self.K
         V = self.get_V()
-        V_corr = self.get_V_correction(nu=nu)  # correction centrifigal piece due to different angular quantum number
+        V_corr = self.get_V_correction(nu=nu)  # correction centrifugal piece due to different angular quantum number
         H = K + np.diag(V + V_corr)
         return H
 
-
 # ## Construct Wavefunction from a basis
-
-# +
-plt.figure(figsize=(16, 7))
-h = HarmonicDVR(nu=0, dim=2, w=1, N_root=32)
-H = h.get_H()
-Es, us = np.linalg.eigh(H)
-Fs = h.get_F_rs()
-print(Es[:10])
-rs = np.linspace(0.01, 5, 100)
-
-for n in [0, 1]:
-    wf =sum([u*h.get_F(nu=0, n=i, rs=rs) for (i, u) in enumerate(us.T[n])])
-    wf_ = us.T[n]*h.ws
-    scale_factor = get_2d_ho_wf_p(n=2*n, m=2*n-1, rs=rs[0])*rs[0]**0.5/wf[0]
-
-    plt.plot(rs, get_2d_ho_wf_p(n=2*n, m=2*n-1, rs=rs), '+', label='Analytical')
-    plt.plot(h.rs, wf_*scale_factor,'o', label='Reconstructed(Fs)')
-    plt.plot(rs, (wf*scale_factor/rs**0.5), '-',label='Reconstructed')
-
-plt.xlabel("r")
-plt.ylabel("F(r)")
-plt.axhline(0, c='r', linestyle='dashed')
-plt.legend()
-# -
 
 # # Compare to 2D Box
 
@@ -156,28 +103,11 @@ res_b = b.get_densities((mu, mu), delta, N_twist=N_twist)
 print(res_h.n_a.n, res_b.n_a.mean())
 print(res_h.n_b.n, res_b.n_b.mean())
 print(res_h.nu.n, res_b.nu.mean().real)
+
+
 # -
 
 # ## Lattice Spectrum
-
-Nx = 32
-L = 16
-dim = 2
-dx = L/Nx
-b1 = BCS(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
-x = b1.xyz
-V=sum(np.array(x)**2/2.0).ravel()
-K = bcs._get_K()
-H = K + np.diag(V)
-Es, psis = np.linalg.eigh(H)
-psis=psis.T
-Es[:20]
-
-
-# ### Total Density
-
-# ## DVR Spectrum
-# * <font color='red'> It can be seen, all states in $\nu !=0$ basis are double degeneracy<font/>
 
 # ## Check Radia Wavefunction
 
@@ -192,68 +122,9 @@ def get_dvr(nu=0):
 ds = [get_dvr(nu=nu) for nu in range(10)]
 
 
-# +
-def get_den_dvr(n, m):
-    d, Es, us = ds[n]
-    psi_dvr = d._get_psi(us.T[m])
-    return abs(psi_dvr)**2
-    
-def plot_den_dvr(n, m, d0=1):
-    den_dvr = get_den_dvr(n, m)
-    plt.plot(d.rs, d0*den_dvr, '--', label="DVR")
-
-
-# -
-
 # ### $\nu=0$
 
-def compare_bcs_dvr_dens(E=3):
-    start_index = sum(list(range(E)))
-    end_index = start_index + E
-    b = b0
-    x, y = b.xyz
-    rs = np.sqrt(sum(_x**2 for _x in b.xyz)).ravel()
-
-    # BCS densities
-    psis_bcs = np.array([b.Normalize((psis0[i]).reshape(b.Nxyz)) for i in range(start_index, end_index)])
-    den_bcs=0
-    for i in range(len(psis_bcs)):
-        den_bcs = abs(psis_bcs[i])**2
-    den_bcs = sum(abs(psis_bcs)**2)
-    plt.figure(figsize=(14,5))
-    plt.subplot(121)
-    imcontourf(x, y, den_bcs)
-    plt.colorbar()
-
-    # DVR densities
-    plt.subplot(122)
-    parity = E%2
-    den_dvr = 0
-    if parity == 1:
-        psi_index = E//2
-        den_dvr += get_den_dvr(0, psi_index) # abs(psi_dvr)**2
-        
-    for i in range(1 + parity, E + 1, 2):
-        psi_index = E//2 + parity - 1 - i//2
-        den_dvr += 2*get_den_dvr(i, psi_index)  # 2*abs(psi_dvr)**2
-
-
-    plt.plot(rs, den_bcs.ravel(), '+', label="Grid")
-    plt.plot(d.rs, den_dvr, 'o', label="DVR")
-    plt.legend()
-
-for E in range(1, 10):
-    compare_bcs_dvr_dens(E=E)
-    plt.show()
-
 # ### Overall Density
-
-d0, d1, d2, = ds
-def den_dvr(di, n):
-    d, Es, us = di
-    psi = d._get_psi(us.T[n]) 
-    return psi.conj()*psi
-
 
 # * within a factor of normalization, things look right!
 
@@ -300,18 +171,18 @@ n_a, n_b = res.n_a, res.n_b
 # n_b = b2.Normalize(n_b)
 
 x, y = b2.xyz
-plt.figure(figsize=(18, 4))
-plt.subplot(131)
-imcontourf(x, y, n_a)
-plt.colorbar()
-plt.subplot(132)
-imcontourf(x, y, n_b)
-plt.colorbar()
-plt.subplot(133)
 rs = np.sqrt(sum(_x**2 for _x in b2.xyz)).ravel()
-plt.plot(rs, n_a.ravel(), '+', label=r"$n_a$")
-plt.plot(rs, n_b.ravel(), 'o', label=r"$n_b$")
-plt.legend()
+# plt.figure(figsize=(18, 4))
+# plt.subplot(131)
+# imcontourf(x, y, n_a)
+# plt.colorbar()
+# plt.subplot(132)
+# imcontourf(x, y, n_b)
+# plt.colorbar()
+# plt.subplot(133)
+# plt.plot(rs, n_a.ravel(), '+', label=r"$n_a$")
+# plt.plot(rs, n_b.ravel(), 'o', label=r"$n_b$")
+# plt.legend()
 
 
 # # DVR Vortex Class
@@ -328,24 +199,24 @@ plt.legend()
 # ### Bugs
 
 # * when N_root = 32, the $n_b$ is different from N_root=33, where the former value yields zero $n_b$, and the later yields more consistent result.
-# * the $n_a$ $n_b$ are not excaly the same even when $d\mu=0$, some thing get wrong.
+# * the $n_a$ $n_b$ are not exactly the same even when $d\mu=0$, some thing get wrong.
 # * Seem for current version of code, N_root=48 works "best" due to the way of normalization(which is not right).
 
 delta = 2
-dvr = bdg_dvr_ho(mu=mu, dmu=dmu, E_c=None, N_root=48, delta=delta)
+dvr = bdg_dvr_ho(mu=mu, dmu=dmu, E_c=None, N_root=32, delta=delta)
 delta = delta + dvr.bases[0].zero
-dvr.l_max=100
-na, nb, kappa = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta)
+dvr.l_max=20
+na, nb, kappa = dvr.get_densities(mus=(mu + dmu, mu - dmu), delta=delta)
 plt.figure(figsize=(15, 5))
 plt.subplot(121)
 plt.plot(dvr.bases[0].rs, (na), label=r'$n_a$(DVR)')
-plt.plot(rs, n_a.ravel(), '+', label=r'$n_a$(Grid)')
+plt.plot(rs, n_a.ravel()/b2.dV, '+', label=r'$n_a$(Grid)')
 plt.legend()
 plt.subplot(122)
 plt.plot(dvr.bases[0].rs, (nb), label=r'$n_b$(DVR)')
-plt.plot(rs, n_b.ravel(), '+', label=r'$n_b$(Grid)')
+plt.plot(rs, n_b.ravel()/b2.dV, '+', label=r'$n_b$(Grid)')
 plt.legend()
-clear_output()
+plt.show()
 
 
 # # Vortex
