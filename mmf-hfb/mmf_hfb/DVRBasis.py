@@ -146,7 +146,7 @@ class CylindricalBasis(object):
         NOTE: divided by a factor of $\sqrt(2\pi)$ because that $2 \pi$ is
             from the angular integration in 2D
         """
-        return u*self.ws/((2*np.pi)**0.5)
+        return u*self.ws/((2*np.pi)**0.5)  # the normalization factor sqrt(2pi)
 
     def get_nu(self, nu=None):
         """

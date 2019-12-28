@@ -305,7 +305,7 @@ delta_bcs = delta
 
 # ## DVR Vortex
 # BUG
-# * DVR result differ from BCS by a factor, which need to be solved
+# * DVR result differ from BCS by a factor, which need to be solved[Solved]
 
 delta = 2
 dvr = dvr_vortex(mu=mu, dmu=dmu, E_c=None, N_root=33, delta=delta)
@@ -316,7 +316,7 @@ for _ in range(loop):
     na, nb, kappa = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta)
     plt.figure(figsize=(15, 10))
     plt.subplot(221)
-    plt.plot(dvr.bases[0].rs, Normalize(na), label=r'$n_a$(DVR)')
+    plt.plot(dvr.bases[0].rs, na, label=r'$n_a$(DVR)')
     plt.plot(rs, scale_factor*n_a.ravel(), '+', label=r'$n_a$(Grid)')
     plt.legend()
     plt.subplot(222)

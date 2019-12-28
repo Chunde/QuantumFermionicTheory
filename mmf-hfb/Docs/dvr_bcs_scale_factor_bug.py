@@ -576,120 +576,194 @@ plt.plot(rs, n_b.ravel(), '+', label=r'$n_b$(Grid)')
 plt.legend()
 clear_output();plt.show();
 
+
+# # Vortices
+
+# +
+class BCS_vortex(BCS):
+    """BCS Vortex"""
+    barrier_width = 0.2
+    barrier_height = 100.0
+    
+    def __init__(self, delta, **args):
+        BCS.__init__(self, **args)
+        h = homogeneous.Homogeneous(Nxyz=self.Nxyz, Lxyz=self.Lxyz) 
+        res = h.get_densities(mus_eff=(mu, mu), delta=delta)
+        self.g = delta/res.nu.n
+        
+    def get_v_ext(self, **kw):
+        self.R = min(self.Lxyz)/2
+        r = np.sqrt(sum([_x**2 for _x in self.xyz[:2]]))
+        R0 = self.barrier_width * self.R
+        V = self.barrier_height * mstep(r-self.R+R0, R0)
+        return (V, V)
+    
+class dvr_vortex(bdg_dvr):
+    """BCS Vortex"""
+    barrier_width = 0.2
+    barrier_height = 100.0
+    
+    def get_Vext(self, rs):
+        self.R = 5
+        R0 = self.barrier_width * self.R
+        V = self.barrier_height * mstep(rs-self.R+R0, R0)
+        return V
+
+
+# -
+
+loop = 1
+
+Nx = 32
+L = 10
+dim = 2
+dx = L/Nx
+mu = 5
+dmu = 3.5
+delta = 2
+b3 = BCS_vortex(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim, delta=delta)
+rs = np.sqrt(sum(_x**2 for _x in b3.xyz)).ravel()
+#delta = delta*(x+1j*y)
+with NoInterrupt() as interrupted:
+    for _ in range(loop):
+        res = b3.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta)
+        n_a, n_b = res.n_a, res.n_b
+        nu = res.nu
+        x, y = b3.xyz
+        plt.figure(figsize=(18, 10))
+        plt.subplot(231)
+        imcontourf(x, y, n_a)
+        plt.colorbar()
+        plt.subplot(232)
+        imcontourf(x, y, n_b)
+        plt.colorbar()
+        plt.subplot(233)
+        plt.colorbar()
+        if np.size(delta) == np.prod(b3.Nxyz):
+            imcontourf(x, y, abs(delta))       
+        plt.subplot(234)
+        rs = np.sqrt(sum(_x**2 for _x in b3.xyz)).ravel()
+        plt.plot(rs, n_a.ravel(), '+', label=r"$n_a$")
+        plt.plot(rs, n_b.ravel(), 'o', label=r"$n_b$")
+        plt.legend()
+        plt.subplot(235)
+        delta =  -b3.g*res.nu
+        plt.plot(rs, abs(delta).ravel(), '+', label=r"$\Delta$")
+        plt.legend()
+        plt.subplot(236)
+        plt.plot(rs, nu.ravel(), '+', label=r"$\nu$")
+        plt.legend()
+        clear_output()
+        plt.show()
+delta_bcs = delta
+
+delta = 2
+dvr = dvr_vortex(mu=mu, dmu=dmu, E_c=None, N_root=33, delta=delta)
+delta = delta + dvr.bases[0].zero
+dvr.l_max=20
+for _ in range(loop):
+    na, nb, kappa = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta)
+    plt.figure(figsize=(15, 10))
+    plt.subplot(221)
+    plt.plot(dvr.bases[0].rs, na, label=r'$n_a$(DVR)')
+    plt.plot(rs, n_a.ravel(), '+', label=r'$n_a$(Grid)')
+    plt.legend()
+    plt.subplot(222)
+    plt.plot(dvr.bases[0].rs, nb, label=r'$n_b$(DVR)')
+    plt.plot(rs, n_b.ravel(), '+', label=r'$n_b$(Grid)')
+    plt.legend()    
+    delta_ = -dvr.g*kappa
+    delta=delta_
+    plt.subplot(223)
+    plt.plot(dvr.bases[0].rs, kappa, label=r'$\nu$(DVR)')
+    plt.plot(rs, nu.ravel(), '+', label=r'$\nu$(Grid)')
+    plt.legend()
+    plt.subplot(224)
+    plt.plot(dvr.bases[0].rs, delta, label=r'$\Delta$(DVR)')
+    plt.plot(rs, delta_bcs.ravel(), '+', label=r'$\Delta$(Grid)')
+    plt.legend()
+    clear_output()
+    plt.show()
+    #break
+
 # # BdG in Rotating Frame Transform
-#
+
+# if In polar coordinates, assume $f=f(r,\theta)$
 # $$
-# \Delta = \Delta_0 r e^{i2n\theta}=\Delta_0(x + iy)^{2n}/r^{2n-1}=\Delta_0f(r)(x + iy)^{2n}
+# \begin{aligned}
+# \nabla^2 \left[ fe^{in\theta}\right]&=\frac{\partial^{2} }{\partial r^{2}}\left[f(r,\theta)e^{in\theta}\right]
+# +\frac{1}{r} \frac{\partial}{\partial r}\left[f(r,\theta)e^{in\theta}\right]
+# +\frac{1}{r^{2}} \frac{\partial^{2} }{\partial \theta^{2}}\left[f(r,\theta)e^{in\theta}\right]\\
+# &=\frac{\partial^{2} }{\partial r^{2}}\left[f(r,\theta)\right]e^{in\theta}
+# +\frac{1}{r} \frac{\partial}{\partial r}\left[f(r,\theta)\right]e^{in\theta}
+# +\frac{1}{r^{2}} \left[\left(\frac{\partial^{2} }{\partial \theta^{2}}+i2n\frac{\partial}{\partial \theta} - n^2\right)f(r, \theta)\right]e^{in\theta}\\
+# &=\left[\left(\nabla^2 +i2n\frac{\partial}{\partial \theta} - n^2)f(r,\theta)\right)\right]e^{in\theta}
+# \end{aligned}
+# $$
+# if $f(r,\theta)=f(r)$, ie $f$ only depends on $r$, the above result can be simplified:
+# $$
+# \nabla^2 \left[ fe^{in\theta}\right]=\left[\left(\nabla^2  - n^2)f(r,\theta)\right)\right]e^{in\theta}
+# $$
+#
+# To compute the pairing field of a vortex in BdG formulism,Let the pairing field be of this form:
+# $$
+# \Delta = \Delta_0 g(r) e^{i2n\theta}
 # $$
 #
 # $$
 # R\psi(x,y)=e^{i\theta \hat{L}_z/\hbar}\psi(x,y)
 # $$
-
-# * Mathmatical identity
-# \begin{align}
-# \nabla^2\left[U(x)e^{iqx}\right]
-# &=\nabla\left[\nabla U(x)e^{iqx}+U(x)iqe^{iqx}\right]\\
-# &=\nabla^2U(x)e^{iqx}+2iq\nabla U(x)e^{iqx}-q^2U(x)e^{iqx}\\
-# &=(\nabla+iq)^2U(x)e^{iqx}
-# \end{align}
 #
-# * Let $2q=q_a + q_b$
+# Then, to be explicit:
+
+# $$
 # \begin{align}
 # \begin{pmatrix}
-# -\nabla^2-\mu_a & \Delta e^{2iqx}\\
-# \Delta^*  e^{-2iqx} & \nabla^2 + \mu_b\\
+# -\nabla^2-\mu_a & \Delta g(r)e^{i2n\theta}\\
+# \Delta^*g(r)^*e^{-i2n\theta} & \nabla^2 + \mu_b\\
 # \end{pmatrix}
 # \begin{pmatrix}
-# U(x)e^{iq_a x}\\
-# V^*(x)e^{-iq_bx}
+# U(r)e^{in\theta}\\
+# V^*(r)e^{-in\theta}
 # \end{pmatrix}
 # &=\begin{pmatrix}
-# (-\nabla^2-\mu_a)U(x)e^{iq_a x}+ \Delta e^{2iqx}V^*(x)e^{-iq_bx}\\
-# \Delta^*  e^{-2iqx}U(x)e^{iq_a x} + (\nabla^2 + \mu_b)V^*(x)e^{-iq_bx}\\
+# (-\nabla^2-\mu_a)U(r)e^{in\theta}+ \Delta g(r) e^{i2n\theta}V^*(r)e^{-in\theta}\\
+# \Delta^* g(r)^* e^{-i2\theta}U(r)e^{in\theta} + (\nabla^2 + \mu_b)V^*(x)e^{-in\theta}\\
 # \end{pmatrix}\\
-# &=\begin{pmatrix}\left[-(\nabla+iq_a)^2-\mu_a\right]U(x)e^{iq_a x}+ \Delta V^*(x)e^{iq_ax}\\
-# \Delta^*  U(x)e^{-iq_b x} + \left[(\nabla-iq_b)^2 + \mu_b)\right]V^*(x)e^{-iq_bx}\\
+# &=\begin{pmatrix}\left[-\nabla-\mu_a \right]U(r)e^{in\theta}+ \Delta g(r)V^*(r)e^{in\theta}\\
+# \Delta^* g(r)^* U(r)e^{-in\theta} + \left[\nabla + \mu_b\right]V^*(r)e^{-in\theta}\\
 # \end{pmatrix}\\
-# &=\begin{pmatrix}\left[-(\nabla+iq_a)^2-\mu_a\right]U(x)e^{iq_a x}+ \Delta V*(x)e^{iq_ax}\\
-# \Delta^* U(x)e^{-iq_b x} + \left[(\nabla-iq_b)^2 + \mu_b)\right]V^*(x)e^{-iq_bx}\\
-# \end{pmatrix}
-# =\begin{pmatrix}
+# &=\begin{pmatrix}\left[-\nabla^2-\mu_a + n^2 \right]U(r)e^{in\theta}+ \Delta g(r)V^*(r)e^{in\theta}\\
+# \Delta^* g(r)^* U(r)e^{-in\theta} + \left[\nabla^2 + \mu_b - n^2\right]V^*(r)e^{-in\theta}\\
+# \end{pmatrix}\\
+# &=\begin{pmatrix}
 # E & 0\\
 # 0&-E
 # \end{pmatrix}\begin{pmatrix}
-# U(x)e^{iq_a x}\\
-# V(x)^*e^{-iq_bx}
+# U(x)e^{in\theta}\\
+# V(x)^*e^{-in\theta}
 # \end{pmatrix}
 # \end{align}
+# $$
 # * By canceling out the phase terms:
-#
-# \begin{align}
-# \begin{pmatrix}\left[(i\nabla-q_a)^2-\mu_a\right] &\Delta\\
-# \Delta^* & -\left[(i\nabla + q_b)^2 - \mu_b)\right]\\
-# \end{pmatrix}
-# \begin{pmatrix}
+# $$
+# \begin{pmatrix}\left[-\nabla^2-\mu_a + n^2 \right]& \Delta g(r)\\
+# \Delta^* g(r)^* & \left[\nabla^2 + \mu_b - n^2\right]\\
+# \end{pmatrix}\begin{pmatrix}
 # U(x)\\
-# V^*(x)\\
+# V(x)^*
 # \end{pmatrix}=\begin{pmatrix}
 # E & 0\\
 # 0&-E
-# \end{pmatrix}
-# \begin{pmatrix}
+# \end{pmatrix}\begin{pmatrix}
 # U(x)\\
-# V^*(x)
+# V(x)^*
 # \end{pmatrix}
-# \end{align}
+# $$
 #
-# * Let $\delta q = q_a - q_b$, then:
-# $$
-# q_a = q + \delta q\\
-# q_b = q - \delta q
-# $$
+#
 # * So:
-#     
-# \begin{align}
-# \begin{pmatrix}\left[(i\nabla-q - \delta q)^2-\mu_a\right] &\Delta\\
-# \Delta^* & -\left[(i\nabla + q - \delta q)^2 - \mu_b)\right]\\
-# \end{pmatrix}
-# \begin{pmatrix}
-# U(x)\\
-# V^*(x)\\
-# \end{pmatrix}=\begin{pmatrix}
-# E & 0\\
-# 0&-E
-# \end{pmatrix}
-# \begin{pmatrix}
-# U(x)\\
-# V^*(x)
-# \end{pmatrix}
-# \end{align}
-
-# For simplest case, $q_a=q_b=q$:
-# \begin{align}
-# \begin{pmatrix}\left[(i\nabla-q )^2-\mu_a\right] &\Delta\\
-# \Delta^* & -\left[(i\nabla + q)^2 - \mu_b)\right]\\
-# \end{pmatrix}
-# \begin{pmatrix}
-# U(x)\\
-# V^*(x)\\
-# \end{pmatrix}=\begin{pmatrix}
-# E & 0\\
-# 0&-E
-# \end{pmatrix}
-# \begin{pmatrix}
-# U(x)\\
-# V^*(x)
-# \end{pmatrix}
-# \end{align}
-#
-
-#
-# In a vortex, the pairing field is
-# $$
-# \Delta = \Delta_0(x + iy)=\Delta_0 r e^{i\theta}
-# $$
-#
+# To introduce vortex pairing field, an additional integer term can be added to the diagnoal of the BdG matrix
 
 # # First Order Derivative Operator
 
