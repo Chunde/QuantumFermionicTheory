@@ -19,7 +19,7 @@ class bdg_dvr(object):
         self.l_max = max(l_max, 1)  # the angular momentum cut_off
         assert T==0
         self.T=T
-        self.g = self.get_g(mu=mu, delta=delta)
+        self.g = self.get_g(mu=mu, delta=np.mean(delta))
         self.mus = (mu + dmu, mu - dmu)
         self.E_c = sys.maxsize if E_c is None else E_c
 
@@ -75,7 +75,7 @@ class bdg_dvr(object):
     def _get_psi(self, nu, u):
         """apply weight on the u(v) to get the actual radial wave-function"""
         b = self.bases[self.basis_match_rule(nu)]
-        return u*b.ws
+        return b._get_psi(u=u)
 
     def _get_den(self, H, nu):
         """
@@ -97,10 +97,6 @@ class bdg_dvr(object):
             n_a = u*u.conj()*f_p
             n_b = v*v.conj()*f_m
             kappa = u*v.conj()*(f_p - f_m)/2
-            # fe = self.f(E=E)
-            # n_a = (1 - fe)*v**2
-            # n_b = fe*u**2
-            # kappa = (1 - 2*fe)*u*v
             den = den + np.array([n_a, n_b, kappa])
         return den
 
@@ -137,13 +133,4 @@ class dvr_vortex(bdg_dvr):
         V = self.barrier_height * mstep(rs-self.R+R0, R0)
         return V
 
-
-if __name__ == "__main__":
-    delta = 2
-    mu = 5
-    dmu = 3.5
-    dvr = dvr_vortex(mu=mu, dmu=dmu, E_c=None, N_root=32, delta=delta)
-    delta = delta + dvr.bases[0].zero
-    dvr.l_max=100
-    na, nb, kappa = dvr.get_densities(mus=(mu, mu), delta=delta)
     

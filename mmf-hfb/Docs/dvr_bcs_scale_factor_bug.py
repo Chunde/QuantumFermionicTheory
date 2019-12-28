@@ -27,6 +27,7 @@ from mmfutils.plot import imcontourf
 from collections import namedtuple
 from mmfutils.math.special import mstep
 from mmf_hfb.DVRBasis import CylindricalBasis
+from mmf_hfb.VortexDVR import bdg_dvr, bdg_dvr_ho
 
 # # BCS
 
@@ -209,16 +210,12 @@ def show_2d_harmonic_oscillator_den(m=0, n=0, L=5, N=100):
 # ## Anaylical wavefunctions normalization
 
 rs = np.linspace(0.0000, 5, 200)
-plt.figure(figsize(16, 6))
 for n in range(4):
     for m in range(n + 1):
         def f(r):
             return get_2d_ho_wf(n, m, r)**2
         ret =quad(f, 0, 10)
         assert np.allclose(ret[0], 1)
-        plt.plot(rs, get_2d_ho_wf(n=n, m=m, rs=rs), label=f"n={n},m={m}")
-plt.axhline(0, linestyle='dashed', c='red')
-plt.legend()
 
 rs = np.linspace(0.0000, 5, 200)
 plt.figure(figsize(16, 6))
@@ -341,7 +338,7 @@ plt.ylabel(r"$(E-E_0)/E_0$")
 # $$
 # \braket{\Psi|\Psi}=2\pi\int {r\psi^*(r)\psi(r) dr}=2\pi\int{\phi^*(r)\phi(r) dr}=2\pi\braket{\phi|\phi}=2\pi\sum_i{u^2_i}=1
 # $$
-# Which means the results from diagonizing the Hamiltonian should have a weight of $\frac{1}{\sqrt{2\pi}}$
+# <font color='red'>Which means the results from diagonizing the Hamiltonian should have a weight of $\frac{1}{\sqrt{2\pi}}$</font>
 
 plt.figure(figsize=(16, 8))
 h = HarmonicDVR(nu=0, dim=2, w=1, R_max=None, N_root=32)
@@ -450,7 +447,7 @@ plt.legend()
 # ## 2D BCS Lattice
 
 Nx = 32
-L = 16
+L = 10
 dim = 2
 dx = L/Nx
 b1 = BCS(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
@@ -492,6 +489,7 @@ def plot_den_dvr(n, m, d0=1):
 # -
 
 def compare_bcs_dvr_dens(E=3):
+    d, Es, us = ds[E]
     start_index = sum(list(range(E)))
     end_index = start_index + E
     b = b0
@@ -528,6 +526,55 @@ def compare_bcs_dvr_dens(E=3):
 for E in range(7, 10):
     compare_bcs_dvr_dens(E=E)
     plt.show()
+
+
+# # 2D BdG
+# In BCS, to compute the total densities $n_a, n_b$, we sum up over all possible states. In principle, for the DVR case, same number of states(include the double-degenerate states) should be used to caculate the densities. However, <font color='red'>it turns out larger angular momentum $L$ contribute much less to the densities(I do not know excatly why), so only the first tens of them are significant. </font>
+
+class BCS_ho(BCS):
+    """2D harmonic"""
+    def get_v_ext(self, **kw):
+        """Return the external potential."""
+        V=sum(np.array(self.xyz)**2/2.0)
+        return (V, V)
+
+
+mu, dmu, delta = 5, 3.5, 2
+
+# +
+b2 = BCS_ho(Nxyz=(32,)*2, Lxyz=(10,)*2)
+res = b2.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta)
+n_a, n_b = res.n_a, res.n_b
+x, y = b2.xyz
+rs = np.sqrt(sum(_x**2 for _x in b2.xyz)).ravel()
+
+plt.figure(figsize=(18, 4))
+plt.subplot(131)
+imcontourf(x, y, n_a)
+plt.colorbar()
+plt.subplot(132)
+imcontourf(x, y, n_b)
+plt.colorbar()
+plt.subplot(133)
+plt.plot(rs, n_a.ravel(), '+', label=r"$n_a$")
+plt.plot(rs, n_b.ravel(), 'o', label=r"$n_b$")
+plt.legend()
+# -
+
+dvr = bdg_dvr_ho(mu=mu, dmu=dmu, E_c=None, N_root=64, delta=delta)
+dvr.l_max=20  # 20 is good enough
+delta = delta + dvr.bases[0].zero
+na, nb, kappa = dvr.get_densities(mus=(mu + dmu, mu - dmu), delta=delta)
+plt.figure(figsize=(15, 5))
+plt.subplot(121)
+plt.plot(dvr.bases[0].rs, (na), label=r'$n_a$(DVR)')
+plt.plot(rs, n_a.ravel(), '+', label=r'$n_a$(Grid)')
+plt.legend()
+plt.subplot(122)
+plt.plot(dvr.bases[0].rs, (nb), label=r'$n_b$(DVR)')
+plt.plot(rs, n_b.ravel(), '+', label=r'$n_b$(Grid)')
+plt.legend()
+clear_output();plt.show();
 
 # # BdG in Rotating Frame Transform
 #
