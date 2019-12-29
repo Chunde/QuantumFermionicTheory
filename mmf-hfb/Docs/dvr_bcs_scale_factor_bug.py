@@ -18,6 +18,7 @@ import mmf_setup;mmf_setup.nbinit()
 # %pylab inline --no-import-all
 from nbimports import *
 import numpy as np
+import sys
 import matplotlib.pyplot as plt
 from scipy.integrate import quad
 from mmfutils.math import bessel
@@ -28,6 +29,7 @@ from collections import namedtuple
 from mmfutils.math.special import mstep
 from mmf_hfb.DVRBasis import CylindricalBasis
 from mmf_hfb.VortexDVR import bdg_dvr, bdg_dvr_ho
+from mmf_hfb.utils import block
 
 # # BCS
 
@@ -421,8 +423,8 @@ plt.legend()
 # U_{ji}&=\frac{2b_j\sqrt{z_{0j}z_{1i}}}{a_i(z^2_{0j}-z^2_{1i})}
 # \end{align}
 
-dvr0 = CylindricalBasis(nu=0, R_max=9, N_root=128)
-dvr1 = CylindricalBasis(nu=1, R_max=9, N_root=127)
+dvr0 = CylindricalBasis(nu=0, R_max=9, N_root=38)
+dvr1 = CylindricalBasis(nu=1, R_max=8, N_root=38)
 z0 = dvr0.zs
 z1 = dvr1.zs
 a = np.sin(z1)/np.sqrt(z1)
@@ -430,15 +432,17 @@ b = -np.cos(z0)/np.sqrt(z0)
 U10 = 2*b[:,None]*(z0[:, None]*z1[None,:])**0.5/a[None,:]/(z0[:,None]**2-z1[None,:]**2)
 
 # ## Test the Transform Matrix in 2D
-# * if the basis set have similar basis function size, the $U$ matrix in 3D seems to work nicely in 2D case
+# * if the basis set have similar basis function size, the $U$ matrix in 3D seems to not work nicely in 2D case
 
 import random
 us1 = np.cos(np.linspace(0, 5 + 15*np.random.random(), len(z1))) 
 us0 = U10.dot(us1)
 psi1= dvr1._get_psi(us1)
 psi0 = dvr0._get_psi(us0)
-plt.plot(dvr1.rs, psi1, label="DVR1")
-plt.plot(dvr0.rs, psi0, '+', label="DVR0")
+psi0_e = dvr0._get_psi(us1)
+plt.plot(dvr1.rs, psi1, '-', label="DVR1")
+plt.plot(dvr0.rs, psi0, '--', label="DVR0")
+plt.plot(dvr0.rs, psi0_e, 'o')
 plt.legend()
 
 # # Compare Radial Wavefunctions & Densities
@@ -541,13 +545,13 @@ class BCS_ho(BCS):
 
 mu, dmu, delta = 5, 3.5, 2
 
-# +
+# ## BCS in a Box
+
 b2 = BCS_ho(Nxyz=(32,)*2, Lxyz=(10,)*2)
 res = b2.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta)
 n_a, n_b = res.n_a, res.n_b
 x, y = b2.xyz
 rs = np.sqrt(sum(_x**2 for _x in b2.xyz)).ravel()
-
 plt.figure(figsize=(18, 4))
 plt.subplot(131)
 imcontourf(x, y, n_a)
@@ -559,7 +563,8 @@ plt.subplot(133)
 plt.plot(rs, n_a.ravel(), '+', label=r"$n_a$")
 plt.plot(rs, n_b.ravel(), 'o', label=r"$n_b$")
 plt.legend()
-# -
+
+# ## Compare to DVR case
 
 dvr = bdg_dvr_ho(mu=mu, dmu=dmu, E_c=None, N_root=64, delta=delta)
 dvr.l_max=20  # 20 is good enough
@@ -580,6 +585,118 @@ clear_output();plt.show();
 # # Vortices
 
 # +
+class bdg_dvr(object):
+    """
+    A 2D and 3D vortex class without external potential
+    """
+    def __init__(
+            self, bases_N=2, mu=1, dmu=0, delta=1,
+                E_c=None, T=0, l_max=100, g=None, **args):
+        """
+        Construct and cache some information of bases
+
+        """
+        self.bases = [CylindricalBasis(nu=nu, **args) for nu in range(bases_N)]
+        self.l_max = max(l_max, 1)  # the angular momentum cut_off
+        assert T==0
+        self.T=T
+        self.g = self.get_g(mu=mu, delta=np.mean(delta)) if g is None else g
+        self.mus = (mu + dmu, mu - dmu)
+        self.E_c = sys.maxsize if E_c is None else E_c
+
+    def f(self, E, T=0):
+        if T is None:
+            T = self.T
+        if T == 0:
+            if E < 0:
+                return 1
+            return 0
+        else:
+            return 1./(1+np.exp(E/T))
+
+    def basis_match_rule(self, nu):
+        """
+            Assign different bases to different angular momentum \nu
+            it assign 0 to even \nu and 1 to odd \nu
+        Note:
+            inherit a child class to override this function
+        """
+        assert len(self.bases) > 1  # make sure the number of bases is at least two
+        return nu % 2
+
+    def get_Vext(self, rs):
+        """return external potential"""
+        return 0
+
+    def get_H(self, mus, delta, lz=0, nu=0):
+        """
+        return the full Hamiltonian(with pairing field)
+        """
+        basis = self.bases[self.basis_match_rule(nu)]
+        T = basis.K
+        Delta = np.diag(basis.zero + delta)
+        mu_a, mu_b = mus
+        V_ext = self.get_Vext(rs=basis.rs)
+        V_corr = basis.get_V_correction(nu=nu)
+        V_eff = V_ext + V_corr
+        H_a = T + np.diag(V_eff - mu_a + lz**2)
+        H_b = T + np.diag(V_eff - mu_b + lz**2)
+        H = block(H_a, Delta, Delta.conj(), -H_b)
+        return H
+
+    def get_g(self, mu=1.0, delta=0.2):
+        """
+        the interaction strength
+        """
+        # [Check] will be dim = 3 when integrate over z
+        h = homogeneous.Homogeneous(dim=2)
+        res = h.get_densities(mus_eff=(mu, mu), delta=delta)
+        g = 0 if res.nu == 0 else delta/res.nu
+        return g
+
+    def _get_psi(self, nu, u):
+        """apply weight on the u(v) to get the actual radial wave-function"""
+        b = self.bases[self.basis_match_rule(nu)]
+        return b._get_psi(u=u)
+
+    def _get_den(self, H, nu):
+        """
+        return the densities for a given H
+        """
+        es, phis = np.linalg.eigh(H)
+        phis = phis.T
+        offset = phis.shape[0] // 2
+        den = 0
+        for i in range(len(es)):
+            E, uv = es[i], phis[i]
+            if abs(E) > self.E_c:
+                continue
+            
+            u, v = uv[: offset], uv[offset:]
+            u = self._get_psi(nu=nu, u=u)
+            v = self._get_psi(nu=nu, u=v)
+            f_p, f_m = self.f(E=E), self.f(E=-E)
+            n_a = u*u.conj()*f_p
+            n_b = v*v.conj()*f_m
+            kappa = u*v.conj()*(f_p - f_m)/2
+            den = den + np.array([n_a, n_b, kappa])
+        return den
+
+    def get_densities(self, mus, delta, lz=0):
+        """
+        return the particle number density and anomalous density
+        Note: Here the anomalous density is represented as kappa
+        instead of \nu so it's not that confusing when \nu has
+        been used as angular momentum quantum number.
+        """
+        # l=0
+        dens = self._get_den(self.get_H(mus=mus, delta=delta, nu=0, lz=lz), nu=0)
+        for nu in range(1, self.l_max):  # sum over angular momentum
+            H = self.get_H(mus=mus, delta=delta, nu=nu, lz=lz)
+            dens = dens + 2*self._get_den(H, nu=nu)  # double-degenerate
+        n_a, n_b, kappa = dens
+        return (n_a, n_b, kappa)
+
 class BCS_vortex(BCS):
     """BCS Vortex"""
     barrier_width = 0.2
@@ -612,8 +729,7 @@ class dvr_vortex(bdg_dvr):
 
 # -
 
-loop = 1
-
+loop = 20
 Nx = 32
 L = 10
 dim = 2
@@ -623,46 +739,37 @@ dmu = 3.5
 delta = 2
 b3 = BCS_vortex(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim, delta=delta)
 rs = np.sqrt(sum(_x**2 for _x in b3.xyz)).ravel()
-#delta = delta*(x+1j*y)
+delta = delta*(x+1j*y)
 with NoInterrupt() as interrupted:
     for _ in range(loop):
         res = b3.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta)
         n_a, n_b = res.n_a, res.n_b
         nu = res.nu
         x, y = b3.xyz
-        plt.figure(figsize=(18, 10))
-        plt.subplot(231)
+        plt.figure(figsize=(18, 4.5))
+        plt.subplot(131)
         imcontourf(x, y, n_a)
         plt.colorbar()
-        plt.subplot(232)
+        plt.subplot(132)
         imcontourf(x, y, n_b)
         plt.colorbar()
-        plt.subplot(233)
+        plt.subplot(133)
         plt.colorbar()
+        delta = -b3.g*nu       
         if np.size(delta) == np.prod(b3.Nxyz):
             imcontourf(x, y, abs(delta))       
-        plt.subplot(234)
-        rs = np.sqrt(sum(_x**2 for _x in b3.xyz)).ravel()
-        plt.plot(rs, n_a.ravel(), '+', label=r"$n_a$")
-        plt.plot(rs, n_b.ravel(), 'o', label=r"$n_b$")
-        plt.legend()
-        plt.subplot(235)
-        delta =  -b3.g*res.nu
-        plt.plot(rs, abs(delta).ravel(), '+', label=r"$\Delta$")
-        plt.legend()
-        plt.subplot(236)
-        plt.plot(rs, nu.ravel(), '+', label=r"$\nu$")
-        plt.legend()
-        clear_output()
+        clear_output(wait=True)
         plt.show()
 delta_bcs = delta
 
+E_c = np.max(b3.kxyz)**2*b3.dim/2
 delta = 2
-dvr = dvr_vortex(mu=mu, dmu=dmu, E_c=None, N_root=33, delta=delta)
+delta = delta*dvr.bases[0].rs
+dvr = dvr_vortex(mu=mu, dmu=dmu, E_c=E_c*.65, N_root=33, R_max=5, g=b3.g, delta=delta)
 delta = delta + dvr.bases[0].zero
-dvr.l_max=20
+dvr.l_max=300
 for _ in range(loop):
-    na, nb, kappa = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta)
+    na, nb, kappa = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta, lz=0)
     plt.figure(figsize=(15, 10))
     plt.subplot(221)
     plt.plot(dvr.bases[0].rs, na, label=r'$n_a$(DVR)')
@@ -675,16 +782,50 @@ for _ in range(loop):
     delta_ = -dvr.g*kappa
     delta=delta_
     plt.subplot(223)
-    plt.plot(dvr.bases[0].rs, kappa, label=r'$\nu$(DVR)')
-    plt.plot(rs, nu.ravel(), '+', label=r'$\nu$(Grid)')
+    plt.plot(dvr.bases[0].rs, abs(kappa), label=r'$\nu$(DVR)')
+    plt.plot(rs, abs(nu).ravel(), '+', label=r'$\nu$(Grid)')
     plt.legend()
     plt.subplot(224)
-    plt.plot(dvr.bases[0].rs, delta, label=r'$\Delta$(DVR)')
-    plt.plot(rs, delta_bcs.ravel(), '+', label=r'$\Delta$(Grid)')
+    plt.plot(dvr.bases[0].rs, abs(delta), label=r'$\Delta$(DVR)')
+    plt.plot(rs, abs(delta_bcs).ravel(), '+', label=r'$\Delta$(Grid)')
     plt.legend()
-    clear_output()
+    clear_output(wait=True)
     plt.show()
-    #break
+
+
+# ## Check how $n_a, n_b, \nu$ change with $L$
+
+def get_den(nu=0):
+    mus = (mu + dmu, mu - dmu)
+    return dvr._get_den(dvr.get_H(mus=mus, delta=delta, nu=nu), nu=nu)
+
+
+import time
+for l in range(32):
+    a, b, v = get_den(l)
+    plt.plot(dvr.bases[0].rs, a, '--', label=r'$n_a$')
+    plt.plot(dvr.bases[0].rs, b, '+', label=r'$n_b$')
+    plt.plot(dvr.bases[0].rs, v, 'o', label=r'$\nu$')
+    plt.legend()
+    plt.title(r"$\nu$"+f"={l}")
+    clear_output(wait=True)
+    plt.show()
+    time.sleep(0.5)
+
+# # Problems:
+# There are some unsolved problems in the DVR case. need to fully understand where the issues  come from. HEADACKE!
+# ## Errors
+# * The calculation of $\nu$ does not agree with the BCS in a box, something wrong.
+#     * <font color='red'>It's found that changing the max $L$ will change the $\nu$, not much on $n_s$</font>
+#     * Solution: <font color='green'> Pick an energy cutoff to match the $\nu$ in both cases</font>, the $\nu$ seems to be senstive to the cutoff.
+# * The transform matrix does not work well as expected
+
+#
+# ## To-Do
+# * When fix the above problem, try to add the additional term to get a vortex
+# * Compute $\tau$ and $j_{\pm a/b}$ terms
+# * Integral over the Z dirction
+# * Implement ASLDA
 
 # # BdG in Rotating Frame Transform
 
@@ -705,7 +846,7 @@ for _ in range(loop):
 # \nabla^2 \left[ fe^{in\theta}\right]=\left[\left(\nabla^2  - n^2)f(r,\theta)\right)\right]e^{in\theta}
 # $$
 #
-# To compute the pairing field of a vortex in BdG formulism,Let the pairing field be of this form:
+# To compute the pairing field of a vortex in BdG formulism, let the pairing field to be of this form:
 # $$
 # \Delta = \Delta_0 g(r) e^{i2n\theta}
 # $$

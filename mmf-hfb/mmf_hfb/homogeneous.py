@@ -103,21 +103,24 @@ class Homogeneous(object):
     def __init__(
             self, Nxyz=None, Lxyz=None, dx=None, dim=None,
             k_c=np.inf, E_c=None, **kw):
-        if Nxyz is None and Lxyz is None and dx is None:
-            self._dim = dim
-        elif dx is not None:
-            if Lxyz is None:
-                Lxyz = np.multiply(Nxyz, dx)
-            elif Nxyz is None:
-                Nxyz = np.ceil(np.divide(Lxyz, dx)).astype(int)
+        if dim is None:
+            if Nxyz is None and Lxyz is None and dx is None:
+                self._dim = dim
+            elif dx is not None:
+                if Lxyz is None:
+                    Lxyz = np.multiply(Nxyz, dx)
+                elif Nxyz is None:
+                    Nxyz = np.ceil(np.divide(Lxyz, dx)).astype(int)
 
-            self.dxyz = np.divide(Lxyz, Nxyz)
+                self.dxyz = np.divide(Lxyz, Nxyz)
             self._dim = len(Nxyz)
-            
+        else:
+            self._dim = dim
+
         self.Nxyz = Nxyz
         self.Lxyz = Lxyz
         kcs=[1000, 1000, 50]
-        if k_c is None:
+        if k_c is None or k_c==np.inf:
             k_c = kcs[self.dim - 1]
         self.k_c = k_c
         if k_c is not None:
@@ -207,7 +210,6 @@ class Homogeneous(object):
         if 'dq' in args and args['dq'] !=0:
             return self._get_densities_tf(mus_eff=mus_eff, delta=delta, **args)
         kF = np.sqrt(2*max(0, np.max(mus_eff)))
-        
         if self.Nxyz is None:
             def quad(f):
                 return quad_k(f, dim=self.dim, kF=kF, k_inf=self.k_c).n

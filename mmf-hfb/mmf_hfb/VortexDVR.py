@@ -10,7 +10,9 @@ class bdg_dvr(object):
     """
     A 2D and 3D vortex class without external potential
     """
-    def __init__(self, bases_N=2, mu=1, dmu=0, delta=1, E_c=None, T=0, l_max=100, **args):
+    def __init__(
+            self, bases_N=2, mu=1, dmu=0, delta=1,
+                E_c=None, T=0, l_max=100, g=None, **args):
         """
         Construct and cache some information of bases
 
@@ -19,7 +21,7 @@ class bdg_dvr(object):
         self.l_max = max(l_max, 1)  # the angular momentum cut_off
         assert T==0
         self.T=T
-        self.g = self.get_g(mu=mu, delta=np.mean(delta))
+        self.g = self.get_g(mu=mu, delta=np.mean(delta)) if g is None else g
         self.mus = (mu + dmu, mu - dmu)
         self.E_c = sys.maxsize if E_c is None else E_c
 
@@ -67,7 +69,8 @@ class bdg_dvr(object):
         """
         the interaction strength
         """
-        h = homogeneous.Homogeneous(dim=3)
+        # [Check] will be dim = 3 when integrate over z
+        h = homogeneous.Homogeneous(dim=2)
         res = h.get_densities(mus_eff=(mu, mu), delta=delta)
         g = 0 if res.nu == 0 else delta/res.nu
         return g
