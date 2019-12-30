@@ -171,6 +171,9 @@ def get_2d_ho_wf(n, m, rs, p=False):
     return 2d radial wave function for a 
     harmonic oscillator.
     ------------------------------------
+    NOTE: if p is true, will use the physical
+        normalization scheme
+        
     n = E -1
         e.g if E=1, to select the corresponding
         wavefunction, use n=E-1=0, and m = 0
@@ -229,6 +232,8 @@ for n in range(4):
         assert np.allclose(ret[0], 1)
         plt.plot(rs, get_2d_ho_wf_p(n=n, m=m, rs=rs), label=f"n={n},m={m}")
 plt.axhline(0, linestyle='dashed', c='red')
+plt.xlabel("r")
+plt.ylabel(r"$phi(r)$")
 plt.legend()
 
 n=0
@@ -303,6 +308,7 @@ for i in range(len(paras)):
 
 plt.figure(figsize=(16,6))
 linestyles = ['--', '+']
+parities = ['odd', 'even']
 for c, N in enumerate([10, 20, 30, 40]):
     dvr_o = HarmonicDVR(nu=0, w=1, N_root=N)
     dvr_e = HarmonicDVR(nu=1, w=1, N_root=N)
@@ -314,12 +320,13 @@ for c, N in enumerate([10, 20, 30, 40]):
         Es0 = 2*ns + 2**i  # analytica energy spectrum
         errs = (Es - Es0)/Es0
         if c is not None:
-            plt.semilogy(ns, errs, linestyles[i], c=c)
+            plt.semilogy(ns, errs, linestyles[i], c=c, label=f"{parities[i]}, N={N}")
         else:
-            l, = plt.semilogy(ns, errs, linestyles[i])
+            l, = plt.semilogy(ns, errs, linestyles[i], label=f"{parities[i]}, N={N}")
             c = l.get_c()      
 plt.xlabel(r"$E_n$")
 plt.ylabel(r"$(E-E_0)/E_0$")
+plt.legend()
 
 # ### Construct Wave Function from DVR Basis
 # * Note: To get the radial wavefunction, we should divide the functionconstructed from the DVR basis by a factor of $\sqrt{r}$, the $\phi(r)$ is not the radial wavefunction:
@@ -639,8 +646,9 @@ class bdg_dvr(object):
         V_ext = self.get_Vext(rs=basis.rs)
         V_corr = basis.get_V_correction(nu=nu)
         V_eff = V_ext + V_corr
-        H_a = T + np.diag(V_eff - mu_a + lz**2)
-        H_b = T + np.diag(V_eff - mu_b + lz**2)
+        lz2 = lz**2/basis.rs**2/2
+        H_a = T + np.diag(V_eff - mu_a + lz2)
+        H_b = T + np.diag(V_eff - mu_b + lz2)
         H = block(H_a, Delta, Delta.conj(), -H_b)
         return H
 
@@ -769,7 +777,37 @@ dvr = dvr_vortex(mu=mu, dmu=dmu, E_c=E_c*.65, N_root=33, R_max=5, g=b3.g, delta=
 delta = delta + dvr.bases[0].zero
 dvr.l_max=300
 for _ in range(loop):
-    na, nb, kappa = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta, lz=0)
+    na, nb, kappa = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta, lz=1)
+    plt.figure(figsize=(15, 10))
+    plt.subplot(221)
+    plt.plot(dvr.bases[0].rs, na, label=r'$n_a$(DVR)')
+    plt.plot(rs, n_a.ravel(), '+', label=r'$n_a$(Grid)')
+    plt.legend()
+    plt.subplot(222)
+    plt.plot(dvr.bases[0].rs, nb, label=r'$n_b$(DVR)')
+    plt.plot(rs, n_b.ravel(), '+', label=r'$n_b$(Grid)')
+    plt.legend()    
+    delta_ = -dvr.g*kappa
+    delta=delta_
+    plt.subplot(223)
+    plt.plot(dvr.bases[0].rs, abs(kappa), label=r'$\nu$(DVR)')
+    plt.plot(rs, abs(nu).ravel(), '+', label=r'$\nu$(Grid)')
+    plt.legend()
+    plt.subplot(224)
+    plt.plot(dvr.bases[0].rs, abs(delta), label=r'$\Delta$(DVR)')
+    plt.plot(rs, abs(delta_bcs).ravel(), '+', label=r'$\Delta$(Grid)')
+    plt.legend()
+    clear_output(wait=True)
+    plt.show()
+
+E_c = np.max(b3.kxyz)**2*b3.dim/2
+delta = 2
+delta = delta*dvr.bases[0].rs
+dvr = dvr_vortex(mu=mu, dmu=dmu, E_c=E_c*.65, N_root=33, R_max=5, g=b3.g, delta=delta)
+delta = delta + dvr.bases[0].zero
+dvr.l_max=300
+for _ in range(loop):
+    na, nb, kappa = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta, lz=1)
     plt.figure(figsize=(15, 10))
     plt.subplot(221)
     plt.plot(dvr.bases[0].rs, na, label=r'$n_a$(DVR)')
@@ -829,21 +867,31 @@ for l in range(32):
 
 # # BdG in Rotating Frame Transform
 
-# if In polar coordinates, assume $f=f(r,\theta)$
+# In polar coordinates, the Del operator $\nabla^2$ is defined as:
+# $$
+# \begin{align}
+# \nabla^2
+# &=\frac{1}{r} \frac{\partial}{\partial r}\left(r \frac{\partial f}{\partial r}\right)+\frac{1}{r^{2}} \frac{\partial^{2} f}{\partial \theta^{2}}\\
+# &=\frac{\partial^2 f}{\partial r^2}+\frac{1}{r} \frac{\partial f}{\partial r}+\frac{1}{r^{2}} \frac{\partial^{2} f}{\partial \theta^{2}}
+# \end{align}
+# $$
+
+# To be general, assume $f=f(r,\theta)$
 # $$
 # \begin{aligned}
-# \nabla^2 \left[ fe^{in\theta}\right]&=\frac{\partial^{2} }{\partial r^{2}}\left[f(r,\theta)e^{in\theta}\right]
+# \nabla^2 \left[ fe^{in\theta}\right]
+# &=\frac{\partial^{2} }{\partial r^{2}}\left[f(r,\theta)e^{in\theta}\right]
 # +\frac{1}{r} \frac{\partial}{\partial r}\left[f(r,\theta)e^{in\theta}\right]
 # +\frac{1}{r^{2}} \frac{\partial^{2} }{\partial \theta^{2}}\left[f(r,\theta)e^{in\theta}\right]\\
-# &=\frac{\partial^{2} }{\partial r^{2}}\left[f(r,\theta)\right]e^{in\theta}
-# +\frac{1}{r} \frac{\partial}{\partial r}\left[f(r,\theta)\right]e^{in\theta}
-# +\frac{1}{r^{2}} \left[\left(\frac{\partial^{2} }{\partial \theta^{2}}+i2n\frac{\partial}{\partial \theta} - n^2\right)f(r, \theta)\right]e^{in\theta}\\
-# &=\left[\left(\nabla^2 +i2n\frac{\partial}{\partial \theta} - n^2)f(r,\theta)\right)\right]e^{in\theta}
+# &=\bigg\{\frac{\partial^{2} }{\partial r^{2}}\left[f(r,\theta)\right]
+# +\frac{1}{r} \frac{\partial}{\partial r}\left[f(r,\theta)\right]
+# +\frac{1}{r^{2}} \left[\left(\frac{\partial^{2} }{\partial \theta^{2}}+i2n\frac{\partial}{\partial \theta} - n^2\right)f(r, \theta)\right]\bigg\}e^{in\theta}\\
+# &=\left[\left(\nabla^2 +i2n\frac{\partial}{r^2\partial \theta} - \frac{n^2}{r^2})f(r,\theta)\right)\right]e^{in\theta}
 # \end{aligned}
 # $$
-# if $f(r,\theta)=f(r)$, ie $f$ only depends on $r$, the above result can be simplified:
+# if $f(r,\theta)=f(r)$, i.e. $f$ only depends on $r$, the above result can be simplified:
 # $$
-# \nabla^2 \left[ fe^{in\theta}\right]=\left[\left(\nabla^2  - n^2)f(r,\theta)\right)\right]e^{in\theta}
+# \nabla^2 \left[ fe^{in\theta}\right]=\left[\left(\nabla^2  - \frac{n^2}{r^2})f(r,\theta)\right)\right]e^{in\theta}
 # $$
 #
 # To compute the pairing field of a vortex in BdG formulism, let the pairing field to be of this form:
@@ -860,22 +908,22 @@ for l in range(32):
 # $$
 # \begin{align}
 # \begin{pmatrix}
-# -\nabla^2-\mu_a & \Delta g(r)e^{i2n\theta}\\
-# \Delta^*g(r)^*e^{-i2n\theta} & \nabla^2 + \mu_b\\
+# -\frac{\nabla^2}{2}-\mu_a & \Delta g(r)e^{i2n\theta}\\
+# \Delta^*g(r)^*e^{-i2n\theta} & \frac{\nabla^2}{2} + \mu_b\\
 # \end{pmatrix}
 # \begin{pmatrix}
 # U(r)e^{in\theta}\\
 # V^*(r)e^{-in\theta}
 # \end{pmatrix}
 # &=\begin{pmatrix}
-# (-\nabla^2-\mu_a)U(r)e^{in\theta}+ \Delta g(r) e^{i2n\theta}V^*(r)e^{-in\theta}\\
-# \Delta^* g(r)^* e^{-i2\theta}U(r)e^{in\theta} + (\nabla^2 + \mu_b)V^*(x)e^{-in\theta}\\
+# (-\frac{\nabla^2}{2}-\mu_a)U(r)e^{in\theta}+ \Delta g(r) e^{i2n\theta}V^*(r)e^{-in\theta}\\
+# \Delta^* g(r)^* e^{-i2\theta}U(r)e^{in\theta} + (\frac{\nabla^2}{2} + \mu_b)V^*(x)e^{-in\theta}\\
 # \end{pmatrix}\\
-# &=\begin{pmatrix}\left[-\nabla-\mu_a \right]U(r)e^{in\theta}+ \Delta g(r)V^*(r)e^{in\theta}\\
-# \Delta^* g(r)^* U(r)e^{-in\theta} + \left[\nabla + \mu_b\right]V^*(r)e^{-in\theta}\\
+# &=\begin{pmatrix}\left[-\frac{\nabla^2}{2}-\mu_a \right]U(r)e^{in\theta}+ \Delta g(r)V^*(r)e^{in\theta}\\
+# \Delta^* g(r)^* U(r)e^{-in\theta} + \left[\frac{\nabla^2}{2} + \mu_b\right]V^*(r)e^{-in\theta}\\
 # \end{pmatrix}\\
-# &=\begin{pmatrix}\left[-\nabla^2-\mu_a + n^2 \right]U(r)e^{in\theta}+ \Delta g(r)V^*(r)e^{in\theta}\\
-# \Delta^* g(r)^* U(r)e^{-in\theta} + \left[\nabla^2 + \mu_b - n^2\right]V^*(r)e^{-in\theta}\\
+# &=\begin{pmatrix}\left[-\frac{\nabla^2}{2}-\mu_a + \frac{n^2}{2r^2} \right]U(r)e^{in\theta}+ \Delta g(r)V^*(r)e^{in\theta}\\
+# \Delta^* g(r)^* U(r)e^{-in\theta} + \left[\frac{\nabla^2}{2} + \mu_b - \frac{n^2}{2r^2}\right]V^*(r)e^{-in\theta}\\
 # \end{pmatrix}\\
 # &=\begin{pmatrix}
 # E & 0\\
@@ -888,8 +936,8 @@ for l in range(32):
 # $$
 # * By canceling out the phase terms:
 # $$
-# \begin{pmatrix}\left[-\nabla^2-\mu_a + n^2 \right]& \Delta g(r)\\
-# \Delta^* g(r)^* & \left[\nabla^2 + \mu_b - n^2\right]\\
+# \begin{pmatrix}\left[-\frac{\nabla^2}{2}-\mu_a + \frac{n^2}{2r^2} \right]& \Delta g(r)\\
+# \Delta^* g(r)^* & \left[\frac{\nabla^2}{2} + \mu_b - \frac{n^2}{2r^2}\right]\\
 # \end{pmatrix}\begin{pmatrix}
 # U(x)\\
 # V(x)^*
@@ -904,7 +952,7 @@ for l in range(32):
 #
 #
 # * So:
-# To introduce vortex pairing field, an additional integer term can be added to the diagnoal of the BdG matrix
+# To introduce vortex pairing field, an additional terms ($\frac{n^2}{2r^2}$) can be added to the diagnoal of the BdG matrix
 
 # # First Order Derivative Operator
 
