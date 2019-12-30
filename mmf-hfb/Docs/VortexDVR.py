@@ -430,8 +430,8 @@ plt.legend()
 # U_{ji}&=\frac{2b_j\sqrt{z_{0j}z_{1i}}}{a_i(z^2_{0j}-z^2_{1i})}
 # \end{align}
 
-dvr0 = CylindricalBasis(nu=0, R_max=9, N_root=38)
-dvr1 = CylindricalBasis(nu=1, R_max=8, N_root=38)
+dvr0 = CylindricalBasis(nu=0, R_max=9, N_root=40)
+dvr1 = CylindricalBasis(nu=1, R_max=8, N_root=32)
 z0 = dvr0.zs
 z1 = dvr1.zs
 a = np.sin(z1)/np.sqrt(z1)
@@ -446,10 +446,50 @@ us1 = np.cos(np.linspace(0, 5 + 15*np.random.random(), len(z1)))
 us0 = U10.dot(us1)
 psi1= dvr1._get_psi(us1)
 psi0 = dvr0._get_psi(us0)
-psi0_e = dvr0._get_psi(us1)
 plt.plot(dvr1.rs, psi1, '-', label="DVR1")
 plt.plot(dvr0.rs, psi0, '--', label="DVR0")
-plt.plot(dvr0.rs, psi0_e, 'o')
+plt.legend()
+
+
+# ## Use the interploation properties of a DVR basis
+# * In DVR, we may only want to evaluate the general function at abssisas, where the basis functions are local and interpolated, let the abassias for these two DVR bases be $r_i$ where $i=1,2,\dots  n$ and $r'_j$ where $j=1,2,\dots m$.
+#
+# First, evalute the function at the abssicas of the first basis
+# $$
+# \psi(r_i)=\sum_i C_i F_i(r_i)
+# $$
+# From the interprolation propoties of the DVR basis, we know that:
+# $F_i(r_k)=F_i(r_i)\delta_{ik}$, so the weight factor $C_i$ can be easily evaluated:
+# $$
+# \psi(r_i)=C_i F_i(r_i) \qquad C_i=\frac{\psi(r_i)}{F_i(r_i)}
+# $$
+# Once we know all the weight factors $C_i$ in the basis $\ket{F_i}$, we can evalute the value of the $\psi(r)$ at arbitray point $r$. That means we can get the values: 
+# $$
+# \psi_j=\psi(r'_j)
+# $$
+# where the $r'_j$ for $j=1,2,\dots m$ are abssicas for the second DVR basis. Since the function can also be expand in terms of the second DVR basis functions $\ket{F'_j}$ with weight $C'_j$ , i.e:
+# $$\psi=\sum_j{C'_j F'_j(r)}$$
+#
+# Resue the properties of interpolation at those abssicas of the DVR basis, we can get $C'_j$ as:
+# $$
+# C'_j =\frac{ \psi(r'_j)}{F'_j(r'_j)}= \frac{ \sum_i{C_i F_i(r'_j)}}{F'_j(r'_j)}
+# $$
+
+def tranform(dvr_s, dvr_t, us_s):
+    def f(r):
+        fs = [us_s[n]*dvr_s.get_F(n=n, rs=r) for n in range(len(us_s))]
+        return sum(fs)
+    psi = [f(r) for r in dvr_t.rs]
+    Fs = dvr_t.get_F_rs()
+    us_t = np.array(psi)/np.array(Fs)
+    return us_t
+
+
+us0 = tranform(dvr_s=dvr1, dvr_t=dvr0, us_s=us1)
+psi1= dvr1._get_psi(us1)
+psi0 = dvr0._get_psi(us0)
+plt.plot(dvr1.rs, psi1, '-', label="DVR1")
+plt.plot(dvr0.rs, psi0, '--', label="DVR0")
 plt.legend()
 
 # # Compare Radial Wavefunctions & Densities
@@ -647,6 +687,7 @@ class bdg_dvr(object):
         V_corr = basis.get_V_correction(nu=nu)
         V_eff = V_ext + V_corr
         lz2 = lz**2/basis.rs**2/2
+        lz2 = lz*(lz-1)/basis.rs**2/2
         H_a = T + np.diag(V_eff - mu_a + lz2)
         H_b = T + np.diag(V_eff - mu_b + lz2)
         H = block(H_a, Delta, Delta.conj(), -H_b)
@@ -662,11 +703,31 @@ class bdg_dvr(object):
         g = 0 if res.nu == 0 else delta/res.nu
         return g
 
-    def _get_psi(self, nu, u):
-        """apply weight on the u(v) to get the actual radial wave-function"""
-        b = self.bases[self.basis_match_rule(nu)]
+    def get_psi(self, nu, u, uid=None):
+        """
+        apply weight on the u(v) to get the actual radial wave-function
+        -------------
+        uid: the index of the basis in the bases array
+        """
+        if uid is None:
+            uid = self.basis_match_rule(nu)
+        assert uid >=0 and uid < len(self.bases)
+        b = self.bases[uid]
         return b._get_psi(u=u)
-
+    
+    def transform(self, nu_s, nu_t, us_s):
+        if nu_s == nu_t:
+            return us_s
+        dvr_s = self.bases[self.basis_match_rule(nu_s)]
+        dvr_t = self.bases[self.basis_match_rule(nu_t)]
+        def f(r):
+            fs = [us_s[n]*dvr_s.get_F(n=n, rs=r) for n in range(len(us_s))]
+            return sum(fs)
+        psi = [f(r) for r in dvr_t.rs]
+        Fs = dvr_t.get_F_rs()
+        us_t = np.array(psi)/np.array(Fs)
+        return us_t
+    
     def _get_den(self, H, nu):
         """
         return the densities for a given H
@@ -681,8 +742,12 @@ class bdg_dvr(object):
                 continue
             
             u, v = uv[: offset], uv[offset:]
-            u = self._get_psi(nu=nu, u=u)
-            v = self._get_psi(nu=nu, u=v)
+            
+            # u = self.transform(nu_s=nu, nu_t=0, us_s=u)
+            # v = self.transform(nu_s=nu, nu_t=0, us_s=v)
+            u = self.get_psi(nu=nu, u=u, uid=0)
+            v = self.get_psi(nu=nu, u=v, uid=0)
+            
             f_p, f_m = self.f(E=E), self.f(E=-E)
             n_a = u*u.conj()*f_p
             n_b = v*v.conj()*f_m
@@ -697,7 +762,6 @@ class bdg_dvr(object):
         instead of \nu so it's not that confusing when \nu has
         been used as angular momentum quantum number.
         """
-        # l=0
         dens = self._get_den(self.get_H(mus=mus, delta=delta, nu=0, lz=lz), nu=0)
         for nu in range(1, self.l_max):  # sum over angular momentum
             H = self.get_H(mus=mus, delta=delta, nu=nu, lz=lz)
@@ -857,6 +921,7 @@ for l in range(32):
 #     * <font color='red'>It's found that changing the max $L$ will change the $\nu$, not much on $n_s$</font>
 #     * Solution: <font color='green'> Pick an energy cutoff to match the $\nu$ in both cases</font>, the $\nu$ seems to be senstive to the cutoff.
 # * The transform matrix does not work well as expected
+#     * <font color='green'>fixed</font>
 
 #
 # ## To-Do
@@ -953,6 +1018,19 @@ for l in range(32):
 #
 # * So:
 # To introduce vortex pairing field, an additional terms ($\frac{n^2}{2r^2}$) can be added to the diagnoal of the BdG matrix
+
+# ## Careful Check
+# The radial Schrodinger equation is given as:
+# $$
+# \frac{1}{r^{d-1}} \frac{d}{d r}\left(r^{d-1} \frac{d \psi}{d r}\right)-\frac{\lambda(\lambda+d-2)}{r^{2}} \psi+\frac{2 m}{\hbar^{2}}[E-V(r)] \psi=0
+# $$
+# By defining:
+# $\phi(r)=r^{(d-1) / 2} \psi(r)$, with normalization $\int_{0}^{\infty} d r|\phi(r)|^{2}=1$. 
+# The $\phi(r)$ satisfies:
+# $$
+# \frac{d^{2} \phi}{d r^{2}}-\frac{\nu^{2}-1 / 4}{r^{2}} \phi+\frac{2 m}{\hbar^{2}}[E-V(r)] \phi=0
+# $$
+# where $\nu=\lambda+d / 2-1$
 
 # # First Order Derivative Operator
 
