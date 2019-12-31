@@ -324,7 +324,7 @@ for c, N in enumerate([10, 20, 30, 40]):
         else:
             l, = plt.semilogy(ns, errs, linestyles[i], label=f"{parities[i]}, N={N}")
             c = l.get_c()      
-plt.xlabel(r"$E_n$")
+plt.xlabel(r"$n$")
 plt.ylabel(r"$(E-E_0)/E_0$")
 plt.legend()
 
@@ -475,7 +475,21 @@ plt.legend()
 # C'_j =\frac{ \psi(r'_j)}{F'_j(r'_j)}= \frac{ \sum_i{C_i F_i(r'_j)}}{F'_j(r'_j)}
 # $$
 
-def tranform(dvr_s, dvr_t, us_s):
+# $$
+# C'_j =\frac{1}{F'_j(r'_j)}\sum_i{C_i F_i(r'_j)}=\frac{1}{F'_j(r'_j)}\left[C_0 F_0(r'_j)+C_1 F_1(r'_j)+\dots C_n F_n(r'_j)\right]
+# $$
+
+def get_transform_matrix(dvr_s, dvr_t):
+    rs_s = dvr_s.rs
+    rs_t = dvr_t.rs
+    ws = dvr_t.get_F_rs()
+    return np.array([[dvr_s.get_F(n=i, rs=rs_t[j])/ws[j] for i in range(len(rs_s))] for j in range(len(rs_t))])
+
+
+U10 = get_transform_matrix(dvr1, dvr0)
+
+
+def transform(dvr_s, dvr_t, us_s):
     def f(r):
         fs = [us_s[n]*dvr_s.get_F(n=n, rs=r) for n in range(len(us_s))]
         return sum(fs)
@@ -485,7 +499,7 @@ def tranform(dvr_s, dvr_t, us_s):
     return us_t
 
 
-us0 = tranform(dvr_s=dvr1, dvr_t=dvr0, us_s=us1)
+us0 = U10.dot(us1) # transform(dvr_s=dvr1, dvr_t=dvr0, us_s=us1)
 psi1= dvr1._get_psi(us1)
 psi0 = dvr0._get_psi(us0)
 plt.plot(dvr1.rs, psi1, '-', label="DVR1")
@@ -632,12 +646,18 @@ clear_output();plt.show();
 # # Vortices
 
 # +
+def get_transform_matrix(dvr_s, dvr_t):
+        rs_s = dvr_s.rs
+        rs_t = dvr_t.rs
+        ws = dvr_t.get_F_rs()
+        return np.array([[dvr_s.get_F(n=i, rs=rs_t[j])/ws[j] for i in range(len(rs_s))] for j in range(len(rs_t))])
+    
 class bdg_dvr(object):
     """
     A 2D and 3D vortex class without external potential
     """
     def __init__(
-            self, bases_N=2, mu=1, dmu=0, delta=1,
+            self, bases_N=2, mu=1, dmu=0, delta=1, lz=0,
                 E_c=None, T=0, l_max=100, g=None, **args):
         """
         Construct and cache some information of bases
@@ -647,10 +667,13 @@ class bdg_dvr(object):
         self.l_max = max(l_max, 1)  # the angular momentum cut_off
         assert T==0
         self.T=T
+        self.lz=lz
         self.g = self.get_g(mu=mu, delta=np.mean(delta)) if g is None else g
         self.mus = (mu + dmu, mu - dmu)
         self.E_c = sys.maxsize if E_c is None else E_c
-
+        self.U10 = get_transform_matrix(self.bases[1], self.bases[0])
+        self.rs = self.bases[0].rs
+        
     def f(self, E, T=0):
         if T is None:
             T = self.T
@@ -687,7 +710,7 @@ class bdg_dvr(object):
         V_corr = basis.get_V_correction(nu=nu)
         V_eff = V_ext + V_corr
         lz2 = lz**2/basis.rs**2/2
-        lz2 = lz*(lz-1)/basis.rs**2/2
+        lz2 = lz*(lz - 1)/basis.rs**2/2
         H_a = T + np.diag(V_eff - mu_a + lz2)
         H_b = T + np.diag(V_eff - mu_b + lz2)
         H = block(H_a, Delta, Delta.conj(), -H_b)
@@ -703,16 +726,13 @@ class bdg_dvr(object):
         g = 0 if res.nu == 0 else delta/res.nu
         return g
 
-    def get_psi(self, nu, u, uid=None):
+    def get_psi(self, nu, u):
         """
         apply weight on the u(v) to get the actual radial wave-function
-        -------------
-        uid: the index of the basis in the bases array
         """
-        if uid is None:
-            uid = self.basis_match_rule(nu)
-        assert uid >=0 and uid < len(self.bases)
-        b = self.bases[uid]
+        if nu%2 == 1:
+            u = self.U10.dot(u)
+        b = self.bases[0]
         return b._get_psi(u=u)
     
     def transform(self, nu_s, nu_t, us_s):
@@ -727,7 +747,7 @@ class bdg_dvr(object):
         Fs = dvr_t.get_F_rs()
         us_t = np.array(psi)/np.array(Fs)
         return us_t
-    
+
     def _get_den(self, H, nu):
         """
         return the densities for a given H
@@ -742,11 +762,8 @@ class bdg_dvr(object):
                 continue
             
             u, v = uv[: offset], uv[offset:]
-            
-            # u = self.transform(nu_s=nu, nu_t=0, us_s=u)
-            # v = self.transform(nu_s=nu, nu_t=0, us_s=v)
-            u = self.get_psi(nu=nu, u=u, uid=0)
-            v = self.get_psi(nu=nu, u=v, uid=0)
+            u = self.get_psi(nu=nu, u=u)
+            v = self.get_psi(nu=nu, u=v)
             
             f_p, f_m = self.f(E=E), self.f(E=-E)
             n_a = u*u.conj()*f_p
@@ -755,13 +772,15 @@ class bdg_dvr(object):
             den = den + np.array([n_a, n_b, kappa])
         return den
 
-    def get_densities(self, mus, delta, lz=0):
+    def get_densities(self, mus, delta, lz=None):
         """
         return the particle number density and anomalous density
         Note: Here the anomalous density is represented as kappa
         instead of \nu so it's not that confusing when \nu has
         been used as angular momentum quantum number.
         """
+        if lz is None:
+            lz = self.lz
         dens = self._get_den(self.get_H(mus=mus, delta=delta, nu=0, lz=lz), nu=0)
         for nu in range(1, self.l_max):  # sum over angular momentum
             H = self.get_H(mus=mus, delta=delta, nu=nu, lz=lz)
@@ -799,100 +818,107 @@ class dvr_vortex(bdg_dvr):
         return V
 
 
-# -
-
-loop = 20
-Nx = 32
-L = 10
-dim = 2
-dx = L/Nx
+# +
+loop = 10
 mu = 5
 dmu = 3.5
 delta = 2
-b3 = BCS_vortex(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim, delta=delta)
+delta_bcs = delta
+delta_dvr = delta
+
+# BCS
+b3 = BCS_vortex(Nxyz=(32,)*dim, Lxyz=(10,)*2, delta=delta)
+E_c = np.max(b3.kxyz)**2*b3.dim/2
+x, y = b3.xyz
 rs = np.sqrt(sum(_x**2 for _x in b3.xyz)).ravel()
-delta = delta*(x+1j*y)
+delta_bcs = delta*(x+1j*y)
+# DVR
+dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=b3.g, E_c=0.67*E_c, N_root=32, R_max=5, lz=1, l_max=100)
+delta_dvr = dvr.rs*delta
 with NoInterrupt() as interrupted:
     for _ in range(loop):
-        res = b3.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta)
-        n_a, n_b = res.n_a, res.n_b
-        nu = res.nu
-        x, y = b3.xyz
-        plt.figure(figsize=(18, 4.5))
-        plt.subplot(131)
-        imcontourf(x, y, n_a)
+        # BCS plot
+        res_bcs = b3.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta_bcs)
+        na_bcs, nb_bcs = res_bcs.n_a, res_bcs.n_b
+        nu_bcs = res_bcs.nu
+        
+        na_dvr, nb_dvr, nu_dvr = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta_dvr)
+        delta_dvr = -dvr.g*nu_dvr
+        
+        plt.figure(figsize=(18, 10))
+        plt.subplot(231)
+        imcontourf(x, y, na_bcs)
         plt.colorbar()
-        plt.subplot(132)
-        imcontourf(x, y, n_b)
+        plt.title(r"$n_a$")
+        plt.subplot(232)
+        
         plt.colorbar()
-        plt.subplot(133)
-        plt.colorbar()
-        delta = -b3.g*nu       
-        if np.size(delta) == np.prod(b3.Nxyz):
-            imcontourf(x, y, abs(delta))       
+        ds.append(delta)
+        delta_bcs = -b3.g*nu_bcs       
+        if np.size(delta_bcs) == np.prod(b3.Nxyz):
+            imcontourf(x, y, abs(delta_bcs))
+        plt.title(r"$\Delta$")    
+        # DVR plot      
+        plt.subplot(234)
+        plt.plot(dvr.rs, na_dvr, label=r'$n_a$(DVR)')
+        plt.plot(rs, na_bcs.ravel(), '+', label=r'$n_a$(Grid)')
+        plt.legend()
+        plt.subplot(235)
+        plt.plot(dvr.rs, nb_dvr, label=r'$n_b$(DVR)')
+        plt.plot(rs, nb_bcs.ravel(), '+', label=r'$n_b$(Grid)')
+        plt.legend()
+        ds1.append(delta_dvr)
+        
+        plt.subplot(236)
+        plt.plot(dvr.rs, abs(nu_dvr), label=r'$\nu$(DVR)')
+        plt.plot(rs, abs(nu_bcs).ravel(), '+', label=r'$\nu$(Grid)')
+        plt.legend()
+        plt.subplot(233)
+        plt.plot(dvr.rs, abs(delta_dvr), label=r'$\Delta$(DVR)')
+        plt.plot(rs, abs(delta_bcs).ravel(), '+', label=r'$\Delta$(Grid)')
+        plt.legend()
         clear_output(wait=True)
         plt.show()
-delta_bcs = delta
+# -
 
-E_c = np.max(b3.kxyz)**2*b3.dim/2
-delta = 2
-delta = delta*dvr.bases[0].rs
-dvr = dvr_vortex(mu=mu, dmu=dmu, E_c=E_c*.65, N_root=33, R_max=5, g=b3.g, delta=delta)
+# ## The Additional Term in DVR
+# * Numerically, if the term is $n(n-1$, the densities $n_a, n_b$ match the BCS results perfectly
+# * if $n(n+1)$, not nicely
+# * if $n^2$ as given by the derivation, not that good.
+# * Need to double check the derivation
+# * the $\nu$ term still not fit nicely
+
+# dvr = dvr_vortex(mu=mu, dmu=dmu, N_root=33, R_max=5, g=b3.g, delta=delta)
+# delta = delta*dvr.bases[0].rs
+dvr = dvr_vortex(mu=mu, dmu=dmu, E_c=0.67*E_c, N_root=32, R_max=5, g=b3.g, delta=delta)
 delta = delta + dvr.bases[0].zero
-dvr.l_max=300
+dvr.l_max=200
 for _ in range(loop):
-    na, nb, kappa = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta, lz=1)
+    na, nb, kappa = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta)
     plt.figure(figsize=(15, 10))
     plt.subplot(221)
-    plt.plot(dvr.bases[0].rs, na, label=r'$n_a$(DVR)')
+    plt.plot(dvr.rs, na, label=r'$n_a$(DVR)')
     plt.plot(rs, n_a.ravel(), '+', label=r'$n_a$(Grid)')
     plt.legend()
     plt.subplot(222)
-    plt.plot(dvr.bases[0].rs, nb, label=r'$n_b$(DVR)')
+    plt.plot(dvr.rs, nb, label=r'$n_b$(DVR)')
     plt.plot(rs, n_b.ravel(), '+', label=r'$n_b$(Grid)')
-    plt.legend()    
+    plt.legend()
+    ds1.append(delta)
     delta_ = -dvr.g*kappa
     delta=delta_
     plt.subplot(223)
-    plt.plot(dvr.bases[0].rs, abs(kappa), label=r'$\nu$(DVR)')
+    plt.plot(dvr.rs, abs(kappa), label=r'$\nu$(DVR)')
     plt.plot(rs, abs(nu).ravel(), '+', label=r'$\nu$(Grid)')
     plt.legend()
     plt.subplot(224)
-    plt.plot(dvr.bases[0].rs, abs(delta), label=r'$\Delta$(DVR)')
+    plt.plot(dvr.rs, abs(delta), label=r'$\Delta$(DVR)')
     plt.plot(rs, abs(delta_bcs).ravel(), '+', label=r'$\Delta$(Grid)')
     plt.legend()
     clear_output(wait=True)
     plt.show()
 
-E_c = np.max(b3.kxyz)**2*b3.dim/2
-delta = 2
-delta = delta*dvr.bases[0].rs
-dvr = dvr_vortex(mu=mu, dmu=dmu, E_c=E_c*.65, N_root=33, R_max=5, g=b3.g, delta=delta)
-delta = delta + dvr.bases[0].zero
-dvr.l_max=300
-for _ in range(loop):
-    na, nb, kappa = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta, lz=1)
-    plt.figure(figsize=(15, 10))
-    plt.subplot(221)
-    plt.plot(dvr.bases[0].rs, na, label=r'$n_a$(DVR)')
-    plt.plot(rs, n_a.ravel(), '+', label=r'$n_a$(Grid)')
-    plt.legend()
-    plt.subplot(222)
-    plt.plot(dvr.bases[0].rs, nb, label=r'$n_b$(DVR)')
-    plt.plot(rs, n_b.ravel(), '+', label=r'$n_b$(Grid)')
-    plt.legend()    
-    delta_ = -dvr.g*kappa
-    delta=delta_
-    plt.subplot(223)
-    plt.plot(dvr.bases[0].rs, abs(kappa), label=r'$\nu$(DVR)')
-    plt.plot(rs, abs(nu).ravel(), '+', label=r'$\nu$(Grid)')
-    plt.legend()
-    plt.subplot(224)
-    plt.plot(dvr.bases[0].rs, abs(delta), label=r'$\Delta$(DVR)')
-    plt.plot(rs, abs(delta_bcs).ravel(), '+', label=r'$\Delta$(Grid)')
-    plt.legend()
-    clear_output(wait=True)
-    plt.show()
+ds1, ds
 
 
 # ## Check how $n_a, n_b, \nu$ change with $L$
@@ -920,12 +946,9 @@ for l in range(32):
 # * The calculation of $\nu$ does not agree with the BCS in a box, something wrong.
 #     * <font color='red'>It's found that changing the max $L$ will change the $\nu$, not much on $n_s$</font>
 #     * Solution: <font color='green'> Pick an energy cutoff to match the $\nu$ in both cases</font>, the $\nu$ seems to be senstive to the cutoff.
-# * The transform matrix does not work well as expected
-#     * <font color='green'>fixed</font>
 
 #
 # ## To-Do
-# * When fix the above problem, try to add the additional term to get a vortex
 # * Compute $\tau$ and $j_{\pm a/b}$ terms
 # * Integral over the Z dirction
 # * Implement ASLDA
