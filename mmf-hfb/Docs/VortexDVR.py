@@ -347,7 +347,7 @@ plt.legend()
 # $$
 # \braket{\Psi|\Psi}=2\pi\int {r\psi^*(r)\psi(r) dr}=2\pi\int{\phi^*(r)\phi(r) dr}=2\pi\braket{\phi|\phi}=2\pi\sum_i{u^2_i}=1
 # $$
-# <font color='red'>Which means the results from diagonizing the Hamiltonian should have a weight of $\frac{1}{\sqrt{2\pi}}$</font>
+# <font color='red'>Which means the results from diagonizing the Hamiltonian should have a weight factor of $\frac{1}{\sqrt{2\pi}}$</font>
 
 plt.figure(figsize=(16, 8))
 h = HarmonicDVR(nu=0, dim=2, w=1, R_max=None, N_root=32)
@@ -372,6 +372,52 @@ plt.xlabel("r")
 plt.ylabel("F(r)")
 plt.axhline(0, c='black', linestyle='dashed')
 plt.legend()
+
+# # Current and Kenitic Terms
+# The Current terms are defined as:
+# $$
+# \begin{aligned}
+# &\mathbf{j}_{a}(\mathbf{r})=\frac{i}{2} \sum_{n}\left[u_{n}^{*}(\mathbf{r}) \nabla u_{n}(\mathbf{r})-u_{n}(\mathbf{r}) \nabla u_{n}^{*}(\mathbf{r})\right] f_{\beta}\left(E_{n}\right)\\
+# &\mathbf{j}_{b}(\mathbf{r})=\frac{i}{2} \sum_{n}\left[v_{n}^{*}(\mathbf{r}) \nabla v_{n}(\mathbf{r})-v_{n}(\mathbf{r}) \nabla v_{n}^{*}(\mathbf{r})\right] f_{\beta}\left(-E_{n}\right)
+# \end{aligned}
+# $$
+#
+# And the kenitic terms are defined as:
+# $$
+# \tau_{a}(\mathbf{r})=\sum_{n}\left|\nabla u_{n}(\mathbf{r})\right|^{2} f_{\beta}\left(E_{n}\right), \quad \tau_{b}(\mathbf{r})=\sum_{n}\left|\nabla v_{n}(\mathbf{r})\right|^{2} f_{\beta}\left(-E_{n}\right)
+# $$
+
+# For these terms, the first order derivative of the wavefunction should be computed. In 2D spherical DVR basis, the wavefunction is of this form:
+# $$
+# \Psi(r,\theta)=\psi(r)e^{in\theta}
+# $$
+# In the polar coordinate system, the gradient of a function is:
+# $$
+# \nabla f = \frac{\partial f}{\partial r} \hat{r} +\frac{1}{r}\frac{\partial f}{\partial \theta} \hat{\theta}
+# $$
+
+# Then 
+# $$
+# \nabla\Psi(r, \theta)=\frac{\partial \psi(r)}{\partial r}\hat{r}e^{in\theta} + \frac{in}{r}\psi(r)e^{in\theta}
+# $$
+# and 
+# \begin{align}
+# \vec{J}
+# &=\frac{i}{2}\left[\Psi^*(r,\theta)\left(\frac{\partial \psi(r)}{\partial r}\hat{r}e^{in\theta}
+# + \frac{in}{r}\psi(r)\hat{\theta}e^{in\theta}\right)
+# -\Psi(r,\theta)\left(\frac{\partial \psi^*(r)}{\partial r}\hat{r}e^{-in\theta}
+# - \frac{in}{r}\psi^*(r)
+# \hat{\theta}e^{-in\theta}\right)\right]\\
+# &=\frac{i}{2}\left[\psi^*(r)\left(\frac{\partial \psi(r)}{\partial r}\hat{r} 
+# + \frac{in}{r}\psi(r)\hat{\theta}\right)
+# -\psi(r)\left(\frac{\partial \psi^*(r)}{\partial r}\hat{r} 
+# - \frac{in}{r}\psi^*(r)\hat{\theta}\right)\right]\\
+# &=\frac{i}{2}\left[\psi^*(r)\frac{\partial \psi(r)}{\partial r}\hat{r} 
+# + \frac{in}{r}\psi^*(r)\psi(r)\hat{\theta}
+# -\psi(r)\frac{\partial \psi^*(r)}{\partial r}\hat{r} 
+# + \frac{in}{r}\psi(r)\psi^*(r)\hat{\theta}\right]\\
+# &=-\frac{n}{r}\psi^*(r)\psi(r)\hat{\theta} \qquad \text{no radial current}
+# \end{align}
 
 # # Bases Transform Matrix
 
@@ -651,7 +697,10 @@ def get_transform_matrix(dvr_s, dvr_t):
         rs_t = dvr_t.rs
         ws = dvr_t.get_F_rs()
         return np.array([[dvr_s.get_F(n=i, rs=rs_t[j])/ws[j] for i in range(len(rs_s))] for j in range(len(rs_t))])
-    
+
+Densities = namedtuple(
+                'Densities', ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu', 'j_a', 'j_b'])
+
 class bdg_dvr(object):
     """
     A 2D and 3D vortex class without external potential
@@ -768,8 +817,10 @@ class bdg_dvr(object):
             f_p, f_m = self.f(E=E), self.f(E=-E)
             n_a = u*u.conj()*f_p
             n_b = v*v.conj()*f_m
+            j_a = -abs(u)**2 *self.lz/self.rs
+            j_b = -abs(u)**2 *self.lz/self.rs
             kappa = u*v.conj()*(f_p - f_m)/2
-            den = den + np.array([n_a, n_b, kappa])
+            den = den + np.array([n_a, n_b, kappa, j_a, j_b])
         return den
 
     def get_densities(self, mus, delta, lz=None):
@@ -781,12 +832,21 @@ class bdg_dvr(object):
         """
         if lz is None:
             lz = self.lz
+        else:
+            self.lz = lz
+        
         dens = self._get_den(self.get_H(mus=mus, delta=delta, nu=0, lz=lz), nu=0)
         for nu in range(1, self.l_max):  # sum over angular momentum
             H = self.get_H(mus=mus, delta=delta, nu=nu, lz=lz)
             dens = dens + 2*self._get_den(H, nu=nu)  # double-degenerate
-        n_a, n_b, kappa = dens
-        return (n_a, n_b, kappa)
+        n_a, n_b, kappa, j_a, j_b = dens
+        
+        return Densities(
+            n_a=n_a, n_b=n_b,
+            tau_a=None, tau_b=None,
+            nu=kappa,
+            j_a=j_a, j_b=j_b)
+        #return (n_a, n_b, kappa, j_a, j_b)
 
 class BCS_vortex(BCS):
     """BCS Vortex"""
@@ -819,30 +879,31 @@ class dvr_vortex(bdg_dvr):
 
 
 # +
-loop = 10
+loop = 5
 mu = 5
-dmu = 3.5
-delta = 2
-delta_bcs = delta
-delta_dvr = delta
+dmu = 0
+delta_bcs=delta_dvr=delta = 2
+
 
 # BCS
-b3 = BCS_vortex(Nxyz=(32,)*dim, Lxyz=(10,)*2, delta=delta)
+b3 = BCS_vortex(Nxyz=(32,)*2, Lxyz=(10,)*2, delta=delta)
 E_c = np.max(b3.kxyz)**2*b3.dim/2
 x, y = b3.xyz
 rs = np.sqrt(sum(_x**2 for _x in b3.xyz)).ravel()
-delta_bcs = delta*(x+1j*y)
 # DVR
-dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=b3.g, E_c=0.67*E_c, N_root=32, R_max=5, lz=1, l_max=100)
-delta_dvr = dvr.rs*delta
+# delta_bcs = delta*(x+1j*y)
+# delta_dvr = delta*dvr.rs
+lz = 0 if np.size(delta)==1 else 1
+dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=b3.g, E_c=0.65*E_c, N_root=32, R_max=5, lz=lz, l_max=50)
+
 with NoInterrupt() as interrupted:
     for _ in range(loop):
         # BCS plot
         res_bcs = b3.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta_bcs)
-        na_bcs, nb_bcs = res_bcs.n_a, res_bcs.n_b
-        nu_bcs = res_bcs.nu
+        na_bcs, nb_bcs, nu_bcs, ja_bcs, jb_bcs = res_bcs.n_a, res_bcs.n_b, res_bcs.nu, res_bcs.j_a, res_bcs.j_b
         
-        na_dvr, nb_dvr, nu_dvr = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta_dvr)
+        res_dvr = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta_dvr)
+        na_dvr, nb_dvr, nu_dvr, ja_dvr, jb_dvr =res_dvr.n_a, res_dvr.n_b, res_dvr.nu, res_dvr.j_a, res_dvr.j_b
         delta_dvr = -dvr.g*nu_dvr
         
         plt.figure(figsize=(18, 10))
@@ -867,7 +928,6 @@ with NoInterrupt() as interrupted:
         plt.plot(dvr.rs, nb_dvr, label=r'$n_b$(DVR)')
         plt.plot(rs, nb_bcs.ravel(), '+', label=r'$n_b$(Grid)')
         plt.legend()
-        ds1.append(delta_dvr)
         
         plt.subplot(236)
         plt.plot(dvr.rs, abs(nu_dvr), label=r'$\nu$(DVR)')
@@ -879,47 +939,16 @@ with NoInterrupt() as interrupted:
         plt.legend()
         clear_output(wait=True)
         plt.show()
+
+
 # -
 
 # ## The Additional Term in DVR
-# * Numerically, if the term is $n(n-1$, the densities $n_a, n_b$ match the BCS results perfectly
+# * Numerically, if the term is $n(n-1)$, the densities $n_a, n_b$ match the BCS results perfectly
 # * if $n(n+1)$, not nicely
 # * if $n^2$ as given by the derivation, not that good.
 # * Need to double check the derivation
 # * the $\nu$ term still not fit nicely
-
-# dvr = dvr_vortex(mu=mu, dmu=dmu, N_root=33, R_max=5, g=b3.g, delta=delta)
-# delta = delta*dvr.bases[0].rs
-dvr = dvr_vortex(mu=mu, dmu=dmu, E_c=0.67*E_c, N_root=32, R_max=5, g=b3.g, delta=delta)
-delta = delta + dvr.bases[0].zero
-dvr.l_max=200
-for _ in range(loop):
-    na, nb, kappa = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta)
-    plt.figure(figsize=(15, 10))
-    plt.subplot(221)
-    plt.plot(dvr.rs, na, label=r'$n_a$(DVR)')
-    plt.plot(rs, n_a.ravel(), '+', label=r'$n_a$(Grid)')
-    plt.legend()
-    plt.subplot(222)
-    plt.plot(dvr.rs, nb, label=r'$n_b$(DVR)')
-    plt.plot(rs, n_b.ravel(), '+', label=r'$n_b$(Grid)')
-    plt.legend()
-    ds1.append(delta)
-    delta_ = -dvr.g*kappa
-    delta=delta_
-    plt.subplot(223)
-    plt.plot(dvr.rs, abs(kappa), label=r'$\nu$(DVR)')
-    plt.plot(rs, abs(nu).ravel(), '+', label=r'$\nu$(Grid)')
-    plt.legend()
-    plt.subplot(224)
-    plt.plot(dvr.rs, abs(delta), label=r'$\Delta$(DVR)')
-    plt.plot(rs, abs(delta_bcs).ravel(), '+', label=r'$\Delta$(Grid)')
-    plt.legend()
-    clear_output(wait=True)
-    plt.show()
-
-ds1, ds
-
 
 # ## Check how $n_a, n_b, \nu$ change with $L$
 
