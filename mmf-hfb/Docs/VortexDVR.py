@@ -373,6 +373,7 @@ plt.ylabel("F(r)")
 plt.axhline(0, c='black', linestyle='dashed')
 plt.legend()
 
+
 # # Current and Kenitic Terms
 # The Current terms are defined as:
 # $$
@@ -396,7 +397,9 @@ plt.legend()
 # \nabla f = \frac{\partial f}{\partial r} \hat{r} +\frac{1}{r}\frac{\partial f}{\partial \theta} \hat{\theta}
 # $$
 
-# Then 
+# ## Current in a Vortex 
+#
+# Apply the $\nabla$ operator on the wavefunction for a vortex
 # $$
 # \nabla\Psi(r, \theta)=\frac{\partial \psi(r)}{\partial r}\hat{r}e^{in\theta} + \frac{in}{r}\psi(r)e^{in\theta}
 # $$
@@ -416,8 +419,14 @@ plt.legend()
 # + \frac{in}{r}\psi^*(r)\psi(r)\hat{\theta}
 # -\psi(r)\frac{\partial \psi^*(r)}{\partial r}\hat{r} 
 # + \frac{in}{r}\psi(r)\psi^*(r)\hat{\theta}\right]\\
+# &=\frac{i}{2}\left[\psi^*(r)\frac{\partial \psi(r)}{\partial r}
+# -\psi(r)\frac{\partial \psi^*(r)}{\partial r} 
+# \right]\hat{r}-\frac{n}{r}\psi^*(r)\psi(r)\hat{\theta}\\
 # &=-\frac{n}{r}\psi^*(r)\psi(r)\hat{\theta} \qquad \text{no radial current}
 # \end{align}
+
+# ## Kinetic Terms
+# To compute the kinetic terms, the first order derivative on abssicas should be computed:
 
 # # Bases Transform Matrix
 
@@ -457,45 +466,6 @@ plt.legend()
 # C'_m
 # \end{pmatrix}
 # $$
-
-# ## 3D Case
-# In 3D case, the grid point set are the zeros  of spherical Bessel function. For frist four sphereical Bessel functions are:
-# $$
-# \begin{aligned}
-# &j_{0}(x)=\frac{\sin x}{x}\\
-# &j_{1}(x)=\frac{\sin x}{x^{2}}-\frac{\cos x}{x}\\
-# &j_{2}(x)=\left(\frac{3}{x^{2}}-1\right) \frac{\sin x}{x}-\frac{3 \cos x}{x^{2}}\\
-# &j_{3}(x)=\left(\frac{15}{x^{3}}-\frac{6}{x}\right) \frac{\sin x}{x}-\left(\frac{15}{x^{2}}-1\right) \frac{\cos x}{x}
-# \end{aligned}
-# $$
-
-# The transform matrix from $\nu=1$ to $\nu=0$ is given(Aurel's code):
-# \begin{align}
-# a_i &= \frac{sin(z_{1i})}{\sqrt{z_{1i}}}\\
-# b_j &= -\frac{cos(z_{0j})}{\sqrt{z_{0j}}}\\
-# U_{ji}&=\frac{2b_j\sqrt{z_{0j}z_{1i}}}{a_i(z^2_{0j}-z^2_{1i})}
-# \end{align}
-
-dvr0 = CylindricalBasis(nu=0, R_max=9, N_root=40)
-dvr1 = CylindricalBasis(nu=1, R_max=8, N_root=32)
-z0 = dvr0.zs
-z1 = dvr1.zs
-a = np.sin(z1)/np.sqrt(z1)
-b = -np.cos(z0)/np.sqrt(z0)
-U10 = 2*b[:,None]*(z0[:, None]*z1[None,:])**0.5/a[None,:]/(z0[:,None]**2-z1[None,:]**2)
-
-# ## Test the Transform Matrix in 2D
-# * if the basis set have similar basis function size, the $U$ matrix in 3D seems to not work nicely in 2D case
-
-import random
-us1 = np.cos(np.linspace(0, 5 + 15*np.random.random(), len(z1))) 
-us0 = U10.dot(us1)
-psi1= dvr1._get_psi(us1)
-psi0 = dvr0._get_psi(us0)
-plt.plot(dvr1.rs, psi1, '-', label="DVR1")
-plt.plot(dvr0.rs, psi0, '--', label="DVR0")
-plt.legend()
-
 
 # ## Use the interploation properties of a DVR basis
 # * In DVR, we may only want to evaluate the general function at abssisas, where the basis functions are local and interpolated, let the abassias for these two DVR bases be $r_i$ where $i=1,2,\dots  n$ and $r'_j$ where $j=1,2,\dots m$.
@@ -676,7 +646,8 @@ plt.legend()
 dvr = bdg_dvr_ho(mu=mu, dmu=dmu, E_c=None, N_root=64, delta=delta)
 dvr.l_max=20  # 20 is good enough
 delta = delta + dvr.bases[0].zero
-na, nb, kappa = dvr.get_densities(mus=(mu + dmu, mu - dmu), delta=delta)
+res = dvr.get_densities(mus=(mu + dmu, mu - dmu), delta=delta)
+na, nb, kappa, j_a, j_b = res.n_a, res.n_b, res.nu, res.j_a, res.j_b
 plt.figure(figsize=(15, 5))
 plt.subplot(121)
 plt.plot(dvr.bases[0].rs, (na), label=r'$n_a$(DVR)')
@@ -817,8 +788,8 @@ class bdg_dvr(object):
             f_p, f_m = self.f(E=E), self.f(E=-E)
             n_a = u*u.conj()*f_p
             n_b = v*v.conj()*f_m
-            j_a = -abs(u)**2 *self.lz/self.rs
-            j_b = -abs(u)**2 *self.lz/self.rs
+            j_a = -n_a*self.lz/self.rs
+            j_b = -n_b*self.lz/self.rs
             kappa = u*v.conj()*(f_p - f_m)/2
             den = den + np.array([n_a, n_b, kappa, j_a, j_b])
         return den
@@ -840,7 +811,6 @@ class bdg_dvr(object):
             H = self.get_H(mus=mus, delta=delta, nu=nu, lz=lz)
             dens = dens + 2*self._get_den(H, nu=nu)  # double-degenerate
         n_a, n_b, kappa, j_a, j_b = dens
-        
         return Densities(
             n_a=n_a, n_b=n_b,
             tau_a=None, tau_b=None,
@@ -853,10 +823,10 @@ class BCS_vortex(BCS):
     barrier_width = 0.2
     barrier_height = 100.0
     
-    def __init__(self, delta, **args):
+    def __init__(self, delta, mus_eff, **args):
         BCS.__init__(self, **args)
         h = homogeneous.Homogeneous(Nxyz=self.Nxyz, Lxyz=self.Lxyz) 
-        res = h.get_densities(mus_eff=(mu, mu), delta=delta)
+        res = h.get_densities(mus_eff=mus_eff, delta=delta)
         self.g = delta/res.nu.n
         
     def get_v_ext(self, **kw):
@@ -879,22 +849,20 @@ class dvr_vortex(bdg_dvr):
 
 
 # +
-loop = 5
+loop = 1
 mu = 5
-dmu = 0
+dmu = 1
 delta_bcs=delta_dvr=delta = 2
-
-
 # BCS
-b3 = BCS_vortex(Nxyz=(32,)*2, Lxyz=(10,)*2, delta=delta)
+b3 = BCS_vortex(Nxyz=(32,)*2, Lxyz=(10,)*2, mus_eff=(mu+dmu, mu-dmu), delta=delta)
 E_c = np.max(b3.kxyz)**2*b3.dim/2
 x, y = b3.xyz
 rs = np.sqrt(sum(_x**2 for _x in b3.xyz)).ravel()
 # DVR
-# delta_bcs = delta*(x+1j*y)
-# delta_dvr = delta*dvr.rs
-lz = 0 if np.size(delta)==1 else 1
-dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=b3.g, E_c=0.65*E_c, N_root=32, R_max=5, lz=lz, l_max=50)
+dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=b3.g, E_c=0.65*E_c, N_root=64, R_max=5, l_max=50)
+delta_bcs = delta*(x+1j*y)
+delta_dvr = delta*dvr.rs
+dvr.lz = 0 if np.size(delta_bcs)==1 else 1
 
 with NoInterrupt() as interrupted:
     for _ in range(loop):
@@ -906,12 +874,12 @@ with NoInterrupt() as interrupted:
         na_dvr, nb_dvr, nu_dvr, ja_dvr, jb_dvr =res_dvr.n_a, res_dvr.n_b, res_dvr.nu, res_dvr.j_a, res_dvr.j_b
         delta_dvr = -dvr.g*nu_dvr
         
-        plt.figure(figsize=(18, 10))
-        plt.subplot(231)
+        plt.figure(figsize=(18, 15))
+        plt.subplot(331)
         imcontourf(x, y, na_bcs)
         plt.colorbar()
         plt.title(r"$n_a$")
-        plt.subplot(232)
+        plt.subplot(332)
         
         plt.colorbar()
         ds.append(delta)
@@ -919,23 +887,34 @@ with NoInterrupt() as interrupted:
         if np.size(delta_bcs) == np.prod(b3.Nxyz):
             imcontourf(x, y, abs(delta_bcs))
         plt.title(r"$\Delta$")    
-        # DVR plot      
-        plt.subplot(234)
+        # n_a      
+        plt.subplot(334)
         plt.plot(dvr.rs, na_dvr, label=r'$n_a$(DVR)')
         plt.plot(rs, na_bcs.ravel(), '+', label=r'$n_a$(Grid)')
         plt.legend()
-        plt.subplot(235)
+        # n_b
+        plt.subplot(335)
         plt.plot(dvr.rs, nb_dvr, label=r'$n_b$(DVR)')
         plt.plot(rs, nb_bcs.ravel(), '+', label=r'$n_b$(Grid)')
         plt.legend()
-        
-        plt.subplot(236)
+        # nu
+        plt.subplot(336)
         plt.plot(dvr.rs, abs(nu_dvr), label=r'$\nu$(DVR)')
         plt.plot(rs, abs(nu_bcs).ravel(), '+', label=r'$\nu$(Grid)')
         plt.legend()
-        plt.subplot(233)
+        # Delta
+        plt.subplot(333)
         plt.plot(dvr.rs, abs(delta_dvr), label=r'$\Delta$(DVR)')
         plt.plot(rs, abs(delta_bcs).ravel(), '+', label=r'$\Delta$(Grid)')
+        plt.legend()
+        # current
+        plt.subplot(337)
+        plt.plot(dvr.rs, -ja_dvr/2, label=r'$j_a$(DVR)')
+        plt.plot(rs, np.sqrt(sum(ja_bcs**2)).ravel(), '+', label=r'$j_a$(Grid)')
+        plt.legend()
+        plt.subplot(338)
+        plt.plot(dvr.rs, -jb_dvr/2, label=r'$j_b$(DVR)')
+        plt.plot(rs, np.sqrt(sum(jb_bcs**2)).ravel(), '+', label=r'$j_b$(Grid)')
         plt.legend()
         clear_output(wait=True)
         plt.show()

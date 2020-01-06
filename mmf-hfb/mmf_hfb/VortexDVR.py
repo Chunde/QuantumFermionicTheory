@@ -4,6 +4,11 @@ from mmf_hfb import homogeneous
 import numpy as np
 import sys
 from mmfutils.math.special import mstep
+from collections import namedtuple
+from mmf_hfb.bcs import BCS
+
+
+Densities = namedtuple('Densities', ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu', 'j_a', 'j_b'])
 
 
 def get_transform_matrix(dvr_s, dvr_t):
@@ -74,7 +79,7 @@ class bdg_dvr(object):
         V_corr = basis.get_V_correction(nu=nu)
         V_eff = V_ext + V_corr
         lz2 = lz**2/basis.rs**2/2
-        # lz2 = lz*(lz - 1)/basis.rs**2/2
+        lz2 = lz*(lz - 1)/basis.rs**2/2
         H_a = T + np.diag(V_eff - mu_a + lz2)
         H_b = T + np.diag(V_eff - mu_b + lz2)
         H = block(H_a, Delta, Delta.conj(), -H_b)
@@ -94,7 +99,7 @@ class bdg_dvr(object):
         """
         apply weight on the u(v) to get the actual radial wave-function
         """
-        if nu%2 == 1:
+        if nu % 2 == 1:
             u = self.U10.dot(u)
         b = self.bases[0]
         return b._get_psi(u=u)
@@ -104,6 +109,7 @@ class bdg_dvr(object):
             return us_s
         dvr_s = self.bases[self.basis_match_rule(nu_s)]
         dvr_t = self.bases[self.basis_match_rule(nu_t)]
+
         def f(r):
             fs = [us_s[n]*dvr_s.get_F(n=n, rs=r) for n in range(len(us_s))]
             return sum(fs)
@@ -132,8 +138,10 @@ class bdg_dvr(object):
             f_p, f_m = self.f(E=E), self.f(E=-E)
             n_a = u*u.conj()*f_p
             n_b = v*v.conj()*f_m
+            j_a = -n_a*self.lz/self.rs
+            j_b = -n_b*self.lz/self.rs
             kappa = u*v.conj()*(f_p - f_m)/2
-            den = den + np.array([n_a, n_b, kappa])
+            den = den + np.array([n_a, n_b, kappa, j_a, j_b])
         return den
 
     def get_densities(self, mus, delta, lz=None):
@@ -145,18 +153,38 @@ class bdg_dvr(object):
         """
         if lz is None:
             lz = self.lz
+        else:
+            self.lz = lz
+        
         dens = self._get_den(self.get_H(mus=mus, delta=delta, nu=0, lz=lz), nu=0)
         for nu in range(1, self.l_max):  # sum over angular momentum
             H = self.get_H(mus=mus, delta=delta, nu=nu, lz=lz)
             dens = dens + 2*self._get_den(H, nu=nu)  # double-degenerate
-        n_a, n_b, kappa = dens
-        return (n_a, n_b, kappa)
+        n_a, n_b, kappa, j_a, j_b = dens
+        return Densities(
+            n_a=n_a, n_b=n_b,
+            tau_a=None, tau_b=None,
+            nu=kappa,
+            j_a=j_a, j_b=j_b)
 
 
-class bdg_dvr_ho(bdg_dvr):
-    """a 2D DVR with harmonic potential class"""
-    def get_Vext(self, rs):
-        return rs**2/2
+class BCS_vortex(BCS):
+    """BCS Vortex"""
+    barrier_width = 0.2
+    barrier_height = 100.0
+    
+    def __init__(self, delta, mus_eff, **args):
+        BCS.__init__(self, **args)
+        h = homogeneous.Homogeneous(Nxyz=self.Nxyz, Lxyz=self.Lxyz) 
+        res = h.get_densities(mus_eff=mus_eff, delta=delta)
+        self.g = delta/res.nu.n
+        
+    def get_v_ext(self, **kw):
+        self.R = min(self.Lxyz)/2
+        r = np.sqrt(sum([_x**2 for _x in self.xyz[:2]]))
+        R0 = self.barrier_width * self.R
+        V = self.barrier_height * mstep(r-self.R+R0, R0)
+        return (V, V)
 
 
 class dvr_vortex(bdg_dvr):
@@ -170,4 +198,8 @@ class dvr_vortex(bdg_dvr):
         V = self.barrier_height * mstep(rs-self.R+R0, R0)
         return V
 
-    
+
+class bdg_dvr_ho(bdg_dvr):
+    """a 2D DVR with harmonic potential class"""
+    def get_Vext(self, rs):
+        return rs**2/2
