@@ -730,7 +730,7 @@ class bdg_dvr(object):
         V_corr = basis.get_V_correction(nu=nu)
         V_eff = V_ext + V_corr
         lz2 = lz**2/basis.rs**2/2
-        lz2 = lz*(lz - 1)/basis.rs**2/2
+        lz2 = lz*(lz + 1)/basis.rs**2/2
         H_a = T + np.diag(V_eff - mu_a + lz2)
         H_b = T + np.diag(V_eff - mu_b + lz2)
         H = block(H_a, Delta, Delta.conj(), -H_b)
@@ -851,7 +851,7 @@ class dvr_vortex(bdg_dvr):
 # +
 loop = 1
 mu = 5
-dmu = 1
+dmu = 3
 delta_bcs=delta_dvr=delta = 2
 # BCS
 b3 = BCS_vortex(Nxyz=(32,)*2, Lxyz=(10,)*2, mus_eff=(mu+dmu, mu-dmu), delta=delta)
@@ -859,10 +859,10 @@ E_c = np.max(b3.kxyz)**2*b3.dim/2
 x, y = b3.xyz
 rs = np.sqrt(sum(_x**2 for _x in b3.xyz)).ravel()
 # DVR
-dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=b3.g, E_c=0.65*E_c, N_root=64, R_max=5, l_max=50)
+dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=b3.g, E_c=0.65*E_c, N_root=32, R_max=5, l_max=50)
 delta_bcs = delta*(x+1j*y)
 delta_dvr = delta*dvr.rs
-dvr.lz = 0 if np.size(delta_bcs)==1 else 1
+dvr.lz = 0 if np.size(delta_bcs)==1 else 0.5
 
 with NoInterrupt() as interrupted:
     for _ in range(loop):
@@ -909,18 +909,18 @@ with NoInterrupt() as interrupted:
         plt.legend()
         # current
         plt.subplot(337)
-        plt.plot(dvr.rs, -ja_dvr/2, label=r'$j_a$(DVR)')
+        plt.plot(dvr.rs, -ja_dvr, label=r'$j_a$(DVR)')
         plt.plot(rs, np.sqrt(sum(ja_bcs**2)).ravel(), '+', label=r'$j_a$(Grid)')
         plt.legend()
         plt.subplot(338)
-        plt.plot(dvr.rs, -jb_dvr/2, label=r'$j_b$(DVR)')
+        plt.plot(dvr.rs, -jb_dvr, label=r'$j_b$(DVR)')
         plt.plot(rs, np.sqrt(sum(jb_bcs**2)).ravel(), '+', label=r'$j_b$(Grid)')
         plt.legend()
         clear_output(wait=True)
         plt.show()
-
-
 # -
+
+
 
 # ## The Additional Term in DVR
 # * Numerically, if the term is $n(n-1)$, the densities $n_a, n_b$ match the BCS results perfectly
