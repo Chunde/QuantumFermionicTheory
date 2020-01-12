@@ -14,347 +14,66 @@
 #     name: python3
 # ---
 
-import mmf_setup;mmf_setup.nbinit()
-# %pylab inline --no-import-all
-from nbimports import *
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.integrate import quad
-from mmfutils.math import bessel
-from mmf_hfb.bcs import BCS
-from mmf_hfb.DVRBasis import CylindricalBasis
-from mmf_hfb import homogeneous
-from mmfutils.plot import imcontourf
-from collections import namedtuple
-from mmf_hfb.Potentials import HarmonicOscillator2D,get_2d_ho_wf_p
-from mmf_hfb.VortexDVR import bdg_dvr, bdg_dvr_ho
-from mmfutils.math.special import mstep
-
-
-# # 2D Harmonic System
+# # Introduction
+# There are many way to represent a function $f$, for example, we can expand the function in terms of sin and cos function, which is just the Fourier series representation of this function, i.e.:
+# $$
+# f(x)=\sum_{n=0}^{\infty}{a_n sin\left(\frac{2\pi nx}{L}\right) + b_n cos\left(\frac{2\pi nx}{L}\right)} \qquad n=0, 1, 2\dots
+# $$
+# where $L$ is the range where the function $f(x)$ is defined. The continuous version is just the Fourier transform a the function:
+# $$
+# f(x)=\frac{1}{\sqrt{2\pi}}\int_{-\infty}^{\infty} f(k)e^{ikx}dk
+# $$
+# In the Fourier series representation, the functions $sin\left(\frac{2\pi nx}{L}\right)$ and $cos\left(\frac{2\pi nx}{L}\right)$ are the basis functions used to expand the function $f(x)$, and all the sin and cos function forms a basis function set. It's clear that these functions are mutual orthogonal and complete in the parameter space $S$ where the function $f(x)$ lives. In principle we can pick any basis set if any functions can expand any functions accurately in the same space $S$. In general,  the number of basis function can be infinite, in some condition, to use finite number basis function can express function inside a space good enough within a desired accuracy.The method to express a function using a finite size basis set is called finite basis representation(FBR)
+# In quantum physics, the matrix element of an operator $\mathbb{O}$ can be represented in Dirac notation as:
+# $$
+# \mathbb{O}_{ij}=\braket{i|\mathbb{O}|j}
+# $$
+# where $i, j$ are the $i_{th}$ and $j_{th}$ the basis states, and $\braket{x|i}=\psi_i(x)$ is the $i_{th}$ basis functions, then each matrix element can be computed:
+# $$
+# \mathbb{O}_{ij}=\iint \braket{i|x}\braket{x|\mathbb{O}|y}\braket{y|j}dx dy\\
+# =\iint \psi^*_i(x)\braket{x|\mathbb{O}|y}\psi_j(y)dx dy\\
+# $$
+# where $\braket{x|\mathbb{O}|y}$ is the representation in the real space. For example, if $\mathbb{O}$ is the external potential operator. In real space is just $V(x-y)$. It can be seen that it needs to integrate to get a matrix element, this can be computationally expensive. Which is one of the drawback of the FBR.
 #
-# $\begin{aligned} \psi_{00} &=\left(\frac{m \omega}{\pi \hbar}\right)^{1 / 2} e^{-m \omega \rho^{2} / 2 \hbar} \\ \psi_{10} &=\sqrt{\frac{2 m \omega}{\hbar}}\left(\frac{m \omega}{\pi \hbar}\right)^{1 / 2} e^{-m \omega \rho^{2} / 2 \hbar} \rho \cos \phi \\ \psi_{01} &=\sqrt{\frac{2 m \omega}{\hbar}}\left(\frac{m \omega}{\pi \hbar}\right)^{1 / 2} e^{-m \omega \rho^{2} / 2 \hbar} \rho \sin \phi \end{aligned}$
+# In numerical calculation, the function $f(x)$ is often presented as a $N$ dimensional vector $\left[f(x_0), f(x_1), \dots (f(x_0)\right]$ where $x_0, x_1, \dots$ are equal spacing grid points in the range where the function is well defined.
 
-# +
-def Normalize(psi):
-    """Normalize a wave function"""
-    return psi/(psi.conj().dot(psi))**0.5
+# # 2D Harmonic Oscillator in Polar System
+# In polar coordinates, the Del operator $\nabla^2$ is defined as:
+# $$
+# \begin{align}
+# \nabla^2
+# &=\frac{1}{r} \frac{\partial}{\partial r}\left(r \frac{\partial f}{\partial r}\right)+\frac{1}{r^{2}} \frac{\partial^{2} f}{\partial \theta^{2}}\\
+# &=\frac{\partial^2 f}{\partial r^2}+\frac{1}{r} \frac{\partial f}{\partial r}+\frac{1}{r^{2}} \frac{\partial^{2} f}{\partial \theta^{2}}
+# \end{align}
+# $$
 
-def get_2d_den(m=0, n=0, L=5, N=100):
-    """Show 2D harmonic oscillator density"""
-    ho = HarmonicOscillator2D()
-    rs = np.linspace(-L, L, N)
-    zs = ho.get_wf(rs, n=n, m=m)
-    imcontourf(rs, rs, zs.conj()*zs)
-
-
-# -
-
-# ## Harmonic DVR Class
-
-class HarmonicDVR(CylindricalBasis):
-    m=hbar=w=1
-    eps = 7./3 - 4./3 -1  # machine accuracy
-
-    def __init__(self, w=1, nu=0, dim=2, **args):
-        CylindricalBasis.__init__(self, nu=nu, dim=dim, **args)
-        self.w = w
-
-    def get_V(self):
-        """return the external potential"""
-        r2 = (self.rs)**2
-        return self.w**2*r2/2
-
-    def get_H(self, nu=None):
-        if nu is None:
-            nu = self.nu
-        K = self.K
-        V = self.get_V()
-        V_corr = self.get_V_correction(nu=nu)  # correction centrifugal piece due to different angular quantum number
-        H = K + np.diag(V + V_corr)
-        return H
-
-# ## Construct Wavefunction from a basis
-
-# # Compare to 2D Box
-
-
-# +
-dim = 2
-T=0
-N_twist = 1
-
-"""Compare the BCS lattice class with the homogeneous results."""
-np.random.seed(1)
-hbar, m, kF = 1, 1, 10
-eF = (hbar*kF)**2/2/m
-mu = 0.28223521359748843*eF
-delta = 0.411726229961806*eF
-
-N, L, dx = 16, None, 0.1
-args = dict(Nxyz=(N,)*dim, dx=dx)
-args.update(T=T)
-
-h = homogeneous.Homogeneous(**args)
-b = BCS(**args)
-
-res_h = h.get_densities((mu, mu), delta, N_twist=N_twist)
-res_b = b.get_densities((mu, mu), delta, N_twist=N_twist)
-print(res_h.n_a.n, res_b.n_a.mean())
-print(res_h.n_b.n, res_b.n_b.mean())
-print(res_h.nu.n, res_b.nu.mean().real)
-
-
-# -
-
-# ## Lattice Spectrum
-
-# ## Check Radia Wavefunction
-
-def get_dvr(nu=0):
-    dvr = HarmonicDVR(nu=nu%2, w=1, R_max=8.5, N_root=64)
-    H = dvr.get_H(nu=nu)
-    Es, us = np.linalg.eigh(H)
-    print(Es[:5])
-    res = namedtuple(
-                'res', ['dvr', 'Es', 'us'])
-    return res(dvr=dvr, Es=Es, us=us)
-ds = [get_dvr(nu=nu) for nu in range(10)]
-
-
-# ### $\nu=0$
-
-# ### Overall Density
-
-# * within a factor of normalization, things look right!
-
-# * Summing up the density of the first 6 states
-# * It's clear that the DVR case should count the degeneracy properly
-
-# ## 2D Harmonic in a lattice
-
-class BCS_ho(BCS):
-    """2D harmonic"""
-    def get_v_ext(self, **kw):
-        """Return the external potential."""
-        V=sum(np.array(self.xyz)**2/2.0)
-        return (V, V)
-
-
-# ## 1D BCS double-check
-
-Nx = 128
-L = 23
-dim = 1
-dx = L/Nx
-mu = 5
-dmu = 0
-delta = 1
-b1 = BCS_ho(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
-res = b1.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta)
-n_a, n_b = res.n_a, res.n_b
-b1._d[Nx: Nx+10]
-
-# ## 2D BCS double-check
-
-Nx = 32
-L = 10
-dim = 2
-dx = L/Nx
-mu = 5
-dmu = 3.5
-delta = 2
-b2 = BCS_ho(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim)
-res = b2.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta)
-n_a, n_b = res.n_a, res.n_b
-x, y = b2.xyz
-rs = np.sqrt(sum(_x**2 for _x in b2.xyz)).ravel()
-
-plt.figure(figsize=(18, 4))
-plt.subplot(131)
-imcontourf(x, y, n_a)
-plt.colorbar()
-plt.subplot(132)
-imcontourf(x, y, n_b)
-plt.colorbar()
-plt.subplot(133)
-plt.plot(rs, n_a.ravel(), '+', label=r"$n_a$")
-plt.plot(rs, n_b.ravel(), 'o', label=r"$n_b$")
-plt.legend()
-
-
-# # DVR Vortex Class
+# Then the Shrodinger Equation for this system can be written as:
+# $$
+# \left(-\frac{\hbar^2\nabla^2}{2M}+\frac{M\omega^2r^2}{2}\right)\Psi(r,\theta)=E\Psi(r,\theta)\\
+# \left(-\frac{\partial^2}{2M\partial r^2}-\frac{1}{2Mr} \frac{\partial}{\partial r}-\frac{1}{2Mr^2} \frac{\partial^{2} }{\partial \theta^{2}}+\frac{M\omega^2r^2}{2}\right)\Psi(r,\theta)=E\Psi(r,\theta)\\
+# \left(-\frac{\partial^2}{\partial r^2}-\frac{1}{r} \frac{\partial}{\partial r}-\frac{1}{r^2} \frac{\partial^{2} }{\partial \theta^{2}}+M^2\omega^2r^2\right)\Psi(r,\theta)=2ME\Psi(r,\theta)
+# $$
+# By assuming that the solution is separatable $\Psi(r,\theta)=R(r)\psi(\theta)$, we can solve the angular part fairly easily:
+# $$
+# \left(-\frac{\partial^2 R(r)}{\partial r^2}\phi(\theta)-\frac{1}{r} \frac{\partial R(r)}{\partial r}\phi(\theta)-\frac{1}{r^2} \frac{\partial^2 \phi(\theta) }{\partial \theta^{2}}R(r)+M^2\omega^2r^2 R(r)\phi(\theta)\right)=2MER(r)\phi(\theta)
+# $$
+# Divide both side by $R(r)\phi(\theta)$ to get:
+# $$
+# \left(-\frac{\partial^2 R(r)}{R(r)\partial r^2}-\frac{1}{rR(r)} \frac{\partial R(r)}{\partial r}-\frac{1}{r^2} \frac{\partial^2 \phi(\theta) }{\phi(\theta)\partial \theta^{2}}+M^2\omega^2r^2 \right)=2ME
+# $$
+# that means
+# $$
+# \psi(\theta)=e^{im\theta}\qquad m=0,1,2\dots
+# $$
+# The the radia part can be rearraged when substitude the angular solution into the Scrodinger equation:
 #
-# Steps:
-#
-# * compute $u, v$
-# * compute $\phi_a=wu, \phi_b = wv$, which is the radial wave function
-# * compute $n_a = \psi_a^*\psi_a, n_b=\psi_b^*\psi_b, \kappa = \psi_a\psi_b$
-# * update $\Delta=-g\kappa$, return to first step to iterate
 
-# ## 2D harmonic in DVR basis
-
-# ### Bugs
-
-# * when N_root = 32, the $n_b$ is different from N_root=33, where the former value yields zero $n_b$, and the later yields more consistent result.
-# * the $n_a$ $n_b$ are not exactly the same even when $d\mu=0$, some thing get wrong.
-# * Seem for current version of code, N_root=48 works "best" due to the way of normalization(which is not right).
-
-scale=2*np.pi
-delta = 2
-dvr = bdg_dvr_ho(mu=mu, dmu=dmu, E_c=None, N_root=64, delta=delta)
-delta = delta + dvr.bases[0].zero
-dvr.l_max=32
-na, nb, kappa = dvr.get_densities(mus=(mu + dmu, mu - dmu), delta=delta)
-plt.figure(figsize=(15, 5))
-plt.subplot(121)
-plt.plot(dvr.bases[0].rs, (na), label=r'$n_a$(DVR)')
-plt.plot(rs, n_a.ravel()*scale, '+', label=r'$n_a$(Grid)')
-plt.legend()
-plt.subplot(122)
-plt.plot(dvr.bases[0].rs, (nb), label=r'$n_b$(DVR)')
-plt.plot(rs, n_b.ravel()*scale, '+', label=r'$n_b$(Grid)')
-plt.legend()
-plt.show()
+# $$
+# r^2R''+rR'+ \left(2r^2ME-m^2-M^2\omega^2r^4\right)R=0
+# $$
+# The equation can be simplfied by setting $M=\omega=1$
+# $$
+# r^2R''+rR'+ \left(2r^2E-m^2-r^4\right)R=0
+# $$
 
 
-# # Vortex
-
-# +
-class BCS_vortex(BCS):
-    """BCS Vortex"""
-    barrier_width = 0.2
-    barrier_height = 100.0
-    
-    def __init__(self, delta, **args):
-        BCS.__init__(self, **args)
-        h = homogeneous.Homogeneous(Nxyz=self.Nxyz, Lxyz=self.Lxyz) 
-        res = h.get_densities(mus_eff=(mu, mu), delta=delta)
-        self.g = delta/res.nu.n
-        
-    def get_v_ext(self, **kw):
-        self.R = min(self.Lxyz)/2
-        r = np.sqrt(sum([_x**2 for _x in self.xyz[:2]]))
-        R0 = self.barrier_width * self.R
-        V = self.barrier_height * mstep(r-self.R+R0, R0)
-        return (V, V)
-    
-class dvr_vortex(bdg_dvr):
-    """BCS Vortex"""
-    barrier_width = 0.2
-    barrier_height = 100.0
-    
-    def get_Vext(self, rs):
-        self.R = 5
-        R0 = self.barrier_width * self.R
-        V = self.barrier_height * mstep(rs-self.R+R0, R0)
-        return V
-
-
-# -
-
-# ## BCS Vortex
-
-loop = 2
-
-Nx = 32
-L = 10
-dim = 2
-dx = L/Nx
-mu = 5
-dmu = 3.5
-delta = 2
-b3 = BCS_vortex(Nxyz=(Nx,)*dim, Lxyz=(L,)*dim, delta=delta)
-rs = np.sqrt(sum(_x**2 for _x in b3.xyz)).ravel()
-#delta = delta*(x+1j*y)
-with NoInterrupt() as interrupted:
-    for _ in range(loop):
-        res = b3.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta)
-        n_a, n_b = res.n_a, res.n_b
-        n_a = b3.Normalize(n_a)
-        n_b = b3.Normalize(n_b)
-        nu = res.nu
-        x, y = b3.xyz
-        plt.figure(figsize=(18, 10))
-        plt.subplot(231)
-        imcontourf(x, y, n_a)
-        plt.colorbar()
-        plt.subplot(232)
-        imcontourf(x, y, n_b)
-        plt.colorbar()
-        plt.subplot(233)
-        plt.colorbar()
-        if np.size(delta) == np.prod(b3.Nxyz):
-            imcontourf(x, y, abs(delta))       
-        plt.subplot(234)
-        rs = np.sqrt(sum(_x**2 for _x in b3.xyz)).ravel()
-        plt.plot(rs, n_a.ravel(), '+', label=r"$n_a$")
-        plt.plot(rs, n_b.ravel(), 'o', label=r"$n_b$")
-        plt.legend()
-        plt.subplot(235)
-        delta =  -b3.g*res.nu
-        plt.plot(rs, abs(delta).ravel(), '+', label=r"$\Delta$")
-        plt.legend()
-        plt.subplot(236)
-        plt.plot(rs, nu.ravel(), '+', label=r"$\nu$")
-        plt.legend()
-        clear_output()
-        plt.show()
-        #break
-delta_bcs = delta
-
-# ## DVR Vortex
-# BUG
-# * DVR result differ from BCS by a factor, which need to be solved[Solved]
-
-delta = 2
-dvr = dvr_vortex(mu=mu, dmu=dmu, E_c=None, N_root=33, delta=delta)
-delta = delta + dvr.bases[0].zero
-dvr.l_max=100
-scale_factor = np.sqrt(np.pi) # if properly scale, the result should be consistent between DVR and BCS
-for _ in range(loop):
-    na, nb, kappa = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta)
-    plt.figure(figsize=(15, 10))
-    plt.subplot(221)
-    plt.plot(dvr.bases[0].rs, na, label=r'$n_a$(DVR)')
-    plt.plot(rs, scale_factor*n_a.ravel(), '+', label=r'$n_a$(Grid)')
-    plt.legend()
-    plt.subplot(222)
-    plt.plot(dvr.bases[0].rs, Normalize(nb), label=r'$n_b$(DVR)')
-    plt.plot(rs, scale_factor*n_b.ravel(), '+', label=r'$n_b$(Grid)')
-    plt.legend()    
-    delta_ = -dvr.g*kappa
-    delta=delta_/14
-    plt.subplot(223)
-    plt.plot(dvr.bases[0].rs, Normalize(kappa), label=r'$\nu$(DVR)')
-    plt.plot(rs, scale_factor*b3.Normalize(nu).ravel(), '+', label=r'$\nu$(Grid)')
-    plt.legend()
-    plt.subplot(224)
-    plt.plot(dvr.bases[0].rs, delta, label=r'$\Delta$(DVR)')
-    plt.plot(rs, delta_bcs.ravel(), '+', label=r'$\Delta$(Grid)')
-    plt.legend()
-    clear_output()
-    plt.show()
-    #break
-
-# #  Test Bed
-
-delta = 2
-dvr = dvr_vortex(mu=mu, dmu=dmu, E_c=None, N_root=33, delta=delta)
-delta = delta + dvr.bases[0].zero
-dvr.l_max=100
-na, nb, kappa = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta)
-plt.figure(figsize=(15, 5))
-plt.subplot(121)
-plt.plot(dvr.bases[0].rs, Normalize(na), label=r'$n_a$(DVR)')
-plt.plot(rs, scale_factor*n_a.ravel(), '+', label=r'$n_a$(Grid)')
-plt.legend()
-plt.subplot(122)
-plt.plot(dvr.bases[0].rs, Normalize(nb), label=r'$n_b$(DVR)')
-plt.plot(rs, scale_factor* n_b.ravel(), '+', label=r'$n_b$(Grid)')
-plt.legend()
-clear_output()
-
-# # Base Transform Matrix
-
-#

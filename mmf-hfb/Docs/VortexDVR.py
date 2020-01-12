@@ -328,6 +328,31 @@ plt.xlabel(r"$n$")
 plt.ylabel(r"$(E-E_0)/E_0$")
 plt.legend()
 
+plt.figure(figsize=(16,6))
+linestyles = ['--', '+']
+parities = ['odd', 'even']
+E_max = 25
+Ess = [[] for _ in range(E_max)]
+Ns = list(range(1, 32))
+for N in Ns:
+    dvr_o = HarmonicDVR(nu=0, w=1, N_root=N)
+    dvr_e = HarmonicDVR(nu=1, w=1, N_root=N)
+    for (i, dvr) in enumerate([dvr_o, dvr_e]):
+        H = dvr.get_H()
+        Es, us = np.linalg.eigh(H)
+        ns = np.array(list(range(len(Es))))
+        Es0 = 2*ns + 2**i  # analytica energy spectrum
+        errs = (Es - Es0)/Es0
+        for j, E in enumerate(Es0):
+            if E > E_max:
+                break
+            #print(f"{E-1}, {errs[j]}")
+            Ess[E-1].append(errs[j])
+for i, Es in enumerate(Ess):
+    if i != 15:
+        continue
+    plt.semilogy(Es)
+
 # ### Construct Wave Function from DVR Basis
 # * Note: To get the radial wavefunction, we should divide the functionconstructed from the DVR basis by a factor of $\sqrt{r}$, the $\phi(r)$ is not the radial wavefunction:
 # $$
@@ -338,6 +363,10 @@ plt.legend()
 # \psi(r)=\frac{\phi(r)}{\sqrt{r}} \qquad \text{Not normalized}
 # $$
 # will be not properly normalized, so we should renomalize it if necessary
+
+a = ([],)*5
+
+a
 
 # In other world, to properly normalize single particle state, ie:
 # $$
@@ -730,7 +759,7 @@ class bdg_dvr(object):
         V_corr = basis.get_V_correction(nu=nu)
         V_eff = V_ext + V_corr
         lz2 = lz**2/basis.rs**2/2
-        lz2 = lz*(lz + 1)/basis.rs**2/2
+        # lz2 = lz*(lz + 1)/basis.rs**2/2
         H_a = T + np.diag(V_eff - mu_a + lz2)
         H_b = T + np.diag(V_eff - mu_b + lz2)
         H = block(H_a, Delta, Delta.conj(), -H_b)
@@ -918,9 +947,9 @@ with NoInterrupt() as interrupted:
         plt.legend()
         clear_output(wait=True)
         plt.show()
+
+
 # -
-
-
 
 # ## The Additional Term in DVR
 # * Numerically, if the term is $n(n-1)$, the densities $n_a, n_b$ match the BCS results perfectly
