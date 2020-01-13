@@ -328,12 +328,13 @@ plt.xlabel(r"$n$")
 plt.ylabel(r"$(E-E_0)/E_0$")
 plt.legend()
 
-plt.figure(figsize=(16,6))
-linestyles = ['--', '+']
+plt.figure(figsize=(16,9))
+linestyles = ['-', '--']
 parities = ['odd', 'even']
-E_max = 25
+E_max = 30
 Ess = [[] for _ in range(E_max)]
-Ns = list(range(1, 32))
+Nss = [[] for _ in range(E_max)]
+Ns = list(range(1, 40))
 for N in Ns:
     dvr_o = HarmonicDVR(nu=0, w=1, N_root=N)
     dvr_e = HarmonicDVR(nu=1, w=1, N_root=N)
@@ -346,12 +347,14 @@ for N in Ns:
         for j, E in enumerate(Es0):
             if E > E_max:
                 break
-            #print(f"{E-1}, {errs[j]}")
             Ess[E-1].append(errs[j])
+            Nss[E-1].append(N)
+# plotting
 for i, Es in enumerate(Ess):
-    if i != 15:
+    if i <= 20:
         continue
-    plt.semilogy(Es)
+    plt.semilogy(Nss[i],Es, linestyles[i%2],label=f'E={i+1}')
+plt.legend()
 
 # ### Construct Wave Function from DVR Basis
 # * Note: To get the radial wavefunction, we should divide the functionconstructed from the DVR basis by a factor of $\sqrt{r}$, the $\phi(r)$ is not the radial wavefunction:
@@ -363,10 +366,6 @@ for i, Es in enumerate(Ess):
 # \psi(r)=\frac{\phi(r)}{\sqrt{r}} \qquad \text{Not normalized}
 # $$
 # will be not properly normalized, so we should renomalize it if necessary
-
-a = ([],)*5
-
-a
 
 # In other world, to properly normalize single particle state, ie:
 # $$
@@ -531,7 +530,11 @@ def get_transform_matrix(dvr_s, dvr_t):
     return np.array([[dvr_s.get_F(n=i, rs=rs_t[j])/ws[j] for i in range(len(rs_s))] for j in range(len(rs_t))])
 
 
+dvr0 = CylindricalBasis(nu=0, R_max=9, Nroot=40)
+dvr1 = CylindricalBasis(nu=1, R_max=9, Nroot=38)
 U10 = get_transform_matrix(dvr1, dvr0)
+z0 = dvr0.zs
+z1 = dvr1.zs
 
 
 def transform(dvr_s, dvr_t, us_s):
@@ -544,6 +547,8 @@ def transform(dvr_s, dvr_t, us_s):
     return us_t
 
 
+import random
+us1 = np.cos(np.linspace(0,5+15*np.random.random(), len(z1)))
 us0 = U10.dot(us1) # transform(dvr_s=dvr1, dvr_t=dvr0, us_s=us1)
 psi1= dvr1._get_psi(us1)
 psi0 = dvr0._get_psi(us0)
@@ -692,161 +697,6 @@ clear_output();plt.show();
 # # Vortices
 
 # +
-def get_transform_matrix(dvr_s, dvr_t):
-        rs_s = dvr_s.rs
-        rs_t = dvr_t.rs
-        ws = dvr_t.get_F_rs()
-        return np.array([[dvr_s.get_F(n=i, rs=rs_t[j])/ws[j] for i in range(len(rs_s))] for j in range(len(rs_t))])
-
-Densities = namedtuple(
-                'Densities', ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu', 'j_a', 'j_b'])
-
-class bdg_dvr(object):
-    """
-    A 2D and 3D vortex class without external potential
-    """
-    def __init__(
-            self, bases_N=2, mu=1, dmu=0, delta=1, lz=0,
-                E_c=None, T=0, l_max=100, g=None, **args):
-        """
-        Construct and cache some information of bases
-
-        """
-        self.bases = [CylindricalBasis(nu=nu, **args) for nu in range(bases_N)]
-        self.l_max = max(l_max, 1)  # the angular momentum cut_off
-        assert T==0
-        self.T=T
-        self.lz=lz
-        self.g = self.get_g(mu=mu, delta=np.mean(delta)) if g is None else g
-        self.mus = (mu + dmu, mu - dmu)
-        self.E_c = sys.maxsize if E_c is None else E_c
-        self.U10 = get_transform_matrix(self.bases[1], self.bases[0])
-        self.rs = self.bases[0].rs
-        
-    def f(self, E, T=0):
-        if T is None:
-            T = self.T
-        if T == 0:
-            if E < 0:
-                return 1
-            return 0
-        else:
-            return 1./(1+np.exp(E/T))
-
-    def basis_match_rule(self, nu):
-        """
-            Assign different bases to different angular momentum \nu
-            it assign 0 to even \nu and 1 to odd \nu
-        Note:
-            inherit a child class to override this function
-        """
-        assert len(self.bases) > 1  # make sure the number of bases is at least two
-        return nu % 2
-
-    def get_Vext(self, rs):
-        """return external potential"""
-        return 0
-
-    def get_H(self, mus, delta, lz=0, nu=0):
-        """
-        return the full Hamiltonian(with pairing field)
-        """
-        basis = self.bases[self.basis_match_rule(nu)]
-        T = basis.K
-        Delta = np.diag(basis.zero + delta)
-        mu_a, mu_b = mus
-        V_ext = self.get_Vext(rs=basis.rs)
-        V_corr = basis.get_V_correction(nu=nu)
-        V_eff = V_ext + V_corr
-        lz2 = lz**2/basis.rs**2/2
-        # lz2 = lz*(lz + 1)/basis.rs**2/2
-        H_a = T + np.diag(V_eff - mu_a + lz2)
-        H_b = T + np.diag(V_eff - mu_b + lz2)
-        H = block(H_a, Delta, Delta.conj(), -H_b)
-        return H
-
-    def get_g(self, mu=1.0, delta=0.2):
-        """
-        the interaction strength
-        """
-        # [Check] will be dim = 3 when integrate over z
-        h = homogeneous.Homogeneous(dim=2)
-        res = h.get_densities(mus_eff=(mu, mu), delta=delta)
-        g = 0 if res.nu == 0 else delta/res.nu
-        return g
-
-    def get_psi(self, nu, u):
-        """
-        apply weight on the u(v) to get the actual radial wave-function
-        """
-        if nu%2 == 1:
-            u = self.U10.dot(u)
-        b = self.bases[0]
-        return b._get_psi(u=u)
-    
-    def transform(self, nu_s, nu_t, us_s):
-        if nu_s == nu_t:
-            return us_s
-        dvr_s = self.bases[self.basis_match_rule(nu_s)]
-        dvr_t = self.bases[self.basis_match_rule(nu_t)]
-        def f(r):
-            fs = [us_s[n]*dvr_s.get_F(n=n, rs=r) for n in range(len(us_s))]
-            return sum(fs)
-        psi = [f(r) for r in dvr_t.rs]
-        Fs = dvr_t.get_F_rs()
-        us_t = np.array(psi)/np.array(Fs)
-        return us_t
-
-    def _get_den(self, H, nu):
-        """
-        return the densities for a given H
-        """
-        es, phis = np.linalg.eigh(H)
-        phis = phis.T
-        offset = phis.shape[0] // 2
-        den = 0
-        for i in range(len(es)):
-            E, uv = es[i], phis[i]
-            if abs(E) > self.E_c:
-                continue
-            
-            u, v = uv[: offset], uv[offset:]
-            u = self.get_psi(nu=nu, u=u)
-            v = self.get_psi(nu=nu, u=v)
-            
-            f_p, f_m = self.f(E=E), self.f(E=-E)
-            n_a = u*u.conj()*f_p
-            n_b = v*v.conj()*f_m
-            j_a = -n_a*self.lz/self.rs
-            j_b = -n_b*self.lz/self.rs
-            kappa = u*v.conj()*(f_p - f_m)/2
-            den = den + np.array([n_a, n_b, kappa, j_a, j_b])
-        return den
-
-    def get_densities(self, mus, delta, lz=None):
-        """
-        return the particle number density and anomalous density
-        Note: Here the anomalous density is represented as kappa
-        instead of \nu so it's not that confusing when \nu has
-        been used as angular momentum quantum number.
-        """
-        if lz is None:
-            lz = self.lz
-        else:
-            self.lz = lz
-        
-        dens = self._get_den(self.get_H(mus=mus, delta=delta, nu=0, lz=lz), nu=0)
-        for nu in range(1, self.l_max):  # sum over angular momentum
-            H = self.get_H(mus=mus, delta=delta, nu=nu, lz=lz)
-            dens = dens + 2*self._get_den(H, nu=nu)  # double-degenerate
-        n_a, n_b, kappa, j_a, j_b = dens
-        return Densities(
-            n_a=n_a, n_b=n_b,
-            tau_a=None, tau_b=None,
-            nu=kappa,
-            j_a=j_a, j_b=j_b)
-        #return (n_a, n_b, kappa, j_a, j_b)
-
 class BCS_vortex(BCS):
     """BCS Vortex"""
     barrier_width = 0.2
@@ -870,6 +720,9 @@ class dvr_vortex(bdg_dvr):
     barrier_width = 0.2
     barrier_height = 100.0
     
+    def get_lz_term(self, lz):
+        return lz*lz
+    
     def get_Vext(self, rs):
         self.R = 5
         R0 = self.barrier_width * self.R
@@ -880,7 +733,7 @@ class dvr_vortex(bdg_dvr):
 # +
 loop = 1
 mu = 5
-dmu = 3
+dmu = 0
 delta_bcs=delta_dvr=delta = 2
 # BCS
 b3 = BCS_vortex(Nxyz=(32,)*2, Lxyz=(10,)*2, mus_eff=(mu+dmu, mu-dmu), delta=delta)
@@ -891,7 +744,7 @@ rs = np.sqrt(sum(_x**2 for _x in b3.xyz)).ravel()
 dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=b3.g, E_c=0.65*E_c, N_root=32, R_max=5, l_max=50)
 delta_bcs = delta*(x+1j*y)
 delta_dvr = delta*dvr.rs
-dvr.lz = 0 if np.size(delta_bcs)==1 else 0.5
+dvr.lz = 0 if np.size(delta_bcs)==1 else 1
 
 with NoInterrupt() as interrupted:
     for _ in range(loop):
@@ -1151,4 +1004,42 @@ for l in range(32):
 # In the last term, we use the following relations: 
 # $$
 # \frac{\partial J_{v}(z)}{\partial z}=\frac{1}{2}\left[J_{v-1}(z)-J_{v+1}(z)\right]
+# $$
+
+# # 2D Harmonic Oscillator in Polar System
+# In polar coordinates, the Del operator $\nabla^2$ is defined as:
+# $$
+# \begin{align}
+# \nabla^2
+# &=\frac{1}{r} \frac{\partial}{\partial r}\left(r \frac{\partial f}{\partial r}\right)+\frac{1}{r^{2}} \frac{\partial^{2} f}{\partial \theta^{2}}\\
+# &=\frac{\partial^2 f}{\partial r^2}+\frac{1}{r} \frac{\partial f}{\partial r}+\frac{1}{r^{2}} \frac{\partial^{2} f}{\partial \theta^{2}}
+# \end{align}
+# $$
+#
+# Then the Shrodinger Equation for this system can be written as:
+# $$
+# \left(-\frac{\hbar^2\nabla^2}{2M}+\frac{M\omega^2r^2}{2}\right)\Psi(r,\theta)=E\Psi(r,\theta)\\
+# \left(-\frac{\partial^2}{2M\partial r^2}-\frac{1}{2Mr} \frac{\partial}{\partial r}-\frac{1}{2Mr^2} \frac{\partial^{2} }{\partial \theta^{2}}+\frac{M\omega^2r^2}{2}\right)\Psi(r,\theta)=E\Psi(r,\theta)\\
+# \left(-\frac{\partial^2}{\partial r^2}-\frac{1}{r} \frac{\partial}{\partial r}-\frac{1}{r^2} \frac{\partial^{2} }{\partial \theta^{2}}+M^2\omega^2r^2\right)\Psi(r,\theta)=2ME\Psi(r,\theta)
+# $$
+# By assuming that the solution is separatable $\Psi(r,\theta)=R(r)\psi(\theta)$, we can solve the angular part fairly easily:
+# $$
+# \left(-\frac{\partial^2 R(r)}{\partial r^2}\phi(\theta)-\frac{1}{r} \frac{\partial R(r)}{\partial r}\phi(\theta)-\frac{1}{r^2} \frac{\partial^2 \phi(\theta) }{\partial \theta^{2}}R(r)+M^2\omega^2r^2 R(r)\phi(\theta)\right)=2MER(r)\phi(\theta)
+# $$
+# Divide both side by $R(r)\phi(\theta)$ to get:
+# $$
+# \left(-\frac{\partial^2 R(r)}{R(r)\partial r^2}-\frac{1}{rR(r)} \frac{\partial R(r)}{\partial r}-\frac{1}{r^2} \frac{\partial^2 \phi(\theta) }{\phi(\theta)\partial \theta^{2}}+M^2\omega^2r^2 \right)=2ME
+# $$
+# that means
+# $$
+# \psi(\theta)=e^{im\theta}\qquad m=0,1,2\dots
+# $$
+# The the radia part can be rearraged when substitude the angular solution into the Scrodinger equation:
+#
+# $$
+# r^2R''+rR'+ \left(2r^2ME-m^2-M^2\omega^2r^4\right)R=0
+# $$
+# The equation can be simplfied by setting $M=\omega=1$
+# $$
+# r^2R''+rR'+ \left(2r^2E-m^2-r^4\right)R=0
 # $$

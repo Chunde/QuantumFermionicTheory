@@ -66,7 +66,10 @@ class bdg_dvr(object):
     def get_Vext(self, rs):
         """return external potential"""
         return 0
-
+    
+    def get_lz_term(self, lz):
+        return lz**2
+    
     def get_H(self, mus, delta, lz=0, nu=0):
         """
         return the full Hamiltonian(with pairing field)
@@ -78,8 +81,7 @@ class bdg_dvr(object):
         V_ext = self.get_Vext(rs=basis.rs)
         V_corr = basis.get_V_correction(nu=nu)
         V_eff = V_ext + V_corr
-        lz2 = lz**2/basis.rs**2/2
-        lz2 = lz*(lz - 1)/basis.rs**2/2
+        lz2 = self.get_lz_term(lz)/basis.rs**2/2
         H_a = T + np.diag(V_eff - mu_a + lz2)
         H_b = T + np.diag(V_eff - mu_b + lz2)
         H = block(H_a, Delta, Delta.conj(), -H_b)
@@ -99,7 +101,7 @@ class bdg_dvr(object):
         """
         apply weight on the u(v) to get the actual radial wave-function
         """
-        if nu % 2 == 1:
+        if nu%2 == 1:
             u = self.U10.dot(u)
         b = self.bases[0]
         return b._get_psi(u=u)
@@ -143,7 +145,7 @@ class bdg_dvr(object):
             kappa = u*v.conj()*(f_p - f_m)/2
             den = den + np.array([n_a, n_b, kappa, j_a, j_b])
         return den
-
+        
     def get_densities(self, mus, delta, lz=None):
         """
         return the particle number density and anomalous density
@@ -167,7 +169,7 @@ class bdg_dvr(object):
             nu=kappa,
             j_a=j_a, j_b=j_b)
 
-
+       
 class BCS_vortex(BCS):
     """BCS Vortex"""
     barrier_width = 0.2

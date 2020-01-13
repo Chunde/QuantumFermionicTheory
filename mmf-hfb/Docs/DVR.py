@@ -46,7 +46,7 @@
 # &=\frac{\partial^2 f}{\partial r^2}+\frac{1}{r} \frac{\partial f}{\partial r}+\frac{1}{r^{2}} \frac{\partial^{2} f}{\partial \theta^{2}}
 # \end{align}
 # $$
-
+#
 # Then the Shrodinger Equation for this system can be written as:
 # $$
 # \left(-\frac{\hbar^2\nabla^2}{2M}+\frac{M\omega^2r^2}{2}\right)\Psi(r,\theta)=E\Psi(r,\theta)\\
@@ -67,7 +67,6 @@
 # $$
 # The the radia part can be rearraged when substitude the angular solution into the Scrodinger equation:
 #
-
 # $$
 # r^2R''+rR'+ \left(2r^2ME-m^2-M^2\omega^2r^4\right)R=0
 # $$
@@ -75,5 +74,9 @@
 # $$
 # r^2R''+rR'+ \left(2r^2E-m^2-r^4\right)R=0
 # $$
+
+#
+
+#
 
 
