@@ -328,6 +328,7 @@ plt.xlabel(r"$n$")
 plt.ylabel(r"$(E-E_0)/E_0$")
 plt.legend()
 
+# +
 plt.figure(figsize=(16,9))
 linestyles = ['-', '--']
 parities = ['odd', 'even']
@@ -354,7 +355,9 @@ for i, Es in enumerate(Ess):
     if i <= 20:
         continue
     plt.semilogy(Nss[i],Es, linestyles[i%2],label=f'E={i+1}')
+
 plt.legend()
+# -
 
 # ### Construct Wave Function from DVR Basis
 # * Note: To get the radial wavefunction, we should divide the functionconstructed from the DVR basis by a factor of $\sqrt{r}$, the $\phi(r)$ is not the radial wavefunction:
@@ -400,6 +403,50 @@ plt.xlabel("r")
 plt.ylabel("F(r)")
 plt.axhline(0, c='black', linestyle='dashed')
 plt.legend()
+
+# # Derivatives in DVR
+
+# To evaluate the first order derivate of a function $f(x)$ in a DVR basis the function should be firstly expressed using the basis functions:
+#
+# $$
+# f(x)=\sum_n{u_i F_i(x)}
+# $$
+# where $u_i$ is the weigth for the corresponding basis function $F_i(x)$. Assume we just want to evaluate the derivative at the abscisas $x_1, x_2, \dots, x_n$, then, due to the property of interpolation, we can evaluate $u_i$ easily. i.e:
+# $$
+# u_i = \frac{f(x_i)}{F_i(x_i)}
+# $$
+#
+# To compute the first order derivative:
+# $$
+# \frac{\partial f}{\partial x}\big|_{x_i} = u_i\frac{\partial F_i}{\partial x}\big|_{x_i}\qquad i=1, 2, \dots n
+# $$
+# Similarily, the second order derivative can be computed as:
+# $$
+# \frac{\partial^2 f}{\partial x^2}\big|_{x_i} = u_i\frac{\partial^2 F_i}{\partial x^2}\big|_{x_i}
+# $$
+
+import random
+dvr = CylindricalBasis(nu=0, R_max=9, N_root=64)
+zs, rs = dvr.zs, dvr.rs
+Fs = dvr.get_F_rs()
+fs = np.sin(rs)
+us = fs/Fs
+dFs = dvr.get_F_rs(d=1)
+dfs = us*dFs
+plt.plot(rs, np.cos(rs))
+plt.plot(rs, us*dFs, '+')
+
+from mmfutils.math import bessel
+nu=0
+d=1
+Fs = [(-1)**(n+1)*dvr.K_max*np.sqrt(2*rs[n]*zs[n])/(2*zs[n])*bessel.J_sqrt_pole(
+            nu=nu, zn=zs[n], d=d)(zs[n]) for n in range(len(rs))]
+
+Z = np.linspace(zs[0]-.1,zs[0]+.1 , 1000)
+def f(z, d=1):
+    return bessel.J_sqrt_pole(nu=0.5, zn=zs[0], d=d)(z)
+#plt.plot(Z, f(Z, d=1))
+plt.plot(Z, f(Z, d=1))
 
 
 # # Current and Kenitic Terms
@@ -721,7 +768,7 @@ class dvr_vortex(bdg_dvr):
     barrier_height = 100.0
     
     def get_lz_term(self, lz):
-        return lz*lz
+        return lz*(lz)
     
     def get_Vext(self, rs):
         self.R = 5
@@ -730,21 +777,29 @@ class dvr_vortex(bdg_dvr):
         return V
 
 
+# -
+
+# ## To-Do
+# * Compute $\tau$ and $j_{\pm a/b}$ terms: The derivative term from the bessel package seems to have bug.
+# * Integral over the Z dirction
+# * Implement ASLDA
+# * figure out why J_sqrt_pole always gives 0s
+
 # +
 loop = 1
 mu = 5
-dmu = 0
-delta_bcs=delta_dvr=delta = 2
+dmu = 3
+delta_bcs=delta_dvr=delta=2
 # BCS
 b3 = BCS_vortex(Nxyz=(32,)*2, Lxyz=(10,)*2, mus_eff=(mu+dmu, mu-dmu), delta=delta)
 E_c = np.max(b3.kxyz)**2*b3.dim/2
 x, y = b3.xyz
 rs = np.sqrt(sum(_x**2 for _x in b3.xyz)).ravel()
 # DVR
-dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=b3.g, E_c=0.65*E_c, N_root=32, R_max=5, l_max=50)
+dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=b3.g, E_c=0.65*E_c, N_root=33, R_max=5, l_max=200)
 delta_bcs = delta*(x+1j*y)
 delta_dvr = delta*dvr.rs
-dvr.lz = 0 if np.size(delta_bcs)==1 else 1
+dvr.lz = 0 if np.size(delta_bcs)==1 else 0.5  # using the value of 0.5 is because it should be half of the m (not mass)
 
 with NoInterrupt() as interrupted:
     for _ in range(loop):
@@ -791,12 +846,12 @@ with NoInterrupt() as interrupted:
         plt.legend()
         # current
         plt.subplot(337)
-        plt.plot(dvr.rs, -ja_dvr, label=r'$j_a$(DVR)')
         plt.plot(rs, np.sqrt(sum(ja_bcs**2)).ravel(), '+', label=r'$j_a$(Grid)')
+        plt.plot(dvr.rs, -ja_dvr, label=r'$j_a$(DVR)')
         plt.legend()
         plt.subplot(338)
-        plt.plot(dvr.rs, -jb_dvr, label=r'$j_b$(DVR)')
         plt.plot(rs, np.sqrt(sum(jb_bcs**2)).ravel(), '+', label=r'$j_b$(Grid)')
+        plt.plot(dvr.rs, -jb_dvr, label=r'$j_b$(DVR)')
         plt.legend()
         clear_output(wait=True)
         plt.show()
@@ -829,19 +884,6 @@ for l in range(32):
     clear_output(wait=True)
     plt.show()
     time.sleep(0.5)
-
-# # Problems:
-# There are some unsolved problems in the DVR case. need to fully understand where the issues  come from. HEADACKE!
-# ## Errors
-# * The calculation of $\nu$ does not agree with the BCS in a box, something wrong.
-#     * <font color='red'>It's found that changing the max $L$ will change the $\nu$, not much on $n_s$</font>
-#     * Solution: <font color='green'> Pick an energy cutoff to match the $\nu$ in both cases</font>, the $\nu$ seems to be senstive to the cutoff.
-
-#
-# ## To-Do
-# * Compute $\tau$ and $j_{\pm a/b}$ terms
-# * Integral over the Z dirction
-# * Implement ASLDA
 
 # # BdG in Rotating Frame Transform
 
@@ -1043,3 +1085,30 @@ for l in range(32):
 # $$
 # r^2R''+rR'+ \left(2r^2E-m^2-r^4\right)R=0
 # $$
+
+# # Find a Vortex
+
+# +
+plt.figure(figsize(10,10))
+x = np.linspace(-1, 1,100)
+y = np.linspace(-1, 1,100)
+z0 = 0.5+0.5j
+xi =0.1
+z=x[:, None]+y[None,:]*1j
+
+def f(r):
+    return r/np.sqrt(r**2 + xi**2)
+
+r = z - z0
+psi = f(abs(r))*r/abs(r)*np.exp(1j*0.3)
+n=abs(psi)**2
+imcontourf(x,y, n)
+
+ix, iy = np.unravel_index(np.argmin(n), psi.shape)
+z0_ = z.flat[ix]
+P = np.polyfit(z[ix-5:ix+5, iy-5:iy+5].ravel(),
+              psi[ix-5:ix+5, iy-5:iy+5].ravel(), deg=3)
+print(z0_, np.roots(P))
+# -
+
+

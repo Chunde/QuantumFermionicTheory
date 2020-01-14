@@ -97,7 +97,7 @@ class CylindricalBasis(object):
             zs = self.get_zs(nu=nu)
         return zs/self.K_max
 
-    def get_F(self, nu=None, n=0, rs=None):
+    def get_F(self, nu=None, n=0, rs=None, d=0):
         """return the nth basis function for nu"""
         if nu is None:
             nu = self.nu
@@ -105,11 +105,11 @@ class CylindricalBasis(object):
             rs = self.rs
         zs = self.get_zs(nu=nu)
         F = (-1)**(n+1)*self.K_max*zs[n]*np.sqrt(2*rs)/(
-            self.K_max**2*rs**2-zs[n]**2)*bessel.J(nu, 0)(self.K_max*rs)
+            self.K_max**2*rs**2-zs[n]**2)*bessel.J(nu, d=d)(self.K_max*rs)
         F=nan0(F)
         return F
 
-    def get_F_rs(self, zs=None, nu=None):
+    def get_F_rs(self, zs=None, nu=None, d=0):
         """
         return the basis function values at abscissa r_n
         for the nth basis function. Since each basis function
@@ -125,7 +125,7 @@ class CylindricalBasis(object):
         else:
             rs = zs/self.K_max
         Fs = [(-1)**(n+1)*self.K_max*np.sqrt(2*rs[n]*zs[n])/(2*zs[n])*bessel.J_sqrt_pole(
-            nu=nu, zn=zs[n])(zs[n]) for n in range(len(rs))]
+            nu=nu, zn=zs[n], d=d)(zs[n]) for n in range(len(rs))]
         return Fs
 
     def _rs_scaling_factor(self, zs=None):
