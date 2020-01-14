@@ -33,7 +33,7 @@ from mmf_hfb.utils import block
 
 # # BCS
 
-Nx = 64
+Nx = 32
 L = 16
 dim = 2
 dx = L/Nx
