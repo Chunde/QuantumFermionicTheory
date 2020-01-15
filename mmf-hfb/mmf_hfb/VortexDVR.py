@@ -21,6 +21,33 @@ def get_transform_matrix(dvr_s, dvr_t):
                 len(rs_s))] for j in range(len(rs_t))])
 
 
+class dvr_basis_set(object):
+    pass
+
+
+class dvr_odd_even_set(dvr_basis_set):
+    
+    def __init__(self, **args):
+        self.N_basis = 2
+        self.bases = [CylindricalBasis(nu=nu, **args) for nu in range(self.N_basis)]
+
+    def basis_match_rule(self, nu):
+        """
+            Assign different bases to different angular momentum \nu
+            it assign 0 to even \nu and 1 to odd \nu
+        Note:
+            inherit a child class to override this function
+        """
+        assert len(self.bases) > 1
+        return nu % 2
+
+    def get_rs(self):
+        return self.bases[0].rs
+
+    def get_basis(self, nu):
+        return self.bases[self.basis_match_rule(nu=nu)]
+
+
 class bdg_dvr(object):
     """
     A 2D and 3D vortex class without external potential
