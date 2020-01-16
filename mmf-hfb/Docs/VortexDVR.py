@@ -701,10 +701,11 @@ class BCS_ho(BCS):
         return (V, V)
 
 
-mu, dmu, delta = 5, 3.5, 2
+mu, dmu, delta0 = 5, 3.5, 2
 
 # ## BCS in a Box
 
+delta=delta0
 b2 = BCS_ho(Nxyz=(32,)*2, Lxyz=(10,)*2)
 res = b2.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta)
 n_a, n_b = res.n_a, res.n_b
@@ -740,6 +741,67 @@ plt.plot(rs, n_b.ravel(), '+', label=r'$n_b$(Grid)')
 plt.legend()
 clear_output();plt.show();
 
+# ## Check Energy Spectrum in DVR & Grid
+
+delta=delta0
+mus = (mu+dmu, mu-dmu)
+H = b2.get_H(mus_eff=mus, delta=delta)
+d, UV = np.linalg.eigh(H)
+U, V = U_V = b2.get_U_V(H=H, UV=UV)
+dU_Vs = b2._Del(U_V)
+dUs, dVs = dU_Vs[:, 0, ...], dU_Vs[:, 1, ...]
+f_p, f_m = b2.f(d), b2.f(-d)
+n_a = np.dot(U*U.conj(), f_p).real
+n_b = np.dot(V*V.conj(), f_m).real
+nu = np.dot(U*V.conj(), f_p - f_m)/2
+tau_a = np.dot(sum(dU.conj()*dU for dU in dUs), f_p).real
+tau_b = np.dot(sum(dV.conj()*dV for dV in dVs), f_m).real
+j_a = [0.5*np.dot((U.conj()*dU - U*dU.conj()), f_p).imag for dU in dUs]
+j_b = [0.5*np.dot((V*dV.conj() - V.conj()*dV), f_m).imag for dV in dVs]
+
+Es = []
+dvr.lz=0
+dvr.l_max=20
+def _get_den(self, H, nu):
+    """
+    return the densities for a given H
+    """
+    es, phis = np.linalg.eigh(H)
+    phis = phis.T
+    offset = phis.shape[0] // 2
+    den = 0
+    for i in range(len(es)):
+        E, uv = es[i], phis[i]
+        
+        if abs(E) > self.E_c:
+            continue
+        Es.append(E)
+        if nu != 0:
+            Es.append(E)
+        u, v = uv[: offset], uv[offset:]
+        u = self.get_psi(nu=nu, u=u)
+        v = self.get_psi(nu=nu, u=v)
+
+        f_p, f_m = self.f(E=E), self.f(E=-E)
+        n_a = u*u.conj()*f_p
+        n_b = v*v.conj()*f_m
+        j_a = -n_a*self.lz/self.rs
+        j_b = -n_b*self.lz/self.rs
+        kappa = u*v.conj()*(f_p - f_m)/2
+        den = den + np.array([n_a, n_b, kappa, j_a, j_b])
+    return den
+dvr.E_c = max(d)
+H = dvr.get_H(mus=mus, delta=delta, nu=0, lz=dvr.lz)
+dens = _get_den(self=dvr, H=H, nu=0)
+for nu in range(1, dvr.l_max):  # sum over angular momentum
+    H = dvr.get_H(mus=mus, delta=delta, nu=nu, lz=dvr.lz)
+    dens = dens + 2*_get_den(self=dvr,H=H, nu=nu)  # double-degenerate
+Es = np.sort(Es)
+
+np.sort(abs(d))[0:40]
+
+np.sort(abs(Es))[:40]
+
 
 # # Vortices
 
@@ -753,7 +815,10 @@ class BCS_vortex(BCS):
         BCS.__init__(self, **args)
         h = homogeneous.Homogeneous(Nxyz=self.Nxyz, Lxyz=self.Lxyz) 
         res = h.get_densities(mus_eff=mus_eff, delta=delta)
-        self.g = delta/res.nu.n
+        if delta != 0:
+            self.g = delta/res.nu.n
+        else:
+            self.g = -1
         
     def get_v_ext(self, **kw):
         self.R = min(self.Lxyz)/2
@@ -768,7 +833,7 @@ class dvr_vortex(bdg_dvr):
     barrier_height = 100.0
     
     def get_lz_term(self, lz):
-        return lz*(lz)
+        return lz*(lz-1)
     
     def get_Vext(self, rs):
         self.R = 5
@@ -786,78 +851,153 @@ class dvr_vortex(bdg_dvr):
 # * figure out why J_sqrt_pole always gives 0s
 
 # +
-loop = 1
+loop = 5
 mu = 5
 dmu = 3
 delta_bcs=delta_dvr=delta=2
 # BCS
-b3 = BCS_vortex(Nxyz=(32,)*2, Lxyz=(10,)*2, mus_eff=(mu+dmu, mu-dmu), delta=delta)
-E_c = np.max(b3.kxyz)**2*b3.dim/2
-x, y = b3.xyz
-rs = np.sqrt(sum(_x**2 for _x in b3.xyz)).ravel()
+bcs = BCS_vortex(Nxyz=(32,)*2, Lxyz=(10,)*2, mus_eff=(mu+dmu, mu-dmu), delta=delta)
+E_c = np.max(bcs.kxyz)**2*bcs.dim/2
+x, y = bcs.xyz
+rs = np.sqrt(sum(_x**2 for _x in bcs.xyz)).ravel()
 # DVR
-dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=b3.g, E_c=0.65*E_c, N_root=33, R_max=5, l_max=200)
-delta_bcs = delta*(x+1j*y)
-delta_dvr = delta*dvr.rs
+dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=0.65*E_c, N_root=33, R_max=5, l_max=100)
+# delta_bcs = delta*(x+1j*y)
+# delta_dvr = delta*dvr.rs
 dvr.lz = 0 if np.size(delta_bcs)==1 else 0.5  # using the value of 0.5 is because it should be half of the m (not mass)
 
+def update_plot(delta_bcs_, delta_dvr_):
+    # BCS plot
+    res_bcs = bcs.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta_bcs_)
+    na_bcs, nb_bcs, nu_bcs, ja_bcs, jb_bcs = res_bcs.n_a, res_bcs.n_b, res_bcs.nu, res_bcs.j_a, res_bcs.j_b
+
+    res_dvr = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta_dvr_)
+    na_dvr, nb_dvr, nu_dvr, ja_dvr, jb_dvr =res_dvr.n_a, res_dvr.n_b, res_dvr.nu, res_dvr.j_a, res_dvr.j_b
+    delta_dvr_tmp = dvr.g*nu_dvr
+    delta_bcs_tmp = bcs.g*nu_bcs   
+    err_dvr = np.max(abs((delta_dvr_tmp - delta_dvr_)/delta_dvr_))
+    err_bcs = np.max(abs((delta_bcs_tmp - delta_bcs_)/delta_bcs_))
+    plt.figure(figsize=(18, 15))
+    
+    plt.subplot(331)
+    imcontourf(x, y, na_bcs)
+    plt.colorbar()
+    plt.title(r"$n_a$")
+    
+    plt.subplot(332)
+    if np.size(delta_bcs_tmp) == np.prod(bcs.Nxyz):
+        imcontourf(x, y, abs(delta_bcs_tmp))
+        plt.colorbar()
+    plt.title(r"$\Delta$")    
+    # n_a      
+    plt.subplot(334)
+    plt.plot(dvr.rs, na_dvr, label=r'$n_a$(DVR)')
+    plt.plot(rs, na_bcs.ravel(), '+', label=r'$n_a$(Grid)')
+    plt.legend()
+    # n_b
+    plt.subplot(335)
+    plt.plot(dvr.rs, nb_dvr, label=r'$n_b$(DVR)')
+    plt.plot(rs, nb_bcs.ravel(), '+', label=r'$n_b$(Grid)')
+    plt.legend()
+    # nu
+    plt.subplot(336)
+    plt.plot(dvr.rs, abs(nu_dvr), label=r'$\nu$(DVR)')
+    plt.plot(rs, abs(nu_bcs).ravel(), '+', label=r'$\nu$(Grid)')
+    plt.legend()
+    # Delta
+    plt.subplot(333)
+    plt.plot(dvr.rs, abs(delta_dvr_tmp), label=r'$\Delta$(DVR)')
+    plt.plot(rs, abs(delta_bcs_tmp).ravel(), '+', label=r'$\Delta$(Grid)')
+    plt.title(f"bcs err:{err_bcs:.3}, dvr err:{err_dvr:.3}")
+    plt.legend()
+    # current
+    plt.subplot(337)
+    plt.plot(rs, np.sqrt(sum(ja_bcs**2)).ravel(), '+', label=r'$j_a$(Grid)')
+    plt.plot(dvr.rs, -ja_dvr, label=r'$j_a$(DVR)')
+    plt.legend()
+    plt.subplot(338)
+    plt.plot(rs, np.sqrt(sum(jb_bcs**2)).ravel(), '+', label=r'$j_b$(Grid)')
+    plt.plot(dvr.rs, -jb_dvr, label=r'$j_b$(DVR)')
+    plt.legend()
+    clear_output(wait=True)
+    plt.show()
+    return (delta_bcs_tmp, delta_dvr_tmp, err_bcs, err_dvr)
+
 with NoInterrupt() as interrupted:
-    for _ in range(loop):
-        # BCS plot
-        res_bcs = b3.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta_bcs)
-        na_bcs, nb_bcs, nu_bcs, ja_bcs, jb_bcs = res_bcs.n_a, res_bcs.n_b, res_bcs.nu, res_bcs.j_a, res_bcs.j_b
-        
-        res_dvr = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta_dvr)
-        na_dvr, nb_dvr, nu_dvr, ja_dvr, jb_dvr =res_dvr.n_a, res_dvr.n_b, res_dvr.nu, res_dvr.j_a, res_dvr.j_b
-        delta_dvr = -dvr.g*nu_dvr
-        
-        plt.figure(figsize=(18, 15))
-        plt.subplot(331)
-        imcontourf(x, y, na_bcs)
-        plt.colorbar()
-        plt.title(r"$n_a$")
-        plt.subplot(332)
-        
-        plt.colorbar()
-        ds.append(delta)
-        delta_bcs = -b3.g*nu_bcs       
-        if np.size(delta_bcs) == np.prod(b3.Nxyz):
-            imcontourf(x, y, abs(delta_bcs))
-        plt.title(r"$\Delta$")    
-        # n_a      
-        plt.subplot(334)
-        plt.plot(dvr.rs, na_dvr, label=r'$n_a$(DVR)')
-        plt.plot(rs, na_bcs.ravel(), '+', label=r'$n_a$(Grid)')
-        plt.legend()
-        # n_b
-        plt.subplot(335)
-        plt.plot(dvr.rs, nb_dvr, label=r'$n_b$(DVR)')
-        plt.plot(rs, nb_bcs.ravel(), '+', label=r'$n_b$(Grid)')
-        plt.legend()
-        # nu
-        plt.subplot(336)
-        plt.plot(dvr.rs, abs(nu_dvr), label=r'$\nu$(DVR)')
-        plt.plot(rs, abs(nu_bcs).ravel(), '+', label=r'$\nu$(Grid)')
-        plt.legend()
-        # Delta
-        plt.subplot(333)
-        plt.plot(dvr.rs, abs(delta_dvr), label=r'$\Delta$(DVR)')
-        plt.plot(rs, abs(delta_bcs).ravel(), '+', label=r'$\Delta$(Grid)')
-        plt.legend()
-        # current
-        plt.subplot(337)
-        plt.plot(rs, np.sqrt(sum(ja_bcs**2)).ravel(), '+', label=r'$j_a$(Grid)')
-        plt.plot(dvr.rs, -ja_dvr, label=r'$j_a$(DVR)')
-        plt.legend()
-        plt.subplot(338)
-        plt.plot(rs, np.sqrt(sum(jb_bcs**2)).ravel(), '+', label=r'$j_b$(Grid)')
-        plt.plot(dvr.rs, -jb_dvr, label=r'$j_b$(DVR)')
-        plt.legend()
-        clear_output(wait=True)
-        plt.show()
-
-
+    for n in range(loop):
+        delta_bcs_, delta_dvr_, err_bcs, err_dvr = update_plot(delta_bcs, delta_dvr)
+        if err_bcs<1e-5 or err_dvr <1e-5:
+            break
+        err_dvr = np.max(abs(delta_dvr - delta_dvr_))
+        err_bcs = np.max(abs(delta_bcs - delta_bcs_))
+        delta_bcs, delta_dvr = delta_bcs_, delta_dvr_
+        print(n, err_dvr, err_bcs)
 # -
+
+# ## Energy Spectrum in DVR & Grid with Potential
+
+mus = (mu+dmu, mu-dmu)
+H = b3.get_H(mus_eff=mus, delta=delta)
+d, UV = np.linalg.eigh(H)
+U, V = U_V = b3.get_U_V(H=H, UV=UV)
+dU_Vs = b3._Del(U_V)
+dUs, dVs = dU_Vs[:, 0, ...], dU_Vs[:, 1, ...]
+f_p, f_m = b3.f(d), b3.f(-d)
+n_a = np.dot(U*U.conj(), f_p).real
+n_b = np.dot(V*V.conj(), f_m).real
+nu = np.dot(U*V.conj(), f_p - f_m)/2
+tau_a = np.dot(sum(dU.conj()*dU for dU in dUs), f_p).real
+tau_b = np.dot(sum(dV.conj()*dV for dV in dVs), f_m).real
+j_a = [0.5*np.dot((U.conj()*dU - U*dU.conj()), f_p).imag for dU in dUs]
+j_b = [0.5*np.dot((V*dV.conj() - V.conj()*dV), f_m).imag for dV in dVs]
+
+len(d), max(d)
+
+Es = []
+dvr.lz=0
+dvr.l_max=100
+def _get_den(self, H, nu):
+    """
+    return the densities for a given H
+    """
+    es, phis = np.linalg.eigh(H)
+    phis = phis.T
+    offset = phis.shape[0] // 2
+    den = 0
+    for i in range(len(es)):
+        E, uv = es[i], phis[i]
+        
+        if abs(E) > self.E_c:
+            continue
+        Es.append(E)
+        if nu != 0:
+            Es.append(E)
+        u, v = uv[: offset], uv[offset:]
+        u = self.get_psi(nu=nu, u=u)
+        v = self.get_psi(nu=nu, u=v)
+
+        f_p, f_m = self.f(E=E), self.f(E=-E)
+        n_a = u*u.conj()*f_p
+        n_b = v*v.conj()*f_m
+        j_a = -n_a*self.lz/self.rs
+        j_b = -n_b*self.lz/self.rs
+        kappa = u*v.conj()*(f_p - f_m)/2
+        den = den + np.array([n_a, n_b, kappa, j_a, j_b])
+    return den
+dvr.E_c = max(abs(d))
+H = dvr.get_H(mus=mus, delta=delta, nu=0, lz=dvr.lz)
+dens = _get_den(self=dvr, H=H, nu=0)
+for nu in range(1, dvr.l_max):  # sum over angular momentum
+    H = dvr.get_H(mus=mus, delta=delta, nu=nu, lz=dvr.lz)
+    dens = dens + 2*_get_den(self=dvr,H=H, nu=nu)  # double-degenerate
+Es = np.sort(Es)
+
+len(Es)
+
+np.sort(abs(d))[500:520]
+
+np.sort(abs(Es))[500:520]
+
 
 # ## The Additional Term in DVR
 # * Numerically, if the term is $n(n-1)$, the densities $n_a, n_b$ match the BCS results perfectly

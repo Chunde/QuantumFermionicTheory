@@ -14,6 +14,10 @@
 #     name: python3
 # ---
 
+import mmf_setup;mmf_setup.nbinit()
+# %pylab inline --no-import-all
+from nbimports import *
+
 # # Introduction
 # There are many way to represent a function $f$, for example, we can expand the function in terms of sin and cos function, which is just the Fourier series representation of this function, i.e.:
 # $$
@@ -77,6 +81,59 @@
 
 #
 
+# To define a DVR basis, let $\mathcal{H}$ be the Hilbert space, and $\op{P}$ be the projecting operator sends $\mathcal{H}$ to a subspace $\mathcal{S}$, i.e.
+# $$
+# \mathcal{S}=\op{P}\mathcal{H}
+# $$
+# The subspace is the practical space we are going to study, or put another way, it is the space where we try to approximate $\mathcal{H}$. For more formal discussion, see \cite{littlejohn2002general}\cite{martinazzodiscrete}. Let $M$ the configuration space of $\mathcal{H}$, for example, for a system without spin, the configuration space in 3D space is just  $\mathbb{R}^3$. In the configuration space, define a set of grid points $\{x_i\}$. Similar to the grid representation, where $\{x_i\}$ may be just the collection of all grid points represent a function $g(x)$ over the space $M$. In DVR case, these grid points do not have to be equally spaced. 
+
+# In DVR case, these grid points do not have to be equally spaced.  The grid points set and the projector $P$ define a DVR set if they satisfy the following properties:
+# $$
+# \ket{\Delta_{\alpha}}=\op{P}\ket{x_{\alpha}}\qquad \alpha = 1,2\dots,N
+# $$
+# where $\braket{\Delta_{\alpha}|\Delta_{\beta}}=W_{\alpha}\delta_{\alpha\beta}$, with $W_{\alpha}>0$. This is just orthogonal property of the vector set $\{\ket{\Delta_{\alpha}}\}_{\alpha}$. 
+# Another property requires the $\{\ket{\Delta_{\alpha}}\}_{\alpha}$ to be complete in the subspace $\mathcal{S}$, that means any vector in $\mathcal{S}$ can be represented exactly using $\{\ket{\Delta_{\alpha}}\}_{\alpha}$
 #
+# As the weight factor $W_{\alpha}$ may be not necessarily equal to unity, Then we can define:
+# $$
+# \ket{F_{\alpha}}=\frac{1}{\sqrt{N_{\alpha}}}\ket{\Delta_{\alpha}},\qquad \braket{F_{\alpha}|F_{\beta}}=\delta_{\alpha \beta}
+# $$
+#
+# The basis function set for the DVR in $M$ can be defined:
+# $$
+# F_{\alpha}(x)=\braket{x|F_{\alpha}},\qquad \alpha=1,2,\dots N
+# $$
+# then any function lives inside the space $\mathcal{S}$ can be exactly expressed as:
+# $$
+# g(x)=\sum_{i=1}^N {c_i F_i(x)}
+# $$
+# $c_i$ are the expansion coefficients. So far there is nothing special about the DVR method, and we have not explain the purpose of the grid point set. 
+#
+# Recall the way we define the basis function, to be explicitly, let write down a basis function:
+#
+# \begin{align}\begin{split}\label{eq:dvr_basis_function}
+# F_i(x)=\braket{x|F_i}
+# &=\frac{1}{N_i}\braket{x|\Delta_i}\\
+# &=\frac{1}{N_i}\braket{x|P|x_i}\\
+# \end{split}\end{align}
+#
+# For the projector $\op{P}$, by its definition, its satisfies $\op{P}^{\dagger}=\op{P}=\op{P}^2$. the last line of the last equation can be written as:
+# \begin{align}\begin{split}
+# F_i(x)=
+# &=\frac{1}{N_i}\braket{x|P|x_i}\\
+# &=\frac{1}{N_i}\braket{x|P^2|x_i}\\
+# \end{split}\end{align}
+# Evaluate the basis function at all grid points:
+# $$
+# F_i(x_j)=\frac{1}{N_i}\braket{x_j|P^2|x_i}=\frac{1}{N_i}\braket{\Delta_i|\Delta_j}=\frac{1}{N_i}\delta_{ij}
+# $$
+# This is an very interesting observation, it says that any basis function is non-zero only at its one grid point(the point where it is defined on, see Eq.\ref{eq:dvr_basis_function}), it is zero at all other grid points. For $x$ other than the grid points, it is non-zero in general.
+#
+#
+# One of the difference between the spectrum representation and the DVR is the way to determine the function expansion coefficients, let a function $f(x)$ be expanded in a basis(can be spectrum basis or DVR basis), and the spectrum basis function set is $\{\phi_i(x)\}_{i=1}^N$ for, the DVR basis function set is $\{F_j(x)\}_{j=1}^M$. Then $f(x)$ can be expressed by the form:
+#
+# $$
+# f(x)=\sum_{i=1}^N{c_i \phi_i(x)}=\sum_{j=1}^M{C_j F_j(x)}
+# $$
 
 
