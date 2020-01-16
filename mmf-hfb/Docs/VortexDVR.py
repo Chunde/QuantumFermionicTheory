@@ -849,75 +849,87 @@ class dvr_vortex(bdg_dvr):
 # * figure out why J_sqrt_pole always gives 0s
 
 # +
-loop = 1
-mu = 10
-dmu = 0
-delta_bcs=delta_dvr=delta=1
+loop = 50
+mu = 5
+dmu = 3
+delta_bcs=delta_dvr=delta=2
 # BCS
-b3 = BCS_vortex(Nxyz=(32,)*2, Lxyz=(10,)*2, mus_eff=(mu+dmu, mu-dmu), delta=delta)
-E_c = np.max(b3.kxyz)**2*b3.dim/2
-x, y = b3.xyz
-rs = np.sqrt(sum(_x**2 for _x in b3.xyz)).ravel()
+bcs = BCS_vortex(Nxyz=(32,)*2, Lxyz=(10,)*2, mus_eff=(mu+dmu, mu-dmu), delta=delta)
+E_c = np.max(bcs.kxyz)**2*bcs.dim/2
+x, y = bcs.xyz
+rs = np.sqrt(sum(_x**2 for _x in bcs.xyz)).ravel()
 # DVR
-dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=b3.g, E_c=0.65*E_c, N_root=33, R_max=5, l_max=200)
+dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=0.65*E_c, N_root=33, R_max=5, l_max=200)
 # delta_bcs = delta*(x+1j*y)
 # delta_dvr = delta*dvr.rs
 dvr.lz = 0 if np.size(delta_bcs)==1 else 0.5  # using the value of 0.5 is because it should be half of the m (not mass)
 
+def update_plot(delta_bcs_, delta_dvr_):
+    # BCS plot
+    res_bcs = bcs.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta_bcs_)
+    na_bcs, nb_bcs, nu_bcs, ja_bcs, jb_bcs = res_bcs.n_a, res_bcs.n_b, res_bcs.nu, res_bcs.j_a, res_bcs.j_b
+
+    res_dvr = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta_dvr_)
+    na_dvr, nb_dvr, nu_dvr, ja_dvr, jb_dvr =res_dvr.n_a, res_dvr.n_b, res_dvr.nu, res_dvr.j_a, res_dvr.j_b
+    delta_dvr_tmp = dvr.g*nu_dvr
+    delta_bcs_tmp = bcs.g*nu_bcs   
+    err_dvr = np.max(abs((delta_dvr_tmp - delta_dvr_)/delta_dvr_))
+    err_bcs = np.max(abs((delta_bcs_tmp - delta_bcs_)/delta_bcs_))
+    plt.figure(figsize=(18, 15))
+    
+    plt.subplot(331)
+    imcontourf(x, y, na_bcs)
+    plt.colorbar()
+    plt.title(r"$n_a$")
+    
+    plt.subplot(332)
+    if np.size(delta_bcs_tmp) == np.prod(b3.Nxyz):
+        imcontourf(x, y, abs(delta_bcs_tmp))
+        plt.colorbar()
+    plt.title(r"$\Delta$")    
+    # n_a      
+    plt.subplot(334)
+    plt.plot(dvr.rs, na_dvr, label=r'$n_a$(DVR)')
+    plt.plot(rs, na_bcs.ravel(), '+', label=r'$n_a$(Grid)')
+    plt.legend()
+    # n_b
+    plt.subplot(335)
+    plt.plot(dvr.rs, nb_dvr, label=r'$n_b$(DVR)')
+    plt.plot(rs, nb_bcs.ravel(), '+', label=r'$n_b$(Grid)')
+    plt.legend()
+    # nu
+    plt.subplot(336)
+    plt.plot(dvr.rs, abs(nu_dvr), label=r'$\nu$(DVR)')
+    plt.plot(rs, abs(nu_bcs).ravel(), '+', label=r'$\nu$(Grid)')
+    plt.legend()
+    # Delta
+    plt.subplot(333)
+    plt.plot(dvr.rs, abs(delta_dvr_tmp), label=r'$\Delta$(DVR)')
+    plt.plot(rs, abs(delta_bcs_tmp).ravel(), '+', label=r'$\Delta$(Grid)')
+    plt.title(f"bcs err:{err_bcs:.3}, dvr err:{err_dvr:.3}")
+    plt.legend()
+    # current
+    plt.subplot(337)
+    plt.plot(rs, np.sqrt(sum(ja_bcs**2)).ravel(), '+', label=r'$j_a$(Grid)')
+    plt.plot(dvr.rs, -ja_dvr, label=r'$j_a$(DVR)')
+    plt.legend()
+    plt.subplot(338)
+    plt.plot(rs, np.sqrt(sum(jb_bcs**2)).ravel(), '+', label=r'$j_b$(Grid)')
+    plt.plot(dvr.rs, -jb_dvr, label=r'$j_b$(DVR)')
+    plt.legend()
+    clear_output(wait=True)
+    plt.show()
+    return (delta_bcs_tmp, delta_dvr_tmp, err_bcs, err_dvr)
+
 with NoInterrupt() as interrupted:
-    for _ in range(loop):
-        # BCS plot
-        res_bcs = b3.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta_bcs)
-        na_bcs, nb_bcs, nu_bcs, ja_bcs, jb_bcs = res_bcs.n_a, res_bcs.n_b, res_bcs.nu, res_bcs.j_a, res_bcs.j_b
-        
-        res_dvr = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta_dvr)
-        na_dvr, nb_dvr, nu_dvr, ja_dvr, jb_dvr =res_dvr.n_a, res_dvr.n_b, res_dvr.nu, res_dvr.j_a, res_dvr.j_b
-        delta_dvr = -dvr.g*nu_dvr
-        
-        plt.figure(figsize=(18, 15))
-        plt.subplot(331)
-        imcontourf(x, y, na_bcs)
-        plt.colorbar()
-        plt.title(r"$n_a$")
-        plt.subplot(332)
-        
-        plt.colorbar()
-        ds.append(delta)
-        delta_bcs = -b3.g*nu_bcs       
-        if np.size(delta_bcs) == np.prod(b3.Nxyz):
-            imcontourf(x, y, abs(delta_bcs))
-        plt.title(r"$\Delta$")    
-        # n_a      
-        plt.subplot(334)
-        plt.plot(dvr.rs, na_dvr, label=r'$n_a$(DVR)')
-        plt.plot(rs, na_bcs.ravel(), '+', label=r'$n_a$(Grid)')
-        plt.legend()
-        # n_b
-        plt.subplot(335)
-        plt.plot(dvr.rs, nb_dvr, label=r'$n_b$(DVR)')
-        plt.plot(rs, nb_bcs.ravel(), '+', label=r'$n_b$(Grid)')
-        plt.legend()
-        # nu
-        plt.subplot(336)
-        plt.plot(dvr.rs, abs(nu_dvr), label=r'$\nu$(DVR)')
-        plt.plot(rs, abs(nu_bcs).ravel(), '+', label=r'$\nu$(Grid)')
-        plt.legend()
-        # Delta
-        plt.subplot(333)
-        plt.plot(dvr.rs, abs(delta_dvr), label=r'$\Delta$(DVR)')
-        plt.plot(rs, abs(delta_bcs).ravel(), '+', label=r'$\Delta$(Grid)')
-        plt.legend()
-        # current
-        plt.subplot(337)
-        plt.plot(rs, np.sqrt(sum(ja_bcs**2)).ravel(), '+', label=r'$j_a$(Grid)')
-        plt.plot(dvr.rs, -ja_dvr, label=r'$j_a$(DVR)')
-        plt.legend()
-        plt.subplot(338)
-        plt.plot(rs, np.sqrt(sum(jb_bcs**2)).ravel(), '+', label=r'$j_b$(Grid)')
-        plt.plot(dvr.rs, -jb_dvr, label=r'$j_b$(DVR)')
-        plt.legend()
-        clear_output(wait=True)
-        plt.show()
+    for n in range(loop):
+        delta_bcs_, delta_dvr_, err_bcs, err_dvr = update_plot(delta_bcs, delta_dvr)
+        if err_bcs<1e-5 or err_dvr <1e-5:
+            break
+        err_dvr = np.max(abs(delta_dvr - delta_dvr_))
+        err_bcs = np.max(abs(delta_bcs - delta_bcs_))
+        delta_bcs, delta_dvr = delta_bcs_, delta_dvr_
+        print(n, err_dvr, err_bcs)
 # -
 
 # ## Energy Spectrum in DVR & Grid with Potential
