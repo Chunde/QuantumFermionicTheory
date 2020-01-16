@@ -128,7 +128,7 @@ class bdg_dvr(object):
         """
         apply weight on the u(v) to get the actual radial wave-function
         """
-        if nu%2 == 1:
+        if nu % 2 == 1:
             u = self.U10.dot(u)
         b = self.bases[0]
         return b._get_psi(u=u)
