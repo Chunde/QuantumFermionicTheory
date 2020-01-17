@@ -60,18 +60,59 @@ class dvr_odd_even_set(dvr_basis_set):
         return b._get_psi(u=u)
 
 
+class dvr_full_set(dvr_basis_set):
+    
+    def __init__(self, l_max, **args):
+        self.N_basis = l_max
+        self.bases = [CylindricalBasis(nu=nu, **args) for nu in range(self.N_basis)]
+        self.Us =[None]
+        self.Us.extend(
+            [get_transform_matrix(
+                self.bases[i], self.bases[0]) for i in range(1, l_max)])
+
+    def basis_match_rule(self, nu):
+        """
+            Assign different bases to different angular momentum \nu
+            it assign 0 to even \nu and 1 to odd \nu
+        Note:
+            inherit a child class to override this function
+        """
+        assert nu < len(self.bases)
+        return nu
+
+    @property
+    def zero(self):
+        return self.bases[0].zero
+
+    def get_rs(self):
+        return self.bases[0].rs
+
+    def get_basis(self, nu):
+        return self.bases[self.basis_match_rule(nu=nu)]
+
+    def get_psi(self, nu, u):
+        U_matrix = self.Us[self.basis_match_rule(nu=nu)]
+        if U_matrix is not None:
+            u = U_matrix.dot(u)
+        b = self.bases[0]
+        return b._get_psi(u=u)
+
+
 class bdg_dvr(object):
     """
     A 2D and 3D vortex class without external potential
     """
     def __init__(
             self, bases_N=2, mu=1, dmu=0, delta=1, lz=0,
-            E_c=None, T=0, l_max=100, g=None, **args):
+            E_c=None, T=0, l_max=100, g=None, bases=None,
+            **args):
         """
         Construct and cache some information of bases
 
         """
-        self.bases = dvr_odd_even_set(**args)
+        if bases is None:
+            bases = dvr_odd_even_set(l_max=100, **args)
+        self.bases = bases
         self.l_max = max(l_max, 1)  # the angular momentum cut_off
         assert T==0
         self.T=T
@@ -79,7 +120,6 @@ class bdg_dvr(object):
         self.g = self.get_g(mu=mu, delta=np.mean(delta)) if g is None else g
         self.mus = (mu + dmu, mu - dmu)
         self.E_c = sys.maxsize if E_c is None else E_c
-        # self.U10 = get_transform_matrix(self.bases[1], self.bases[0]) #-----------------
         self.rs = self.bases.get_rs()
         
     def f(self, E, T=0):

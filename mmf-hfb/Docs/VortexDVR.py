@@ -28,7 +28,7 @@ from mmfutils.plot import imcontourf
 from collections import namedtuple
 from mmfutils.math.special import mstep
 from mmf_hfb.DVRBasis import CylindricalBasis
-from mmf_hfb.VortexDVR import bdg_dvr, bdg_dvr_ho
+from mmf_hfb.VortexDVR import bdg_dvr, bdg_dvr_ho,dvr_full_set
 from mmf_hfb.utils import block
 
 # # BCS
@@ -850,6 +850,8 @@ class dvr_vortex(bdg_dvr):
 # * Implement ASLDA
 # * figure out why J_sqrt_pole always gives 0s
 
+dvr_bases = dvr_full_set(N_root=32, R_max=5, l_max=50)
+
 # +
 loop = 5
 mu = 5
@@ -861,7 +863,7 @@ E_c = np.max(bcs.kxyz)**2*bcs.dim/2
 x, y = bcs.xyz
 rs = np.sqrt(sum(_x**2 for _x in bcs.xyz)).ravel()
 # DVR
-dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=0.65*E_c, N_root=33, R_max=5, l_max=100)
+dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=0.65*E_c, bases=dvr_bases, N_root=33, R_max=5, l_max=50)
 # delta_bcs = delta*(x+1j*y)
 # delta_dvr = delta*dvr.rs
 dvr.lz = 0 if np.size(delta_bcs)==1 else 0.5  # using the value of 0.5 is because it should be half of the m (not mass)
@@ -934,15 +936,17 @@ with NoInterrupt() as interrupted:
         print(n, err_dvr, err_bcs)
 # -
 
+
+
 # ## Energy Spectrum in DVR & Grid with Potential
 
 mus = (mu+dmu, mu-dmu)
-H = b3.get_H(mus_eff=mus, delta=delta)
+H = bcs.get_H(mus_eff=mus, delta=delta)
 d, UV = np.linalg.eigh(H)
-U, V = U_V = b3.get_U_V(H=H, UV=UV)
-dU_Vs = b3._Del(U_V)
+U, V = U_V = bcs.get_U_V(H=H, UV=UV)
+dU_Vs = bcs._Del(U_V)
 dUs, dVs = dU_Vs[:, 0, ...], dU_Vs[:, 1, ...]
-f_p, f_m = b3.f(d), b3.f(-d)
+f_p, f_m = bcs.f(d), bcs.f(-d)
 n_a = np.dot(U*U.conj(), f_p).real
 n_b = np.dot(V*V.conj(), f_m).real
 nu = np.dot(U*V.conj(), f_p - f_m)/2
