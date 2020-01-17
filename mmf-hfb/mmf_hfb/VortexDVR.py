@@ -30,6 +30,7 @@ class dvr_odd_even_set(dvr_basis_set):
     def __init__(self, **args):
         self.N_basis = 2
         self.bases = [CylindricalBasis(nu=nu, **args) for nu in range(self.N_basis)]
+        self.Us =[None, get_transform_matrix(self.bases[1], self.bases[0])]
 
     def basis_match_rule(self, nu):
         """
@@ -47,6 +48,13 @@ class dvr_odd_even_set(dvr_basis_set):
     def get_basis(self, nu):
         return self.bases[self.basis_match_rule(nu=nu)]
 
+    def get_psi(self, nu, u):
+        U_matrix = self.Us[nu]
+        if U_matrix is not None:
+            u = U_matrix.dot(u)
+        b = self.bases[0]
+        return b._get_psi(u=u)
+
 
 class bdg_dvr(object):
     """
@@ -59,7 +67,7 @@ class bdg_dvr(object):
         Construct and cache some information of bases
 
         """
-        self.bases = [CylindricalBasis(nu=nu, **args) for nu in range(bases_N)]
+        self.bases = dvr_odd_even_set(**args)
         self.l_max = max(l_max, 1)  # the angular momentum cut_off
         assert T==0
         self.T=T
@@ -67,8 +75,8 @@ class bdg_dvr(object):
         self.g = self.get_g(mu=mu, delta=np.mean(delta)) if g is None else g
         self.mus = (mu + dmu, mu - dmu)
         self.E_c = sys.maxsize if E_c is None else E_c
-        self.U10 = get_transform_matrix(self.bases[1], self.bases[0])
-        self.rs = self.bases[0].rs
+        # self.U10 = get_transform_matrix(self.bases[1], self.bases[0]) #-----------------
+        self.rs = self.bases.get_rs()
         
     def f(self, E, T=0):
         if T is None:
@@ -79,16 +87,6 @@ class bdg_dvr(object):
             return 0
         else:
             return 1./(1+np.exp(E/T))
-
-    def basis_match_rule(self, nu):
-        """
-            Assign different bases to different angular momentum \nu
-            it assign 0 to even \nu and 1 to odd \nu
-        Note:
-            inherit a child class to override this function
-        """
-        assert len(self.bases) > 1  # make sure the number of bases is at least two
-        return nu % 2
 
     def get_Vext(self, rs):
         """return external potential"""
@@ -101,7 +99,7 @@ class bdg_dvr(object):
         """
         return the full Hamiltonian(with pairing field)
         """
-        basis = self.bases[self.basis_match_rule(nu)]
+        basis = self.bases.get_basis(nu=nu)
         T = basis.K
         Delta = np.diag(basis.zero + delta)
         mu_a, mu_b = mus
@@ -128,24 +126,21 @@ class bdg_dvr(object):
         """
         apply weight on the u(v) to get the actual radial wave-function
         """
-        if nu % 2 == 1:
-            u = self.U10.dot(u)
-        b = self.bases[0]
-        return b._get_psi(u=u)
+        return self.bases.get_psi(nu=nu, u=u)
     
-    def transform(self, nu_s, nu_t, us_s):
-        if nu_s == nu_t:
-            return us_s
-        dvr_s = self.bases[self.basis_match_rule(nu_s)]
-        dvr_t = self.bases[self.basis_match_rule(nu_t)]
+    # def transform(self, nu_s, nu_t, us_s):
+    #     if nu_s == nu_t:
+    #         return us_s
+    #     dvr_s = self.bases[self.basis_match_rule(nu_s)]
+    #     dvr_t = self.bases[self.basis_match_rule(nu_t)]
 
-        def f(r):
-            fs = [us_s[n]*dvr_s.get_F(n=n, rs=r) for n in range(len(us_s))]
-            return sum(fs)
-        psi = [f(r) for r in dvr_t.rs]
-        Fs = dvr_t.get_F_rs()
-        us_t = np.array(psi)/np.array(Fs)
-        return us_t
+    #     def f(r):
+    #         fs = [us_s[n]*dvr_s.get_F(n=n, rs=r) for n in range(len(us_s))]
+    #         return sum(fs)
+    #     psi = [f(r) for r in dvr_t.rs]
+    #     Fs = dvr_t.get_F_rs()
+    #     us_t = np.array(psi)/np.array(Fs)
+    #     return us_t
 
     def _get_den(self, H, nu):
         """

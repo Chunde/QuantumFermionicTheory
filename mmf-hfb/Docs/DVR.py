@@ -136,4 +136,97 @@ from nbimports import *
 # f(x)=\sum_{i=1}^N{c_i \phi_i(x)}=\sum_{j=1}^M{C_j F_j(x)}
 # $$
 
+# In the last equation, we use the property of interpolation of the DVR basis, which says a basis function only has non-zero value at its own grid point.
+#
+# \noindent Then, the expansion coefficient can be computed in very simple and straightforward way, i.e.
+# $$
+# C_j = \frac{f(x_j}{F_j(x_j)}
+# $$
+#
+# Compared with Eq. \ref{eq:spectrum_expansion_cof}, the determination of expansion coefficient in DVR is much faster, as it's a multiple integral in Eq. \ref{eq:spectrum_expansion_cof}. 
+#
+# \subsubsection{Sinc-Function Basis}
+# To illustrate the properties of a DVR basis, here we demonstrate these properties with the Sinc-function basis with equally spaced abscissa $\{x_i\}_{i=1}^n$. As mention in the above discussion, to define a DVR basis, we also need a projector $\op{P}$. For sinc function basis, we define the projector as:
+# $$
+# \op{P}=\frac{1}{2\pi}\int_{k<k_c} \ket{k}\bra{k} dk
+# $$
+# where the $k$ is the momentum(or wave-number) with a cutoff $k_c$. Then 
+#
+# \begin{align}
+# \Delta_n(x) = \braket{x|\Delta_n} 
+#   = \int_{-k_c}^{k_c} \frac{d{k}}{2\pi}e^{i k (x-x_n)}
+#   = \frac{k_c}{\pi} sinc \bigl(k_c(x-x_n)\bigr)\\
+# x_n = x_0 + an, \qquad z_n = kx_n = k x_0 + \pi n, \qquad a = \frac{\pi}{k_c} 
+# \end{align}
+#
+# Compute the weight factor for each basis function:
+#
+# $$
+# N_n = \braket{\Delta_n|\Delta_n}^{-1} = \frac{1}{\Delta_n(x_n)} 
+#                                               = \frac{1}{F_n^2(x_n)} = a
+# $$
+# Substituting the equation into Eq \ref{eq:dvr_basis_function} yields:
+# $$
+#  F_n(x) = \sqrt{N_n}\Delta_n(x) = \frac{sinc \bigl(k_c(x-x_n)\bigr)}{\sqrt{a}}
+# $$
+
+# Here we demonstrate these properties with the sinc-function basis with equally spaced abscissa $x_n$:
+#
+# \begin{gather}
+#   \DeclareMathOperator{\sinc}{sinc}
+#  \ket{\Delta_n} = \op{P}_k\ket{x_n}, \qquad \op{P}_k 
+#  = \int_{p<k} \frac{\d{p}}{2\pi}\ket{p}\bra{p},
+#  \\
+#  \Delta_n(x) = \braket{x|\Delta_n} 
+#   = \int_{-k}^{k} \frac{\d{p}}{2\pi}e^{\I p (x-x_n)}
+#   = \frac{k}{\pi}\sinc \bigl(k(x-x_n)\bigr)
+#   \\
+#   x_n = x_0 + an, \qquad z_n = kx_n = k x_0 + \pi n, \qquad a = \frac{\pi}{k} 
+#   \tag{abscissa}
+#   \\
+#   \lambda_n = \braket{\Delta_n|\Delta_n}^{-1} = \frac{1}{\Delta_n(x_n)} 
+#                                               = \frac{1}{F_n^2(x_n)} = a
+#   \tag{weights}
+#   \\
+#   F_n(x) = \sqrt{\lambda_n}\Delta_n(x) = \frac{\sinc \bigl(k(x-x_n)\bigr)}{\sqrt{a}}
+#   \tag{basis functions}
+#   \\
+#   \op{T}_{mn} = \Bigl\langle F_m\Big|-\diff[2]{}{x}\Big|F_n\Bigr\rangle = \frac{1}{a^2}\begin{cases}
+#     2(-1)^{m-n}/(m-n)^2 & m \neq n,\\
+#     \pi^2/3 & m = n.
+#   \end{cases}\tag{kinetic term}
+# \end{gather}
+#
+
+import math
+k_c = np.pi
+a = np.pi/k_c
+xs = np.array(list(range(-2,3)))*a
+x0 = xs[0]
+def F(x, i):
+    return np.sinc(k_c*(x - xs[i]))/math.sqrt(a)
+
+
+import matplotlib.pylab as pylab
+params = {'legend.fontsize': 'x-large',
+          'figure.figsize': (15, 5),
+         'axes.labelsize': 'x-large',
+         'axes.titlesize':'x-large',
+         'xtick.labelsize':'x-large',
+         'ytick.labelsize':'x-large'}
+pylab.rcParams.update(params)
+
+plt.figure(figsize=(18, 10))
+x = np.linspace(-3,3,1000)
+plt.axvline(0,c='black',alpha=0.5)
+for i in range(len(xs)):
+    l, = plt.plot(x, F(x, i), label=f"x={xs[i]}")
+    plt.axvline(xs[i], ls='dashed', c=l.get_c(),alpha=0.5)
+plt.axhline(0, linestyle='dashed', color='black')
+plt.legend()
+plt.xlabel('x', fontsize='16')
+plt.ylabel('F(x)', fontsize='16')
+plt.savefig("sinc_dvr_basis_functions.pdf", bbox_inches='tight')
+
+
 
