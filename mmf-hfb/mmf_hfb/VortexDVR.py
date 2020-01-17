@@ -42,6 +42,10 @@ class dvr_odd_even_set(dvr_basis_set):
         assert len(self.bases) > 1
         return nu % 2
 
+    @property
+    def zero(self):
+        return self.bases[0].zero
+
     def get_rs(self):
         return self.bases[0].rs
 
@@ -49,7 +53,7 @@ class dvr_odd_even_set(dvr_basis_set):
         return self.bases[self.basis_match_rule(nu=nu)]
 
     def get_psi(self, nu, u):
-        U_matrix = self.Us[nu]
+        U_matrix = self.Us[nu % 2]
         if U_matrix is not None:
             u = U_matrix.dot(u)
         b = self.bases[0]
@@ -62,7 +66,7 @@ class bdg_dvr(object):
     """
     def __init__(
             self, bases_N=2, mu=1, dmu=0, delta=1, lz=0,
-                E_c=None, T=0, l_max=100, g=None, **args):
+            E_c=None, T=0, l_max=100, g=None, **args):
         """
         Construct and cache some information of bases
 

@@ -727,16 +727,16 @@ plt.legend()
 
 dvr = bdg_dvr_ho(mu=mu, dmu=dmu, E_c=None, N_root=64, delta=delta)
 dvr.l_max=20  # 20 is good enough
-delta = delta + dvr.bases[0].zero
+delta = delta + dvr.bases.zero
 res = dvr.get_densities(mus=(mu + dmu, mu - dmu), delta=delta)
 na, nb, kappa, j_a, j_b = res.n_a, res.n_b, res.nu, res.j_a, res.j_b
 plt.figure(figsize=(15, 5))
 plt.subplot(121)
-plt.plot(dvr.bases[0].rs, (na), label=r'$n_a$(DVR)')
+plt.plot(dvr.rs, (na), label=r'$n_a$(DVR)')
 plt.plot(rs, n_a.ravel(), '+', label=r'$n_a$(Grid)')
 plt.legend()
 plt.subplot(122)
-plt.plot(dvr.bases[0].rs, (nb), label=r'$n_b$(DVR)')
+plt.plot(dvr.rs, (nb), label=r'$n_b$(DVR)')
 plt.plot(rs, n_b.ravel(), '+', label=r'$n_b$(Grid)')
 plt.legend()
 clear_output();plt.show();
