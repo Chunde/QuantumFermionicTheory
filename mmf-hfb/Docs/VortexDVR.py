@@ -850,24 +850,26 @@ class dvr_vortex(bdg_dvr):
 # * Implement ASLDA
 # * figure out why J_sqrt_pole always gives 0s
 
-dvr_bases = dvr_full_set(N_root=32, R_max=5, l_max=50)
+dvr_bases = dvr_full_set(N_root=32, R_max=5, l_max=20)
 
 # +
-loop = 5
+loop = 50
 mu = 5
 dmu = 3
+E_c=30
 delta_bcs=delta_dvr=delta=2
 # BCS
 bcs = BCS_vortex(Nxyz=(32,)*2, Lxyz=(10,)*2, mus_eff=(mu+dmu, mu-dmu), delta=delta)
-E_c = np.max(bcs.kxyz)**2*bcs.dim/2
+# E_c = np.max(bcs.kxyz)**2*bcs.dim/2
 x, y = bcs.xyz
 rs = np.sqrt(sum(_x**2 for _x in bcs.xyz)).ravel()
 # DVR
-dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=0.65*E_c, bases=dvr_bases, N_root=33, R_max=5, l_max=50)
+dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=E_c, bases=None, N_root=33, R_max=5, l_max=200)
 # delta_bcs = delta*(x+1j*y)
 # delta_dvr = delta*dvr.rs
 dvr.lz = 0 if np.size(delta_bcs)==1 else 0.5  # using the value of 0.5 is because it should be half of the m (not mass)
-
+bcs.E_c=E_c
+dvr.E_c=E_c
 def update_plot(delta_bcs_, delta_dvr_):
     # BCS plot
     res_bcs = bcs.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta_bcs_)
@@ -877,8 +879,8 @@ def update_plot(delta_bcs_, delta_dvr_):
     na_dvr, nb_dvr, nu_dvr, ja_dvr, jb_dvr =res_dvr.n_a, res_dvr.n_b, res_dvr.nu, res_dvr.j_a, res_dvr.j_b
     delta_dvr_tmp = dvr.g*nu_dvr
     delta_bcs_tmp = bcs.g*nu_bcs   
-    err_dvr = np.max(abs((delta_dvr_tmp - delta_dvr_)/delta_dvr_))
-    err_bcs = np.max(abs((delta_bcs_tmp - delta_bcs_)/delta_bcs_))
+    err_dvr = np.max(abs((delta_dvr_tmp - delta_dvr_)))
+    err_bcs = np.max(abs((delta_bcs_tmp - delta_bcs_)))
     plt.figure(figsize=(18, 15))
     
     plt.subplot(331)
@@ -936,9 +938,9 @@ with NoInterrupt() as interrupted:
         print(n, err_dvr, err_bcs)
 # -
 
-
-
 # ## Energy Spectrum in DVR & Grid with Potential
+
+mu,dmu,delta
 
 mus = (mu+dmu, mu-dmu)
 H = bcs.get_H(mus_eff=mus, delta=delta)
@@ -996,12 +998,19 @@ for nu in range(1, dvr.l_max):  # sum over angular momentum
     dens = dens + 2*_get_den(self=dvr,H=H, nu=nu)  # double-degenerate
 Es = np.sort(Es)
 
-len(Es)
+len(Es),32**2*2
 
-np.sort(abs(d))[500:520]
+N1=1181
+N2=1182
+a=np.sort(abs(d))[N1:N2]
+b=np.sort(abs(Es))[N1:N2]
+np.allclose(a,b,rtol=0.1)
 
-np.sort(abs(Es))[500:520]
+np.sort(abs(d))[N1-1:N1+1],np.sort(abs(Es))[N1-1:N1+1]
 
+np.sort(abs(d))[N1:N1+100]
+
+np.sort(abs(Es))[N1:N1+100]
 
 # ## The Additional Term in DVR
 # * Numerically, if the term is $n(n-1)$, the densities $n_a, n_b$ match the BCS results perfectly
@@ -1009,25 +1018,6 @@ np.sort(abs(Es))[500:520]
 # * if $n^2$ as given by the derivation, not that good.
 # * Need to double check the derivation
 # * the $\nu$ term still not fit nicely
-
-# ## Check how $n_a, n_b, \nu$ change with $L$
-
-def get_den(nu=0):
-    mus = (mu + dmu, mu - dmu)
-    return dvr._get_den(dvr.get_H(mus=mus, delta=delta, nu=nu), nu=nu)
-
-
-import time
-for l in range(32):
-    a, b, v = get_den(l)
-    plt.plot(dvr.bases[0].rs, a, '--', label=r'$n_a$')
-    plt.plot(dvr.bases[0].rs, b, '+', label=r'$n_b$')
-    plt.plot(dvr.bases[0].rs, v, 'o', label=r'$\nu$')
-    plt.legend()
-    plt.title(r"$\nu$"+f"={l}")
-    clear_output(wait=True)
-    plt.show()
-    time.sleep(0.5)
 
 # # BdG in Rotating Frame Transform
 

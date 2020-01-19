@@ -77,8 +77,10 @@ class dvr_full_set(dvr_basis_set):
         Note:
             inherit a child class to override this function
         """
-        assert nu < len(self.bases)
-        return nu
+        assert nu >= 0
+        if nu < len(self.bases):
+            return nu
+        return nu % 2
 
     @property
     def zero(self):
@@ -262,8 +264,8 @@ class dvr_vortex(bdg_dvr):
     
     def get_Vext(self, rs):
         self.R = 5
-        R0 = self.barrier_width * self.R
-        V = self.barrier_height * mstep(rs-self.R+R0, R0)
+        R0 = self.barrier_width*self.R
+        V = self.barrier_height*mstep(rs-self.R+R0, R0)
         return V
 
 
