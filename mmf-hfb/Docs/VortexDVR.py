@@ -833,7 +833,7 @@ class dvr_vortex(bdg_dvr):
     barrier_height = 100.0
     
     def get_lz_term(self, lz):
-        return lz*(lz-1)
+        return lz*(lz)
     
     def get_Vext(self, rs):
         self.R = 5
@@ -853,10 +853,10 @@ class dvr_vortex(bdg_dvr):
 dvr_bases = dvr_full_set(N_root=32, R_max=5, l_max=20)
 
 # +
-loop = 50
+loop = 1
 mu = 5
 dmu = 3
-E_c=30
+E_c=10
 delta_bcs=delta_dvr=delta=2
 # BCS
 bcs = BCS_vortex(Nxyz=(32,)*2, Lxyz=(10,)*2, mus_eff=(mu+dmu, mu-dmu), delta=delta)
@@ -865,9 +865,9 @@ x, y = bcs.xyz
 rs = np.sqrt(sum(_x**2 for _x in bcs.xyz)).ravel()
 # DVR
 dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=E_c, bases=None, N_root=33, R_max=5, l_max=200)
-# delta_bcs = delta*(x+1j*y)
-# delta_dvr = delta*dvr.rs
-dvr.lz = 0 if np.size(delta_bcs)==1 else 0.5  # using the value of 0.5 is because it should be half of the m (not mass)
+delta_bcs = delta*(x+1j*y)
+delta_dvr = delta*dvr.rs
+dvr.lz = 0 if np.size(delta_bcs)==1 else 1  # using the value of 0.5 is because it should be half of the m (not mass)
 bcs.E_c=E_c
 dvr.E_c=E_c
 def update_plot(delta_bcs_, delta_dvr_):
@@ -942,8 +942,10 @@ with NoInterrupt() as interrupted:
 
 mu,dmu,delta
 
+delta_bcs = delta
+# delta_bcs = delta*(x+1j*y)
 mus = (mu+dmu, mu-dmu)
-H = bcs.get_H(mus_eff=mus, delta=delta)
+H = bcs.get_H(mus_eff=mus, delta=delta_bcs)
 d, UV = np.linalg.eigh(H)
 U, V = U_V = bcs.get_U_V(H=H, UV=UV)
 dU_Vs = bcs._Del(U_V)
@@ -956,11 +958,14 @@ tau_a = np.dot(sum(dU.conj()*dU for dU in dUs), f_p).real
 tau_b = np.dot(sum(dV.conj()*dV for dV in dVs), f_m).real
 j_a = [0.5*np.dot((U.conj()*dU - U*dU.conj()), f_p).imag for dU in dUs]
 j_b = [0.5*np.dot((V*dV.conj() - V.conj()*dV), f_m).imag for dV in dVs]
+plt.plot(rs, n_a.ravel(), '+', label=r'$n_a$(Grid)')
+plt.plot(rs, n_b.ravel(), '+', label=r'$n_b$(Grid)')
 
-len(d), max(d)
+np.sort(abs(d))[0:100]
 
+# +
 Es = []
-dvr.lz=0
+dvr.lz=1
 dvr.l_max=100
 def _get_den(self, H, nu):
     """
@@ -991,12 +996,19 @@ def _get_den(self, H, nu):
         den = den + np.array([n_a, n_b, kappa, j_a, j_b])
     return den
 dvr.E_c = max(abs(d))
-H = dvr.get_H(mus=mus, delta=delta, nu=0, lz=dvr.lz)
+delta_dvr = delta*dvr.rs
+
+H = dvr.get_H(mus=mus, delta=delta_dvr, nu=0, lz=dvr.lz)
 dens = _get_den(self=dvr, H=H, nu=0)
 for nu in range(1, dvr.l_max):  # sum over angular momentum
     H = dvr.get_H(mus=mus, delta=delta, nu=nu, lz=dvr.lz)
     dens = dens + 2*_get_den(self=dvr,H=H, nu=nu)  # double-degenerate
 Es = np.sort(Es)
+# -
+
+np.sort(abs(Es))[0:100]
+
+np.sort(abs(Es))[0:100]
 
 len(Es),32**2*2
 
@@ -1020,6 +1032,14 @@ np.sort(abs(Es))[N1:N1+100]
 # * the $\nu$ term still not fit nicely
 
 # # BdG in Rotating Frame Transform
+
+# DVR Kinetic Operator
+
+# $$
+# \frac{1}{r^{d-1}} \frac{\partial }{\partial  r}\left(r^{d-1} \frac{\partial  \psi}{\partial r}\right)-\frac{\lambda(\lambda+d-2)}{r^{2}} \psi \\
+# \frac{1}{r} \frac{\partial }{\partial  r}\left(r \frac{\partial \psi}{\partial r}\right)-\frac{\lambda^2}{r^{2}} \psi \\
+# \frac{1}{r}\frac{\partial \psi}{\partial r} +\frac{\partial^2 \psi}{\partial r^2}-\frac{\lambda^2}{r^{2}} \psi
+# $$
 
 # In polar coordinates, the Del operator $\nabla^2$ is defined as:
 # $$
