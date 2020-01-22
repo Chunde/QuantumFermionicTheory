@@ -6,8 +6,8 @@
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.4'
-#       jupytext_version: 1.2.3
+#       format_version: '1.5'
+#       jupytext_version: 1.3.0
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -832,8 +832,8 @@ class dvr_vortex(bdg_dvr):
     barrier_width = 0.2
     barrier_height = 100.0
     
-    def get_lz_term(self, lz):
-        return lz*(lz)
+    def get_lz_term(self, nu, lz):
+        return 0 #lz*lz
     
     def get_Vext(self, rs):
         self.R = 5
@@ -850,13 +850,14 @@ class dvr_vortex(bdg_dvr):
 # * Implement ASLDA
 # * figure out why J_sqrt_pole always gives 0s
 
-dvr_bases = dvr_full_set(N_root=32, R_max=5, l_max=20)
+# +
+# dvr_bases = dvr_full_set(N_root=32, R_max=5, l_max=20)
 
 # +
 loop = 1
 mu = 5
-dmu = 3
-E_c=10
+dmu = 0
+E_c=30
 delta_bcs=delta_dvr=delta=2
 # BCS
 bcs = BCS_vortex(Nxyz=(32,)*2, Lxyz=(10,)*2, mus_eff=(mu+dmu, mu-dmu), delta=delta)
@@ -943,7 +944,7 @@ with NoInterrupt() as interrupted:
 mu,dmu,delta
 
 delta_bcs = delta
-# delta_bcs = delta*(x+1j*y)
+delta_bcs = delta #*(x+1j*y)
 mus = (mu+dmu, mu-dmu)
 H = bcs.get_H(mus_eff=mus, delta=delta_bcs)
 d, UV = np.linalg.eigh(H)
@@ -958,14 +959,15 @@ tau_a = np.dot(sum(dU.conj()*dU for dU in dUs), f_p).real
 tau_b = np.dot(sum(dV.conj()*dV for dV in dVs), f_m).real
 j_a = [0.5*np.dot((U.conj()*dU - U*dU.conj()), f_p).imag for dU in dUs]
 j_b = [0.5*np.dot((V*dV.conj() - V.conj()*dV), f_m).imag for dV in dVs]
-plt.plot(rs, n_a.ravel(), '+', label=r'$n_a$(Grid)')
-plt.plot(rs, n_b.ravel(), '+', label=r'$n_b$(Grid)')
+# plt.plot(rs, n_a.ravel(), '+', label=r'$n_a$(Grid)')
+# plt.plot(rs, n_b.ravel(), '+', label=r'$n_b$(Grid)')
+
+np.sort(abs(d))[0:100]
 
 np.sort(abs(d))[0:100]
 
 # +
 Es = []
-dvr.lz=1
 dvr.l_max=100
 def _get_den(self, H, nu):
     """
@@ -997,9 +999,10 @@ def _get_den(self, H, nu):
     return den
 dvr.E_c = max(abs(d))
 delta_dvr = delta*dvr.rs
+dvr.lz =1
 
 H = dvr.get_H(mus=mus, delta=delta_dvr, nu=0, lz=dvr.lz)
-dens = _get_den(self=dvr, H=H, nu=0)
+dens = 0# _get_den(self=dvr, H=H, nu=0)
 for nu in range(1, dvr.l_max):  # sum over angular momentum
     H = dvr.get_H(mus=mus, delta=delta, nu=nu, lz=dvr.lz)
     dens = dens + 2*_get_den(self=dvr,H=H, nu=nu)  # double-degenerate
@@ -1033,24 +1036,33 @@ np.sort(abs(Es))[N1:N1+100]
 
 # # BdG in Rotating Frame Transform
 
-# DVR Kinetic Operator
+# DVR $\op{T}$ Operator
 
-# $$
-# \frac{1}{r^{d-1}} \frac{\partial }{\partial  r}\left(r^{d-1} \frac{\partial  \psi}{\partial r}\right)-\frac{\lambda(\lambda+d-2)}{r^{2}} \psi \\
-# \frac{1}{r} \frac{\partial }{\partial  r}\left(r \frac{\partial \psi}{\partial r}\right)-\frac{\lambda^2}{r^{2}} \psi \\
-# \frac{1}{r}\frac{\partial \psi}{\partial r} +\frac{\partial^2 \psi}{\partial r^2}-\frac{\lambda^2}{r^{2}} \psi
-# $$
+# \begin{align}
+# \op{T}\psi
+# &=\frac{1}{r^{d-1}} \frac{\partial }{\partial  r}\left(r^{d-1} \frac{\partial  \psi}{\partial r}\right)-\frac{\lambda(\lambda+d-2)}{r^{2}} \psi \\
+# &=\frac{1}{r} \frac{\partial }{\partial  r}\left(r \frac{\partial \psi}{\partial r}\right)-\frac{\lambda^2}{r^{2}} \psi \\
+# &=\frac{\partial^2 \psi}{\partial r^2}+\frac{1}{r}\frac{\partial \psi}{\partial r} -\frac{\lambda^2}{r^{2}} \psi
+# \end{align}
+# So
+#
+# \begin{align}
+# \op{T}
+# &=\frac{\partial^2}{\partial r^2}+\frac{1}{r}\frac{\partial}{\partial r} -\frac{\lambda^2}{r^{2}}
+# \end{align}
+
+# * However, in the DVR calculation, we actually use $\phi(r)=\sqrt{r}\psi(r)$
 
 # In polar coordinates, the Del operator $\nabla^2$ is defined as:
 # $$
 # \begin{align}
 # \nabla^2
-# &=\frac{1}{r} \frac{\partial}{\partial r}\left(r \frac{\partial f}{\partial r}\right)+\frac{1}{r^{2}} \frac{\partial^{2} f}{\partial \theta^{2}}\\
-# &=\frac{\partial^2 f}{\partial r^2}+\frac{1}{r} \frac{\partial f}{\partial r}+\frac{1}{r^{2}} \frac{\partial^{2} f}{\partial \theta^{2}}
+# &=\frac{1}{r} \frac{\partial}{\partial r}\left(r \frac{\partial }{\partial r}\right)+\frac{1}{r^{2}} \frac{\partial^{2} }{\partial \theta^{2}}\\
+# &=\frac{\partial^2 }{\partial r^2}+\frac{1}{r} \frac{\partial }{\partial r}+\frac{1}{r^{2}} \frac{\partial^{2} }{\partial \theta^{2}}
 # \end{align}
 # $$
 
-# To be general, assume $f=f(r,\theta)$
+# To be general, let $f=f(r,\theta)$
 # $$
 # \begin{aligned}
 # \nabla^2 \left[ fe^{in\theta}\right]
@@ -1060,7 +1072,16 @@ np.sort(abs(Es))[N1:N1+100]
 # &=\bigg\{\frac{\partial^{2} }{\partial r^{2}}\left[f(r,\theta)\right]
 # +\frac{1}{r} \frac{\partial}{\partial r}\left[f(r,\theta)\right]
 # +\frac{1}{r^{2}} \left[\left(\frac{\partial^{2} }{\partial \theta^{2}}+i2n\frac{\partial}{\partial \theta} - n^2\right)f(r, \theta)\right]\bigg\}e^{in\theta}\\
-# &=\left[\left(\nabla^2 +i2n\frac{\partial}{r^2\partial \theta} - \frac{n^2}{r^2})f(r,\theta)\right)\right]e^{in\theta}
+# &=\bigg\{\frac{\partial^{2} }{\partial r^{2}}\left[f(r,\theta)\right]
+# +\frac{1}{r} \frac{\partial}{\partial r}\left[f(r,\theta)\right]
+# - \frac{n^2}{r^2}f(r, \theta)
+# +\frac{1}{r^{2}} \left[\left(\frac{\partial^{2} }{\partial \theta^{2}}+i2n\frac{\partial}{\partial \theta}\right)f(r, \theta)\right]\bigg\}e^{in\theta}\\
+# &=\bigg\{
+# \left[\frac{\partial^2 }{\partial r^2}+\frac{1}{r} \frac{\partial}{\partial r}- \frac{n^2}{r^2} \right]f(r, \theta)
+# +\frac{1}{r^{2}} \left[\left(\frac{\partial^{2} }{\partial \theta^{2}}+i2n\frac{\partial}{\partial \theta}\right)f(r, \theta)\right]\bigg\}e^{in\theta}\\
+# &=\bigg\{
+# \op{T}f(r, \theta)
+# +\frac{1}{r^{2}} \left[\left(\frac{\partial^{2} }{\partial \theta^{2}}+i2n\frac{\partial}{\partial \theta}\right)f(r, \theta)\right]\bigg\}e^{in\theta}\\
 # \end{aligned}
 # $$
 # if $f(r,\theta)=f(r)$, i.e. $f$ only depends on $r$, the above result can be simplified:

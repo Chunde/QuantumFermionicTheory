@@ -138,7 +138,7 @@ class bdg_dvr(object):
         """return external potential"""
         return 0
     
-    def get_lz_term(self, lz):
+    def get_lz_term(self, nu, lz):
         return lz**2
     
     def get_H(self, mus, delta, lz=0, nu=0):
@@ -152,7 +152,7 @@ class bdg_dvr(object):
         V_ext = self.get_Vext(rs=basis.rs)
         V_corr = basis.get_V_correction(nu=nu)
         V_eff = V_ext + V_corr
-        lz2 = self.get_lz_term(lz)/basis.rs**2/2
+        lz2 = self.get_lz_term(nu=nu, lz=lz)/basis.rs**2/2
         H_a = T + np.diag(V_eff - mu_a + lz2)
         H_b = T + np.diag(V_eff - mu_b + lz2)
         H = block(H_a, Delta, Delta.conj(), -H_b)
@@ -225,9 +225,13 @@ class bdg_dvr(object):
             lz = self.lz
         else:
             self.lz = lz
-        
-        dens = self._get_den(self.get_H(mus=mus, delta=delta, nu=0, lz=lz), nu=0)
+        if lz == 0:
+            dens = self._get_den(self.get_H(mus=mus, delta=delta, nu=0, lz=lz), nu=0)
+        else:
+            dens = 0
         for nu in range(1, self.l_max):  # sum over angular momentum
+            # if nu < lz:
+            #     continue
             H = self.get_H(mus=mus, delta=delta, nu=nu, lz=lz)
             dens = dens + 2*self._get_den(H, nu=nu)  # double-degenerate
         n_a, n_b, kappa, j_a, j_b = dens
