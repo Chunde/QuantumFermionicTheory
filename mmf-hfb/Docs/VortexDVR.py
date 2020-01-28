@@ -7,7 +7,7 @@
 #       extension: .py
 #       format_name: light
 #       format_version: '1.5'
-#       jupytext_version: 1.3.0
+#       jupytext_version: 1.3.2
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -44,6 +44,8 @@ K = b0._get_K()
 H = K + np.diag(V)
 Es0, psis0 = np.linalg.eigh(H)
 psis0 = psis0.T
+
+Es0[:32]
 
 
 # # DVR
@@ -223,7 +225,7 @@ for n in range(4):
         assert np.allclose(ret[0], 1)
 
 rs = np.linspace(0.0000, 5, 200)
-plt.figure(figsize(16, 6))
+#plt.figure(figsize(16, 6))
 for n in range(4):
     for m in range(n + 1):
         def f(r):
@@ -268,6 +270,13 @@ class HarmonicDVR(CylindricalBasis):
         return H
 
 
+# ### Spectrum
+
+h = HarmonicDVR(nu=1)
+H = h.get_H()
+d,u =np.linalg.eigh(H)
+d
+
 # ### Make sure DVR basis funtioncs are normalized
 
 h = HarmonicDVR(nu=0, dim=2, w=1)
@@ -306,7 +315,7 @@ for i in range(len(paras)):
 # ### Check Errors
 # * check how energy spectrum errors scales as number of abscissa and level of energy
 
-plt.figure(figsize=(16,6))
+#plt.figure(figsize=(16,6))
 linestyles = ['--', '+']
 parities = ['odd', 'even']
 for c, N in enumerate([10, 20, 30, 40]):
@@ -329,7 +338,7 @@ plt.ylabel(r"$(E-E_0)/E_0$")
 plt.legend()
 
 # +
-plt.figure(figsize=(16,9))
+#plt.figure(figsize=(16,9))
 linestyles = ['-', '--']
 parities = ['odd', 'even']
 E_max = 30
@@ -380,7 +389,7 @@ plt.legend()
 # $$
 # <font color='red'>Which means the results from diagonizing the Hamiltonian should have a weight factor of $\frac{1}{\sqrt{2\pi}}$</font>
 
-plt.figure(figsize=(16, 8))
+#plt.figure(figsize=(16, 8))
 h = HarmonicDVR(nu=0, dim=2, w=1, R_max=None, N_root=32)
 H = h.get_H()
 Es, us = np.linalg.eigh(H)
@@ -663,7 +672,7 @@ def compare_bcs_dvr_dens(E=3):
     for i in range(len(psis_bcs)):
         den_bcs = abs(psis_bcs[i])**2
     den_bcs = sum(abs(psis_bcs)**2)
-    plt.figure(figsize=(14,5))
+   # plt.figure(figsize=(14,5))
     plt.subplot(121)
     imcontourf(x, y, den_bcs)
     plt.colorbar()
@@ -711,7 +720,7 @@ res = b2.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta)
 n_a, n_b = res.n_a, res.n_b
 x, y = b2.xyz
 rs = np.sqrt(sum(_x**2 for _x in b2.xyz)).ravel()
-plt.figure(figsize=(18, 4))
+#plt.figure(figsize=(18, 4))
 plt.subplot(131)
 imcontourf(x, y, n_a)
 plt.colorbar()
@@ -730,7 +739,7 @@ dvr.l_max=20  # 20 is good enough
 delta = delta + dvr.bases.zero
 res = dvr.get_densities(mus=(mu + dmu, mu - dmu), delta=delta)
 na, nb, kappa, j_a, j_b = res.n_a, res.n_b, res.nu, res.j_a, res.j_b
-plt.figure(figsize=(15, 5))
+#plt.figure(figsize=(15, 5))
 plt.subplot(121)
 plt.plot(dvr.rs, (na), label=r'$n_a$(DVR)')
 plt.plot(rs, n_a.ravel(), '+', label=r'$n_a$(Grid)')
@@ -791,10 +800,10 @@ def _get_den(self, H, nu):
         den = den + np.array([n_a, n_b, kappa, j_a, j_b])
     return den
 dvr.E_c = max(d)
-H = dvr.get_H(mus=mus, delta=delta, nu=0, lz=dvr.lz)
+H = dvr.get_H(mus=mus, delta=delta, nu=0)
 dens = _get_den(self=dvr, H=H, nu=0)
 for nu in range(1, dvr.l_max):  # sum over angular momentum
-    H = dvr.get_H(mus=mus, delta=delta, nu=nu, lz=dvr.lz)
+    H = dvr.get_H(mus=mus, delta=delta, nu=nu)
     dens = dens + 2*_get_den(self=dvr,H=H, nu=nu)  # double-degenerate
 Es = np.sort(Es)
 
@@ -849,15 +858,16 @@ class dvr_vortex(bdg_dvr):
 # * Integral over the Z dirction
 # * Implement ASLDA
 # * figure out why J_sqrt_pole always gives 0s
-
-# +
-# dvr_bases = dvr_full_set(N_root=32, R_max=5, l_max=20)
+# $$
+# \Delta(r,\theta) = r^2e^{i2\theta}=r^2\left[1-2sin^2(\theta)+2isin(\theta)cos(\theta)\right]=(x^2-y^2+2ixy)
+# $$
 
 # +
 loop = 1
 mu = 5
 dmu = 0
 E_c=30
+n = 1  #angular winding
 delta_bcs=delta_dvr=delta=2
 # BCS
 bcs = BCS_vortex(Nxyz=(32,)*2, Lxyz=(10,)*2, mus_eff=(mu+dmu, mu-dmu), delta=delta)
@@ -865,13 +875,14 @@ bcs = BCS_vortex(Nxyz=(32,)*2, Lxyz=(10,)*2, mus_eff=(mu+dmu, mu-dmu), delta=del
 x, y = bcs.xyz
 rs = np.sqrt(sum(_x**2 for _x in bcs.xyz)).ravel()
 # DVR
-dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=E_c, bases=None, N_root=33, R_max=5, l_max=200)
-delta_bcs = delta*(x+1j*y)
-delta_dvr = delta*dvr.rs
-dvr.lz = 0 if np.size(delta_bcs)==1 else 1  # using the value of 0.5 is because it should be half of the m (not mass)
+dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=E_c, bases=None, N_root=33, R_max=5, l_max=100)
+delta_bcs = delta*(x+1j*y) if n == 1 else delta*(x**2-y**2+2j*x*y)# 
+delta_dvr = delta*dvr.rs**n#
+dvr.lz = 0 #if np.size(delta_bcs)==1 else n/2.0 # using the value of 0.5 is because it should be half of the m (not mass)
 bcs.E_c=E_c
 dvr.E_c=E_c
 def update_plot(delta_bcs_, delta_dvr_):
+    
     # BCS plot
     res_bcs = bcs.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta_bcs_)
     na_bcs, nb_bcs, nu_bcs, ja_bcs, jb_bcs = res_bcs.n_a, res_bcs.n_b, res_bcs.nu, res_bcs.j_a, res_bcs.j_b
@@ -910,7 +921,7 @@ def update_plot(delta_bcs_, delta_dvr_):
     plt.plot(rs, abs(nu_bcs).ravel(), '+', label=r'$\nu$(Grid)')
     plt.legend()
     # Delta
-    plt.subplot(333)
+    plt.subplot(339)
     plt.plot(dvr.rs, abs(delta_dvr_tmp), label=r'$\Delta$(DVR)')
     plt.plot(rs, abs(delta_bcs_tmp).ravel(), '+', label=r'$\Delta$(Grid)')
     plt.title(f"bcs err:{err_bcs:.3}, dvr err:{err_dvr:.3}")
@@ -923,6 +934,12 @@ def update_plot(delta_bcs_, delta_dvr_):
     plt.subplot(338)
     plt.plot(rs, np.sqrt(sum(jb_bcs**2)).ravel(), '+', label=r'$j_b$(Grid)')
     plt.plot(dvr.rs, -jb_dvr, label=r'$j_b$(DVR)')
+    plt.legend()
+    # Old Delta
+    plt.subplot(333)
+    plt.plot(dvr.rs, abs(delta_dvr), label=r'$\Delta$(DVR)')
+    plt.plot(rs, abs(delta_bcs).ravel(), '+', label=r'$\Delta$(Grid)')
+    plt.title(f"Older Delta")
     plt.legend()
     clear_output(wait=True)
     plt.show()
@@ -939,12 +956,12 @@ with NoInterrupt() as interrupted:
         print(n, err_dvr, err_bcs)
 # -
 
+
+
 # ## Energy Spectrum in DVR & Grid with Potential
 
-mu,dmu,delta
-
 delta_bcs = delta
-delta_bcs = delta #*(x+1j*y)
+delta_bcs = delta*(x+1j*y) #delta*(x**2-y**2+2j*x*y)# 
 mus = (mu+dmu, mu-dmu)
 H = bcs.get_H(mus_eff=mus, delta=delta_bcs)
 d, UV = np.linalg.eigh(H)
@@ -959,80 +976,68 @@ tau_a = np.dot(sum(dU.conj()*dU for dU in dUs), f_p).real
 tau_b = np.dot(sum(dV.conj()*dV for dV in dVs), f_m).real
 j_a = [0.5*np.dot((U.conj()*dU - U*dU.conj()), f_p).imag for dU in dUs]
 j_b = [0.5*np.dot((V*dV.conj() - V.conj()*dV), f_m).imag for dV in dVs]
-# plt.plot(rs, n_a.ravel(), '+', label=r'$n_a$(Grid)')
-# plt.plot(rs, n_b.ravel(), '+', label=r'$n_b$(Grid)')
-
-np.sort(abs(d))[0:100]
+plt.figure(figsize=(10,5))
+plt.plot(rs, n_a.ravel(), '+', label=r'$n_a$(Grid)')
+plt.plot(rs, n_b.ravel(), '+', label=r'$n_b$(Grid)');plt.legend()
 
 np.sort(abs(d))[0:100]
 
 # +
 Es = []
 dvr.l_max=100
-def _get_den(self, H, nu):
+def _get_den(obj, H, nu):
     """
     return the densities for a given H
     """
     es, phis = np.linalg.eigh(H)
     phis = phis.T
-    offset = phis.shape[0] // 2
+    offset = phis.shape[0]// 2
     den = 0
     for i in range(len(es)):
         E, uv = es[i], phis[i]
         
-        if abs(E) > self.E_c:
+        if abs(E) > obj.E_c:
             continue
         Es.append(E)
-        if nu != 0:
-            Es.append(E)
+        #if nu != 0:
+        #    Es.append(E)
         u, v = uv[: offset], uv[offset:]
-        u = self.get_psi(nu=nu, u=u)
-        v = self.get_psi(nu=nu, u=v)
-
-        f_p, f_m = self.f(E=E), self.f(E=-E)
+        u = obj.get_psi(nu=nu, u=u)
+        v = obj.get_psi(nu=nu, u=v)
+        f_p, f_m = obj.f(E=E), obj.f(E=-E)
         n_a = u*u.conj()*f_p
         n_b = v*v.conj()*f_m
-        j_a = -n_a*self.lz/self.rs
-        j_b = -n_b*self.lz/self.rs
+        j_a = -n_a*obj.lz/obj.rs
+        j_b = -n_b*obj.lz/obj.rs
         kappa = u*v.conj()*(f_p - f_m)/2
         den = den + np.array([n_a, n_b, kappa, j_a, j_b])
     return den
-dvr.E_c = max(abs(d))
+#dvr.E_c = E_c# max(abs(d))
 delta_dvr = delta*dvr.rs
-dvr.lz =1
 
-H = dvr.get_H(mus=mus, delta=delta_dvr, nu=0, lz=dvr.lz)
-dens = 0# _get_den(self=dvr, H=H, nu=0)
+
+H = dvr.get_H(mus=mus, delta=delta_dvr, nu=0)
+dens = 0# _get_den(obj=dvr, H=H, nu=0)
 for nu in range(1, dvr.l_max):  # sum over angular momentum
-    H = dvr.get_H(mus=mus, delta=delta, nu=nu, lz=dvr.lz)
-    dens = dens + 2*_get_den(self=dvr,H=H, nu=nu)  # double-degenerate
+    H = dvr.get_H(mus=mus, delta=delta_dvr, nu=nu)
+    dens = dens + 2*_get_den(obj=dvr,H=H, nu=nu)  # double-degenerate    
 Es = np.sort(Es)
+plt.figure(figsize=(10,5))
+plt.plot(dvr.rs, dens[0], label=r'$n_a$(DVR)')
+plt.plot(dvr.rs, dens[1], label=r'$n_b$(DVR)');plt.legend()
 # -
 
-np.sort(abs(Es))[0:100]
+np.sort(abs(Es))[0:100], len(Es)
 
-np.sort(abs(Es))[0:100]
-
-len(Es),32**2*2
-
-N1=1181
-N2=1182
+N1=0
+N2=100
 a=np.sort(abs(d))[N1:N2]
 b=np.sort(abs(Es))[N1:N2]
-np.allclose(a,b,rtol=0.1)
+np.allclose(a, b, rtol=0.1)
 
 np.sort(abs(d))[N1-1:N1+1],np.sort(abs(Es))[N1-1:N1+1]
 
-np.sort(abs(d))[N1:N1+100]
-
-np.sort(abs(Es))[N1:N1+100]
-
-# ## The Additional Term in DVR
-# * Numerically, if the term is $n(n-1)$, the densities $n_a, n_b$ match the BCS results perfectly
-# * if $n(n+1)$, not nicely
-# * if $n^2$ as given by the derivation, not that good.
-# * Need to double check the derivation
-# * the $\nu$ term still not fit nicely
+a[99]
 
 # # BdG in Rotating Frame Transform
 
@@ -1091,7 +1096,7 @@ np.sort(abs(Es))[N1:N1+100]
 #
 # To compute the pairing field of a vortex in BdG formulism, let the pairing field to be of this form:
 # $$
-# \Delta = \Delta_0 g(r) e^{i2n\theta}
+# \Delta = \Delta(r) e^{i2n\theta}
 # $$
 #
 # $$
@@ -1103,125 +1108,109 @@ np.sort(abs(Es))[N1:N1+100]
 # $$
 # \begin{align}
 # \begin{pmatrix}
-# -\frac{\nabla^2}{2}-\mu_a & \Delta g(r)e^{i2n\theta}\\
-# \Delta^*g(r)^*e^{-i2n\theta} & \frac{\nabla^2}{2} + \mu_b\\
+# -\frac{\nabla^2}{2}-\mu_a & \Delta(r)e^{i2n\theta}\\
+# \Delta^(r)e^{-i2n\theta} & \frac{\nabla^2}{2} + \mu_b\\
 # \end{pmatrix}
 # \begin{pmatrix}
-# U(r)e^{in\theta}\\
-# V^*(r)e^{-in\theta}
+# U_m(r)e^{i(n+m)\theta}\\
+# V_m^*(r)e^{-i(n+m)\theta}e^{-in\theta}
 # \end{pmatrix}
 # &=\begin{pmatrix}
-# (-\frac{\nabla^2}{2}-\mu_a)U(r)e^{in\theta}+ \Delta g(r) e^{i2n\theta}V^*(r)e^{-in\theta}\\
-# \Delta^* g(r)^* e^{-i2\theta}U(r)e^{in\theta} + (\frac{\nabla^2}{2} + \mu_b)V^*(x)e^{-in\theta}\\
+# (-\frac{\nabla^2}{2}-\mu_a)U_m(r)e^{i(n+m)\theta}+ \Delta(r) e^{i2n\theta}V_m^*(r)e^{-i(n+m)\theta}\\
+# \Delta^* (r) e^{-i2n\theta}U_m(r)e^{i(n+m)\theta} + (\frac{\nabla^2}{2} + \mu_b)V_m^*(x)e^{-i(n+m)\theta}\\
 # \end{pmatrix}\\
-# &=\begin{pmatrix}\left[-\frac{\nabla^2}{2}-\mu_a \right]U(r)e^{in\theta}+ \Delta g(r)V^*(r)e^{in\theta}\\
-# \Delta^* g(r)^* U(r)e^{-in\theta} + \left[\frac{\nabla^2}{2} + \mu_b\right]V^*(r)e^{-in\theta}\\
+# &=\begin{pmatrix}\left[-\frac{\nabla^2}{2}-\mu_a \right]U_m(r)e^{i(n+m)\theta}+ \Delta(r)V_m^*(r)e^{i(n-m)\theta}\\
+# \Delta^* (r) U_m(r)e^{-i(n-m)\theta} + \left[\frac{\nabla^2}{2} + \mu_b\right]V_m^*(r)e^{-i(n+m)\theta}\\
 # \end{pmatrix}\\
-# &=\begin{pmatrix}\left[-\frac{\nabla^2}{2}-\mu_a + \frac{n^2}{2r^2} \right]U(r)e^{in\theta}+ \Delta g(r)V^*(r)e^{in\theta}\\
-# \Delta^* g(r)^* U(r)e^{-in\theta} + \left[\frac{\nabla^2}{2} + \mu_b - \frac{n^2}{2r^2}\right]V^*(r)e^{-in\theta}\\
+# &=\begin{pmatrix}\left[-\frac{\nabla^2}{2}-\mu_a + \frac{(n+m)^2}{2r^2} \right]U_m(r)e^{i(n+m)\theta}+ \Delta(r)V_m^*(r)e^{i(n-m)\theta}\\
+# \Delta^* (r) U_m(r)e^{-i(n-m)\theta} + \left[\frac{\nabla^2}{2} + \mu_b - \frac{(n+m)^2}{2r^2}\right]V_m^*(r)e^{-i(n+m)\theta}\\
 # \end{pmatrix}\\
 # &=\begin{pmatrix}
 # E & 0\\
 # 0&-E
 # \end{pmatrix}\begin{pmatrix}
-# U(x)e^{in\theta}\\
-# V(x)^*e^{-in\theta}
+# U_m(r)e^{i(n+m)\theta}\\
+# V_m(r)^*e^{-i(n+m)\theta}
 # \end{pmatrix}
 # \end{align}
 # $$
-# * By canceling out the phase terms:
+
+# Let $\op{T}=-\frac{\nabla^2}{2}-\mu + \frac{(n+m)^2}{2r^2}$, and it only acts on $U(r),V(r)$
 # $$
-# \begin{pmatrix}\left[-\frac{\nabla^2}{2}-\mu_a + \frac{n^2}{2r^2} \right]& \Delta g(r)\\
-# \Delta^* g(r)^* & \left[\frac{\nabla^2}{2} + \mu_b - \frac{n^2}{2r^2}\right]\\
+# \begin{align}
+# \begin{pmatrix}\op{T_a}U_m(r)e^{i(n+m)\theta}+ \Delta(r)V_m^*(r)e^{i(n-m)\theta}\\
+# \Delta^* (r) U_m(r)e^{-i(n-m)\theta} -\op{T_b}V_m^*(r)e^{-i(n+m)\theta}\\
+# \end{pmatrix}&=\begin{pmatrix}
+# EU_m(r)e^{i(n+m)\theta}\\
+# -EV^*_m(r)e^{-i(n+m)\theta}
+# \end{pmatrix}\\
+# \begin{pmatrix}\op{T_a}U_m(r)e^{i2m\theta}+ \Delta(r)V_m^*(r)\\
+# \Delta^* (r) U_m(r) -\op{T_b}V_m^*(r)e^{-i2m\theta}\\
+# \end{pmatrix}&=\begin{pmatrix}
+# EU_m(r)e^{i2m\theta}\\
+# -EV^*_m(r)e^{-i2m)\theta}
+# \end{pmatrix}\\
+# \begin{pmatrix}\op{T_a}U_m(r)e^{im\theta}+ \Delta(r)V_m^*(r)e^{-im\theta}\\
+# \Delta^* (r) U_m(r)e^{im\theta} -\op{T_b}V_m^*(r)e^{-im\theta}\\
+# \end{pmatrix}&=\begin{pmatrix}
+# EU_m(r)e^{im\theta}\\
+# -EV_m(r)^*e^{-im\theta}
+# \end{pmatrix}\\
+# \begin{pmatrix}\op{T_a}& \Delta(r)\\
+# \Delta^* (r)& -\op{T_b}
+# \end{pmatrix}\begin{pmatrix}U_m(r)e^{im\theta}\\
+# V^*_m(r)e^{-im\theta}
+# \end{pmatrix}&=\begin{pmatrix}
+# E  & 0\\
+# 0 &-E\end{pmatrix}
+# \begin{pmatrix}U_m(r)e^{im\theta}\\
+# V^*_m(r)e^{-im\theta}
+# \end{pmatrix}
+# \end{align}
+# $$
+
+# * Older Derivation:
+# $$
+# \begin{pmatrix}\left[-\frac{\nabla^2}{2}-\mu_a + \frac{(n+m)^2}{2r^2} \right]& \Delta g(r)\\
+# \Delta^* g(r)^* & \left[\frac{\nabla^2}{2} + \mu_b - \frac{(n+m)^2}{2r^2}\right]\\
 # \end{pmatrix}\begin{pmatrix}
-# U(x)\\
-# V(x)^*
+# U_m(r)\\
+# V_m(r)^*
 # \end{pmatrix}=\begin{pmatrix}
 # E & 0\\
 # 0&-E
 # \end{pmatrix}\begin{pmatrix}
-# U(x)\\
-# V(x)^*
+# U_m(r)\\
+# V_m(r)^*
 # \end{pmatrix}
 # $$
 #
 #
 # * So:
-# To introduce vortex pairing field, an additional terms ($\frac{n^2}{2r^2}$) can be added to the diagnoal of the BdG matrix
+# To introduce vortex pairing field, the angular quantum number should be shifted to right(adding) by $n$
 
-# ## Careful Check
-# The radial Schrodinger equation is given as:
-# $$
-# \frac{1}{r^{d-1}} \frac{d}{d r}\left(r^{d-1} \frac{d \psi}{d r}\right)-\frac{\lambda(\lambda+d-2)}{r^{2}} \psi+\frac{2 m}{\hbar^{2}}[E-V(r)] \psi=0
-# $$
-# By defining:
-# $\phi(r)=r^{(d-1) / 2} \psi(r)$, with normalization $\int_{0}^{\infty} d r|\phi(r)|^{2}=1$. 
-# The $\phi(r)$ satisfies:
-# $$
-# \frac{d^{2} \phi}{d r^{2}}-\frac{\nu^{2}-1 / 4}{r^{2}} \phi+\frac{2 m}{\hbar^{2}}[E-V(r)] \phi=0
-# $$
-# where $\nu=\lambda+d / 2-1$
-
-# # First Order Derivative Operator
-
-# In the case of free particles of energy E5\2k2/2m, the radial wave function is:
-# $$
-# \phi_{k}(r)=\langle r | k \nu\rangle=\sqrt{k r} J_{\nu}(k r)
+# ## Shift $\nu$ for  each radial wave number states
+# In a 2D Homanic system, all states $\ket{n, m}$, $-n<m<n$, where here $n$ is the radial quantum number(when $\omega=1$ in isotropic case ,$n=E_n$), $m$ is the angular momentum quantum number
+#
+# $$\ket{1,0}\\
+# \ket{2,-1},\ket{2,1}\\
+# \ket{3,-2},\ket{3,0}, \ket{3,2}\\
+# \ket{4,-3},\ket{4,-1}, \ket{4,1},\ket{4,3}\\
+# \vdots\\
+# \ket{n, -n+1},\ket{n,n -3},\dots,\ket{n, 0},\dots,\ket{n, n-3},\ket{n, n-3},\ket{n, n-1},\\
+# \vdots
 # $$
 #
-# where we have the relation:
-# $$
-# \left\langle k \nu | k^{\prime} \nu\right\rangle=\int_{0}^{\infty} d r\langle k \nu | r\rangle\left\langle r | k^{\prime} \nu\right\rangle=\delta\left(k-k^{\prime}\right)
-# $$
+# if the $m$ is shift to the right by 1: $m\rightarrow m+1$
 #
-# Useful integrals
-#
+# $$\ket{1,1}\\
+# \ket{2,0},\ket{2,1}, \ket{2,2}\\
+# \ket{3,1},\ket{3,0}, \ket{3,-1}, \ket{3,2},\ket{3,3}\\
+# \ket{4,-2},\ket{4,-1}, \ket{4, 0}, \ket{4,1},\ket{4, 2},\ket{4,3},\ket{4,4}\\
+# \ket{n,n -2},\dots,\ket{n, 0},\dots,\ket{n, n-3},\ket{n, n-2},\ket{n, n-1},\ket{n, n},\\
+# \vdots
 # $$
-# \begin{array}{l}{\int_{0}^{R} r d r J_{\nu}(k r) J_{\nu}\left(k^{\prime} r\right)} \\ {\quad=\frac{R}{k^{2}-k^{\prime 2}}\left[k^{\prime} J_{\nu}(k R) J_{\nu}^{\prime}\left(k^{\prime} R\right)-k J_{\nu}^{\prime}(k R) J_{\nu}\left(k^{\prime} R\right)\right]}\end{array}
-# $$
-# when $k\rightarrow k'$
-#
-# $$
-# \begin{array}{l}{\int_{0}^{R} r d r J_{\nu}(k r)^{2}} \\ {\quad=\frac{1}{2 k^{2}}\left[k^{2} R^{2} J_{\nu}^{\prime}(k R)^{2}+\left(k^{2} R^{2}-\nu^{2}\right) J_{\nu}(k R)^{2}\right]}\end{array}
-# $$
-#
-# Given the DVR basis function to be:
-# $$
-# F_{\nu n}(r)=(-1)^{n+1} \frac{K z_{\nu n} \sqrt{2 r}}{K^{2} r^{2}-z_{\nu n}^{2}} J_{\nu}(K r)
-# $$
-#
-# The matrix element for the kenitic with centrifugal term can be computed as：
-# $$
-# \begin{array}{l}{\left\langle F_{\nu n}\left|k_{r}^{2}+\frac{\nu^{2}-\frac{1}{4}}{r^{2}}\right| F_{\nu n^{\prime}}\right\rangle} \\ {\qquad=\left\{\begin{array}{ll}{\frac{K^{2}}{3}\left[1+\frac{2\left(\nu^{2}-1\right)}{z_{\nu n}^{2}}\right],} & {n=n^{\prime}} \\ {(-1)^{n-n^{\prime}} 8 K^{2} \frac{z_{\nu n} z_{\nu n^{\prime}}}{\left(z_{\nu n}^{2}-z_{\nu n^{\prime}}^{2}\right)^{2}},} & {n \neq n^{\prime}}\end{array}\right.}\end{array}
-# $$
-#
-# Where $K_r^2=-\frac{d^2}{dr^2}$
-
-# ## Addtional Terms in Rotating Frame
-# * To get rid of the phase term in the pairing field, the BdG matrix can be transformed into the rotating frame, where two additional terms will show up in the kenitic matrix, one of them is just constant($q^2$) which is trivial, the other term is the first order derivatie $\nabla=\frac{d}{dr}$
-# * Bessel Functions are so messy, hard to compute by hand????
-#
-# $$
-# \begin{array}{l}{\left\langle F_{\nu n}\left|\frac{d}{dr}\right| F_{\nu n^{\prime}}\right\rangle} \\ {\qquad=\left\{\begin{array}{ll}{\frac{K^{2}}{3}\left[1+\frac{2\left(\nu^{2}-1\right)}{z_{\nu n}^{2}}\right],} & {n=n^{\prime}} \\ {(-1)^{n-n^{\prime}} 8 K^{2} \frac{z_{\nu n} z_{\nu n^{\prime}}}{\left(z_{\nu n}^{2}-z_{\nu n^{\prime}}^{2}\right)^{2}},} & {n \neq n^{\prime}}\end{array}\right.}\end{array}
-# $$
-
-# Let try to compute $\frac{d F_{vn}}{dr}$
-#
-# \begin{align}
-# \frac{d F_{vn}}{dr}
-# &=(-1)^{n+1} K z_{\nu n}\frac{d }{dr}\left[\frac{ \sqrt{2 r}}{K^{2} r^{2}-z_{\nu n}^{2}} J_{\nu}(K r)\right]\\
-# &=(-1)^{n+1} K z_{\nu n}\left[\frac{J_{\nu}(Kr)}{\sqrt{2r}(K^2r^2-z_{\nu n}^2)} - \frac{2\sqrt{2r}K^2rJ_{\nu}(Kr) }{(K^2r^2-z_{\nu n}^2)^2}+\frac{K\sqrt{2r}J'_{\nu}(Kr)}{K^2r^2-z_{\nu n}^2}\right]
-# \end{align}
-
-# * Check the defination of $F_{\nu n}$, we can try to rewrite the above expression as:
-# $$
-# \frac{d F_{\nu n}}{dr}= \frac{F_{\nu n}}{2r} - \frac{2K^2r F_{\nu n}}{K^2r^2-z^2_{\nu n}} +\frac{1}{2}\left(F_{(\nu-1) n}-F_{(\nu+1) n}\right)
-# $$
-#
-# In the last term, we use the following relations: 
-# $$
-# \frac{\partial J_{v}(z)}{\partial z}=\frac{1}{2}\left[J_{v-1}(z)-J_{v+1}(z)\right]
-# $$
+# Then all the rightmost states are illegal, and should be dicarded. Or put another way, for a any basis with $\nu$, the lowest eneygy state is not degenated
 
 # # 2D Harmonic Oscillator in Polar System
 # In polar coordinates, the Del operator $\nabla^2$ is defined as:

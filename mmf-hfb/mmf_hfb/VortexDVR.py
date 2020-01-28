@@ -137,11 +137,8 @@ class bdg_dvr(object):
     def get_Vext(self, rs):
         """return external potential"""
         return 0
-    
-    def get_lz_term(self, nu, lz):
-        return lz**2
-    
-    def get_H(self, mus, delta, lz=0, nu=0):
+        
+    def get_H(self, mus, delta, nu=0):
         """
         return the full Hamiltonian(with pairing field)
         """
@@ -152,9 +149,8 @@ class bdg_dvr(object):
         V_ext = self.get_Vext(rs=basis.rs)
         V_corr = basis.get_V_correction(nu=nu)
         V_eff = V_ext + V_corr
-        lz2 = self.get_lz_term(nu=nu, lz=lz)/basis.rs**2/2
-        H_a = T + np.diag(V_eff - mu_a + lz2)
-        H_b = T + np.diag(V_eff - mu_b + lz2)
+        H_a = T + np.diag(V_eff - mu_a)
+        H_b = T + np.diag(V_eff - mu_b)
         H = block(H_a, Delta, Delta.conj(), -H_b)
         return H
 
@@ -174,20 +170,6 @@ class bdg_dvr(object):
         """
         return self.bases.get_psi(nu=nu, u=u)
     
-    # def transform(self, nu_s, nu_t, us_s):
-    #     if nu_s == nu_t:
-    #         return us_s
-    #     dvr_s = self.bases[self.basis_match_rule(nu_s)]
-    #     dvr_t = self.bases[self.basis_match_rule(nu_t)]
-
-    #     def f(r):
-    #         fs = [us_s[n]*dvr_s.get_F(n=n, rs=r) for n in range(len(us_s))]
-    #         return sum(fs)
-    #     psi = [f(r) for r in dvr_t.rs]
-    #     Fs = dvr_t.get_F_rs()
-    #     us_t = np.array(psi)/np.array(Fs)
-    #     return us_t
-
     def _get_den(self, H, nu):
         """
         return the densities for a given H
@@ -226,13 +208,13 @@ class bdg_dvr(object):
         else:
             self.lz = lz
         if lz == 0:
-            dens = self._get_den(self.get_H(mus=mus, delta=delta, nu=0, lz=lz), nu=0)
+            dens = self._get_den(self.get_H(mus=mus, delta=delta, nu=0), nu=0)
         else:
             dens = 0
         for nu in range(1, self.l_max):  # sum over angular momentum
-            # if nu < lz:
-            #     continue
-            H = self.get_H(mus=mus, delta=delta, nu=nu, lz=lz)
+            if nu < lz:
+                continue
+            H = self.get_H(mus=mus, delta=delta, nu=nu)
             dens = dens + 2*self._get_den(H, nu=nu)  # double-degenerate
         n_a, n_b, kappa, j_a, j_b = dens
         return Densities(
@@ -265,9 +247,8 @@ class dvr_vortex(bdg_dvr):
     """BCS Vortex"""
     barrier_width = 0.2
     barrier_height = 100.0
-    
+    R = 5
     def get_Vext(self, rs):
-        self.R = 5
         R0 = self.barrier_width*self.R
         V = self.barrier_height*mstep(rs-self.R+R0, R0)
         return V
