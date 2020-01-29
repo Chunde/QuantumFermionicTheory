@@ -811,47 +811,16 @@ np.sort(abs(d))[0:40]
 
 np.sort(abs(Es))[:40]
 
-
 # # Vortices
 
-# +
-class BCS_vortex(BCS):
-    """BCS Vortex"""
-    barrier_width = 0.2
-    barrier_height = 100.0
-    
-    def __init__(self, delta, mus_eff, **args):
-        BCS.__init__(self, **args)
-        h = homogeneous.Homogeneous(Nxyz=self.Nxyz, Lxyz=self.Lxyz) 
-        res = h.get_densities(mus_eff=mus_eff, delta=delta)
-        if delta != 0:
-            self.g = delta/res.nu.n
-        else:
-            self.g = -1
-        
-    def get_v_ext(self, **kw):
-        self.R = min(self.Lxyz)/2
-        r = np.sqrt(sum([_x**2 for _x in self.xyz[:2]]))
-        R0 = self.barrier_width * self.R
-        V = self.barrier_height * mstep(r-self.R+R0, R0)
-        return (V, V)
-    
-class dvr_vortex(bdg_dvr):
-    """BCS Vortex"""
-    barrier_width = 0.2
-    barrier_height = 100.0
-    
-    def get_lz_term(self, nu, lz):
-        return 0 #lz*lz
-    
-    def get_Vext(self, rs):
-        self.R = 5
-        R0 = self.barrier_width * self.R
-        V = self.barrier_height * mstep(rs-self.R+R0, R0)
-        return V
-
-
-# -
+import mmf_setup;mmf_setup.nbinit()
+# %pylab inline --no-import-all
+from nbimports import *
+from mmf_hfb.bcs import BCS
+from mmf_hfb import homogeneous
+from mmfutils.plot import imcontourf
+from collections import namedtuple
+from mmfutils.math.special import mstep
 
 # ## To-Do
 # * Compute $\tau$ and $j_{\pm a/b}$ terms: The derivative term from the bessel package seems to have bug.
@@ -863,9 +832,13 @@ class dvr_vortex(bdg_dvr):
 # $$
 
 # +
+import mmf_hfb.VortexDVR  as vd; reload(vd)
+from mmf_hfb.VortexDVR import bdg_dvr,dvr_vortex,BCS_vortex
+
+
 loop = 1
 mu = 5
-dmu = 0
+dmu = 3
 E_c=30
 n = 1  #angular winding
 delta_bcs=delta_dvr=delta=2
@@ -878,7 +851,7 @@ rs = np.sqrt(sum(_x**2 for _x in bcs.xyz)).ravel()
 dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=E_c, bases=None, N_root=33, R_max=5, l_max=100)
 delta_bcs = delta*(x+1j*y) if n == 1 else delta*(x**2-y**2+2j*x*y)# 
 delta_dvr = delta*dvr.rs**n#
-dvr.lz = 0 #if np.size(delta_bcs)==1 else n/2.0 # using the value of 0.5 is because it should be half of the m (not mass)
+dvr.lz = 0 if np.size(delta_bcs)==1 else n/2.0 # using the value of 0.5 is because it should be half of the m (not mass)
 bcs.E_c=E_c
 dvr.E_c=E_c
 def update_plot(delta_bcs_, delta_dvr_):
@@ -955,8 +928,6 @@ with NoInterrupt() as interrupted:
         delta_bcs, delta_dvr = delta_bcs_, delta_dvr_
         print(n, err_dvr, err_bcs)
 # -
-
-
 
 # ## Energy Spectrum in DVR & Grid with Potential
 

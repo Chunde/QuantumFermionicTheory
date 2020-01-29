@@ -177,7 +177,7 @@ class bdg_dvr(object):
         es, phis = np.linalg.eigh(H)
         phis = phis.T
         offset = phis.shape[0] // 2
-        den = 0
+        dens = []
         for i in range(len(es)):
             E, uv = es[i], phis[i]
             if abs(E) > self.E_c:
@@ -193,8 +193,17 @@ class bdg_dvr(object):
             j_a = -n_a*self.lz/self.rs
             j_b = -n_b*self.lz/self.rs
             kappa = u*v.conj()*(f_p - f_m)/2
-            den = den + np.array([n_a, n_b, kappa, j_a, j_b])
-        return den
+            dens.append(np.array([n_a, n_b, kappa, j_a, j_b]))
+        if len(dens) == 0:
+            return 0
+        if self.lz == 0:
+            den = sum(dens)
+            return den if nu == 0 else 2*den
+        else:
+            den = sum(dens)
+            den_shift = dens[len(dens)//2]
+            den = den - den_shift
+            return den if nu == 0 else 2*den + den_shift
         
     def get_densities(self, mus, delta, lz=None):
         """
@@ -207,15 +216,14 @@ class bdg_dvr(object):
             lz = self.lz
         else:
             self.lz = lz
-        if lz == 0:
-            dens = self._get_den(self.get_H(mus=mus, delta=delta, nu=0), nu=0)
-        else:
-            dens = 0
-        for nu in range(1, self.l_max):  # sum over angular momentum
-            if nu < lz:
-                continue
+        
+        dens = 0
+        for nu in range(0, self.l_max):  # sum over angular momentum
             H = self.get_H(mus=mus, delta=delta, nu=nu)
-            dens = dens + 2*self._get_den(H, nu=nu)  # double-degenerate
+            den = self._get_den(H, nu=nu)
+            # if np.alltrue(den == 0):
+            #     break
+            dens = dens + den  # double-degenerate
         n_a, n_b, kappa, j_a, j_b = dens
         return Densities(
             n_a=n_a, n_b=n_b,
@@ -248,6 +256,7 @@ class dvr_vortex(bdg_dvr):
     barrier_width = 0.2
     barrier_height = 100.0
     R = 5
+
     def get_Vext(self, rs):
         R0 = self.barrier_width*self.R
         V = self.barrier_height*mstep(rs-self.R+R0, R0)
@@ -256,5 +265,6 @@ class dvr_vortex(bdg_dvr):
 
 class bdg_dvr_ho(bdg_dvr):
     """a 2D DVR with harmonic potential class"""
+
     def get_Vext(self, rs):
         return rs**2/2
