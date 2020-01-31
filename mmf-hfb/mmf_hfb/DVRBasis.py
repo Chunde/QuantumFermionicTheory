@@ -1,3 +1,5 @@
+"""
+"""
 from mmfutils.math import bessel
 import numpy as np
 
@@ -9,6 +11,7 @@ def nan0(data):
 
 class CylindricalBasis(object):
     eps = 7./3 - 4./3 -1  # machine precision
+    eps = np.finfo(float).eps
     m = hbar = 1
     N_root_max = 128
 
@@ -138,7 +141,7 @@ class CylindricalBasis(object):
         rs = self.get_rs(zs=zs)
         rs_ = rs**((self.dim - 1)/2.0)
         return rs_
-        
+
     def _get_psi(self, u):
         """
         apply weight on the u(v) to get the actual radial wave-function
@@ -160,8 +163,8 @@ class CylindricalBasis(object):
         return nu + self.dim/2.0 - 1
 
     def get_K(self, zs=None, nu=None):
-        """
-        return the kinetic matrix for a given nu
+        """Return the kinetic matrix for a given nu.
+
         Note: the centrifugal potential is already include
         """
         if nu is None:

@@ -6,12 +6,62 @@
 #       extension: .py
 #       format_name: light
 #       format_version: '1.4'
-#       jupytext_version: 1.2.3
+#       jupytext_version: 1.2.4
 #   kernelspec:
-#     display_name: Python 3
+#     display_name: _qt
 #     language: python
-#     name: python3
+#     name: _qt
 # ---
+
+# $$
+#   \op{H} = \frac{-\hbar^2\nabla^2}{2m} - \mu\\
+#   \op{H}\psi_{n,l_z}(r, \theta) = E\psi_{n,l_z}(r, \theta)
+# $$
+# Let $\psi_{n, l_z}(r,\theta)=R_{n, l_z}(r)e^{il_z\theta}$, plugin back to the up equation:
+# $$
+#   \left(\frac{-\hbar^2}{2m}\nabla^2 - \mu\right)R_{n, l_z}(r)e^{il_z\theta}\\
+#   \left(\frac{-\hbar^2}{2m}\left[
+#     \frac{1}{r}\pdiff{}{r}\left(r \pdiff{}{r}R_{n, l_z}(r)\right)
+#     - \frac{l_z^2}{r^2}R_{n, l_z}(r)\right]
+#     - \mu R_{n, l_z}(r)\right)e^{il_z\theta},\\
+#   R(r) = \sqrt{r}f(r)\\
+#   \left(
+#   \pdiff[2]{}{r}f_{n, l_z}(r) - \mu f_{n, l_z}(r)\right)e^{il_z\theta},\\
+# $$
+
+# $$
+# \left[\frac{-\hbar^2}{2m}\left(\diff[2]{}{r} - \frac{l_z^2}{r^2}\right) - \mu\right]\frac{1}{\sqrt{r}}\psi_{n, l_z}(r,\theta)=E\frac{1}{\sqrt{r}}\psi_{n, l_z}(r,\theta)
+# = E
+# $$
+
+# $$
+#   \begin{pmatrix}
+#     \op{K}_a - \mu_a & \Delta(r)^{\I w \theta}\\
+#     \Delta(r)^{-\I w \theta} & -\op{K}_b + \mu_b
+#   \end{pmatrix}
+#   \begin{pmatrix}
+#     \sqrt{r}u_{n, l_z}(r)e^{\I w \theta}\\
+#     \sqrt{r}v^*_{n, l_z}(r)
+#   \end{pmatrix}
+#   e^{\I l_z \theta}
+# $$
+#
+# $$
+#   \begin{pmatrix}
+#     \frac{-\hbar^2}{2m}\left(\diff[2]{}{r} - \frac{(l_z+n)^2}{r^2}\right) - \mu_a & \Delta(r)\\
+#     \Delta(r) & \frac{\hbar^2}{2m}\left(\diff[2]{}{r} + \frac{l_z^2}{r^2}\right) + \mu_b
+#   \end{pmatrix}
+#   \begin{pmatrix}
+#     u_{n, l_z}(r)\\
+#     v^*_{n, l_z}(r)
+#   \end{pmatrix}
+#   =
+#   E_{n, l_z}
+#   \begin{pmatrix}
+#     u_{n, l_z}(r)\\
+#     v^*_{n, l_z}(r)
+#   \end{pmatrix}
+# $$
 
 # # Simple Vortex in 2D
 
@@ -31,16 +81,17 @@ from mmfutils.plot import imcontourf
 class Vortex(bcs.BCS):
     barrier_width = 0.2
     barrier_height = 100.0
-    
+
     def __init__(self, Nxyz=(32, 32), Lxyz=(3.2, 3.2), **kw):
         self.R = min(Lxyz)/2
         bcs.BCS.__init__(self, Nxyz=Nxyz, Lxyz=Lxyz, **kw)
-    
+
     def get_v_ext(self):
         r = np.sqrt(sum([_x**2 for _x in self.xyz[:2]]))
         R0 = self.barrier_width * self.R
         V = self.barrier_height * mstep(r-self.R+R0, R0)
         return (V, V)
+
 
 class VortexState(Vortex):
     def __init__(self, mu, dmu, delta,N_twist=1,  **kw):
@@ -52,13 +103,13 @@ class VortexState(Vortex):
         self.g = self.get_g(mu=mu, delta=delta)
         x, y = self.xyz
         self.Delta = delta*(x+1j*y)
-        
+
     def get_g(self, mu=1.0, delta=0.2):
         h = homogeneous.Homogeneous(Nxyz=self.Nxyz, Lxyz=self.Lxyz) 
         res = h.get_densities(mus_eff=(mu, mu), delta=delta)
         g = delta/res.nu.n
         return g
-    
+
     def solve(self, tol=0.05, plot=True):
         err = 1.0
         fig = None
@@ -67,7 +118,8 @@ class VortexState(Vortex):
             clear_output(wait=True)
 
             while not interrupted and err > tol:
-                res = self.get_densities(mus_eff=self.mus, delta=self.Delta, N_twist=self.N_twist)
+                res = self.get_densities(mus_eff=self.mus, delta=self.Delta,
+                                         N_twist=self.N_twist)
                 self.res = res
                 Delta0, self.Delta = self.Delta, self.g*res.nu  # ....
                 err = abs(Delta0 - self.Delta).max()
@@ -77,8 +129,7 @@ class VortexState(Vortex):
                     plt.suptitle(f"err={err}")
                     display(fig)
                     clear_output(wait=True)
-        
-    
+
     def plot(self, fig=None, res=None):
         x, y = self.xyz
         if fig is None:
@@ -86,19 +137,19 @@ class VortexState(Vortex):
         plt.subplot(233)
         imcontourf(x, y, abs(self.Delta), aspect=1)
         plt.title(r'$|\Delta|$'); plt.colorbar()
-        
+
         if res is not None:
             plt.subplot(231)
-            
+
             imcontourf(x, y, (res.n_a+res.n_b).real, aspect=1)
             plt.title(r'$n_+$'); plt.colorbar()
-        
+
             plt.subplot(232)
             imcontourf(x, y, (res.n_a-res.n_b).real, aspect=1)
             plt.title(r'$n_-$'); plt.colorbar()
-            
+
             plt.subplot(234)
-            
+
             j_a = res.j_a[0] + 1j*res.j_a[1]
             j_b = res.j_b[0] + 1j*res.j_b[1]
             j_p = j_a + j_b
@@ -107,19 +158,25 @@ class VortexState(Vortex):
             imcontourf(x, y, abs(j_a), aspect=1)
             plt.title(r'$j_a$'); plt.colorbar()
             plt.quiver(x.ravel(), y.ravel(), j_a.real, j_a.imag)
-            
+
             plt.subplot(235)
             imcontourf(x, y, abs(j_b), aspect=1)
             plt.title(r'$J_b$'); plt.colorbar()
             plt.quiver(x.ravel(), y.ravel(), j_b.real, j_b.imag)
-            
+
             plt.subplot(236)
             imcontourf(x, y, abs(j_p), aspect=1)
             plt.title(r'$J_+$'); plt.colorbar()
             plt.quiver(x.ravel(), y.ravel(), j_p.real, j_p.imag)
-        return fig      
+        return fig
+
 
 # -
+
+mu = 5
+delta = 2**1.5*mu
+v0 = VortexState(mu=mu, dmu=0.0, delta=delta, Nxyz=(32, 32))
+v0.solve(plot=True)
 
 # ## Homogeneous
 
@@ -231,10 +288,7 @@ def FFVortex(bcs_vortex, mus=None, delta=None, plot_tf=True):
     plt.xlim(0, bcs_vortex.R/dx)
 
 
-mu = 5
-delta = 2**1.5*mu
-v0 = VortexState(mu=mu, dmu=0.0, delta=delta, Nxyz=(32, 32))
-v0.solve(plot=True)
+
 
 FFVortex(v0)
 

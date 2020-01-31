@@ -26,7 +26,6 @@ class dvr_basis_set(object):
 
 
 class dvr_odd_even_set(dvr_basis_set):
-    
     def __init__(self, **args):
         self.N_basis = 2
         self.bases = [CylindricalBasis(nu=nu, **args) for nu in range(self.N_basis)]
@@ -61,7 +60,6 @@ class dvr_odd_even_set(dvr_basis_set):
 
 
 class dvr_full_set(dvr_basis_set):
-    
     def __init__(self, l_max, **args):
         self.N_basis = l_max
         self.bases = [CylindricalBasis(nu=nu, **args) for nu in range(self.N_basis)]
@@ -123,7 +121,7 @@ class bdg_dvr(object):
         self.mus = (mu + dmu, mu - dmu)
         self.E_c = sys.maxsize if E_c is None else E_c
         self.rs = self.bases.get_rs()
-        
+
     def f(self, E, T=0):
         if T is None:
             T = self.T
@@ -137,10 +135,15 @@ class bdg_dvr(object):
     def get_Vext(self, rs):
         """return external potential"""
         return 0
-        
+
     def get_H(self, mus, delta, nu=0):
-        """
-        return the full Hamiltonian(with pairing field)
+        """Return the full Hamiltonian (with pairing field).
+        
+        Arguments
+        ---------
+        l_z : int
+           Angular momentum quantum number.  The centrifugal piece
+           for this is included in the kinetic term, while the remaining 
         """
         basis = self.bases.get_basis(nu=nu)
         T = basis.K

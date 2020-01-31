@@ -4,6 +4,7 @@ channels:
   - conda-forge
   - ioam
   - bokeh
+  - mforbes
 dependencies:
   - python=3
 
@@ -16,6 +17,7 @@ dependencies:
   - numba
   - numexpr
   - Cython
+  - pyfftw
   
   # Documentation
   - ipython
@@ -41,8 +43,11 @@ dependencies:
   - xlrd
   - xlwt
   - pandas
+
+  - mmf_setup
+
+  - pip 
   - pip:
-    - mmf_setup
     - scikits.bvp1lg
     #- mmfutils
     - hg+ssh://hg@bitbucket.org/mforbes/mmfutils-fork@0.4.12
@@ -50,4 +55,3 @@ dependencies:
     - hg+ssh://hg@bitbucket.org/mforbes/pytimeode@0.9
     - hg+ssh://hg@bitbucket.org/mforbes/gpe/
   
-    - pyfftw

@@ -6,12 +6,9 @@
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.5'
-#       jupytext_version: 1.3.0
-#   kernelspec:
-#     display_name: Python 3
-#     language: python
-#     name: python3
+#       format_version: '1.4'
+#       jupytext_version: 1.2.4
+#   kernelspec: {}
 # ---
 
 import mmf_setup;mmf_setup.nbinit()
@@ -1010,8 +1007,37 @@ np.sort(abs(d))[N1-1:N1+1],np.sort(abs(Es))[N1-1:N1+1]
 
 a[99]
 
+# # BdG
+
+# Here we formulate the single-particle Hamiltonian for a vortex state with winding number $w$.  This is characterized by a pairing field with:
+#
+# $$
+#   \Delta(r, \theta) = \Delta(r) e^{\I w \theta}.
+# $$
+#
+# The single particle states have quantum numbers $n$ (principle) and $l_z$ (angular momentum) and have the following structure:
+#
+# $$
+#   \Psi_{n,l_z}(r, \theta) = \begin{pmatrix}
+#     U_{n, l_z}(r)e^{\I w \theta}\\
+#     V^*_{n, l_z}(r)
+#   \end{pmatrix}e^{\I l_z \theta}.
+# $$
+#
+# The s.p. Hamiltonian thus has the form:
+#
+# $$
+#   \mat{K} = \begin{pmatrix}
+#     \op{K}_a & \Delta(r)e^{\I w \theta}\\
+#     \Delta(r)e^{-\I w \theta} & -\op{K}_b
+#   \end{pmatrix}, 
+#   \qquad
+#   \op{K}_{i} = \frac{-\hbar^2\nabla^2}{2m} - \mu_i.
+# $$
+
 # # BdG in Rotating Frame Transform
 
+# $\newcommand{\op}[1]{\mathbf{#1}}$
 # DVR $\op{T}$ Operator
 
 # \begin{align}
@@ -1075,8 +1101,7 @@ a[99]
 # $$
 #
 # Then, to be explicit:
-
-# $$
+#
 # \begin{align}
 # \begin{pmatrix}
 # -\frac{\nabla^2}{2}-\mu_a & \Delta(r)e^{i2n\theta}\\
@@ -1104,6 +1129,55 @@ a[99]
 # V_m(r)^*e^{-i(n+m)\theta}
 # \end{pmatrix}
 # \end{align}
+
+# $$
+#   \begin{pmatrix}
+#     K_a & \Delta(r)\\
+#     \Delta(r) & -K_b\\
+#   \end{pmatrix}
+#   \begin{pmatrix}
+#     U_{n,m}(r)e^{i m\theta}\\
+#     V_{n,m}^*(r)e^{im\theta}
+#   \end{pmatrix}
+#   =
+#   \begin{pmatrix}
+#     e^{i m\theta} [K_{a,m}U_{n,m}(r)) + \Delta(r)V_{n,m}^*(r)]\\
+#     \Delta(r)e^{-i n\theta}  -K_b\\
+#   \end{pmatrix}
+# $$
+
+# $$
+#   \begin{pmatrix}
+#     -\frac{\nabla^2}{2}-\mu_a & \Delta(r)\\
+#     \Delta(r) & \frac{\nabla^2}{2} + \mu_b\\
+#   \end{pmatrix}
+#   \begin{pmatrix}
+#     U_{n,m}(r)e^{i m\theta}\\
+#     V_{n,m}^*(r)e^{-im\theta}
+#   \end{pmatrix}
+#   =
+#   E_{n,m}
+#   \begin{pmatrix}
+#     U_{n,m}(r)e^{i m\theta}\\
+#     V_{n,m}^*(r)e^{-im\theta}
+#   \end{pmatrix}
+# $$
+
+# $$
+# \begin{pmatrix}
+#     -\frac{\nabla^2}{2}-\mu_a & \Delta(r)e^{i n\theta}\\
+#     \Delta(r)e^{-i n\theta} & \frac{\nabla^2}{2} + \mu_b\\
+#   \end{pmatrix}
+#   \begin{pmatrix}
+#     U_{n,m}(r)e^{i (m+n)\theta}\\
+#     V_{n,m}^*(r)e^{i m\theta}
+#   \end{pmatrix}
+#   =
+#   E_{n,m}
+#   \begin{pmatrix}
+#     U_{n,m}(r)e^{i (m+n)\theta}\\
+#     V_{n,m}^*(r)e^{i m\theta}
+#   \end{pmatrix}
 # $$
 
 # Let $\op{T}=-\frac{\nabla^2}{2}-\mu + \frac{(n+m)^2}{2r^2}$, and it only acts on $U(r),V(r)$
