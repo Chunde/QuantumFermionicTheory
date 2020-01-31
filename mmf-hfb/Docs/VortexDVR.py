@@ -7,7 +7,7 @@
 #       extension: .py
 #       format_name: light
 #       format_version: '1.5'
-#       jupytext_version: 1.3.2
+#       jupytext_version: 1.3.0
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -1167,21 +1167,39 @@ a[99]
 # \ket{2,-1},\ket{2,1}\\
 # \ket{3,-2},\ket{3,0}, \ket{3,2}\\
 # \ket{4,-3},\ket{4,-1}, \ket{4,1},\ket{4,3}\\
+# \ket{5,-4},\ket{5,-2}, \ket{5,0},\ket{5,2},\ket{5,4}\\
 # \vdots\\
-# \ket{n, -n+1},\ket{n,n -3},\dots,\ket{n, 0},\dots,\ket{n, n-3},\ket{n, n-3},\ket{n, n-1},\\
+# \ket{n, -n+1},\ket{n,-n +3},\dots,\ket{n, 0},\dots,\ket{n, n-5},\ket{n, n-3},\ket{n, n-1},\\
 # \vdots
 # $$
 #
 # if the $m$ is shift to the right by 1: $m\rightarrow m+1$
 #
 # $$\ket{1,1}\\
-# \ket{2,0},\ket{2,1}, \ket{2,2}\\
-# \ket{3,1},\ket{3,0}, \ket{3,-1}, \ket{3,2},\ket{3,3}\\
-# \ket{4,-2},\ket{4,-1}, \ket{4, 0}, \ket{4,1},\ket{4, 2},\ket{4,3},\ket{4,4}\\
-# \ket{n,n -2},\dots,\ket{n, 0},\dots,\ket{n, n-3},\ket{n, n-2},\ket{n, n-1},\ket{n, n},\\
+# \ket{2,0}, \ket{2,2}\\
+# \ket{3,-1}, \ket{3,1},\ket{3,3}\\
+# \ket{4,-2},\ket{4,0}, \ket{4,2},\ket{4,4}\\
+# \ket{5,-3},\ket{5,-1}, \ket{5,1},\ket{5,3},\ket{5,5}\\
+# \vdots\\
+# \ket{n,-n +2},\dots,\ket{n,-n+4},\dots,\ket{n, n-4},\ket{n, n-2},\ket{n, n},\\
 # \vdots
 # $$
 # Then all the rightmost states are illegal, and should be dicarded. Or put another way, for a any basis with $\nu$, the lowest eneygy state is not degenated
+
+# In BdG with DVR, for any give $\nu$, after diagonize the $\op{H}$ matrix, we will get states with energy, for example:
+#
+# For $\nu=0$: $$
+# \overbrace{E^{(0)}_{2n+1}, E^{(0)}_{2n-1},\dots,E^{(0)}_3, E^{(0)}_1}^{u}, \overbrace{-E^{(0)}_1, -E^{(0)}_3,\dots, -E^{(0)}_{2n-1}, -E^{(0)}_{2n+1}}^{v}
+# $$
+# For $\nu=1$: $$
+# E^{(1)}_{2n+2}, E^{(1)}_{2n},\dots,E^{(1)}_4, E^{(1)}_2, -E^{(1)}_2, -E^{(1)}_4,\dots, -E^{(1)}_{2n}, -E^{(1)}_{2n+2}
+# $$
+# For $\nu=2$: $$
+# E^{(2)}_{2n+3}, E^{(2)}_{2n+1},\dots,E^{(2)}_5,E^{(2)}_3, -E^{(2)}_3,-E^{(2)}_5,\dots, -E^{(2)}_{2n+1}, -E^{(2)}_{2n+3}
+# $$
+# For $\nu=3$: $$
+# E^{(3)}_{2n+4}, E^{(3)}_{2n+2},\dots,E^{(3)}_6, E^{(3)}4, -E^{(3)}_4, -E^{(3)}_6,\dots, -E^{(3)}_{2n+2}, -E^{(1)}_{2n+4}
+# $$
 
 # # 2D Harmonic Oscillator in Polar System
 # In polar coordinates, the Del operator $\nabla^2$ is defined as:
