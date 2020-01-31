@@ -150,10 +150,12 @@ class bdg_dvr(object):
         Delta = np.diag(basis.zero + delta)
         mu_a, mu_b = mus
         V_ext = self.get_Vext(rs=basis.rs)
-        V_corr = basis.get_V_correction(nu=nu)
-        V_eff = V_ext + V_corr
-        H_a = T + np.diag(V_eff - mu_a)
-        H_b = T + np.diag(V_eff - mu_b)
+        V_corr_a = basis.get_V_correction(nu=nu + self.lz)
+        V_corr_b = basis.get_V_correction(nu=nu)
+        V_eff_a = V_ext + V_corr_a
+        V_eff_b = V_ext + V_corr_b
+        H_a = T + np.diag(V_eff_a - mu_a)
+        H_b = T + np.diag(V_eff_b - mu_b)
         H = block(H_a, Delta, Delta.conj(), -H_b)
         return H
 
@@ -198,18 +200,7 @@ class bdg_dvr(object):
             kappa = u*v.conj()*(f_p - f_m)/2
             dens.append(np.array([n_a, n_b, kappa, j_a, j_b]))
         den = sum(dens)
-        return den if nu == 0 else 2*den
-
-        # if len(dens) == 0:
-        #     return 0
-        # if self.lz == 0:
-        #     den = sum(dens)
-        #     return den if nu == 0 else 2*den
-        # else:
-        #     den = sum(dens)
-        #     den_shift = dens[len(dens)//2]
-        #     den = den - den_shift
-        #     return den if nu == 0 else 2*den + den_shift
+        return den if nu + self.lz == 0 else 2*den
         
     def get_densities(self, mus, delta, lz=None):
         """
@@ -227,8 +218,8 @@ class bdg_dvr(object):
         for nu in range(0, self.l_max):  # sum over angular momentum
             H = self.get_H(mus=mus, delta=delta, nu=nu)
             den = self._get_den(H, nu=nu)
-            # if np.alltrue(den == 0):
-            #     break
+            if np.alltrue(den == 0):
+                break
             dens = dens + den  # double-degenerate
         n_a, n_b, kappa, j_a, j_b = dens
         return Densities(

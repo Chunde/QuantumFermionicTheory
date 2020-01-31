@@ -835,12 +835,10 @@ from mmfutils.math.special import mstep
 import mmf_hfb.VortexDVR  as vd; reload(vd)
 from mmf_hfb.VortexDVR import bdg_dvr,dvr_vortex,BCS_vortex
 
-
-loop = 1
+loop = 10
 mu = 5
 dmu = 0
-E_c=40
-n = 1  #angular winding
+E_c=50
 delta_bcs=delta_dvr=delta=2
 # BCS
 bcs = BCS_vortex(Nxyz=(32,)*2, Lxyz=(10,)*2, mus_eff=(mu+dmu, mu-dmu), delta=delta)
@@ -848,10 +846,10 @@ bcs = BCS_vortex(Nxyz=(32,)*2, Lxyz=(10,)*2, mus_eff=(mu+dmu, mu-dmu), delta=del
 x, y = bcs.xyz
 rs = np.sqrt(sum(_x**2 for _x in bcs.xyz)).ravel()
 # DVR
-dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=E_c, bases=None, N_root=33, R_max=5, l_max=100)
-delta_bcs = delta*(x+1j*y) if n == 1 else delta*(x**2-y**2+2j*x*y)# 
-delta_dvr = delta*dvr.rs**n#
-dvr.lz = 0 #if np.size(delta_bcs)==1 else n # using the value of 0.5 is because it should be half of the m (not mass)
+dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=E_c, bases=None, N_root=34, R_max=5, l_max=100)
+delta_bcs = delta*(x+1j*y) # if n == 1 else delta*(x**2-y**2+2j*x*y)# 
+delta_dvr = delta*dvr.rs
+dvr.lz = 1 #if np.size(delta_bcs)==1 else n # using the value of 0.5 is because it should be half of the m (not mass)
 bcs.E_c=E_c
 dvr.E_c=E_c
 def update_plot(delta_bcs_, delta_dvr_):
@@ -910,9 +908,11 @@ def update_plot(delta_bcs_, delta_dvr_):
     plt.legend()
     # Old Delta
     plt.subplot(333)
-    plt.plot(dvr.rs, abs(delta_dvr), label=r'$\Delta$(DVR)')
-    plt.plot(rs, abs(delta_bcs).ravel(), '+', label=r'$\Delta$(Grid)')
-    plt.title(f"Older Delta")
+    plt.plot(dvr.rs, nb_dvr + na_dvr, label=r'$n_+$(DVR)')
+    plt.plot(rs, (nb_bcs + na_bcs).ravel(), '+', label=r'$n_+$(Grid)')
+#     plt.plot(dvr.rs, abs(delta_dvr), label=r'$\Delta$(DVR)')
+#     plt.plot(rs, abs(delta_bcs).ravel(), '+', label=r'$\Delta$(Grid)')
+#     plt.title(f"Older Delta")
     plt.legend()
     clear_output(wait=True)
     plt.show()
@@ -928,8 +928,6 @@ with NoInterrupt() as interrupted:
         delta_bcs, delta_dvr = delta_bcs_, delta_dvr_
         print(n, err_dvr, err_bcs)
 # -
-
-
 
 # ## Energy Spectrum in DVR & Grid with Potential
 
@@ -1000,17 +998,11 @@ plt.plot(dvr.rs, dens[0], label=r'$n_a$(DVR)')
 plt.plot(dvr.rs, dens[1], label=r'$n_b$(DVR)');plt.legend()
 # -
 
-np.sort(abs(Es))[0:100], len(Es)
-
 N1=0
 N2=100
 a=np.sort(abs(d))[N1:N2]
 b=np.sort(abs(Es))[N1:N2]
 np.allclose(a, b, rtol=0.1)
-
-np.sort(abs(d))[N1-1:N1+1],np.sort(abs(Es))[N1-1:N1+1]
-
-a[99]
 
 # # DVR of a Vortex in BdG
 # Let us get started with the single partilce Harmitonian

@@ -42,7 +42,7 @@ class CylindricalBasis(object):
         
     def init(self):
         # if N_root is None or R_max is None or K_max is None:
-        self.get_N_K_R(a0=self.a0)
+        self.set_N_K_R(a0=self.a0)
         self.zs = self.get_zs(nu=self.nu)
         self.rs = self.get_rs(zs=self.zs)
         self.K = self.get_K(zs=self.zs, nu=self.nu)
@@ -50,7 +50,7 @@ class CylindricalBasis(object):
         self.rs_scale = self._rs_scaling_factor(zs=self.zs)
         self.ws = self.get_F_rs()/self.rs_scale  # weight
 
-    def get_N_K_R(self, a0=None):
+    def set_N_K_R(self, a0=None):
         """evaluate R_max and K_max using Gaussian wavefunction"""
         if a0 is None:
             a0 = 1
@@ -210,19 +210,3 @@ class HarmonicDVR(CylindricalBasis):
         V_corr = self.get_V_correction(nu=nu)
         H = K + np.diag(V + V_corr)
         return H
-
-
-if __name__ == "__main__":
-    dvr0 = CylindricalBasis(nu=0, R_max=9, N_root=49)
-    dvr1 = CylindricalBasis(nu=1, R_max=9, N_root=48)
-    z0 = dvr0.zs
-    z1 = dvr1.zs
-    a = np.sin(z1)/np.sqrt(z1)
-    b = -np.cos(z0)/np.sqrt(z0)
-    U10 = []
-    for j in range(len(z0)):
-        for i in range(len(z1)):
-            v = 2*b[j]*(z0[j]*z1[i])**0.5/a[i]/(z1[i]**2 - z0[j]**2)
-            U10.append(v)
-    U10 = np.array(U10).reshape(len(z0), len(z1))
-    print(U10)
