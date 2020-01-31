@@ -143,7 +143,7 @@ class bdg_dvr(object):
         ---------
         l_z : int
            Angular momentum quantum number.  The centrifugal piece
-           for this is included in the kinetic term, while the remaining 
+           for this is included in the kinetic term, while the remaining
         """
         basis = self.bases.get_basis(nu=nu)
         T = basis.K
@@ -197,16 +197,19 @@ class bdg_dvr(object):
             j_b = -n_b*self.lz/self.rs
             kappa = u*v.conj()*(f_p - f_m)/2
             dens.append(np.array([n_a, n_b, kappa, j_a, j_b]))
-        if len(dens) == 0:
-            return 0
-        if self.lz == 0:
-            den = sum(dens)
-            return den if nu == 0 else 2*den
-        else:
-            den = sum(dens)
-            den_shift = dens[len(dens)//2]
-            den = den - den_shift
-            return den if nu == 0 else 2*den + den_shift
+        den = sum(dens)
+        return den if nu == 0 else 2*den
+
+        # if len(dens) == 0:
+        #     return 0
+        # if self.lz == 0:
+        #     den = sum(dens)
+        #     return den if nu == 0 else 2*den
+        # else:
+        #     den = sum(dens)
+        #     den_shift = dens[len(dens)//2]
+        #     den = den - den_shift
+        #     return den if nu == 0 else 2*den + den_shift
         
     def get_densities(self, mus, delta, lz=None):
         """

@@ -1,67 +1,18 @@
 # ---
 # jupyter:
 #   jupytext:
+#     cell_metadata_json: true
 #     formats: ipynb,py:light
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.4'
-#       jupytext_version: 1.2.4
+#       format_version: '1.5'
+#       jupytext_version: 1.3.2
 #   kernelspec:
-#     display_name: _qt
+#     display_name: Python 3
 #     language: python
-#     name: _qt
+#     name: python3
 # ---
-
-# $$
-#   \op{H} = \frac{-\hbar^2\nabla^2}{2m} - \mu\\
-#   \op{H}\psi_{n,l_z}(r, \theta) = E\psi_{n,l_z}(r, \theta)
-# $$
-# Let $\psi_{n, l_z}(r,\theta)=R_{n, l_z}(r)e^{il_z\theta}$, plugin back to the up equation:
-# $$
-#   \left(\frac{-\hbar^2}{2m}\nabla^2 - \mu\right)R_{n, l_z}(r)e^{il_z\theta}\\
-#   \left(\frac{-\hbar^2}{2m}\left[
-#     \frac{1}{r}\pdiff{}{r}\left(r \pdiff{}{r}R_{n, l_z}(r)\right)
-#     - \frac{l_z^2}{r^2}R_{n, l_z}(r)\right]
-#     - \mu R_{n, l_z}(r)\right)e^{il_z\theta},\\
-#   R(r) = \sqrt{r}f(r)\\
-#   \left(
-#   \pdiff[2]{}{r}f_{n, l_z}(r) - \mu f_{n, l_z}(r)\right)e^{il_z\theta},\\
-# $$
-
-# $$
-# \left[\frac{-\hbar^2}{2m}\left(\diff[2]{}{r} - \frac{l_z^2}{r^2}\right) - \mu\right]\frac{1}{\sqrt{r}}\psi_{n, l_z}(r,\theta)=E\frac{1}{\sqrt{r}}\psi_{n, l_z}(r,\theta)
-# = E
-# $$
-
-# $$
-#   \begin{pmatrix}
-#     \op{K}_a - \mu_a & \Delta(r)^{\I w \theta}\\
-#     \Delta(r)^{-\I w \theta} & -\op{K}_b + \mu_b
-#   \end{pmatrix}
-#   \begin{pmatrix}
-#     \sqrt{r}u_{n, l_z}(r)e^{\I w \theta}\\
-#     \sqrt{r}v^*_{n, l_z}(r)
-#   \end{pmatrix}
-#   e^{\I l_z \theta}
-# $$
-#
-# $$
-#   \begin{pmatrix}
-#     \frac{-\hbar^2}{2m}\left(\diff[2]{}{r} - \frac{(l_z+n)^2}{r^2}\right) - \mu_a & \Delta(r)\\
-#     \Delta(r) & \frac{\hbar^2}{2m}\left(\diff[2]{}{r} + \frac{l_z^2}{r^2}\right) + \mu_b
-#   \end{pmatrix}
-#   \begin{pmatrix}
-#     u_{n, l_z}(r)\\
-#     v^*_{n, l_z}(r)
-#   \end{pmatrix}
-#   =
-#   E_{n, l_z}
-#   \begin{pmatrix}
-#     u_{n, l_z}(r)\\
-#     v^*_{n, l_z}(r)
-#   \end{pmatrix}
-# $$
 
 # # Simple Vortex in 2D
 

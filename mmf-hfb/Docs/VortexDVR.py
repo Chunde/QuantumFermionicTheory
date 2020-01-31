@@ -6,9 +6,12 @@
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.4'
-#       jupytext_version: 1.2.4
-#   kernelspec: {}
+#       format_version: '1.5'
+#       jupytext_version: 1.3.2
+#   kernelspec:
+#     display_name: Python 3
+#     language: python
+#     name: python3
 # ---
 
 import mmf_setup;mmf_setup.nbinit()
@@ -835,8 +838,8 @@ from mmf_hfb.VortexDVR import bdg_dvr,dvr_vortex,BCS_vortex
 
 loop = 1
 mu = 5
-dmu = 3
-E_c=30
+dmu = 0
+E_c=40
 n = 1  #angular winding
 delta_bcs=delta_dvr=delta=2
 # BCS
@@ -848,7 +851,7 @@ rs = np.sqrt(sum(_x**2 for _x in bcs.xyz)).ravel()
 dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=E_c, bases=None, N_root=33, R_max=5, l_max=100)
 delta_bcs = delta*(x+1j*y) if n == 1 else delta*(x**2-y**2+2j*x*y)# 
 delta_dvr = delta*dvr.rs**n#
-dvr.lz = 0 if np.size(delta_bcs)==1 else n/2.0 # using the value of 0.5 is because it should be half of the m (not mass)
+dvr.lz = 0 #if np.size(delta_bcs)==1 else n # using the value of 0.5 is because it should be half of the m (not mass)
 bcs.E_c=E_c
 dvr.E_c=E_c
 def update_plot(delta_bcs_, delta_dvr_):
@@ -925,6 +928,8 @@ with NoInterrupt() as interrupted:
         delta_bcs, delta_dvr = delta_bcs_, delta_dvr_
         print(n, err_dvr, err_bcs)
 # -
+
+
 
 # ## Energy Spectrum in DVR & Grid with Potential
 
@@ -1007,53 +1012,18 @@ np.sort(abs(d))[N1-1:N1+1],np.sort(abs(Es))[N1-1:N1+1]
 
 a[99]
 
-# # BdG
-
-# Here we formulate the single-particle Hamiltonian for a vortex state with winding number $w$.  This is characterized by a pairing field with:
+# # DVR of a Vortex in BdG
+# Let us get started with the single partilce Harmitonian
+# $$
+#   \op{H}\psi_{n,l_z}(r, \theta) = E\psi_{n,l_z}(r, \theta)
+# $$
+# where $\op{H} = \frac{-\hbar^2\nabla^2}{2m} - \mu$
 #
-# $$
-#   \Delta(r, \theta) = \Delta(r) e^{\I w \theta}.
-# $$
-#
-# The single particle states have quantum numbers $n$ (principle) and $l_z$ (angular momentum) and have the following structure:
-#
-# $$
-#   \Psi_{n,l_z}(r, \theta) = \begin{pmatrix}
-#     U_{n, l_z}(r)e^{\I w \theta}\\
-#     V^*_{n, l_z}(r)
-#   \end{pmatrix}e^{\I l_z \theta}.
-# $$
-#
-# The s.p. Hamiltonian thus has the form:
-#
-# $$
-#   \mat{K} = \begin{pmatrix}
-#     \op{K}_a & \Delta(r)e^{\I w \theta}\\
-#     \Delta(r)e^{-\I w \theta} & -\op{K}_b
-#   \end{pmatrix}, 
-#   \qquad
-#   \op{K}_{i} = \frac{-\hbar^2\nabla^2}{2m} - \mu_i.
-# $$
-
-# # BdG in Rotating Frame Transform
-
-# $\newcommand{\op}[1]{\mathbf{#1}}$
-# DVR $\op{T}$ Operator
-
+# Let the full wavefunction $\psi_{n, l_z}(r,\theta)=R_{n, l_z}(r)e^{il_z\theta}$, plugin back to the above equation:
 # \begin{align}
-# \op{T}\psi
-# &=\frac{1}{r^{d-1}} \frac{\partial }{\partial  r}\left(r^{d-1} \frac{\partial  \psi}{\partial r}\right)-\frac{\lambda(\lambda+d-2)}{r^{2}} \psi \\
-# &=\frac{1}{r} \frac{\partial }{\partial  r}\left(r \frac{\partial \psi}{\partial r}\right)-\frac{\lambda^2}{r^{2}} \psi \\
-# &=\frac{\partial^2 \psi}{\partial r^2}+\frac{1}{r}\frac{\partial \psi}{\partial r} -\frac{\lambda^2}{r^{2}} \psi
+#   E\psi_{n,l_z}(r, \theta)
+#   &=\left(\frac{-\hbar^2}{2m}\nabla^2 - \mu\right)R_{n, l_z}(r)e^{il_z\theta}\\
 # \end{align}
-# So
-#
-# \begin{align}
-# \op{T}
-# &=\frac{\partial^2}{\partial r^2}+\frac{1}{r}\frac{\partial}{\partial r} -\frac{\lambda^2}{r^{2}}
-# \end{align}
-
-# * However, in the DVR calculation, we actually use $\phi(r)=\sqrt{r}\psi(r)$
 
 # In polar coordinates, the Del operator $\nabla^2$ is defined as:
 # $$
@@ -1063,254 +1033,77 @@ a[99]
 # &=\frac{\partial^2 }{\partial r^2}+\frac{1}{r} \frac{\partial }{\partial r}+\frac{1}{r^{2}} \frac{\partial^{2} }{\partial \theta^{2}}
 # \end{align}
 # $$
-
-# To be general, let $f=f(r,\theta)$
-# $$
-# \begin{aligned}
-# \nabla^2 \left[ fe^{in\theta}\right]
-# &=\frac{\partial^{2} }{\partial r^{2}}\left[f(r,\theta)e^{in\theta}\right]
-# +\frac{1}{r} \frac{\partial}{\partial r}\left[f(r,\theta)e^{in\theta}\right]
-# +\frac{1}{r^{2}} \frac{\partial^{2} }{\partial \theta^{2}}\left[f(r,\theta)e^{in\theta}\right]\\
-# &=\bigg\{\frac{\partial^{2} }{\partial r^{2}}\left[f(r,\theta)\right]
-# +\frac{1}{r} \frac{\partial}{\partial r}\left[f(r,\theta)\right]
-# +\frac{1}{r^{2}} \left[\left(\frac{\partial^{2} }{\partial \theta^{2}}+i2n\frac{\partial}{\partial \theta} - n^2\right)f(r, \theta)\right]\bigg\}e^{in\theta}\\
-# &=\bigg\{\frac{\partial^{2} }{\partial r^{2}}\left[f(r,\theta)\right]
-# +\frac{1}{r} \frac{\partial}{\partial r}\left[f(r,\theta)\right]
-# - \frac{n^2}{r^2}f(r, \theta)
-# +\frac{1}{r^{2}} \left[\left(\frac{\partial^{2} }{\partial \theta^{2}}+i2n\frac{\partial}{\partial \theta}\right)f(r, \theta)\right]\bigg\}e^{in\theta}\\
-# &=\bigg\{
-# \left[\frac{\partial^2 }{\partial r^2}+\frac{1}{r} \frac{\partial}{\partial r}- \frac{n^2}{r^2} \right]f(r, \theta)
-# +\frac{1}{r^{2}} \left[\left(\frac{\partial^{2} }{\partial \theta^{2}}+i2n\frac{\partial}{\partial \theta}\right)f(r, \theta)\right]\bigg\}e^{in\theta}\\
-# &=\bigg\{
-# \op{T}f(r, \theta)
-# +\frac{1}{r^{2}} \left[\left(\frac{\partial^{2} }{\partial \theta^{2}}+i2n\frac{\partial}{\partial \theta}\right)f(r, \theta)\right]\bigg\}e^{in\theta}\\
-# \end{aligned}
-# $$
-# if $f(r,\theta)=f(r)$, i.e. $f$ only depends on $r$, the above result can be simplified:
-# $$
-# \nabla^2 \left[ fe^{in\theta}\right]=\left[\left(\nabla^2  - \frac{n^2}{r^2})f(r,\theta)\right)\right]e^{in\theta}
-# $$
+# The Schrodinger equatin can rewritten as:
+# \begin{align}
+#   E\psi_{n,l_z}(r, \theta)
+#   &=\left(\frac{-\hbar^2}{2m}\left[
+#     \frac{1}{r}\pdiff{}{r}\left(r \pdiff{}{r}R_{n, l_z}(r)\right)
+#     - \frac{l_z^2}{r^2}R_{n, l_z}(r)\right]
+#     - \mu R_{n, l_z}(r)\right)e^{il_z\theta},\\
+# \end{align}
 #
-# To compute the pairing field of a vortex in BdG formulism, let the pairing field to be of this form:
-# $$
-# \Delta = \Delta(r) e^{i2n\theta}
-# $$
-#
-# $$
-# R\psi(x,y)=e^{i\theta \hat{L}_z/\hbar}\psi(x,y)
-# $$
-#
-# Then, to be explicit:
+# Let $R(r) = r^{-1/2}f(r)$, the kenitic part can  be expressed:
 #
 # \begin{align}
-# \begin{pmatrix}
-# -\frac{\nabla^2}{2}-\mu_a & \Delta(r)e^{i2n\theta}\\
-# \Delta^(r)e^{-i2n\theta} & \frac{\nabla^2}{2} + \mu_b\\
-# \end{pmatrix}
-# \begin{pmatrix}
-# U_m(r)e^{i(n+m)\theta}\\
-# V_m^*(r)e^{-i(n+m)\theta}e^{-in\theta}
-# \end{pmatrix}
-# &=\begin{pmatrix}
-# (-\frac{\nabla^2}{2}-\mu_a)U_m(r)e^{i(n+m)\theta}+ \Delta(r) e^{i2n\theta}V_m^*(r)e^{-i(n+m)\theta}\\
-# \Delta^* (r) e^{-i2n\theta}U_m(r)e^{i(n+m)\theta} + (\frac{\nabla^2}{2} + \mu_b)V_m^*(x)e^{-i(n+m)\theta}\\
-# \end{pmatrix}\\
-# &=\begin{pmatrix}\left[-\frac{\nabla^2}{2}-\mu_a \right]U_m(r)e^{i(n+m)\theta}+ \Delta(r)V_m^*(r)e^{i(n-m)\theta}\\
-# \Delta^* (r) U_m(r)e^{-i(n-m)\theta} + \left[\frac{\nabla^2}{2} + \mu_b\right]V_m^*(r)e^{-i(n+m)\theta}\\
-# \end{pmatrix}\\
-# &=\begin{pmatrix}\left[-\frac{\nabla^2}{2}-\mu_a + \frac{(n+m)^2}{2r^2} \right]U_m(r)e^{i(n+m)\theta}+ \Delta(r)V_m^*(r)e^{i(n-m)\theta}\\
-# \Delta^* (r) U_m(r)e^{-i(n-m)\theta} + \left[\frac{\nabla^2}{2} + \mu_b - \frac{(n+m)^2}{2r^2}\right]V_m^*(r)e^{-i(n+m)\theta}\\
-# \end{pmatrix}\\
-# &=\begin{pmatrix}
-# E & 0\\
-# 0&-E
-# \end{pmatrix}\begin{pmatrix}
-# U_m(r)e^{i(n+m)\theta}\\
-# V_m(r)^*e^{-i(n+m)\theta}
-# \end{pmatrix}
+# \left[\frac{\partial^2 }{\partial r^2}+\frac{1}{r} \frac{\partial }{\partial r}\right]\left[r^{-1/2}f(r)\right]
+# &=\frac{\partial }{\partial r}\left[-\frac{1}{2}r^{-3/2}f(r)+r^{-1/2}\frac{\partial f}{\partial r}\right]+\frac{1}{r}\left[-\frac{1}{2}r^{-3/2}f+r^{-1/2}\frac{\partial f}{\partial r}\right]\\
+# &=\left[\frac{3}{4}r^{-5/2}f(r)-\frac{1}{2}r^{-3/2}\frac{\partial f}{\partial r}-\frac{1}{2}r^{-3/2}\frac{\partial f}{\partial r}+ r^{-1/2}\frac{\partial^2 f}{\partial r^2}\right]+\left[-\frac{1}{2}r^{-5/2}f(r)+r^{-3/2}\frac{\partial f}{\partial r}\right]\\
+# &=\frac{1}{4}r^{-5/2}f(r)+r^{-1/2}\frac{\partial^2 f}{\partial r^2}\\
+# &=r^{-1/2}\left[\frac{\partial^2 }{\partial r^2}+ \frac{1}{4r^2}\right]f(r)
 # \end{align}
+
+# Combinaition with th angular part yields:
+# \begin{align}
+# \left(-\frac{\hbar^2}{2m}\nabla^2 - \mu\right)R_{n, l_z}(r)e^{il_z\theta}
+# &=
+#   \left(-\frac{\hbar^2}{2m}\left[
+#     \frac{1}{r}\pdiff{}{r}\left(r \pdiff{}{r}R_{n, l_z}(r)\right)
+#     - \frac{l_z^2}{r^2}R_{n, l_z}(r)\right]
+#     - \mu R_{n, l_z}(r)\right)e^{il_z\theta},\\
+# &=r^{-1/2}\left[\frac{-\hbar^2}{2m}\left(\frac{\partial^2 }{\partial r^2}+ \frac{1}{4r^2}-\frac{l_z^2}{r^2}\right)-\mu\right]f(r)e^{il_z\theta}\\
+# &=r^{-1/2}\left[\frac{-\hbar^2}{2m}\left(\frac{\partial^2 }{\partial r^2}- \frac{1_z^2 - 1/4}{r^2}\right)-\mu\right]f(r)e^{il_z\theta}
+# \end{align}
+#
+# Substituion back to the Harmitonian gives:
+# $$
+# \left[-\frac{\hbar^2}{2m}\left(\frac{\partial^2 }{\partial r^2}- \frac{1_z^2 - 1/4}{r^2}\right)-\mu\right]f(r)=Ef(r)
+# $$
+# Define an operator $\op{K}$ as:
+#
+# $$
+# \op{K}=-\frac{\hbar^2}{2m}\left(\frac{\partial^2 }{\partial r^2}- \frac{1_z^2 - 1/4}{r^2}\right)
+# $$
 
 # $$
 #   \begin{pmatrix}
-#     K_a & \Delta(r)\\
-#     \Delta(r) & -K_b\\
+#     -\frac{\hbar^2}{2m}\nabla^2 - \mu_a & \Delta(r)e^{\I w \theta}\\
+#     \Delta(r)e^{-i w \theta} & \frac{\hbar^2}{2m}\nabla^2 + \mu_b
 #   \end{pmatrix}
 #   \begin{pmatrix}
-#     U_{n,m}(r)e^{i m\theta}\\
-#     V_{n,m}^*(r)e^{im\theta}
+#     \sqrt{r}u_{n, l_z}(r)e^{\I w \theta}\\
+#     \sqrt{r}v^*_{n, l_z}(r)
+#   \end{pmatrix}
+#   e^{\I l_z \theta}
+# $$
+#
+# $$
+#   \begin{pmatrix}
+#     -\frac{\hbar^2}{2m}\left(\diff[2]{}{r} - \frac{(l_z+w)^2-1/4}{r^2}\right) - \mu_a & \Delta(r)\\
+#     \Delta(r) & \frac{\hbar^2}{2m}\left(\diff[2]{}{r} -\frac{l_z^2-1/4}{r^2}\right) + \mu_b
+#   \end{pmatrix}
+#   \begin{pmatrix}
+#     u_{n, l_z}(r)\\
+#     v^*_{n, l_z}(r)
 #   \end{pmatrix}
 #   =
 #   \begin{pmatrix}
-#     e^{i m\theta} [K_{a,m}U_{n,m}(r)) + \Delta(r)V_{n,m}^*(r)]\\
-#     \Delta(r)e^{-i n\theta}  -K_b\\
-#   \end{pmatrix}
-# $$
-
-# $$
-#   \begin{pmatrix}
-#     -\frac{\nabla^2}{2}-\mu_a & \Delta(r)\\
-#     \Delta(r) & \frac{\nabla^2}{2} + \mu_b\\
+#   E_{n, l_z}&0\\
+#   0&-E_{n, l_z}
 #   \end{pmatrix}
 #   \begin{pmatrix}
-#     U_{n,m}(r)e^{i m\theta}\\
-#     V_{n,m}^*(r)e^{-im\theta}
+#     u_{n, l_z}(r)\\
+#     v^*_{n, l_z}(r)
 #   \end{pmatrix}
-#   =
-#   E_{n,m}
-#   \begin{pmatrix}
-#     U_{n,m}(r)e^{i m\theta}\\
-#     V_{n,m}^*(r)e^{-im\theta}
-#   \end{pmatrix}
-# $$
-
-# $$
-# \begin{pmatrix}
-#     -\frac{\nabla^2}{2}-\mu_a & \Delta(r)e^{i n\theta}\\
-#     \Delta(r)e^{-i n\theta} & \frac{\nabla^2}{2} + \mu_b\\
-#   \end{pmatrix}
-#   \begin{pmatrix}
-#     U_{n,m}(r)e^{i (m+n)\theta}\\
-#     V_{n,m}^*(r)e^{i m\theta}
-#   \end{pmatrix}
-#   =
-#   E_{n,m}
-#   \begin{pmatrix}
-#     U_{n,m}(r)e^{i (m+n)\theta}\\
-#     V_{n,m}^*(r)e^{i m\theta}
-#   \end{pmatrix}
-# $$
-
-# Let $\op{T}=-\frac{\nabla^2}{2}-\mu + \frac{(n+m)^2}{2r^2}$, and it only acts on $U(r),V(r)$
-# $$
-# \begin{align}
-# \begin{pmatrix}\op{T_a}U_m(r)e^{i(n+m)\theta}+ \Delta(r)V_m^*(r)e^{i(n-m)\theta}\\
-# \Delta^* (r) U_m(r)e^{-i(n-m)\theta} -\op{T_b}V_m^*(r)e^{-i(n+m)\theta}\\
-# \end{pmatrix}&=\begin{pmatrix}
-# EU_m(r)e^{i(n+m)\theta}\\
-# -EV^*_m(r)e^{-i(n+m)\theta}
-# \end{pmatrix}\\
-# \begin{pmatrix}\op{T_a}U_m(r)e^{i2m\theta}+ \Delta(r)V_m^*(r)\\
-# \Delta^* (r) U_m(r) -\op{T_b}V_m^*(r)e^{-i2m\theta}\\
-# \end{pmatrix}&=\begin{pmatrix}
-# EU_m(r)e^{i2m\theta}\\
-# -EV^*_m(r)e^{-i2m)\theta}
-# \end{pmatrix}\\
-# \begin{pmatrix}\op{T_a}U_m(r)e^{im\theta}+ \Delta(r)V_m^*(r)e^{-im\theta}\\
-# \Delta^* (r) U_m(r)e^{im\theta} -\op{T_b}V_m^*(r)e^{-im\theta}\\
-# \end{pmatrix}&=\begin{pmatrix}
-# EU_m(r)e^{im\theta}\\
-# -EV_m(r)^*e^{-im\theta}
-# \end{pmatrix}\\
-# \begin{pmatrix}\op{T_a}& \Delta(r)\\
-# \Delta^* (r)& -\op{T_b}
-# \end{pmatrix}\begin{pmatrix}U_m(r)e^{im\theta}\\
-# V^*_m(r)e^{-im\theta}
-# \end{pmatrix}&=\begin{pmatrix}
-# E  & 0\\
-# 0 &-E\end{pmatrix}
-# \begin{pmatrix}U_m(r)e^{im\theta}\\
-# V^*_m(r)e^{-im\theta}
-# \end{pmatrix}
-# \end{align}
-# $$
-
-# * Older Derivation:
-# $$
-# \begin{pmatrix}\left[-\frac{\nabla^2}{2}-\mu_a + \frac{(n+m)^2}{2r^2} \right]& \Delta g(r)\\
-# \Delta^* g(r)^* & \left[\frac{\nabla^2}{2} + \mu_b - \frac{(n+m)^2}{2r^2}\right]\\
-# \end{pmatrix}\begin{pmatrix}
-# U_m(r)\\
-# V_m(r)^*
-# \end{pmatrix}=\begin{pmatrix}
-# E & 0\\
-# 0&-E
-# \end{pmatrix}\begin{pmatrix}
-# U_m(r)\\
-# V_m(r)^*
-# \end{pmatrix}
-# $$
-#
-#
-# * So:
-# To introduce vortex pairing field, the angular quantum number should be shifted to right(adding) by $n$
-
-# ## Shift $\nu$ for  each radial wave number states
-# In a 2D Homanic system, all states $\ket{n, m}$, $-n<m<n$, where here $n$ is the radial quantum number(when $\omega=1$ in isotropic case ,$n=E_n$), $m$ is the angular momentum quantum number
-#
-# $$\ket{1,0}\\
-# \ket{2,-1},\ket{2,1}\\
-# \ket{3,-2},\ket{3,0}, \ket{3,2}\\
-# \ket{4,-3},\ket{4,-1}, \ket{4,1},\ket{4,3}\\
-# \ket{5,-4},\ket{5,-2}, \ket{5,0},\ket{5,2},\ket{5,4}\\
-# \vdots\\
-# \ket{n, -n+1},\ket{n,-n +3},\dots,\ket{n, 0},\dots,\ket{n, n-5},\ket{n, n-3},\ket{n, n-1},\\
-# \vdots
-# $$
-#
-# if the $m$ is shift to the right by 1: $m\rightarrow m+1$
-#
-# $$\ket{1,1}\\
-# \ket{2,0}, \ket{2,2}\\
-# \ket{3,-1}, \ket{3,1},\ket{3,3}\\
-# \ket{4,-2},\ket{4,0}, \ket{4,2},\ket{4,4}\\
-# \ket{5,-3},\ket{5,-1}, \ket{5,1},\ket{5,3},\ket{5,5}\\
-# \vdots\\
-# \ket{n,-n +2},\dots,\ket{n,-n+4},\dots,\ket{n, n-4},\ket{n, n-2},\ket{n, n},\\
-# \vdots
-# $$
-# Then all the rightmost states are illegal, and should be dicarded. Or put another way, for a any basis with $\nu$, the lowest eneygy state is not degenated
-
-# In BdG with DVR, for any give $\nu$, after diagonize the $\op{H}$ matrix, we will get states with energy, for example:
-#
-# For $\nu=0$: $$
-# \overbrace{E^{(0)}_{2n+1}, E^{(0)}_{2n-1},\dots,E^{(0)}_3, E^{(0)}_1}^{u}, \overbrace{-E^{(0)}_1, -E^{(0)}_3,\dots, -E^{(0)}_{2n-1}, -E^{(0)}_{2n+1}}^{v}
-# $$
-# For $\nu=1$: $$
-# E^{(1)}_{2n+2}, E^{(1)}_{2n},\dots,E^{(1)}_4, E^{(1)}_2, -E^{(1)}_2, -E^{(1)}_4,\dots, -E^{(1)}_{2n}, -E^{(1)}_{2n+2}
-# $$
-# For $\nu=2$: $$
-# E^{(2)}_{2n+3}, E^{(2)}_{2n+1},\dots,E^{(2)}_5,E^{(2)}_3, -E^{(2)}_3,-E^{(2)}_5,\dots, -E^{(2)}_{2n+1}, -E^{(2)}_{2n+3}
-# $$
-# For $\nu=3$: $$
-# E^{(3)}_{2n+4}, E^{(3)}_{2n+2},\dots,E^{(3)}_6, E^{(3)}4, -E^{(3)}_4, -E^{(3)}_6,\dots, -E^{(3)}_{2n+2}, -E^{(1)}_{2n+4}
-# $$
-
-# # 2D Harmonic Oscillator in Polar System
-# In polar coordinates, the Del operator $\nabla^2$ is defined as:
-# $$
-# \begin{align}
-# \nabla^2
-# &=\frac{1}{r} \frac{\partial}{\partial r}\left(r \frac{\partial f}{\partial r}\right)+\frac{1}{r^{2}} \frac{\partial^{2} f}{\partial \theta^{2}}\\
-# &=\frac{\partial^2 f}{\partial r^2}+\frac{1}{r} \frac{\partial f}{\partial r}+\frac{1}{r^{2}} \frac{\partial^{2} f}{\partial \theta^{2}}
-# \end{align}
-# $$
-#
-# Then the Shrodinger Equation for this system can be written as:
-# $$
-# \left(-\frac{\hbar^2\nabla^2}{2M}+\frac{M\omega^2r^2}{2}\right)\Psi(r,\theta)=E\Psi(r,\theta)\\
-# \left(-\frac{\partial^2}{2M\partial r^2}-\frac{1}{2Mr} \frac{\partial}{\partial r}-\frac{1}{2Mr^2} \frac{\partial^{2} }{\partial \theta^{2}}+\frac{M\omega^2r^2}{2}\right)\Psi(r,\theta)=E\Psi(r,\theta)\\
-# \left(-\frac{\partial^2}{\partial r^2}-\frac{1}{r} \frac{\partial}{\partial r}-\frac{1}{r^2} \frac{\partial^{2} }{\partial \theta^{2}}+M^2\omega^2r^2\right)\Psi(r,\theta)=2ME\Psi(r,\theta)
-# $$
-# By assuming that the solution is separatable $\Psi(r,\theta)=R(r)\psi(\theta)$, we can solve the angular part fairly easily:
-# $$
-# \left(-\frac{\partial^2 R(r)}{\partial r^2}\phi(\theta)-\frac{1}{r} \frac{\partial R(r)}{\partial r}\phi(\theta)-\frac{1}{r^2} \frac{\partial^2 \phi(\theta) }{\partial \theta^{2}}R(r)+M^2\omega^2r^2 R(r)\phi(\theta)\right)=2MER(r)\phi(\theta)
-# $$
-# Divide both side by $R(r)\phi(\theta)$ to get:
-# $$
-# \left(-\frac{\partial^2 R(r)}{R(r)\partial r^2}-\frac{1}{rR(r)} \frac{\partial R(r)}{\partial r}-\frac{1}{r^2} \frac{\partial^2 \phi(\theta) }{\phi(\theta)\partial \theta^{2}}+M^2\omega^2r^2 \right)=2ME
-# $$
-# that means
-# $$
-# \psi(\theta)=e^{im\theta}\qquad m=0,1,2\dots
-# $$
-# The the radia part can be rearraged when substitude the angular solution into the Scrodinger equation:
-#
-# $$
-# r^2R''+rR'+ \left(2r^2ME-m^2-M^2\omega^2r^4\right)R=0
-# $$
-# The equation can be simplfied by setting $M=\omega=1$
-# $$
-# r^2R''+rR'+ \left(2r^2E-m^2-r^4\right)R=0
 # $$
 
 # # Find a Vortex
