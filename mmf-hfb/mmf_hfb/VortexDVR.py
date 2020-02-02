@@ -39,7 +39,7 @@ class dvr_odd_even_set(dvr_basis_set):
             inherit a child class to override this function
         """
         assert len(self.bases) > 1
-        return nu % 2
+        return abs(nu) % 2
 
     @property
     def zero(self):
@@ -49,10 +49,10 @@ class dvr_odd_even_set(dvr_basis_set):
         return self.bases[0].rs
 
     def get_basis(self, nu):
-        return self.bases[self.basis_match_rule(nu=nu)]
+        return self.bases[abs(nu) % 2]
 
     def get_psi(self, nu, u):
-        U_matrix = self.Us[nu % 2]
+        U_matrix = self.Us[abs(nu) % 2]
         if U_matrix is not None:
             u = U_matrix.dot(u)
         b = self.bases[0]
@@ -182,12 +182,19 @@ class bdg_dvr(object):
         es, phis = np.linalg.eigh(H)
         phis = phis.T
         offset = phis.shape[0] // 2
-        dens = []
+        dens_a = []
+        dens_b = []
+        dens_nu = []
+        Ep = []
+        Em = []
         for i in range(len(es)):
             E, uv = es[i], phis[i]
             if abs(E) > self.E_c:
                 continue
-            
+            if E < 0:
+                Em.append(E)
+            else:
+                Ep.append(E)
             u, v = uv[: offset], uv[offset:]
             u = self.get_psi(nu=nu, u=u)
             v = self.get_psi(nu=nu, u=v)
@@ -198,9 +205,10 @@ class bdg_dvr(object):
             j_a = -n_a*self.lz/self.rs
             j_b = -n_b*self.lz/self.rs
             kappa = u*v.conj()*(f_p - f_m)/2
-            dens.append(np.array([n_a, n_b, kappa, j_a, j_b]))
-        den = sum(dens)
-        return den if nu + self.lz == 0 else 2*den
+            dens_a.append(np.array([n_a, j_a]))
+            dens_b.append(np.array([n_b, j_b]))
+            dens_nu.append(kappa)
+        return np.array([sum(dens_a), sum(dens_b), sum(dens_nu), np.array(Ep), np.array(Em)])
         
     def get_densities(self, mus, delta, lz=None):
         """
@@ -214,14 +222,47 @@ class bdg_dvr(object):
         else:
             self.lz = lz
         
-        dens = 0
-        for nu in range(0, self.l_max):  # sum over angular momentum
-            H = self.get_H(mus=mus, delta=delta, nu=nu)
-            den = self._get_den(H, nu=nu)
-            if np.alltrue(den == 0):
-                break
-            dens = dens + den  # double-degenerate
-        n_a, n_b, kappa, j_a, j_b = dens
+        dens_a=dens_b=dens_nu=0
+        if False:
+            for nu in range(-self.lz - 1, self.lz + 1):  # sum over angular momentum
+                H = self.get_H(mus=mus, delta=delta, nu=nu)
+                den_a, den_b, den_nu = self._get_den(H, nu=nu)
+                deg_a = 1 if nu==-1 or nu==0 else 2
+                deg_b = 2 if nu==-1 or nu==0 else 1
+                dens_a = dens_a + deg_a*den_a
+                dens_b = dens_b + deg_b*den_b
+                dens_nu = dens_nu + den_nu
+
+            for nu in range(self.lz +1, self.l_max):  # sum over angular momentum
+                H = self.get_H(mus=mus, delta=delta, nu=nu)
+                den = self._get_den(H, nu=nu)
+                if np.alltrue(den==0):
+                    continue
+                den_a, den_b, den_nu = den
+                dens_a = dens_a + 2*den_a
+                dens_b = dens_b + 2*den_b
+                dens_nu = dens_nu + 2*den_nu
+        else:
+            eps=[]
+            ems = []
+            for nu in range(-self.l_max, self.l_max+1):  # sum over angular momentum
+                H = self.get_H(mus=mus, delta=delta, nu=nu)
+                den = self._get_den(H, nu=nu)
+                if np.alltrue(den==0):
+                    continue
+                den_a, den_b, den_nu, ep, em = den
+                dens_a = dens_a + den_a
+                dens_b = dens_b + den_b
+                dens_nu = dens_nu + den_nu
+                eps.extend(ep)
+                ems.extend(em)
+       
+        n_a, j_a = dens_a
+        n_b, j_b = dens_b
+        kappa = dens_nu
+        if len(eps) > 100:
+            print(np.sort(eps)[:100])
+            print(np.sort(-1*np.array(ems))[:100])
         return Densities(
             n_a=n_a, n_b=n_b,
             tau_a=None, tau_b=None,

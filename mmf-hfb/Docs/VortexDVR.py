@@ -835,10 +835,10 @@ from mmfutils.math.special import mstep
 import mmf_hfb.VortexDVR  as vd; reload(vd)
 from mmf_hfb.VortexDVR import bdg_dvr,dvr_vortex,BCS_vortex
 
-loop = 10
+loop = 1
 mu = 5
-dmu = 0
-E_c=50
+dmu = 4
+E_c=20
 delta_bcs=delta_dvr=delta=2
 # BCS
 bcs = BCS_vortex(Nxyz=(32,)*2, Lxyz=(10,)*2, mus_eff=(mu+dmu, mu-dmu), delta=delta)
@@ -846,10 +846,10 @@ bcs = BCS_vortex(Nxyz=(32,)*2, Lxyz=(10,)*2, mus_eff=(mu+dmu, mu-dmu), delta=del
 x, y = bcs.xyz
 rs = np.sqrt(sum(_x**2 for _x in bcs.xyz)).ravel()
 # DVR
-dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=E_c, bases=None, N_root=34, R_max=5, l_max=100)
+dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=E_c, bases=None, N_root=64, R_max=5, l_max=100)
 delta_bcs = delta*(x+1j*y) # if n == 1 else delta*(x**2-y**2+2j*x*y)# 
 delta_dvr = delta*dvr.rs
-dvr.lz = 1 #if np.size(delta_bcs)==1 else n # using the value of 0.5 is because it should be half of the m (not mass)
+dvr.lz = 0 if np.size(delta_bcs)==1 else 1
 bcs.E_c=E_c
 dvr.E_c=E_c
 def update_plot(delta_bcs_, delta_dvr_):
@@ -910,11 +910,8 @@ def update_plot(delta_bcs_, delta_dvr_):
     plt.subplot(333)
     plt.plot(dvr.rs, nb_dvr + na_dvr, label=r'$n_+$(DVR)')
     plt.plot(rs, (nb_bcs + na_bcs).ravel(), '+', label=r'$n_+$(Grid)')
-#     plt.plot(dvr.rs, abs(delta_dvr), label=r'$\Delta$(DVR)')
-#     plt.plot(rs, abs(delta_bcs).ravel(), '+', label=r'$\Delta$(Grid)')
-#     plt.title(f"Older Delta")
     plt.legend()
-    clear_output(wait=True)
+    #clear_output(wait=True)
     plt.show()
     return (delta_bcs_tmp, delta_dvr_tmp, err_bcs, err_dvr)
 
@@ -928,81 +925,6 @@ with NoInterrupt() as interrupted:
         delta_bcs, delta_dvr = delta_bcs_, delta_dvr_
         print(n, err_dvr, err_bcs)
 # -
-
-# ## Energy Spectrum in DVR & Grid with Potential
-
-delta_bcs = delta
-delta_bcs = delta*(x+1j*y) #delta*(x**2-y**2+2j*x*y)# 
-mus = (mu+dmu, mu-dmu)
-H = bcs.get_H(mus_eff=mus, delta=delta_bcs)
-d, UV = np.linalg.eigh(H)
-U, V = U_V = bcs.get_U_V(H=H, UV=UV)
-dU_Vs = bcs._Del(U_V)
-dUs, dVs = dU_Vs[:, 0, ...], dU_Vs[:, 1, ...]
-f_p, f_m = bcs.f(d), bcs.f(-d)
-n_a = np.dot(U*U.conj(), f_p).real
-n_b = np.dot(V*V.conj(), f_m).real
-nu = np.dot(U*V.conj(), f_p - f_m)/2
-tau_a = np.dot(sum(dU.conj()*dU for dU in dUs), f_p).real
-tau_b = np.dot(sum(dV.conj()*dV for dV in dVs), f_m).real
-j_a = [0.5*np.dot((U.conj()*dU - U*dU.conj()), f_p).imag for dU in dUs]
-j_b = [0.5*np.dot((V*dV.conj() - V.conj()*dV), f_m).imag for dV in dVs]
-plt.figure(figsize=(10,5))
-plt.plot(rs, n_a.ravel(), '+', label=r'$n_a$(Grid)')
-plt.plot(rs, n_b.ravel(), '+', label=r'$n_b$(Grid)');plt.legend()
-
-np.sort(abs(d))[0:100]
-
-# +
-Es = []
-dvr.l_max=100
-def _get_den(obj, H, nu):
-    """
-    return the densities for a given H
-    """
-    es, phis = np.linalg.eigh(H)
-    phis = phis.T
-    offset = phis.shape[0]// 2
-    den = 0
-    for i in range(len(es)):
-        E, uv = es[i], phis[i]
-        
-        if abs(E) > obj.E_c:
-            continue
-        Es.append(E)
-        #if nu != 0:
-        #    Es.append(E)
-        u, v = uv[: offset], uv[offset:]
-        u = obj.get_psi(nu=nu, u=u)
-        v = obj.get_psi(nu=nu, u=v)
-        f_p, f_m = obj.f(E=E), obj.f(E=-E)
-        n_a = u*u.conj()*f_p
-        n_b = v*v.conj()*f_m
-        j_a = -n_a*obj.lz/obj.rs
-        j_b = -n_b*obj.lz/obj.rs
-        kappa = u*v.conj()*(f_p - f_m)/2
-        den = den + np.array([n_a, n_b, kappa, j_a, j_b])
-    return den
-#dvr.E_c = E_c# max(abs(d))
-delta_dvr = delta*dvr.rs
-
-
-H = dvr.get_H(mus=mus, delta=delta_dvr, nu=0)
-dens = 0# _get_den(obj=dvr, H=H, nu=0)
-for nu in range(1, dvr.l_max):  # sum over angular momentum
-    H = dvr.get_H(mus=mus, delta=delta_dvr, nu=nu)
-    dens = dens + 2*_get_den(obj=dvr,H=H, nu=nu)  # double-degenerate    
-Es = np.sort(Es)
-plt.figure(figsize=(10,5))
-plt.plot(dvr.rs, dens[0], label=r'$n_a$(DVR)')
-plt.plot(dvr.rs, dens[1], label=r'$n_b$(DVR)');plt.legend()
-# -
-
-N1=0
-N2=100
-a=np.sort(abs(d))[N1:N2]
-b=np.sort(abs(Es))[N1:N2]
-np.allclose(a, b, rtol=0.1)
 
 # # DVR of a Vortex in BdG
 # Let us get started with the single partilce Harmitonian
