@@ -31,6 +31,110 @@ from mmf_hfb.DVRBasis import CylindricalBasis
 from mmf_hfb.VortexDVR import bdg_dvr, bdg_dvr_ho,dvr_full_set
 from mmf_hfb.utils import block
 
+# # Vortices
+
+# +
+import mmf_hfb.VortexDVR  as vd; reload(vd)
+from mmf_hfb.VortexDVR import bdg_dvr,dvr_vortex,BCS_vortex
+
+loop = 1
+mu = 5
+dmu = 3
+mus=(mu + dmu,mu - dmu)
+E_c=50
+delta_bcs=delta_dvr=delta=2
+# BCS
+bcs = BCS_vortex(Nxyz=(32,)*2, Lxyz=(10,)*2, mus_eff=(mu+dmu, mu-dmu), delta=delta)
+x, y = bcs.xyz
+rs = np.sqrt(sum(_x**2 for _x in bcs.xyz)).ravel()
+# DVR
+dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=E_c, bases=None, N_root=32, R_max=5, l_max=100)
+delta_bcs = delta*(x+1j*y) # if n == 1 else delta*(x**2-y**2+2j*x*y)# 
+delta_dvr = delta*dvr.rs
+dvr.lz = 0 if np.size(delta_bcs)==1 else 1
+bcs.E_c=E_c
+dvr.E_c=E_c
+def update_plot(delta_bcs_, delta_dvr_):
+    
+    # BCS plot
+    res_bcs = bcs.get_densities(mus_eff=mus, delta=delta_bcs_)
+    na_bcs, nb_bcs, nu_bcs, ja_bcs, jb_bcs = res_bcs.n_a, res_bcs.n_b, res_bcs.nu, res_bcs.j_a, res_bcs.j_b
+    
+    # DVR plot
+    res_dvr = dvr.get_densities(mus=mus, delta=delta_dvr_)
+    na_dvr, nb_dvr, nu_dvr, ja_dvr, jb_dvr =res_dvr.n_a, res_dvr.n_b, res_dvr.nu, res_dvr.j_a, res_dvr.j_b
+    delta_dvr_tmp = dvr.g*nu_dvr
+    delta_bcs_tmp = bcs.g*nu_bcs   
+    err_dvr = np.max(abs((delta_dvr_tmp - delta_dvr_)))
+    err_bcs = np.max(abs((delta_bcs_tmp - delta_bcs_)))
+    plt.figure(figsize=(18, 15))
+    
+    plt.subplot(331)
+    imcontourf(x, y, na_bcs)
+    plt.colorbar()
+    plt.title(r"$n_a$")
+    
+    plt.subplot(332)
+    if np.size(delta_bcs_tmp) == np.prod(bcs.Nxyz):
+        imcontourf(x, y, abs(delta_bcs_tmp))
+        plt.colorbar()
+    plt.title(r"$\Delta$")    
+    # n_a      
+    plt.subplot(334)
+    plt.plot(dvr.rs, na_dvr, label=r'$n_a$(DVR)')
+    plt.plot(rs, na_bcs.ravel(), '+', label=r'$n_a$(Grid)')
+    plt.legend()
+    # n_b
+    plt.subplot(335)
+    plt.plot(dvr.rs, nb_dvr, label=r'$n_b$(DVR)')
+    plt.plot(rs, nb_bcs.ravel(), '+', label=r'$n_b$(Grid)')
+    plt.legend()
+    # nu
+    plt.subplot(336)
+    plt.plot(dvr.rs, abs(nu_dvr), label=r'$\nu$(DVR)')
+    plt.plot(rs, abs(nu_bcs).ravel(), '+', label=r'$\nu$(Grid)')
+    plt.legend()
+    # Delta
+#     plt.subplot(339)
+#     plt.plot(dvr.rs, abs(delta_dvr_tmp), label=r'$\Delta$(DVR)')
+#     plt.plot(rs, abs(delta_bcs_tmp).ravel(), '+', label=r'$\Delta$(Grid)')
+#     plt.title(f"bcs err:{err_bcs:.3}, dvr err:{err_dvr:.3}")
+#     plt.legend()
+#     # current
+#     plt.subplot(337)
+#     plt.plot(rs, np.sqrt(sum(ja_bcs**2)).ravel(), '+', label=r'$j_a$(Grid)')
+#     plt.plot(dvr.rs, -ja_dvr, label=r'$j_a$(DVR)')
+#     plt.legend()
+#     plt.subplot(338)
+#     plt.plot(rs, np.sqrt(sum(jb_bcs**2)).ravel(), '+', label=r'$j_b$(Grid)')
+#     plt.plot(dvr.rs, -jb_dvr, label=r'$j_b$(DVR)')
+#     plt.legend()
+    # Old Delta
+    plt.subplot(333)
+    plt.plot(dvr.rs, nb_dvr + na_dvr, label=r'$n_+$(DVR)')
+    plt.plot(rs, (nb_bcs + na_bcs).ravel(), '+', label=r'$n_+$(Grid)')
+    plt.legend()
+    clear_output(wait=True)
+    plt.show()
+    return (delta_bcs_tmp, delta_dvr_tmp, err_bcs, err_dvr)
+
+with NoInterrupt() as interrupted:
+    for n in range(loop):
+        delta_bcs_, delta_dvr_, err_bcs, err_dvr = update_plot(delta_bcs, delta_dvr)
+        if err_bcs<1e-5 or err_dvr <1e-5:
+            break
+        err_dvr = np.max(abs(delta_dvr - delta_dvr_))
+        err_bcs = np.max(abs(delta_bcs - delta_bcs_))
+        delta_bcs, delta_dvr = delta_bcs_, delta_dvr_
+        print(n, err_dvr, err_bcs)
+# -
+
+delta_dvr = delta*dvr.rs
+n_a, n_b = dvr.get_ns(mus=mus, delta=delta_dvr, nu=-1, n=0)
+plt.plot(dvr.rs, n_a, label='na')
+plt.plot(dvr.rs, n_b, label='nb')
+plt.legend()
+
 # # BCS
 
 Nx = 32
@@ -811,16 +915,7 @@ np.sort(abs(d))[0:40]
 
 np.sort(abs(Es))[:40]
 
-# # Vortices
 
-import mmf_setup;mmf_setup.nbinit()
-# %pylab inline --no-import-all
-from nbimports import *
-from mmf_hfb.bcs import BCS
-from mmf_hfb import homogeneous
-from mmfutils.plot import imcontourf
-from collections import namedtuple
-from mmfutils.math.special import mstep
 
 # ## To-Do
 # * Compute $\tau$ and $j_{\pm a/b}$ terms: The derivative term from the bessel package seems to have bug.
@@ -830,101 +925,6 @@ from mmfutils.math.special import mstep
 # $$
 # \Delta(r,\theta) = r^2e^{i2\theta}=r^2\left[1-2sin^2(\theta)+2isin(\theta)cos(\theta)\right]=(x^2-y^2+2ixy)
 # $$
-
-# +
-import mmf_hfb.VortexDVR  as vd; reload(vd)
-from mmf_hfb.VortexDVR import bdg_dvr,dvr_vortex,BCS_vortex
-
-loop = 1
-mu = 5
-dmu = 4
-E_c=20
-delta_bcs=delta_dvr=delta=2
-# BCS
-bcs = BCS_vortex(Nxyz=(32,)*2, Lxyz=(10,)*2, mus_eff=(mu+dmu, mu-dmu), delta=delta)
-# E_c = np.max(bcs.kxyz)**2*bcs.dim/2
-x, y = bcs.xyz
-rs = np.sqrt(sum(_x**2 for _x in bcs.xyz)).ravel()
-# DVR
-dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=E_c, bases=None, N_root=64, R_max=5, l_max=100)
-delta_bcs = delta*(x+1j*y) # if n == 1 else delta*(x**2-y**2+2j*x*y)# 
-delta_dvr = delta*dvr.rs
-dvr.lz = 0 if np.size(delta_bcs)==1 else 1
-bcs.E_c=E_c
-dvr.E_c=E_c
-def update_plot(delta_bcs_, delta_dvr_):
-    
-    # BCS plot
-    res_bcs = bcs.get_densities(mus_eff=(mu + dmu, mu - dmu), delta=delta_bcs_)
-    na_bcs, nb_bcs, nu_bcs, ja_bcs, jb_bcs = res_bcs.n_a, res_bcs.n_b, res_bcs.nu, res_bcs.j_a, res_bcs.j_b
-
-    res_dvr = dvr.get_densities(mus=(mu + dmu,mu - dmu), delta=delta_dvr_)
-    na_dvr, nb_dvr, nu_dvr, ja_dvr, jb_dvr =res_dvr.n_a, res_dvr.n_b, res_dvr.nu, res_dvr.j_a, res_dvr.j_b
-    delta_dvr_tmp = dvr.g*nu_dvr
-    delta_bcs_tmp = bcs.g*nu_bcs   
-    err_dvr = np.max(abs((delta_dvr_tmp - delta_dvr_)))
-    err_bcs = np.max(abs((delta_bcs_tmp - delta_bcs_)))
-    plt.figure(figsize=(18, 15))
-    
-    plt.subplot(331)
-    imcontourf(x, y, na_bcs)
-    plt.colorbar()
-    plt.title(r"$n_a$")
-    
-    plt.subplot(332)
-    if np.size(delta_bcs_tmp) == np.prod(bcs.Nxyz):
-        imcontourf(x, y, abs(delta_bcs_tmp))
-        plt.colorbar()
-    plt.title(r"$\Delta$")    
-    # n_a      
-    plt.subplot(334)
-    plt.plot(dvr.rs, na_dvr, label=r'$n_a$(DVR)')
-    plt.plot(rs, na_bcs.ravel(), '+', label=r'$n_a$(Grid)')
-    plt.legend()
-    # n_b
-    plt.subplot(335)
-    plt.plot(dvr.rs, nb_dvr, label=r'$n_b$(DVR)')
-    plt.plot(rs, nb_bcs.ravel(), '+', label=r'$n_b$(Grid)')
-    plt.legend()
-    # nu
-    plt.subplot(336)
-    plt.plot(dvr.rs, abs(nu_dvr), label=r'$\nu$(DVR)')
-    plt.plot(rs, abs(nu_bcs).ravel(), '+', label=r'$\nu$(Grid)')
-    plt.legend()
-    # Delta
-    plt.subplot(339)
-    plt.plot(dvr.rs, abs(delta_dvr_tmp), label=r'$\Delta$(DVR)')
-    plt.plot(rs, abs(delta_bcs_tmp).ravel(), '+', label=r'$\Delta$(Grid)')
-    plt.title(f"bcs err:{err_bcs:.3}, dvr err:{err_dvr:.3}")
-    plt.legend()
-    # current
-    plt.subplot(337)
-    plt.plot(rs, np.sqrt(sum(ja_bcs**2)).ravel(), '+', label=r'$j_a$(Grid)')
-    plt.plot(dvr.rs, -ja_dvr, label=r'$j_a$(DVR)')
-    plt.legend()
-    plt.subplot(338)
-    plt.plot(rs, np.sqrt(sum(jb_bcs**2)).ravel(), '+', label=r'$j_b$(Grid)')
-    plt.plot(dvr.rs, -jb_dvr, label=r'$j_b$(DVR)')
-    plt.legend()
-    # Old Delta
-    plt.subplot(333)
-    plt.plot(dvr.rs, nb_dvr + na_dvr, label=r'$n_+$(DVR)')
-    plt.plot(rs, (nb_bcs + na_bcs).ravel(), '+', label=r'$n_+$(Grid)')
-    plt.legend()
-    #clear_output(wait=True)
-    plt.show()
-    return (delta_bcs_tmp, delta_dvr_tmp, err_bcs, err_dvr)
-
-with NoInterrupt() as interrupted:
-    for n in range(loop):
-        delta_bcs_, delta_dvr_, err_bcs, err_dvr = update_plot(delta_bcs, delta_dvr)
-        if err_bcs<1e-5 or err_dvr <1e-5:
-            break
-        err_dvr = np.max(abs(delta_dvr - delta_dvr_))
-        err_bcs = np.max(abs(delta_bcs - delta_bcs_))
-        delta_bcs, delta_dvr = delta_bcs_, delta_dvr_
-        print(n, err_dvr, err_bcs)
-# -
 
 # # DVR of a Vortex in BdG
 # Let us get started with the single partilce Harmitonian

@@ -175,7 +175,7 @@ class bdg_dvr(object):
         """
         return self.bases.get_psi(nu=nu, u=u)
     
-    def _get_den(self, H, nu):
+    def _get_den(self, H, nu, return_sum=True):
         """
         return the densities for a given H
         """
@@ -185,16 +185,11 @@ class bdg_dvr(object):
         dens_a = []
         dens_b = []
         dens_nu = []
-        Ep = []
-        Em = []
         for i in range(len(es)):
             E, uv = es[i], phis[i]
             if abs(E) > self.E_c:
                 continue
-            if E < 0:
-                Em.append(E)
-            else:
-                Ep.append(E)
+            
             u, v = uv[: offset], uv[offset:]
             u = self.get_psi(nu=nu, u=u)
             v = self.get_psi(nu=nu, u=v)
@@ -202,14 +197,28 @@ class bdg_dvr(object):
             f_p, f_m = self.f(E=E), self.f(E=-E)
             n_a = u*u.conj()*f_p
             n_b = v*v.conj()*f_m
-            j_a = -n_a*self.lz/self.rs
-            j_b = -n_b*self.lz/self.rs
+            j_a = -n_a*self.lz/self.rs/2
+            j_b = -n_b*self.lz/self.rs/2
             kappa = u*v.conj()*(f_p - f_m)/2
             dens_a.append(np.array([n_a, j_a]))
             dens_b.append(np.array([n_b, j_b]))
             dens_nu.append(kappa)
-        return np.array([sum(dens_a), sum(dens_b), sum(dens_nu), np.array(Ep), np.array(Em)])
-        
+        if return_sum:
+            return np.array([sum(dens_a), sum(dens_b), sum(dens_nu)])
+        return np.array([dens_a, dens_b, dens_nu])
+
+    def get_ns(self, mus, delta, nu, n=0):
+        """return n_th n_a, n_b for given nu basis"""
+        H = self.get_H(mus=mus, delta=delta, nu=nu)
+        den = self._get_den(H, nu=nu, return_sum=False)
+        dens_a, dens_b, _ = den
+        offset = len(dens_a) // 2
+        den_a = dens_a[offset - 1 - n]
+        den_b = dens_b[offset + n]
+        if n >= len(dens_a):
+            return (0, 0)
+        return (den_a[0], den_b[0])
+
     def get_densities(self, mus, delta, lz=None):
         """
         return the particle number density and anomalous density
@@ -223,46 +232,18 @@ class bdg_dvr(object):
             self.lz = lz
         
         dens_a=dens_b=dens_nu=0
-        if False:
-            for nu in range(-self.lz - 1, self.lz + 1):  # sum over angular momentum
-                H = self.get_H(mus=mus, delta=delta, nu=nu)
-                den_a, den_b, den_nu = self._get_den(H, nu=nu)
-                deg_a = 1 if nu==-1 or nu==0 else 2
-                deg_b = 2 if nu==-1 or nu==0 else 1
-                dens_a = dens_a + deg_a*den_a
-                dens_b = dens_b + deg_b*den_b
-                dens_nu = dens_nu + den_nu
-
-            for nu in range(self.lz +1, self.l_max):  # sum over angular momentum
-                H = self.get_H(mus=mus, delta=delta, nu=nu)
-                den = self._get_den(H, nu=nu)
-                if np.alltrue(den==0):
-                    continue
-                den_a, den_b, den_nu = den
-                dens_a = dens_a + 2*den_a
-                dens_b = dens_b + 2*den_b
-                dens_nu = dens_nu + 2*den_nu
-        else:
-            eps=[]
-            ems = []
-            for nu in range(-self.l_max, self.l_max+1):  # sum over angular momentum
-                H = self.get_H(mus=mus, delta=delta, nu=nu)
-                den = self._get_den(H, nu=nu)
-                if np.alltrue(den==0):
-                    continue
-                den_a, den_b, den_nu, ep, em = den
-                dens_a = dens_a + den_a
-                dens_b = dens_b + den_b
-                dens_nu = dens_nu + den_nu
-                eps.extend(ep)
-                ems.extend(em)
-       
+        for nu in range(-self.l_max, self.l_max):  # sum over angular momentum
+            H = self.get_H(mus=mus, delta=delta, nu=nu)
+            den = self._get_den(H, nu=nu)
+            if np.alltrue(den==0):
+                continue
+            den_a, den_b, den_nu = den
+            dens_a = dens_a + den_a
+            dens_b = dens_b + den_b
+            dens_nu = dens_nu + den_nu
         n_a, j_a = dens_a
         n_b, j_b = dens_b
         kappa = dens_nu
-        if len(eps) > 100:
-            print(np.sort(eps)[:100])
-            print(np.sort(-1*np.array(ems))[:100])
         return Densities(
             n_a=n_a, n_b=n_b,
             tau_a=None, tau_b=None,
