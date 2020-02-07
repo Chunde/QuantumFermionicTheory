@@ -48,7 +48,7 @@ rs = np.sqrt(sum(_x**2 for _x in bcs.xyz)).ravel()
 dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=E_c, bases=None, N_root=32, R_max=5, l_max=100)
 delta_bcs = delta*(x+1j*y) # if n == 1 else delta*(x**2-y**2+2j*x*y)# 
 delta_dvr = delta*dvr.rs
-dvr.lz = 0 if np.size(delta_bcs)==1 else 1
+dvr.wz = 0 if np.size(delta_bcs)==1 else 1
 bcs.E_c=E_c
 dvr.E_c=E_c
 def update_plot(delta_bcs_, delta_dvr_):
@@ -98,7 +98,7 @@ with NoInterrupt() as interrupted:
             break
         err_dvr = np.max(abs(delta_dvr - delta_dvr_))
         err_bcs = np.max(abs(delta_bcs - delta_bcs_))
-        #delta_bcs, delta_dvr = delta_bcs_, delta_dvr_
+        # delta_bcs, delta_dvr = delta_bcs_, delta_dvr_
         print(n, err_dvr, err_bcs)
 # -
 
@@ -110,7 +110,7 @@ Eb, UV = np.linalg.eigh(H)
 
 # +
 Ed = []
-def _get_den(self, H, nu):
+def _get_den(self, H, lz):
     es, phis = np.linalg.eigh(H)
     phis = phis.T
     offset = phis.shape[0] // 2
@@ -121,13 +121,13 @@ def _get_den(self, H, nu):
             continue
         Ed.append(E)
         u, v = uv[: offset], uv[offset:]
-        u = self.get_psi(nu=nu, u=u)
-        v = self.get_psi(nu=nu, u=v)
+        u = self.get_psi(lz=lz, u=u)
+        v = self.get_psi(lz=lz, u=v)
         f_p, f_m = self.f(E=E), self.f(E=-E)
         n_a = u*u.conj()*f_p
         n_b = v*v.conj()*f_m
-        j_a = -n_a*self.lz/self.rs/2
-        j_b = -n_b*self.lz/self.rs/2
+        j_a = -n_a*self.wz/self.rs/2
+        j_b = -n_b*self.wz/self.rs/2
         kappa = u*v.conj()*(f_p - f_m)/2
         dens_a.append(np.array([n_a, j_a]))
         dens_b.append(np.array([n_b, j_b]))
@@ -135,11 +135,9 @@ def _get_den(self, H, nu):
     return np.array([sum(dens_a), sum(dens_b), sum(dens_nu)])
 
 dens_a=dens_b=dens_nu=0
-for nu in range(-dvr.l_max, dvr.l_max):  # sum over angular momentum
-    H = dvr.get_H(mus=mus, delta=delta_dvr, nu=nu)
-    den = _get_den(dvr, H, nu=nu)
-    if np.alltrue(den==0):
-        continue
+for lz in range(-dvr.l_max, dvr.l_max):  # sum over angular momentum
+    H = dvr.get_H(mus=mus, delta=delta_dvr, lz=lz)
+    den = _get_den(dvr, H, lz=lz)
     den_a, den_b, den_nu = den
     dens_a = dens_a + den_a
     dens_b = dens_b + den_b
@@ -157,7 +155,7 @@ np.sort(abs(Eb))[:32], np.sort(abs(Ed))[:32]
 
 plt.figure(figsize=(16, 6))
 plt.plot(np.sort(abs(Eb))[:100],'+', label="BCS")
-plt.plot(np.sort(abs(Ed))[:100],'+', label="DVR")
+plt.plot(np.sort(abs(Ed))[:100] + 0.1,'+', label="DVR")
 plt.ylabel('E');plt.legend()
 
 # # BCS
@@ -951,7 +949,7 @@ np.sort(abs(Es))[:40]
 # \Delta(r,\theta) = r^2e^{i2\theta}=r^2\left[1-2sin^2(\theta)+2isin(\theta)cos(\theta)\right]=(x^2-y^2+2ixy)
 # $$
 
-# # DVR of a Vortex in BdG
+# # Vortex in BdG
 # Let us get started with the single partilce Harmitonian
 # $$
 #   \op{H}\psi_{n,l_z}(r, \theta) = E\psi_{n,l_z}(r, \theta)

@@ -22,24 +22,25 @@ def get_transform_matrix(dvr_s, dvr_t):
 
 
 class dvr_basis_set(object):
+    # define basis set interface
     pass
 
 
 class dvr_odd_even_set(dvr_basis_set):
     def __init__(self, **args):
         self.N_basis = 2
-        self.bases = [CylindricalBasis(nu=nu, **args) for nu in range(self.N_basis)]
+        self.bases = [CylindricalBasis(lz=lz, **args) for lz in range(self.N_basis)]
         self.Us =[None, get_transform_matrix(self.bases[1], self.bases[0])]
 
-    def basis_match_rule(self, nu):
+    def basis_match_rule(self, lz):
         """
-            Assign different bases to different angular momentum \nu
-            it assign 0 to even \nu and 1 to odd \nu
+            Assign different bases to different angular momentum lz
+            it assign 0 to even lz and 1 to odd lz
         Note:
             inherit a child class to override this function
         """
         assert len(self.bases) > 1
-        return abs(nu) % 2
+        return abs(lz) % 2
 
     @property
     def zero(self):
@@ -48,11 +49,11 @@ class dvr_odd_even_set(dvr_basis_set):
     def get_rs(self):
         return self.bases[0].rs
 
-    def get_basis(self, nu):
-        return self.bases[abs(nu) % 2]
+    def get_basis(self, lz):
+        return self.bases[abs(lz) % 2]
 
-    def get_psi(self, nu, u):
-        U_matrix = self.Us[abs(nu) % 2]
+    def get_psi(self, lz, u):
+        U_matrix = self.Us[abs(lz) % 2]
         if U_matrix is not None:
             u = U_matrix.dot(u)
         b = self.bases[0]
@@ -62,23 +63,23 @@ class dvr_odd_even_set(dvr_basis_set):
 class dvr_full_set(dvr_basis_set):
     def __init__(self, l_max, **args):
         self.N_basis = l_max
-        self.bases = [CylindricalBasis(nu=nu, **args) for nu in range(self.N_basis)]
+        self.bases = [CylindricalBasis(lz=lz, **args) for lz in range(self.N_basis)]
         self.Us =[None]
         self.Us.extend(
             [get_transform_matrix(
                 self.bases[i], self.bases[0]) for i in range(1, l_max)])
 
-    def basis_match_rule(self, nu):
+    def basis_match_rule(self, lz):
         """
-            Assign different bases to different angular momentum \nu
-            it assign 0 to even \nu and 1 to odd \nu
+            Assign different bases to different angular momentum \lz
+            it assign 0 to even \lz and 1 to odd \lz
         Note:
             inherit a child class to override this function
         """
-        assert nu >= 0
-        if nu < len(self.bases):
-            return nu
-        return nu % 2
+        assert lz >= 0
+        if lz < len(self.bases):
+            return lz
+        return lz % 2
 
     @property
     def zero(self):
@@ -87,11 +88,11 @@ class dvr_full_set(dvr_basis_set):
     def get_rs(self):
         return self.bases[0].rs
 
-    def get_basis(self, nu):
-        return self.bases[self.basis_match_rule(nu=nu)]
+    def get_basis(self, lz):
+        return self.bases[self.basis_match_rule(lz=lz)]
 
-    def get_psi(self, nu, u):
-        U_matrix = self.Us[self.basis_match_rule(nu=nu)]
+    def get_psi(self, lz, u):
+        U_matrix = self.Us[self.basis_match_rule(lz=lz)]
         if U_matrix is not None:
             u = U_matrix.dot(u)
         b = self.bases[0]
@@ -103,23 +104,22 @@ class bdg_dvr(object):
     A 2D and 3D vortex class without external potential
     """
     def __init__(
-            self, bases_N=2, mu=1, dmu=0, delta=1, lz=0,
+            self, bases_N=2, mu=1, dmu=0, delta=1, wz=0,
             E_c=None, T=0, l_max=100, g=None, bases=None,
             **args):
         """
         Construct and cache some information of bases
-
         """
         if bases is None:
             bases = dvr_odd_even_set(l_max=100, **args)
-        self.bases = bases
+        self.bases = bases  # basis set used
         self.l_max = max(l_max, 1)  # the angular momentum cut_off
         assert T==0
-        self.T=T
-        self.lz=lz
+        self.T = T  # only support T=0
+        self.wz=wz  # pairing field winding number
         self.g = self.get_g(mu=mu, delta=np.mean(delta)) if g is None else g
         self.mus = (mu + dmu, mu - dmu)
-        self.E_c = sys.maxsize if E_c is None else E_c
+        self.E_c = sys.maxsize if E_c is None else E_c  # energy cutoff
         self.rs = self.bases.get_rs()
 
     def f(self, E, T=0):
@@ -136,7 +136,7 @@ class bdg_dvr(object):
         """return external potential"""
         return 0
 
-    def get_H(self, mus, delta, nu=0):
+    def get_H(self, mus, delta, lz=0):
         """Return the full Hamiltonian (with pairing field).
         
         Arguments
@@ -145,13 +145,13 @@ class bdg_dvr(object):
            Angular momentum quantum number.  The centrifugal piece
            for this is included in the kinetic term, while the remaining
         """
-        basis = self.bases.get_basis(nu=nu)
+        basis = self.bases.get_basis(lz=lz)
         T = basis.K
         Delta = np.diag(basis.zero + delta)
         mu_a, mu_b = mus
         V_ext = self.get_Vext(rs=basis.rs)
-        V_corr_a = basis.get_V_correction(nu=nu + self.lz)
-        V_corr_b = basis.get_V_correction(nu=nu)
+        V_corr_a = basis.get_V_correction(lz=lz + self.wz)
+        V_corr_b = basis.get_V_correction(lz=lz)
         V_eff_a = V_ext + V_corr_a
         V_eff_b = V_ext + V_corr_b
         H_a = T + np.diag(V_eff_a - mu_a)
@@ -169,13 +169,13 @@ class bdg_dvr(object):
         g = 0 if res.nu == 0 else delta/res.nu
         return g
 
-    def get_psi(self, nu, u):
+    def get_psi(self, lz, u):
         """
         apply weight on the u(v) to get the actual radial wave-function
         """
-        return self.bases.get_psi(nu=nu, u=u)
+        return self.bases.get_psi(lz=lz, u=u)
     
-    def _get_den(self, H, nu, return_sum=True):
+    def _get_den(self, H, lz, return_sum=True):
         """
         return the densities for a given H
         """
@@ -191,14 +191,14 @@ class bdg_dvr(object):
                 continue
             
             u, v = uv[: offset], uv[offset:]
-            u = self.get_psi(nu=nu, u=u)
-            v = self.get_psi(nu=nu, u=v)
+            u = self.get_psi(lz=lz, u=u)
+            v = self.get_psi(lz=lz, u=v)
             
             f_p, f_m = self.f(E=E), self.f(E=-E)
             n_a = u*u.conj()*f_p
             n_b = v*v.conj()*f_m
-            j_a = -n_a*self.lz/self.rs/2
-            j_b = -n_b*self.lz/self.rs/2
+            j_a = -n_a*self.wz/self.rs/2
+            j_b = -n_b*self.wz/self.rs/2
             kappa = u*v.conj()*(f_p - f_m)/2
             dens_a.append(np.array([n_a, j_a]))
             dens_b.append(np.array([n_b, j_b]))
@@ -207,10 +207,10 @@ class bdg_dvr(object):
             return np.array([sum(dens_a), sum(dens_b), sum(dens_nu)])
         return np.array([dens_a, dens_b, dens_nu])
 
-    def get_ns(self, mus, delta, nu, n=0):
-        """return n_th n_a, n_b for given nu basis"""
-        H = self.get_H(mus=mus, delta=delta, nu=nu)
-        den = self._get_den(H, nu=nu, return_sum=False)
+    def get_ns(self, mus, delta, lz, n=0):
+        """return n_th n_a, n_b for given lz basis"""
+        H = self.get_H(mus=mus, delta=delta, lz=lz)
+        den = self._get_den(H, lz=lz, return_sum=False)
         dens_a, dens_b, _ = den
         offset = len(dens_a) // 2
         den_a = dens_a[offset - 1 - n]
@@ -219,22 +219,22 @@ class bdg_dvr(object):
             return (0, 0)
         return (den_a[0], den_b[0])
 
-    def get_densities(self, mus, delta, lz=None):
+    def get_densities(self, mus, delta, wz=None):
         """
         return the particle number density and anomalous density
         Note: Here the anomalous density is represented as kappa
-        instead of \nu so it's not that confusing when \nu has
+        instead of lz so it's not that confusing when lz has
         been used as angular momentum quantum number.
         """
-        if lz is None:
-            lz = self.lz
+        if wz is None:
+            wz = self.wz
         else:
-            self.lz = lz
+            self.wz = wz
         
         dens_a=dens_b=dens_nu=0
-        for nu in range(-self.l_max, self.l_max):  # sum over angular momentum
-            H = self.get_H(mus=mus, delta=delta, nu=nu)
-            den = self._get_den(H, nu=nu)
+        for lz in range(-self.l_max, self.l_max):  # sum over angular momentum
+            H = self.get_H(mus=mus, delta=delta, lz=lz)
+            den = self._get_den(H, lz=lz)
             if np.alltrue(den==0):
                 continue
             den_a, den_b, den_nu = den
@@ -265,8 +265,8 @@ class BCS_vortex(BCS):
     def get_v_ext(self, **kw):
         self.R = min(self.Lxyz)/2
         r = np.sqrt(sum([_x**2 for _x in self.xyz[:2]]))
-        R0 = self.barrier_width * self.R
-        V = self.barrier_height * mstep(r-self.R+R0, R0)
+        R0 = self.barrier_width*self.R
+        V = self.barrier_height*mstep(r-self.R+R0, R0)
         return (V, V)
 
 

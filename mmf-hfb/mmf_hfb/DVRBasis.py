@@ -10,12 +10,11 @@ def nan0(data):
 
 
 class CylindricalBasis(object):
-    eps = 7./3 - 4./3 -1  # machine precision
     eps = np.finfo(float).eps
     m = hbar = 1
     N_root_max = 128
 
-    def __init__(self, R_max=None, N_root=None, K_max=None, a0=None, nu=0, **args):
+    def __init__(self, R_max=None, N_root=None, K_max=None, a0=None, lz=0, **args):
         """
         Parameters
         --------------
@@ -27,13 +26,13 @@ class CylindricalBasis(object):
             momentum cutoff
         a0: float
             wavefunction position scale
-        nu: int
+        lz: int
             angular momentum quantum number
         dim: int
             dimensionality
         """
         self.dim = 2
-        self.nu = nu
+        self.lz = lz
         self.R_max = R_max
         self.K_max = K_max
         self.N_root = N_root
@@ -43,9 +42,9 @@ class CylindricalBasis(object):
     def init(self):
         # if N_root is None or R_max is None or K_max is None:
         self.set_N_K_R(a0=self.a0)
-        self.zs = self.get_zs(nu=self.nu)
+        self.zs = self.get_zs(lz=self.lz)
         self.rs = self.get_rs(zs=self.zs)
-        self.K = self.get_K(zs=self.zs, nu=self.nu)
+        self.K = self.get_K(zs=self.zs, lz=self.lz)
         self.zero = np.zeros_like(self.zs)
         self.rs_scale = self._rs_scaling_factor(zs=self.zs)
         self.ws = self.get_F_rs()/self.rs_scale  # weight
@@ -79,40 +78,40 @@ class CylindricalBasis(object):
         """
         self.K_max = (self.N_root - 0.25)*np.pi/self.R_max
     
-    def get_zs(self, nu=None, N=None):
+    def get_zs(self, lz=None, N=None):
         """
-        return roots for order $\nu$
+        return roots for order $\lz$
         """
-        if nu is None:
-            nu = self.nu
+        if lz is None:
+            lz = self.lz
         if N is None:
             N = self.N_root
-        zs = bessel.j_root(nu=nu, N=N)
+        zs = bessel.j_root(nu=lz, N=N)
         return zs
 
-    def get_rs(self, zs=None, nu=None):
+    def get_rs(self, zs=None, lz=None):
         """
         return cooridnate in postition space
         """
-        if nu is None:
-            nu = self.nu
+        if lz is None:
+            lz = self.lz
         if zs is None:
-            zs = self.get_zs(nu=nu)
+            zs = self.get_zs(lz=lz)
         return zs/self.K_max
 
-    def get_F(self, nu=None, n=0, rs=None, d=0):
-        """return the nth basis function for nu"""
-        if nu is None:
-            nu = self.nu
+    def get_F(self, lz=None, n=0, rs=None, d=0):
+        """return the nth basis function for lz"""
+        if lz is None:
+            lz = self.lz
         if rs is None:
             rs = self.rs
-        zs = self.get_zs(nu=nu)
+        zs = self.get_zs(lz=lz)
         F = (-1)**(n+1)*self.K_max*zs[n]*np.sqrt(2*rs)/(
-            self.K_max**2*rs**2-zs[n]**2)*bessel.J(nu, d=d)(self.K_max*rs)
+            self.K_max**2*rs**2-zs[n]**2)*bessel.J(lz, d=d)(self.K_max*rs)
         F=nan0(F)
         return F
 
-    def get_F_rs(self, zs=None, nu=None, d=0):
+    def get_F_rs(self, zs=None, lz=None, d=0):
         """
         return the basis function values at abscissa r_n
         for the nth basis function. Since each basis function
@@ -120,15 +119,15 @@ class CylindricalBasis(object):
         compute that value, all other values are simply zero
 
         """
-        if nu is None:
-            nu = self.nu
+        if lz is None:
+            lz = self.lz
         if zs is None:
             rs = self.rs
             zs = self.zs
         else:
             rs = zs/self.K_max
         Fs = [(-1)**(n+1)*self.K_max*np.sqrt(2*rs[n]*zs[n])/(2*zs[n])*bessel.J_sqrt_pole(
-            nu=nu, zn=zs[n], d=d)(zs[n]) for n in range(len(rs))]
+            nu=lz, zn=zs[n], d=d)(zs[n]) for n in range(len(rs))]
         return Fs
 
     def _rs_scaling_factor(self, zs=None):
@@ -151,50 +150,50 @@ class CylindricalBasis(object):
         """
         return u*self.ws/((2*np.pi)**0.5)  # the normalization factor sqrt(2pi)
 
-    def get_nu(self, nu=None):
+    def get_lz(self, lz=None):
         """
-         `nu + d/2 - 1` for the centrifugal term
+         `lz + d/2 - 1` for the centrifugal term
          Note:
-            the naming convention use \nu as angular momentum quantum number
-            but it's also being used as the order number of bessel function
+            the naming convention use \lz as angular momentum quantum lzmber
+            but it's also being used as the order lzmber of bessel function
          """
-        if nu is None:
-            nu = self.nu
-        return nu + self.dim/2.0 - 1
+        if lz is None:
+            lz = self.lz
+        return lz + self.dim/2.0 - 1
 
-    def get_K(self, zs=None, nu=None):
-        """Return the kinetic matrix for a given nu.
+    def get_K(self, zs=None, lz=None):
+        """Return the kinetic matrix for a given lz.
 
         Note: the centrifugal potential is already include
         """
-        if nu is None:
-            nu = self.nu
+        if lz is None:
+            lz = self.lz
         if zs is None:
-            zs = self.get_zs(nu=nu)
+            zs = self.get_zs(lz=lz)
         zi = np.array(list(range(len(zs)))) + 1
         xx, yy = np.meshgrid(zi, zi, sparse=False, indexing='ij')
         zx, zy = np.meshgrid(zs, zs, sparse=False, indexing='ij')
-        nu = self.get_nu(nu)  # see get_nu(...)
-        K_diag = (1+2*(nu**2 - 1)/zs**2)/3.0  # diagonal terms
+        lz = self.get_lz(lz)  # see get_lz(...)
+        K_diag = (1+2*(lz**2 - 1)/zs**2)/3.0  # diagonal terms
         K_off = 8*(-1)**(abs(xx - yy))*zx*zy/(zx**2 - zy**2 + self.eps)**2
         np.fill_diagonal(K_off, K_diag)
         K = self.K_max**2*K_off/2.0  # factor of 1/2 include
         return K
 
-    def get_V_correction(self, nu):
+    def get_V_correction(self, lz):
         """
-            if nu is not the same as the basis, a piece of correction
+            if lz is not the same as the basis, a piece of correction
             should be made to the centrifugal potential
         """
-        return (nu**2 - self.nu**2)*self.hbar**2/2.0/self.rs**2
+        return (lz**2 - self.lz**2)*self.hbar**2/2.0/self.rs**2
 
 
 class HarmonicDVR(CylindricalBasis):
     m=hbar=w=1
     eps = 7./3 - 4./3 -1  # machine accuracy
 
-    def __init__(self, w=1, nu=0, dim=2, **args):
-        CylindricalBasis.__init__(self, nu=nu, dim=dim, **args)
+    def __init__(self, w=1, lz=0, dim=2, **args):
+        CylindricalBasis.__init__(self, lz=lz, dim=dim, **args)
         self.w = w
 
     def get_V(self):
@@ -202,11 +201,11 @@ class HarmonicDVR(CylindricalBasis):
         r2 = (self.rs)**2
         return self.w**2*r2/2
 
-    def get_H(self, nu=None):
-        if nu is None:
-            nu = self.nu
+    def get_H(self, lz=None):
+        if lz is None:
+            lz = self.lz
         K = self.K
         V = self.get_V()
-        V_corr = self.get_V_correction(nu=nu)
+        V_corr = self.get_V_correction(lz=lz)
         H = K + np.diag(V + V_corr)
         return H

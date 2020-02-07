@@ -289,7 +289,7 @@ class BCS(object):
         mu_a += zero
         mu_b += zero
         Mu_a, Mu_b = np.diag((mu_a - v_a).ravel()), np.diag((mu_b - v_b).ravel())
-        H = block(K_a - Mu_a, Delta, Delta.conj(), -(K_b - Mu_b))
+        H = block(K_a - Mu_a, Delta, Delta.conj(), -(K_b - Mu_b))  # [check] delta^\dagger?
         return H
 
     def get_R(self, mus_eff, delta, N_twist=1, twists=None):
