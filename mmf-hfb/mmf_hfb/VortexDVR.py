@@ -71,8 +71,8 @@ class dvr_full_set(dvr_basis_set):
 
     def basis_match_rule(self, lz):
         """
-            Assign different bases to different angular momentum \lz
-            it assign 0 to even \lz and 1 to odd \lz
+            Assign different bases to different angular momentum lz
+            it assign 0 to even lz and 1 to odd lz
         Note:
             inherit a child class to override this function
         """

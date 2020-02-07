@@ -7,7 +7,7 @@
 #       extension: .py
 #       format_name: light
 #       format_version: '1.5'
-#       jupytext_version: 1.3.2
+#       jupytext_version: 1.3.0
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -32,6 +32,66 @@ from mmf_hfb.VortexDVR import bdg_dvr, bdg_dvr_ho,dvr_full_set
 from mmf_hfb.utils import block
 
 # # Vortices
+# Let us get started with the single partilce Harmitonian
+# $$
+#   \op{H}\psi_{n,l_z}(r, \theta) = E\psi_{n,l_z}(r, \theta)
+# $$
+# where $\op{H} = \frac{-\hbar^2\nabla^2}{2m} - \mu$
+#
+# Let the full wavefunction $\psi_{n, l_z}(r,\theta)=R_{n, l_z}(r)e^{il_z\theta}$, plugin back to the above equation:
+# \begin{align}
+#   E\psi_{n,l_z}(r, \theta)
+#   &=\left(\frac{-\hbar^2}{2m}\nabla^2 - \mu\right)R_{n, l_z}(r)e^{il_z\theta}\\
+# \end{align}
+
+# Let $R(r) = r^{-1/2}f(r)$, the the schrodinger equation changes to:
+#
+# $$
+# \left[-\frac{\hbar^2}{2m}\left(\frac{\partial^2 }{\partial r^2}- \frac{1_z^2 - 1/4}{r^2}\right)-\mu\right]f(r)=Ef(r)
+# $$
+#
+# then in the DVR basis,$f(r)$ can be expanded using the bais function $F(r)$, where $u_i$ are the coefficients:
+# $$
+# f(r) = \sum_i F_i(r)u_i
+# $$
+# When diagonalizing the BdG-like Hamontonian, we will the $u$s and $v$s, from that we compute the original $f(r)$. After that we computer $R(r)$ by:
+# $$
+# R(r)=\frac{f(r)}{\sqrt{2\pi r}}
+# $$
+# where the $\sqrt{2\pi}$ is a nomalization factor to make the full wave-function unitary.
+# ## BdG
+
+# $$
+#   \begin{pmatrix}
+#     -\frac{\hbar^2}{2m}\nabla^2 - \mu_a & \Delta(r)e^{\I w \theta}\\
+#     \Delta(r)e^{-i w \theta} & \frac{\hbar^2}{2m}\nabla^2 + \mu_b
+#   \end{pmatrix}
+#   \begin{pmatrix}
+#     \sqrt{r}u_{n, l_z}(r)e^{\I w \theta}\\
+#     \sqrt{r}v^*_{n, l_z}(r)
+#   \end{pmatrix}
+#   e^{\I l_z \theta}
+# $$
+#
+# $$
+#   \begin{pmatrix}
+#     -\frac{\hbar^2}{2m}\left(\diff[2]{}{r} - \frac{(l_z+w)^2-1/4}{r^2}\right) - \mu_a & \Delta(r)\\
+#     \Delta(r) & \frac{\hbar^2}{2m}\left(\diff[2]{}{r} -\frac{l_z^2-1/4}{r^2}\right) + \mu_b
+#   \end{pmatrix}
+#   \begin{pmatrix}
+#     u_{n, l_z}(r)\\
+#     v^*_{n, l_z}(r)
+#   \end{pmatrix}
+#   =
+#   \begin{pmatrix}
+#   E_{n, l_z}&0\\
+#   0&-E_{n, l_z}
+#   \end{pmatrix}
+#   \begin{pmatrix}
+#     u_{n, l_z}(r)\\
+#     v^*_{n, l_z}(r)
+#   \end{pmatrix}
+# $$
 
 # +
 import mmf_hfb.VortexDVR  as vd; reload(vd)
@@ -45,7 +105,7 @@ bcs = BCS_vortex(Nxyz=(32,)*2, Lxyz=(10,)*2, mus_eff=(mu+dmu, mu-dmu), delta=del
 x, y = bcs.xyz
 rs = np.sqrt(sum(_x**2 for _x in bcs.xyz)).ravel()
 # DVR
-dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=E_c, bases=None, N_root=32, R_max=5, l_max=100)
+dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=E_c, bases=None, N_root=32, R_max=5, l_max=200)
 delta_bcs = delta*(x+1j*y) # if n == 1 else delta*(x**2-y**2+2j*x*y)# 
 delta_dvr = delta*dvr.rs
 dvr.wz = 0 if np.size(delta_bcs)==1 else 1
@@ -102,7 +162,7 @@ with NoInterrupt() as interrupted:
         print(n, err_dvr, err_bcs)
 # -
 
-# ## Check Spectrum
+# ## Spectrum
 
 H = bcs.get_H(mus_eff=mus, delta=delta_bcs)
 Eb, UV = np.linalg.eigh(H)
