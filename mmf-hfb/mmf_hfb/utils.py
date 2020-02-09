@@ -1,13 +1,21 @@
 import numpy as np
 
 
-def block(a11, a12, a21, a22):
+def block(M):
     """
     used to stack four element to form a 2x2 matrix
     ---------
     Note: this can be used for numpy and cupy(if np->cp)
+
+    Examples
+    --------
+    >>> M = np.random.random((3, 3, 4))
+    >>> Ms = [[M[..., 0], M[..., 1]],
+    ...       [M[..., 2], M[..., 3]]]
+    >>> np.allclose(np.bmat(Ms), block(Ms))
+    True
     """
-    RowBlock1=np.concatenate((a11, a12), axis=1)
-    RowBlock2=np.concatenate((a21, a22), axis=1)
-    Block=np.concatenate((RowBlock1, RowBlock2), axis=0)
-    return Block
+    return np.concatenate(
+        [np.concatenate(_row, axis=1)
+         for _row in M],
+    axis=0)

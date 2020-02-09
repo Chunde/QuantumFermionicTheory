@@ -43,7 +43,7 @@ class BCS(object):
     hbar = 1.0
     m = 1.0
 
-    def __init__(self, Nxyz=None, Lxyz=None, dx=None, T=0, E_c=None):
+    def __init__(self, Nxyz=None, Lxyz=None, dx=None, T=0, E_c=None, Ec_Emax=0.8):
         """Specify any two of `Nxyz`, `Lxyz`, or `dx`.
 
         Arguments
@@ -78,8 +78,11 @@ class BCS(object):
         self.dxyz = dxyz
         self.Nxyz = Nxyz
         self.Lxyz = Lxyz
-        self.E_c = E_c
         self.T = T
+        self.E_max = np.max([(self.hbar*_k)**2/2/self.m for _k in self.kxyz])
+        if E_c is None:
+            E_c = Ec_Emax * self.E_max
+        self.E_c = E_c
 
     @property
     def dim(self):
@@ -92,7 +95,7 @@ class BCS(object):
     @property
     def shape(self):
         return (2,) + (self.Nxyz)
-        
+
     def erase_max_ks(self):
         """set the max abs(ks) to zero as they may cause problems"""
         self.max_ks = []
@@ -100,11 +103,11 @@ class BCS(object):
             self.max_ks.append(self.kxyz[i][self.Nxyz[i]//2])
             if self.Nxyz[i] % 2 == 0:
                 self.kxyz[i][self.Nxyz[i]//2]=0
-    
+
     def dotc(self, a, b):
         """Return dot(a.conj(), b) allowing for dim > 1."""
         return np.dot(a.conj().ravel(), b.ravel())
-     
+
     def Normalize(self, psi):
         """Normalize a wave function"""
         psi_new = psi/(self.dotc(psi, psi)*self.dV)**0.5
@@ -247,7 +250,7 @@ class BCS(object):
         """Return the Fermi-Dirac distribution at E."""
         if E_c is None:
             E_c = self.E_c
-        
+
         if self.T > 0:
             f = 1./(1+np.exp(E/self.T))
         else:
@@ -259,7 +262,7 @@ class BCS(object):
             return f
         mask = 0.5 * (numpy.sign(abs(E_c)-abs(E)) + 1)
         return f * mask
-        
+
     def _get_H(self, mu_eff, twists=0, V=0, **kw):
         K = self._get_K(twists=twists, **kw)
         mu_eff = np.zeros_like(sum(self.xyz)) + mu_eff
@@ -289,7 +292,8 @@ class BCS(object):
         mu_a += zero
         mu_b += zero
         Mu_a, Mu_b = np.diag((mu_a - v_a).ravel()), np.diag((mu_b - v_b).ravel())
-        H = block(K_a - Mu_a, Delta, Delta.conj(), -(K_b - Mu_b))  # [check] delta^\dagger?
+        H = block([[K_a - Mu_a, Delta],
+                   [Delta.conj(), -(K_b - Mu_b)]])  # [check] delta^\dagger?
         return H
 
     def get_R(self, mus_eff, delta, N_twist=1, twists=None):
@@ -368,7 +372,7 @@ class BCS(object):
         n_b = np.diag(r_b).reshape(self.Nxyz).real
         nu = np.diag(nu_).reshape(self.Nxyz)
         return namedtuple('Densities', ['n_a', 'n_b', 'nu'])(n_a, n_b, nu)
-    
+
     def get_U_V(self, H, UV=None, transpose=False):
         """return U and V"""
         if UV is None:

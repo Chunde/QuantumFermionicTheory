@@ -40,7 +40,7 @@ class dvr_odd_even_set(dvr_basis_set):
             inherit a child class to override this function
         """
         assert len(self.bases) > 1
-        return abs(lz) % 2
+        return lz % 2
 
     @property
     def zero(self):
@@ -50,10 +50,10 @@ class dvr_odd_even_set(dvr_basis_set):
         return self.bases[0].rs
 
     def get_basis(self, lz):
-        return self.bases[abs(lz) % 2]
+        return self.bases[lz % 2]
 
     def get_psi(self, lz, u):
-        U_matrix = self.Us[abs(lz) % 2]
+        U_matrix = self.Us[lz % 2]
         if U_matrix is not None:
             u = U_matrix.dot(u)
         b = self.bases[0]
@@ -106,6 +106,7 @@ class bdg_dvr(object):
     def __init__(
             self, bases_N=2, mu=1, dmu=0, delta=1, wz=0,
             E_c=None, T=0, l_max=100, g=None, bases=None,
+            verbosity=0,
             **args):
         """
         Construct and cache some information of bases
@@ -116,11 +117,17 @@ class bdg_dvr(object):
         self.l_max = max(l_max, 1)  # the angular momentum cut_off
         assert T==0
         self.T = T  # only support T=0
-        self.wz=wz  # pairing field winding number
+        self.wz = wz  # pairing field winding number
         self.g = self.get_g(mu=mu, delta=np.mean(delta)) if g is None else g
         self.mus = (mu + dmu, mu - dmu)
-        self.E_c = sys.maxsize if E_c is None else E_c  # energy cutoff
+        self.E_c = E_c
         self.rs = self.bases.get_rs()
+        self.verbosity = verbosity
+
+    def _log(self, msg, level=1):
+        """Log a message."""
+        if level <= self.verbosity:
+            print(msg)
 
     def f(self, E, T=0):
         if T is None:
@@ -138,7 +145,7 @@ class bdg_dvr(object):
 
     def get_H(self, mus, delta, lz=0):
         """Return the full Hamiltonian (with pairing field).
-        
+
         Arguments
         ---------
         l_z : int
@@ -149,14 +156,15 @@ class bdg_dvr(object):
         T = basis.K
         Delta = np.diag(basis.zero + delta)
         mu_a, mu_b = mus
-        V_ext = self.get_Vext(rs=basis.rs)
+        V_ext = self.get_Vext(r=basis.rs)
         V_corr_a = basis.get_V_correction(lz=lz + self.wz)
         V_corr_b = basis.get_V_correction(lz=lz)
-        V_eff_a = V_ext + V_corr_a
-        V_eff_b = V_ext + V_corr_b
+        V_eff_a = V_ext[0] + V_corr_a
+        V_eff_b = V_ext[1] + V_corr_b
         H_a = T + np.diag(V_eff_a - mu_a)
         H_b = T + np.diag(V_eff_b - mu_b)
-        H = block(H_a, Delta, Delta.conj(), -H_b)
+        H = block([[H_a, Delta],
+                   [Delta.conj(), -H_b]])
         return H
 
     def get_g(self, mu=1.0, delta=0.2):
@@ -174,7 +182,7 @@ class bdg_dvr(object):
         apply weight on the u(v) to get the actual radial wave-function
         """
         return self.bases.get_psi(lz=lz, u=u)
-    
+
     def _get_den(self, H, lz, return_sum=True):
         """
         return the densities for a given H
@@ -185,20 +193,23 @@ class bdg_dvr(object):
         dens_a = []
         dens_b = []
         dens_nu = []
+        N_states = np.sum(abs(es) <= self.E_c)
+        if N_states > 0 :
+            self._log(f"{N_states} states included", 1)
         for i in range(len(es)):
             E, uv = es[i], phis[i]
             if abs(E) > self.E_c:
                 continue
-            
+
             u, v = uv[: offset], uv[offset:]
             u = self.get_psi(lz=lz, u=u)
             v = self.get_psi(lz=lz, u=v)
-            
+
             f_p, f_m = self.f(E=E), self.f(E=-E)
             n_a = u*u.conj()*f_p
             n_b = v*v.conj()*f_m
-            j_a = -n_a*self.wz/self.rs/2
-            j_b = -n_b*self.wz/self.rs/2
+            j_a = -n_a*self.wz/self.rs/2  # WRONG!
+            j_b = -n_b*self.wz/self.rs/2  # WRONG!
             kappa = u*v.conj()*(f_p - f_m)/2
             dens_a.append(np.array([n_a, j_a]))
             dens_b.append(np.array([n_b, j_b]))
@@ -230,7 +241,7 @@ class bdg_dvr(object):
             wz = self.wz
         else:
             self.wz = wz
-        
+
         dens_a=dens_b=dens_nu=0
         for lz in range(-self.l_max, self.l_max):  # sum over angular momentum
             H = self.get_H(mus=mus, delta=delta, lz=lz)
@@ -250,36 +261,34 @@ class bdg_dvr(object):
             nu=kappa,
             j_a=j_a, j_b=j_b)
 
-       
-class BCS_vortex(BCS):
-    """BCS Vortex"""
+
+class VortexMixin(object):
     barrier_width = 0.2
     barrier_height = 100.0
-    
-    def __init__(self, delta, mus_eff, **args):
-        BCS.__init__(self, **args)
-        h = homogeneous.Homogeneous(Nxyz=self.Nxyz, Lxyz=self.Lxyz) 
-        res = h.get_densities(mus_eff=mus_eff, delta=delta)
-        self.g = delta/res.nu.n
-        
-    def get_v_ext(self, **kw):
-        self.R = min(self.Lxyz)/2
-        r = np.sqrt(sum([_x**2 for _x in self.xyz[:2]]))
+    R = 5
+
+    def get_Vext(self, r):
         R0 = self.barrier_width*self.R
         V = self.barrier_height*mstep(r-self.R+R0, R0)
         return (V, V)
 
 
-class dvr_vortex(bdg_dvr):
-    """BCS Vortex"""
-    barrier_width = 0.2
-    barrier_height = 100.0
-    R = 5
+class PeriodicDVR(VortexMixin, BCS):
+    """Vortex in periodic basis."""
+    def __init__(self, delta, mus_eff, **args):
+        BCS.__init__(self, **args)
+        h = homogeneous.Homogeneous(Nxyz=self.Nxyz, Lxyz=self.Lxyz)
+        res = h.get_densities(mus_eff=mus_eff, delta=delta)
+        self.g = delta/res.nu.n
 
-    def get_Vext(self, rs):
-        R0 = self.barrier_width*self.R
-        V = self.barrier_height*mstep(rs-self.R+R0, R0)
-        return V
+    def get_v_ext(self, **kw):
+        #self.R = min(self.Lxyz)/2
+        r = np.sqrt(sum([_x**2 for _x in self.xyz[:2]]))
+        return self.get_Vext(r=r)
+
+
+class CylindricalDVR(VortexMixin, bdg_dvr):
+    """Vortex in cylindical basis."""
 
 
 class bdg_dvr_ho(bdg_dvr):
