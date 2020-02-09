@@ -6,11 +6,16 @@
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.5'
-#       jupytext_version: 1.3.0
+#       format_version: '1.4'
+#       jupytext_version: 1.2.4
 #   kernelspec:
-#     display_name: Python 3
+#     display_name: Python 3 (system-wide)
 #     language: python
+#     metadata:
+#       cocalc:
+#         description: Python 3 programming language
+#         priority: 100
+#         url: https://www.python.org/
 #     name: python3
 # ---
 
@@ -32,7 +37,7 @@ from mmf_hfb.VortexDVR import bdg_dvr, bdg_dvr_ho,dvr_full_set
 from mmf_hfb.utils import block
 
 # # Vortices
-# Let us get started with the single partilce Harmitonian
+# Let us get started with the single particle Harmitonian
 # $$
 #   \op{H}\psi_{n,l_z}(r, \theta) = E\psi_{n,l_z}(r, \theta)
 # $$
@@ -44,7 +49,7 @@ from mmf_hfb.utils import block
 #   &=\left(\frac{-\hbar^2}{2m}\nabla^2 - \mu\right)R_{n, l_z}(r)e^{il_z\theta}\\
 # \end{align}
 
-# Let $R(r) = r^{-1/2}f(r)$, the the schrodinger equation changes to:
+# Let $R(r) = r^{-1/2}f(r)$, the the Schrödinger equation changes to:
 #
 # $$
 # \left[-\frac{\hbar^2}{2m}\left(\frac{\partial^2 }{\partial r^2}- \frac{1_z^2 - 1/4}{r^2}\right)-\mu\right]f(r)=Ef(r)
@@ -83,10 +88,7 @@ from mmf_hfb.utils import block
 #     v^*_{n, l_z}(r)
 #   \end{pmatrix}
 #   =
-#   \begin{pmatrix}
-#   E_{n, l_z}&0\\
-#   0&-E_{n, l_z}
-#   \end{pmatrix}
+#   E_{n, l_z}
 #   \begin{pmatrix}
 #     u_{n, l_z}(r)\\
 #     v^*_{n, l_z}(r)
@@ -94,73 +96,175 @@ from mmf_hfb.utils import block
 # $$
 
 # +
+#dx = 2*R_max/N_abscissa
+#dx, healing_length #, 1/k_F
+
+# +
+#self = bcs
+#np.max([(self.hbar*_k)**2/2/self.m for _k in self.kxyz])
+
+# +
+# Compare Periodic and Cylindrical Solutions
 import mmf_hfb.VortexDVR  as vd; reload(vd)
-from mmf_hfb.VortexDVR import bdg_dvr,dvr_vortex,BCS_vortex
+from mmf_hfb.VortexDVR import bdg_dvr,PeriodicDVR, CylindricalDVR
+m = hbar = 1
 mu, dmu = 5, 0
-mus=(mu + dmu,mu - dmu)
-E_c=20
-delta_bcs=delta_dvr=delta=2
+mus = (mu + dmu,mu - dmu)
+Ec_Emax = 0.8
+delta = 2.0
+R_max = 5.0
+N_abscissa = 32
+winding = 2
+healing_length = np.sqrt(2*m*delta)/hbar
+
 # BCS
-bcs = BCS_vortex(Nxyz=(32,)*2, Lxyz=(10,)*2, mus_eff=(mu+dmu, mu-dmu), delta=delta)
-x, y = bcs.xyz
-rs = np.sqrt(sum(_x**2 for _x in bcs.xyz)).ravel()
+bcs = PeriodicDVR(Nxyz=(N_abscissa,)*2, Lxyz=(2*R_max,)*2,
+                  Ec_Emax=Ec_Emax,
+                  mus_eff=(mu+dmu, mu-dmu), delta=delta)
+
 # DVR
-dvr = dvr_vortex(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=E_c, bases=None, N_root=32, R_max=5, l_max=200)
-delta_bcs = delta*(x+1j*y) # if n == 1 else delta*(x**2-y**2+2j*x*y)# 
-delta_dvr = delta*dvr.rs
-dvr.wz = 0 if np.size(delta_bcs)==1 else 1
-bcs.E_c=E_c
-dvr.E_c=E_c
-def update_plot(delta_bcs_, delta_dvr_):
-    res_bcs = bcs.get_densities(mus_eff=mus, delta=delta_bcs_)
-    na_bcs, nb_bcs, nu_bcs, ja_bcs, jb_bcs = res_bcs.n_a, res_bcs.n_b, res_bcs.nu, res_bcs.j_a, res_bcs.j_b
+dvr = CylindricalDVR(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=bcs.E_c,
+                     bases=None, wz=winding, verbosity=0,
+                     N_root=N_abscissa, R_max=R_max, l_max=200)
+
+if winding == 0:
+    delta_bcs = delta_dvr = delta
+else:
+    x, y = bcs.xyz
+    r = np.sqrt(x**2+y**2)
+    theta = np.angle(x+1j*y)
+    delta_bcs = delta * r*np.exp(1j*winding*theta)
+    delta_dvr = delta*dvr.rs
+
+def update_plot(delta_dvr_, delta_bcs_=None):
+    _bcs = delta_bcs_ is not None
+
     res_dvr = dvr.get_densities(mus=mus, delta=delta_dvr_)
-    na_dvr, nb_dvr, nu_dvr, ja_dvr, jb_dvr =res_dvr.n_a, res_dvr.n_b, res_dvr.nu, res_dvr.j_a, res_dvr.j_b
-    
+    na_dvr, nb_dvr, nu_dvr, ja_dvr, jb_dvr = res_dvr.n_a, res_dvr.n_b, res_dvr.nu, res_dvr.j_a, res_dvr.j_b
+
     delta_dvr_tmp = dvr.g*nu_dvr
-    delta_bcs_tmp = bcs.g*nu_bcs   
     err_dvr = np.max(abs((delta_dvr_tmp - delta_dvr_)))
-    err_bcs = np.max(abs((delta_bcs_tmp - delta_bcs_)))
-    plt.figure(figsize=(18, 15))    
-    plt.subplot(331)
-    imcontourf(x, y, na_bcs)
-    plt.colorbar()
-    plt.title(r"$n_a$")
-    plt.subplot(332)
-    if np.size(delta_bcs_tmp) == np.prod(bcs.Nxyz):
-        imcontourf(x, y, abs(delta_bcs_tmp))
+
+    if _bcs:
+        x, y = bcs.xyz
+        rs = np.sqrt(sum(_x**2 for _x in bcs.xyz)).ravel()
+
+        res_bcs = bcs.get_densities(mus_eff=mus, delta=delta_bcs_)
+        na_bcs, nb_bcs, nu_bcs, ja_bcs, jb_bcs = res_bcs.n_a, res_bcs.n_b, res_bcs.nu, res_bcs.j_a, res_bcs.j_b
+
+        delta_bcs_tmp = bcs.g*nu_bcs
+        err_bcs = np.max(abs((delta_bcs_tmp - delta_bcs_)))
+    else:
+        delta_bcs_tmp = err_bcs = None
+
+    plt.figure(figsize=(18, 15))
+    if _bcs:
+        plt.subplot(331)
+        imcontourf(x, y, na_bcs)
         plt.colorbar()
-    plt.title(r"$\Delta$")    
+        plt.title(r"$n_a$")
+        plt.subplot(332)
+        if np.size(delta_bcs_tmp) == np.prod(bcs.Nxyz):
+            imcontourf(x, y, abs(delta_bcs_tmp))
+            plt.colorbar()
+        plt.title(r"$\Delta$")
     plt.subplot(334)  # n_a 
     plt.plot(dvr.rs, na_dvr, label=r'$n_a$(DVR)')
-    plt.plot(rs, na_bcs.ravel(), '+', label=r'$n_a$(Grid)')
+    if _bcs:
+        plt.plot(rs, na_bcs.ravel(), '+', label=r'$n_a$(Grid)')
     plt.legend()
     plt.subplot(335)  # n_b
     plt.plot(dvr.rs, nb_dvr, label=r'$n_b$(DVR)')
-    plt.plot(rs, nb_bcs.ravel(), '+', label=r'$n_b$(Grid)')
+    if _bcs:
+        plt.plot(rs, nb_bcs.ravel(), '+', label=r'$n_b$(Grid)')
     plt.legend()
     plt.subplot(336)  # nu
     plt.plot(dvr.rs, abs(delta_dvr_tmp), label=r'$\Delta$(DVR)')
-    plt.plot(rs, abs(delta_bcs_tmp).ravel(), '+', label=r'$\Delta$(Grid)')
+    if _bcs:
+        plt.plot(rs, abs(delta_bcs_tmp).ravel(), '+', label=r'$\Delta$(Grid)')
     plt.legend()
     plt.subplot(333)
-    plt.plot(dvr.rs, nb_dvr + na_dvr, label=r'$n_+$(DVR)')
-    plt.plot(rs, (nb_bcs + na_bcs).ravel(), '+', label=r'$n_+$(Grid)')
+    plt.plot(dvr.rs, nb_dvr + na_dvr, '-b', label=r'$n_+$(DVR)')
+    plt.plot(dvr.rs, na_dvr - nb_dvr, '-g', label=r'$n_-$(DVR)')
+    if _bcs:
+        plt.plot(rs, (nb_bcs + na_bcs).ravel(), '+b', label=r'$n_+$(Grid)')
+        plt.plot(rs, (na_bcs + nb_bcs).ravel(), '+g', label=r'$n_-$(Grid)')
     plt.legend()
     clear_output(wait=True)
     plt.show()
     return (delta_bcs_tmp, delta_dvr_tmp, err_bcs, err_dvr)
 
+
+# -
+
+# %%time
+NoInterrupt.unregister()
 with NoInterrupt() as interrupted:
     for n in range(1):
-        delta_bcs_, delta_dvr_, err_bcs, err_dvr = update_plot(delta_bcs, delta_dvr)
+        if interrupted:
+            break
+        delta_bcs_, delta_dvr_, err_bcs, err_dvr = update_plot(delta_bcs_=None, delta_dvr_=delta_dvr)
+        if err_dvr <1e-5:
+            break
+        err_dvr = np.max(abs(delta_dvr - delta_dvr_))
+        delta_dvr = delta_dvr_
+        print(n, err_dvr)
+
+# %%time
+NoInterrupt.unregister()
+with NoInterrupt() as interrupted:
+    for n in range(1):
+        if interrupted:
+            break
+        delta_bcs_, delta_dvr_, err_bcs, err_dvr = update_plot(delta_bcs_=None, delta_dvr_=delta_dvr)
+        if err_dvr <1e-5:
+            break
+        err_dvr = np.max(abs(delta_dvr - delta_dvr_))
+        delta_dvr = delta_dvr_
+        print(n, err_dvr)
+
+# %%time
+NoInterrupt.unregister()
+with NoInterrupt() as interrupted:
+    for n in range(1):
+        if interrupted:
+            break
+        delta_bcs_, delta_dvr_, err_bcs, err_dvr = update_plot(delta_bcs_=delta_bcs, delta_dvr_=delta_dvr)
         if err_bcs<1e-5 or err_dvr <1e-5:
             break
         err_dvr = np.max(abs(delta_dvr - delta_dvr_))
         err_bcs = np.max(abs(delta_bcs - delta_bcs_))
-        # delta_bcs, delta_dvr = delta_bcs_, delta_dvr_
+        delta_bcs, delta_dvr = delta_bcs_, delta_dvr_
         print(n, err_dvr, err_bcs)
-# -
+
+H0 = dvr.get_H(mus=mus, delta=delta_dvr, lz=0)
+H1 = dvr.get_H(mus=mus, delta=delta_dvr, lz=-1)
+#N = dvr.bases[0]
+N = H.shape[0]//2
+K0a = H0[:N, :N]
+K0b = -H0[N:, N:]
+K1a = H1[:N, :N]
+K1b = -H1[N:, N:]
+#assert np.allclose(K1b, K0a)
+K0b, K0a, K1b, K1a
+
+lzs = [-1, 0, 1]
+dens = []
+for lz in lzs:
+    H = dvr.get_H(mus=mus, delta=delta_dvr, lz=lz)
+    den_a, den_b, den_nu = dvr._get_den(H, lz=lz)
+    den_a, j_a = den_a
+    den_b, j_b = den_b
+    dens.append((den_a, den_b))
+dens = np.asarray(dens)
+#den_a, den_b, den_nu = den
+#dens_a = dens_a + den_a
+#dens_b = dens_b + den_b
+#dens_nu = dens_nu + den_nu
+plt.plot(dvr.rs, dens[:,0].T, ':')
+plt.plot(dvr.rs, dens[:,1].T, '--')
+
+dvr.E_c, bcs.E_c
 
 # ## Spectrum
 
