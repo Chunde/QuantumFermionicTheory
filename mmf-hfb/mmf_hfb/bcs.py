@@ -486,7 +486,7 @@ class BCS(object):
             k_c = np.sqrt(2*self.m*self.E_c)/self.hbar
         twistss = self._get_twistss(N_twist)
         args = dict(args, mus_eff=mus_eff, delta=delta)
-        vs = self.get_v_ext(**args)
+        vs = self.get_Vext(**args)
         paras = [(self, k_c, vs, twists, args) for twists in twistss]
         res = PoolHelper.run(twising_worker_thread, paras=paras)
         dens = sum(res)/len(res)

@@ -117,7 +117,7 @@ class Homogeneous(object):
         self.Nxyz = Nxyz
         self.Lxyz = Lxyz
         kcs=[1000, 1000, 50]
-        if k_c is None:
+        if k_c is None or (dim != 1 and k_c==np.inf):
             k_c = kcs[self.dim - 1]
         self.k_c = k_c
         if k_c is not None:
