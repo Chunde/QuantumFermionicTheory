@@ -5,7 +5,6 @@ from mmf_hfb import homogeneous;reload(homogeneous)
 from mmf_hfb import bcs;reload(bcs)
 from mmf_hfb.bcs import BCS
 from mmf_hfb import bcs_aslda
-import time
 from collections import namedtuple
 import warnings
 import scipy.integrate
@@ -31,6 +30,7 @@ def _quad(f, kF=None, k_0=0, k_inf=np.inf, limit=1000):
     if abs(err) > 1e-6 and abs(err/res) > 1e-6:
         warnings.warn("Gap integral did not converge: res, err = %g, %g" % (res, err))
     return 2*res   # Accounts for integral from -inf to inf
+
 
 def get_BCS_v_n_e(delta, mu_eff):
     m = hbar = 1.0
@@ -61,6 +61,7 @@ def get_BCS_v_n_e(delta, mu_eff):
 
     return namedtuple('BCS_Results', ['v_0', 'n', 'mu', 'e'])(v_0, n, mu, e)
 
+
 class Lattice(BCS):
     """Adds optical lattice potential to species a with depth V0."""
     cells = 1.0
@@ -68,6 +69,7 @@ class Lattice(BCS):
     E0 = -0.312433127299677
     power = 4
     V0 = -10.5
+
     def __init__(self, cells=1, N=2**5, L=10.0,  mu_a=1.0, mu_b=1.0, v0=0.1, V0=-10.5, power=2,**kw):
         self.power = power
         self.mu_a = mu_a
@@ -77,7 +79,7 @@ class Lattice(BCS):
         self.cells = cells
         BCS.__init__(self, Lxyz=[cells*L,], Nxyz=[cells*N,], **kw)
     
-    def get_v_ext(self):
+    def get_Vext(self):
         v_a =  (-self.V0 * (1-((1+np.cos(2*np.pi * self.cells*self.xyz[0]/self.Lxyz[0]))/2)**self.power))
         v_b = 0 * self.xyz[0]
         return v_a, v_b

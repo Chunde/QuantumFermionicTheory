@@ -34,7 +34,7 @@ class ASLDA(FunctionalBdG):
         self.g_eff = 1.0
         self.alpha0 = 0 
         # External potential
-        self.v_ext = self.get_v_ext()
+        self.v_ext = self.get_Vext()
         self._D2 = self.get_Laplacian()
         self._D1 = self.get_Del()
 
@@ -181,7 +181,7 @@ class ASLDA(FunctionalBdG):
         self.g_eff = self.get_effective_g(ns=ns, Vs=(V_a, V_b), mus=mus, alpha_p=alpha_p)
         return ((K_a + k_per, K_b + k_per), (V_a, V_b))
             
-    def get_v_ext(self):
+    def get_Vext(self):
         """Return the external potential."""
         return (0, 0)
 

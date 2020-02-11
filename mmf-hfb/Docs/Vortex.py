@@ -37,7 +37,7 @@ class Vortex(bcs.BCS):
         self.R = min(Lxyz)/2
         bcs.BCS.__init__(self, Nxyz=Nxyz, Lxyz=Lxyz, **kw)
 
-    def get_v_ext(self):
+    def get_Vext(self):
         r = np.sqrt(sum([_x**2 for _x in self.xyz[:2]]))
         R0 = self.barrier_width * self.R
         V = self.barrier_height * mstep(r-self.R+R0, R0)

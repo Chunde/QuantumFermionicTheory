@@ -26,7 +26,7 @@ class BDG(Homogeneous, FunctionalBdG):
         self.delta = delta
         self.k_c = k_c
      
-    def get_v_ext(self, **args):
+    def get_Vext(self, **args):
         """
             return the external potential
         """

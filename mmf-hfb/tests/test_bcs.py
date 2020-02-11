@@ -183,10 +183,8 @@ def test_BCS_get_currents_1d(dim, NLx, T, N_twist):
     j_a, j_b = get_1d_currents(b, mus_eff=(mu, mu), delta=delta, N_twist=N_twist)
 
     assert np.allclose(res.j_a[0], j_a)
-    assert np.allclose(res.j_b[0], j_b)  
+    assert np.allclose(res.j_b[0], j_b)
 
 
 if __name__ == "__main__":
-    test_BCS_get_currents_1d(dim=1, T=0)
-
-    # test_BCS(dim=2, NLx=(4, 10.0, None), T=0, N_twist=2)
+    test_BCS(dim=2, NLx=(4, 10.0, None), T=0, N_twist=4)

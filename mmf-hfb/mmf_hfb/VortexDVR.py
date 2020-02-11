@@ -141,7 +141,7 @@ class bdg_dvr(object):
 
     def get_Vext(self, rs):
         """return external potential"""
-        return 0
+        return (0, 0)
 
     def get_H(self, mus, delta, lz=0):
         """Return the full Hamiltonian (with pairing field).
@@ -156,7 +156,7 @@ class bdg_dvr(object):
         T = basis.K
         Delta = np.diag(basis.zero + delta)
         mu_a, mu_b = mus
-        V_ext = self.get_Vext(r=basis.rs)
+        V_ext = self.get_Vext(rs=basis.rs)
         V_corr_a = basis.get_V_correction(lz=lz + self.wz)
         V_corr_b = basis.get_V_correction(lz=lz)
         V_eff_a = V_ext[0] + V_corr_a
@@ -194,7 +194,7 @@ class bdg_dvr(object):
         dens_b = []
         dens_nu = []
         N_states = np.sum(abs(es) <= self.E_c)
-        if N_states > 0 :
+        if N_states > 0:
             self._log(f"{N_states} states included", 1)
         for i in range(len(es)):
             E, uv = es[i], phis[i]
@@ -267,9 +267,9 @@ class VortexMixin(object):
     barrier_height = 100.0
     R = 5
 
-    def get_Vext(self, r):
+    def get_Vext(self, rs):
         R0 = self.barrier_width*self.R
-        V = self.barrier_height*mstep(r-self.R+R0, R0)
+        V = self.barrier_height*mstep(rs-self.R+R0, R0)
         return (V, V)
 
 
@@ -281,14 +281,14 @@ class PeriodicDVR(VortexMixin, BCS):
         res = h.get_densities(mus_eff=mus_eff, delta=delta)
         self.g = delta/res.nu.n
 
-    def get_v_ext(self, **kw):
-        #self.R = min(self.Lxyz)/2
-        r = np.sqrt(sum([_x**2 for _x in self.xyz[:2]]))
-        return self.get_Vext(r=r)
+    def get_Vext(self, **kw):
+        # self.R = min(self.Lxyz)/2
+        rs = np.sqrt(sum([_x**2 for _x in self.xyz[:2]]))
+        return VortexMixin.get_Vext(self, rs=rs)
 
 
 class CylindricalDVR(VortexMixin, bdg_dvr):
-    """Vortex in cylindical basis."""
+    """Vortex in cylindrical basis."""
 
 
 class bdg_dvr_ho(bdg_dvr):

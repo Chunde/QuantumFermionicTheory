@@ -35,7 +35,7 @@ class Lattice(BCS):
         self.cells = cells
         BCS.__init__(self, L=cells*L, N=cells*N, **kw)
     
-    def get_v_ext(self):
+    def get_Vext(self):
         v_a =  (-self.V0 * (1-((1+np.cos(2*np.pi * self.cells*self.x/self.L))/2)**self.power))
         v_b = 0 * self.x
         return v_a, v_b

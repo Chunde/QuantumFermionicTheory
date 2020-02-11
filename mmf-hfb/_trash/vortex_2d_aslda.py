@@ -38,7 +38,7 @@ class ASLDA(Functionals):
         self.gamma = -11.11
         self.g_eff = 1.0
         # External potential
-        self.v_ext = self.get_v_ext()
+        self.v_ext = self.get_Vext()
 
     def fft2(self, y):
             return np.fft.fftn(y, axes=(0,1))
@@ -162,7 +162,7 @@ class ASLDA(Functionals):
         return ((K_a + Ez, K_b + Ez), (V_a, V_b))
 
             
-    def get_v_ext(self):
+    def get_Vext(self):
         """Return the external potential."""
         #v_a = (-self.V0 * (1-((1+np.cos(2*np.pi * self.cells*self.x/self.L))/2)**self.power))
         #v_b = 0 * self.x

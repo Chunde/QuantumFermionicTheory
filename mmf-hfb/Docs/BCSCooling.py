@@ -2,12 +2,13 @@
 # ---
 # jupyter:
 #   jupytext:
+#     cell_metadata_json: true
 #     formats: ipynb,py:light
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.4'
-#       jupytext_version: 1.2.3
+#       format_version: '1.5'
+#       jupytext_version: 1.3.2
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -20,7 +21,7 @@ import matplotlib.pyplot as plt
 from nbimports import *
 import numpy as np
 
-# + {"id": "ptb73kVS8ceS", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "ptb73kVS8ceS", "colab_type": "text"}
 # # BCS Cooling Class Test
 # * To properly display equations, we define some command to make life easier, this commands are invisible
 # $$
@@ -265,7 +266,7 @@ psi = test_der_cooling(plot_dE=True, **args)
 #
 # Choosing $\ket{a_n} = \ket{x}$ leads to our local cooling potential $\op{V}_c$ while choosing $\ket{a_n} = \ket{k}$ leads to $\op{K}_c$.
 
-# + {"id": "lLIWw-ya8ceW", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "lLIWw-ya8ceW", "colab_type": "text"}
 # ## Free Fermions and Fermions in a Harmonic Trap
 
 # + {"id": "EyLTqCwj8ceX", "colab_type": "code", "colab": {}}
@@ -284,10 +285,10 @@ H1 = bcs._get_H(mu_eff=0, V=V)  # harmonic trap
 U0, Es0 = bcs.get_U_E(H0, transpose=True)
 U1, Es1 = bcs.get_U_E(H1, transpose=True)
 
-# + {"id": "gmdvwhivQ6eN", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "gmdvwhivQ6eN", "colab_type": "text"}
 # # Prerequisite Test
 
-# + {"id": "B3ifArgkA90M", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "B3ifArgkA90M", "colab_type": "text"}
 # ## Check relation of $V_c(x)$, $K_c(k)$ with $H_c$
 # * By definition, $V_c$ should be equal to the diagonal terms of $H_c$ in position space while $K_c$ in momentum space
 
@@ -301,7 +302,7 @@ Hc = bcs.get_Hc(psi)
 Hc_k = np.fft.ifft(np.fft.fft(Hc, axis=0), axis=1)
 np.allclose(np.diag(Hc_k).real - Kc, 0), np.allclose(np.diag(Hc) - Vc, 0)
 
-# + {"id": "Nkt4KOoaRQ0C", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "Nkt4KOoaRQ0C", "colab_type": "text"}
 # ## Demostrate the $V_c$ and $K_c$ are Independent of Box Size
 # * with fixed $dx$
 #
@@ -312,13 +313,12 @@ np.allclose(np.diag(Hc_k).real - Kc, 0), np.allclose(np.diag(Hc) - Vc, 0)
 # V_c(x) =\braket{x|H_c|x}
 # $$
 
-# + {"id": "ysb1C9Hu8ces", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "ysb1C9Hu8ces", "colab_type": "text"}
 # # Evolve in Imaginary Time
 
 # + {"id": "D2BW3sz38cet", "colab_type": "code", "colab": {}}
 dx = 0.1
 def ImaginaryCooling():
-    plt.rcParams["figure.figsize"] = (15, 4)
     ax1 = plt.subplot(121)
     ax2 = plt.subplot(122)
     for Nx in [64, 128, 256]:
@@ -341,8 +341,8 @@ def ImaginaryCooling():
             ts, psis,_ = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, method='BDF')
             psi0 = psis[0][-1]
             E0, N0 = s.get_E_Ns([psi0])
-            Es = [s.get_E_Ns([_psi + 1j*0])[0] for _psi in psis[0]]
-            line, = ax1.semilogy(ts[0][:-2], (Es[:-2] - E0)/abs(E0), label=labels[i] + f":Nx={Nx}")
+            Es = [s.get_E_Ns(_psi)[0] for _psi in psis]
+            line, = ax1.semilogy(ts[:-2], (Es[:-2] - E0)/abs(E0), label=labels[i] + f":Nx={Nx}")
             plt.sca(ax2)
             l, = plt.plot(x, psi0)  # ground state
             plt.plot(x, psi_0, '--', c=l.get_c(), label=labels[i] + f":Nx={Nx}")  # initial state
@@ -363,28 +363,28 @@ def ImaginaryCooling():
 # + {"id": "-0u8hZIMBjN2", "colab_type": "code", "outputId": "aad3f16e-6edb-41c6-8343-3869e67a5517", "colab": {"base_uri": "https://localhost:8080/", "height": 283}}
 ImaginaryCooling()
 
-# + {"id": "p5nZgiVpBr6w", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "p5nZgiVpBr6w", "colab_type": "text"}
 # # Evolve in Real Time(Locally)
 # * Unlike the imaginary time situation, where all wavefunction or orbits are used to renormlized the results, which can be expensive. Here wave functions are evolved in real time only using the local wavefunctions to cool down the energy.
 
-# + {"id": "-Wxtf4KV8cew", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "-Wxtf4KV8cew", "colab_type": "text"}
 # ## Split-operator method
 
-# + {"id": "C5kkQAZcja8V", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "C5kkQAZcja8V", "colab_type": "text"}
 # * Assume all orbits are mutually orthogonal. For any given two obits , the state can be put as $\ket{\psi}=\ket{\psi_1 ⊗\psi_2}$. To compute the probability of a particle showing up in each of the ground state orbit, ie. $\ket{\phi_0}$ and $\ket{\phi_1}$:
 #
 # $$
 #   P_i = (\abs{\braket{\phi_i|\psi_1}}^2+\abs{\braket{\phi_i|\psi_1}}^2)\qquad \text{i=0, 1}
 # $$
 
-# + {"id": "EIyZmO5HCt5x", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "EIyZmO5HCt5x", "colab_type": "text"}
 # # Cool Down the Energy
 # In this section, all kinds of configuration will be presented. The initial state(s) is (are) picked from the free fermions in a box.
 #
 #
 # -
 
-Cooling(N_state=6, Nx=128, N_data=25, start_state=4,  N_step=100, beta_V=5, beta_K=0, beta_D=0, plot_K=False);
+Cooling(N_state=6, Nx=128, N_data=25, start_state=4,  N_step=500, beta_V=5, beta_K=0, beta_D=0, plot_K=False);
 
 Cooling(N_state=3, Nx=256, N_data=25, start_state=2,  N_step=100, beta_V=1, beta_K=1, beta_D=0);
 
@@ -394,33 +394,33 @@ Cooling(N_state=4, Nx=128, N_data=10,
         init_state_ids=list(range(2, 4)), V0=1,
         N_step=N_step*10, beta_V=1, beta_K=1, divs=(1, 1), beta_D=0, plot_k=False);
 
-# + {"id": "Eo0kxBxAVMhZ", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "Eo0kxBxAVMhZ", "colab_type": "text"}
 # ## The simplest single wave function.
 # * In the follow demo, we will show the efficiency of  the Cooling algorithm in different condition. Start with the simplest case where the inital state is a uniform wavefunction, then we turn on the hamonic potential, and monitor how the wave function evolve and the true ground state of the harmonic system is pupulated as the cooling proceeds. In the plot, the left panel plot the true ground state probability distribution $\psi^\dagger\psi$ in '+', and the evolving wavefunction probability distribution in solid line. 
 
 # + {"id": "BXaJWUplV13u", "colab_type": "code", "colab": {}}
-rets = Cooling(N_state=1, Nx=64, init_state_ids=(3,), N_data=25, N_step=100, beta_0=-1j, beta_V=0, beta_K=0, beta_D=0., divs=(1, 1), plot_k=False)
+rets = Cooling(N_state=1, Nx=64, init_state_ids=(3,), N_data=25, N_step=100, beta_0=-1j, beta_V=0, beta_K=1, beta_D=0., divs=(1, 1), plot_k=False)
 
-# + {"id": "Tr365cInZDqJ", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "Tr365cInZDqJ", "colab_type": "text"}
 # ### Double States
 # However, in multiple state situation, if we state of state 1 and 3, it may cool down to the ground states
 
 # + {"id": "ceTa7P2bZQax", "colab_type": "code", "colab": {}}
 x, rets = Cooling(N_state=2, Nx=128, Lx=23, init_state_ids=(1,3), N_data=20, N_step=1000, beta_V=1, beta_K=0, beta_D=0., divs=(1, 1))
 
-# + {"id": "P14489lt3y5X", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "P14489lt3y5X", "colab_type": "text"}
 # ### Triple States
 # * if set Nx=128, the environment of Google collaboratory will yield different result than than I run locally. Where it not converge properly, but will give desired result on my local environment.
 
 # + {"id": "ZBaymdxh3zaN", "colab_type": "code", "colab": {}}
 Cooling(N_state=3, Nx=256, N_data=25, start_state=2, N_step=1000, beta_V=1, beta_K=1, beta_D=0);
 
-# + {"id": "QETrGFXTGhcb", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "QETrGFXTGhcb", "colab_type": "text"}
 # # Experiment with another wavefunction
 # * All the above trails used the 1D harmonic wavefunction, in which case, the $V_c$ and $K_c$ both works well to cool the energy($K_c$ performs better). However, in some case, $K_c$ may fail to cool the energy. The follow example we use GP wavefunction with interaction strength $g=1$, and no external potential.
 
 # + {"id": "TzOboV3sDYN5", "colab_type": "code", "colab": {}}
-args = dict(N=4, g=1)
+args = dict(N=16, g=1)
 egs = [BCSCooling(beta_0=-1j, beta_V=0.0, beta_K=0.0, **args),
        BCSCooling(beta_0=0.0, beta_V=0.0, beta_K=1.0, **args),
        BCSCooling(beta_0=1.0, beta_V=0.0, beta_K=1.0, **args),      
@@ -435,10 +435,12 @@ labels = ['Imaginary Time',
 eg = egs[0]
 psi0 = 2*(np.random.random(eg.Nxyz[0]) + 1j*np.random.random(eg.Nxyz[0]) - 0.5 - 0.5j)
 V = np.array(psi0)*0
+for eg in egs:
+    eg.V = V
 x=egs[0].xyz[0]
 #psi0 = 0*x + 1.5 + 1.5*np.exp(-x**2/2)
 psi_ground = 0*psi0 + np.sqrt((abs(psi0)**2).mean())
-E0, N0 = eg.get_E_Ns([psi_ground], V=V)
+E0, N0 = eg.get_E_Ns([psi_ground])
 Es = [[] for _n in range(len(egs))]
 psis = [psi0.copy() for _n in range(len(egs))]
 t_max = 3.0
@@ -448,9 +450,9 @@ ts = np.arange(Ndata)*Nstep*eg.dt
 for _n in range(Ndata):
     for n, eg in enumerate(egs):
         ps = [psis[n]]
-        ps = eg.step(psis=ps, n=Nstep, V=V)
+        ps = eg.step(psis=ps, n=Nstep)
         psis[n] = ps[0]
-        E, N = eg.get_E_Ns(psis=ps, V=V) 
+        E, N = eg.get_E_Ns(psis=ps) 
         Es[n].append(E/E0 - 1.0)
 Es = np.asarray(Es)
 
@@ -466,7 +468,7 @@ plt.xlabel("t")
 plt.ylabel("E-E0")
 plt.legend()
 
-# + {"id": "LedHtcO3PO-1", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "LedHtcO3PO-1", "colab_type": "text"}
 # # With Pairing Field
 # * to-do: update the code to support BCS with pairing field.
 # -

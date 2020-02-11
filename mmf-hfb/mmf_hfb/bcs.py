@@ -43,7 +43,7 @@ class BCS(object):
     hbar = 1.0
     m = 1.0
 
-    def __init__(self, Nxyz=None, Lxyz=None, dx=None, T=0, E_c=None, Ec_Emax=0.8):
+    def __init__(self, Nxyz=None, Lxyz=None, dx=None, T=0, E_c=None, Ec_Emax=None):
         """Specify any two of `Nxyz`, `Lxyz`, or `dx`.
 
         Arguments
@@ -80,8 +80,8 @@ class BCS(object):
         self.Lxyz = Lxyz
         self.T = T
         self.E_max = np.max([(self.hbar*_k)**2/2/self.m for _k in self.kxyz])
-        if E_c is None:
-            E_c = Ec_Emax * self.E_max
+        if E_c is None and Ec_Emax is not None:
+            E_c = Ec_Emax*self.E_max
         self.E_c = E_c
 
     @property
@@ -242,7 +242,7 @@ class BCS(object):
             return range(1, self.dim + 1)
         return range(self.dim)
 
-    def get_v_ext(self, **kw):
+    def get_Vext(self, **kw):
         """Return the external potential."""
         return (0, 0)
 
@@ -285,7 +285,7 @@ class BCS(object):
         Delta = np.diag((delta + zero).ravel())
         K_a, K_b = self.get_Ks(twists=twists, **kw)
         if Vs is None:
-            v_a, v_b = self.get_v_ext(**kw)
+            v_a, v_b = self.get_Vext(**kw)
         else:
             v_a, v_b = Vs
         mu_a, mu_b = mus_eff

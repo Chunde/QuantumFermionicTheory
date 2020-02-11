@@ -24,7 +24,7 @@ class KernelHomogeneous(Homogeneous):
         self.k_c = k_c
         self.xyz = np.array([[1]])  # used for dimensionality check
 
-    def get_v_ext(self, **args):
+    def get_Vext(self, **args):
         """
             return the external potential
         """

@@ -119,7 +119,7 @@ def test_apply_Vs(N_state=2):
     def get_Vc(psis, fun):
         N = b.get_N(psis)
         Vc = 0
-        Hpsis = fun(psis)
+        Hpsis = fun(psis, psis_k=None)
         for i, psi in enumerate(psis):
             Vc = Vc + 2*(psi.conj()*Hpsis[i]).imag/N
         return Vc
@@ -159,7 +159,7 @@ def test_dE_dt(N=128, da=0, db=0, T=0.5):
     b.beta_D = 0
     b.beta_Y = 1
     # test $V_y$
-    b.solve([psi], T=T, rtol=1e-5, atol=1e-6, V=V, solver=None, method='BDF')
+    # b.solve([psi], T=T, rtol=1e-5, atol=1e-6, V=V, solver=None, method='BDF')
 
 
 def test_ImaginaryCooling_with_desired_energy():
@@ -277,4 +277,4 @@ def test_cooling_with_pairing():
 
 
 if __name__ == "__main__":
-    test_cooling_with_pairing()
+    test_dE_dt()

@@ -136,12 +136,11 @@ class TestHomogeneous(object):
         assert allclose(res.n_a+res.n_b, nF)
 
 
-
 def _test_Homogeneous3D_T0_Unitary():
     """Compare the Homogeneous1D class with get_BCS_v_n_e for T=0."""
     h3 = Homogeneous3D(T=0)
     delta = 3.4
-    res = h3.get_BCS_v_n_e(mus_eff=(1.2,)*2, delta=delta,unitary = True)
+    res = h3.get_BCS_v_n_e(mus_eff=(1.2,)*2, delta=delta, unitary=True)
     #1.1622005617900125710mu_+
     mu_p = res.mus.sum() / 2.0
     assert allclose(delta, mu_p * 1.1622005617900125710)

@@ -76,7 +76,7 @@ class KernelBCS(BCS):
         assert np.allclose(K_b, K_b.conj().T)
         return (K_a, K_b)
 
-    def get_v_ext(self, **args):
+    def get_Vext(self, **args):
         """
             return the external potential
         """

@@ -167,6 +167,8 @@ class BCSCooling(BCS):
         NOTE: Should be tested
         """
         Hpsis = []
+        if psis_k is None:
+            psis_k = self.get_psis_k(psis)
         for (i, psi) in enumerate(psis):
             Kpsi = self._apply_K(psi=psi, psi_k=psis_k[i])
             Hpsis.append(Kpsi)

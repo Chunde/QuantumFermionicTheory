@@ -41,7 +41,7 @@ def test_wave_function_reconstruction():
     wf =sum([u*h.get_F(n=i, rs=rs) for (i, u) in enumerate(us.T[1])])
     psi_rec = -Normalize(wf/rs**0.5)
     psi_ana = Normalize(HO_psi(n=2, m=1, rs=rs))
-    assert np.allclose(psi_rec, psi_ana)
+    assert np.allclose(psi_rec, psi_ana, atol=1e-6)
 
     # test basis for odd angular momentum
     h = HarmonicDVR(nu=1, dim=2, w=1)
@@ -49,5 +49,5 @@ def test_wave_function_reconstruction():
     _, us = np.linalg.eigh(H)
     wf =sum([u*h.get_F(n=i, rs=rs) for (i, u) in enumerate(us.T[0])])
     psi_rec = -Normalize(wf/rs**0.5)
-    psi_ana = Normalize(HO_psi(n=1, m=1, rs=rs))
-    assert np.allclose(psi_rec, psi_ana)
+    psi_ana = Normalize(HO_psi(n=0, m=0, rs=rs))
+    assert np.allclose(psi_rec, psi_ana, atol=1e-6)

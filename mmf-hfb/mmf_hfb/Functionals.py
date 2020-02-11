@@ -234,7 +234,7 @@ class FunctionalBdG(object):
             raise ValueError(f"d={d} is not supported value")
 
     def get_Vs(self, **args):
-        return self.get_v_ext(**args)
+        return self.get_Vext(**args)
 
 
 class FunctionalSLDA(FunctionalBdG):
@@ -302,8 +302,8 @@ class FunctionalSLDA(FunctionalBdG):
         return the modified V functional terms
         """
         if ns is None or taus is None:
-            return self.get_v_ext()
-        U_a, U_b = self.get_v_ext()  # external trap
+            return self.get_Vext()
+        U_a, U_b = self.get_Vext()  # external trap
         tau_a, tau_b = taus
         tau_p, tau_m = tau_a + tau_b, tau_a - tau_b
 

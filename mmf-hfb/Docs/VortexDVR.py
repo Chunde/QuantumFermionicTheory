@@ -6,16 +6,11 @@
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.4'
-#       jupytext_version: 1.2.4
+#       format_version: '1.5'
+#       jupytext_version: 1.3.2
 #   kernelspec:
-#     display_name: Python 3 (system-wide)
+#     display_name: Python 3
 #     language: python
-#     metadata:
-#       cocalc:
-#         description: Python 3 programming language
-#         priority: 100
-#         url: https://www.python.org/
 #     name: python3
 # ---
 
@@ -95,9 +90,8 @@ from mmf_hfb.utils import block
 #   \end{pmatrix}
 # $$
 
-# +
-#dx = 2*R_max/N_abscissa
-#dx, healing_length #, 1/k_F
+# #dx = 2*R_max/N_abscissa
+# #dx, healing_length #, 1/k_F
 
 # +
 #self = bcs
@@ -108,9 +102,9 @@ from mmf_hfb.utils import block
 import mmf_hfb.VortexDVR  as vd; reload(vd)
 from mmf_hfb.VortexDVR import bdg_dvr,PeriodicDVR, CylindricalDVR
 m = hbar = 1
-mu, dmu = 5, 0
+mu, dmu = 5, 3.5
 mus = (mu + dmu,mu - dmu)
-Ec_Emax = 0.8
+Ec_Emax = 0.25
 delta = 2.0
 R_max = 5.0
 N_abscissa = 32
@@ -125,7 +119,7 @@ bcs = PeriodicDVR(Nxyz=(N_abscissa,)*2, Lxyz=(2*R_max,)*2,
 # DVR
 dvr = CylindricalDVR(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=bcs.E_c,
                      bases=None, wz=winding, verbosity=0,
-                     N_root=N_abscissa, R_max=R_max, l_max=200)
+                     N_root=N_abscissa, R_max=R_max, l_max=100)
 
 if winding == 0:
     delta_bcs = delta_dvr = delta
@@ -188,83 +182,32 @@ def update_plot(delta_dvr_, delta_bcs_=None):
     plt.plot(dvr.rs, na_dvr - nb_dvr, '-g', label=r'$n_-$(DVR)')
     if _bcs:
         plt.plot(rs, (nb_bcs + na_bcs).ravel(), '+b', label=r'$n_+$(Grid)')
-        plt.plot(rs, (na_bcs + nb_bcs).ravel(), '+g', label=r'$n_-$(Grid)')
+        plt.plot(rs, (na_bcs - nb_bcs).ravel(), '+g', label=r'$n_-$(Grid)')
     plt.legend()
     clear_output(wait=True)
     plt.show()
     return (delta_bcs_tmp, delta_dvr_tmp, err_bcs, err_dvr)
 
-
+with NoInterrupt() as interrupted:
+    for n in range(10):
+        delta_bcs_, delta_dvr_, err_bcs, err_dvr = update_plot(delta_bcs_=delta_bcs, delta_dvr_=delta_dvr)
+        if err_dvr <1e-5:
+            break
+        err_dvr = np.max(abs(delta_dvr - delta_dvr_))
+        delta_dvr = delta_dvr_
+        delta_bcs = delta_bcs_
+        print(n, err_dvr)
 # -
 
-# %%time
-NoInterrupt.unregister()
 with NoInterrupt() as interrupted:
-    for n in range(1):
-        if interrupted:
-            break
-        delta_bcs_, delta_dvr_, err_bcs, err_dvr = update_plot(delta_bcs_=None, delta_dvr_=delta_dvr)
-        if err_dvr <1e-5:
-            break
-        err_dvr = np.max(abs(delta_dvr - delta_dvr_))
-        delta_dvr = delta_dvr_
-        print(n, err_dvr)
-
-# %%time
-NoInterrupt.unregister()
-with NoInterrupt() as interrupted:
-    for n in range(1):
-        if interrupted:
-            break
-        delta_bcs_, delta_dvr_, err_bcs, err_dvr = update_plot(delta_bcs_=None, delta_dvr_=delta_dvr)
-        if err_dvr <1e-5:
-            break
-        err_dvr = np.max(abs(delta_dvr - delta_dvr_))
-        delta_dvr = delta_dvr_
-        print(n, err_dvr)
-
-# %%time
-NoInterrupt.unregister()
-with NoInterrupt() as interrupted:
-    for n in range(1):
-        if interrupted:
-            break
+    for n in range(10):
         delta_bcs_, delta_dvr_, err_bcs, err_dvr = update_plot(delta_bcs_=delta_bcs, delta_dvr_=delta_dvr)
-        if err_bcs<1e-5 or err_dvr <1e-5:
+        if err_dvr <1e-5:
             break
         err_dvr = np.max(abs(delta_dvr - delta_dvr_))
-        err_bcs = np.max(abs(delta_bcs - delta_bcs_))
-        delta_bcs, delta_dvr = delta_bcs_, delta_dvr_
-        print(n, err_dvr, err_bcs)
-
-H0 = dvr.get_H(mus=mus, delta=delta_dvr, lz=0)
-H1 = dvr.get_H(mus=mus, delta=delta_dvr, lz=-1)
-#N = dvr.bases[0]
-N = H.shape[0]//2
-K0a = H0[:N, :N]
-K0b = -H0[N:, N:]
-K1a = H1[:N, :N]
-K1b = -H1[N:, N:]
-#assert np.allclose(K1b, K0a)
-K0b, K0a, K1b, K1a
-
-lzs = [-1, 0, 1]
-dens = []
-for lz in lzs:
-    H = dvr.get_H(mus=mus, delta=delta_dvr, lz=lz)
-    den_a, den_b, den_nu = dvr._get_den(H, lz=lz)
-    den_a, j_a = den_a
-    den_b, j_b = den_b
-    dens.append((den_a, den_b))
-dens = np.asarray(dens)
-#den_a, den_b, den_nu = den
-#dens_a = dens_a + den_a
-#dens_b = dens_b + den_b
-#dens_nu = dens_nu + den_nu
-plt.plot(dvr.rs, dens[:,0].T, ':')
-plt.plot(dvr.rs, dens[:,1].T, '--')
-
-dvr.E_c, bcs.E_c
+        delta_dvr = delta_dvr_
+        delta_bcs = delta_bcs_
+        print(n, err_dvr)
 
 # ## Spectrum
 
@@ -995,7 +938,7 @@ for E in range(7, 10):
 
 class BCS_ho(BCS):
     """2D harmonic"""
-    def get_v_ext(self, **kw):
+    def get_Vext(self, **kw):
         """Return the external potential."""
         V=sum(np.array(self.xyz)**2/2.0)
         return (V, V)
