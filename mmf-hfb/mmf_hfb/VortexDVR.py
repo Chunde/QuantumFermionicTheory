@@ -12,6 +12,14 @@ from mmf_hfb.bcs import BCS
 Densities = namedtuple('Densities', ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu', 'j_a', 'j_b'])
 
 
+def mqaud_worker_thread(obj_args):
+    obj, vs, twists, k, args = obj_args
+    k_p = obj.hbar**2/2/obj.m*k**2
+    H = obj.get_H(vs=vs, k_p=k_p, twists=twists, **args)
+    den = obj._get_densities_H(H, twists=twists)
+    return den
+
+
 def get_transform_matrix(dvr_s, dvr_t):
     rs_s = dvr_s.rs
     rs_t = dvr_t.rs
@@ -137,16 +145,15 @@ class bdg_dvr(object):
         """Log a message."""
         if level <= self.verbosity:
             print(msg)
-
+    
     def f(self, E, T=0):
         if T is None:
             T = self.T
-        if T == 0:
-            if E < 0:
-                return 1
-            return 0
+        if self.T > 0:
+            f = 1./(1+np.exp(E/self.T))
         else:
-            return 1./(1+np.exp(E/T))
+            f = (1 - np.sign(E))/2
+        return f
 
     def get_Vext(self, rs):
         """return external potential"""
@@ -201,15 +208,40 @@ class bdg_dvr(object):
         es, phis = np.linalg.eigh(H)
         phis = phis.T
         offset = phis.shape[0] // 2
-        dens = 0
+        
         # N_states = np.sum(abs(es) <= self.E_c)
         # if N_states > 0:
         #     self._log(f"{N_states} states included", 1)
+        dens = (self.bases.zero,)*5
+        # start_index = -1
+        # end_index = -1
+        # flags = abs(es) <= self.E_c
+        # for i, flag in enumerate(flags):
+        #     if start_index == -1 and flag:
+        #         start_index = i
+        #         continue
+        #     if start_index != -1 and not flag:
+        #         end_index = i
+        #         break
+        # if start_index == -1 or end_index == -1:
+        #     return dens
+        # es = es[start_index:end_index]
+        # phis = phis[start_index:end_index]
+        # us, vs = phis[:, 0:offset], phis[:, offset:]
+        # us = self.get_psi(lz=lz, u=us)
+        # vs = self.get_psi(lz=lz, u=vs)
+        # f_p, f_m = self.f(es), self.f(-es)
+        # n_a = sum(us*us.conj()*f_p[:, None]).real
+        # n_b = sum(vs*vs.conj()*f_m[:, None]).real
+        # nu = sum(us*vs.conj()*(f_p - f_m)[:, None])/2
+        # j_a = -n_a*self.wz/self.rs/2  # WRONG!
+        # j_b = -n_b*self.wz/self.rs/2  # WRONG!
+        # return np.array([n_a, j_a, n_b, j_b, nu])
+        # old implementation
         for i in range(len(es)):
             E, uv = es[i], phis[i]
             if abs(E) > self.E_c:
                 continue
-
             u, v = uv[: offset], uv[offset:]
             u = self.get_psi(lz=lz, u=u)
             v = self.get_psi(lz=lz, u=v)
@@ -222,8 +254,9 @@ class bdg_dvr(object):
             nu = u*v.conj()*(f_p - f_m)/2
             dens = dens + np.array([n_a, j_a, n_b, j_b, nu])
         return dens
+        
 
-    def get_densities(self, mus, delta, kz=0, wz=None, struct=True):
+    def get_densities(self, mus, delta, kz=0, wz=None, struct=True, para_size=None):
         """
         return the particle number density and anomalous density
         Note: Here the anomalous density is represented as kappa
@@ -235,8 +268,8 @@ class bdg_dvr(object):
         else:
             self.wz = wz
 
+        dens = (self.bases.zero,)*5
         lzs = [0]
-        dens = 0
         for lz in range(1, self.l_max):
             lzs.append(-lz)
             lzs.append(lz)
@@ -246,6 +279,7 @@ class bdg_dvr(object):
             if np.alltrue(den==0):
                 break
             dens = dens + den
+       
         if struct:
             n_a, j_a, n_b, j_b, kappa = dens
             return Densities(
@@ -292,6 +326,7 @@ class CylindricalDVR3D(CylindricalDVR):
         k_max = (2.0*self.E_c)**0.5
 
         def f(kz):
+            print(kz)
             return CylindricalDVR.get_densities(
                 self, mus=mus, delta=delta, wz=wz, kz=kz, struct=False)
         dens = 2*mquad(f, 0, k_max, abs_tol=abs_tol)/2/np.pi

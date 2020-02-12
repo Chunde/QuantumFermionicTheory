@@ -105,13 +105,14 @@ class Homogeneous(object):
             k_c=np.inf, E_c=None, **kw):
         if Nxyz is None and Lxyz is None and dx is None:
             self._dim = dim
-        elif dx is not None:
-            if Lxyz is None:
-                Lxyz = np.multiply(Nxyz, dx)
-            elif Nxyz is None:
-                Nxyz = np.ceil(np.divide(Lxyz, dx)).astype(int)
+        else:
+            if dx is not None:
+                if Lxyz is None:
+                    Lxyz = np.multiply(Nxyz, dx)
+                elif Nxyz is None:
+                    Nxyz = np.ceil(np.divide(Lxyz, dx)).astype(int)
 
-            self.dxyz = np.divide(Lxyz, Nxyz)
+                self.dxyz = np.divide(Lxyz, Nxyz)
             self._dim = len(Nxyz)
             
         self.Nxyz = Nxyz

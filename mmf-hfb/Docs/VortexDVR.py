@@ -90,8 +90,9 @@ from mmf_hfb.utils import block
 #   \end{pmatrix}
 # $$
 
-# #dx = 2*R_max/N_abscissa
-# #dx, healing_length #, 1/k_F
+# +
+#dx = 2*R_max/N_abscissa
+#dx, healing_length #, 1/k_F
 
 # +
 #self = bcs
@@ -100,7 +101,7 @@ from mmf_hfb.utils import block
 # +
 # Compare Periodic and Cylindrical Solutions
 import mmf_hfb.VortexDVR  as vd; reload(vd)
-from mmf_hfb.VortexDVR import bdg_dvr,PeriodicDVR, CylindricalDVR
+from mmf_hfb.VortexDVR import bdg_dvr,PeriodicDVR, CylindricalDVR, CylindricalDVR3D
 m = hbar = 1
 mu, dmu = 5, 3.5
 mus = (mu + dmu,mu - dmu)
@@ -189,7 +190,7 @@ def update_plot(delta_dvr_, delta_bcs_=None):
     return (delta_bcs_tmp, delta_dvr_tmp, err_bcs, err_dvr)
 
 with NoInterrupt() as interrupted:
-    for n in range(10):
+    for n in range(1):
         delta_bcs_, delta_dvr_, err_bcs, err_dvr = update_plot(delta_bcs_=delta_bcs, delta_dvr_=delta_dvr)
         if err_dvr <1e-5:
             break
@@ -199,15 +200,13 @@ with NoInterrupt() as interrupted:
         print(n, err_dvr)
 # -
 
-with NoInterrupt() as interrupted:
-    for n in range(10):
-        delta_bcs_, delta_dvr_, err_bcs, err_dvr = update_plot(delta_bcs_=delta_bcs, delta_dvr_=delta_dvr)
-        if err_dvr <1e-5:
-            break
-        err_dvr = np.max(abs(delta_dvr - delta_dvr_))
-        delta_dvr = delta_dvr_
-        delta_bcs = delta_bcs_
-        print(n, err_dvr)
+dvr3 = CylindricalDVR3D(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=bcs.E_c,
+                     bases=None, wz=winding, 
+                     N_root=N_abscissa, R_max=R_max, l_max=100)
+
+res_dvr3 = dvr3.get_densities(mus=mus, delta=delta_dvr_)
+
+res = res_dvr.n_a, res_dvr.n_b, res_dvr.nu, res_dvr.j_a, res_dvr.j_b
 
 # ## Spectrum
 
