@@ -108,7 +108,7 @@ mus = (mu + dmu,mu - dmu)
 Ec_Emax = 0.25
 delta = 2.0
 R_max = 5.0
-N_abscissa = 32
+N_abscissa = 16
 winding = 2
 healing_length = np.sqrt(2*m*delta)/hbar
 
@@ -206,7 +206,84 @@ dvr3 = CylindricalDVR3D(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=bcs.E_c,
 
 res_dvr3 = dvr3.get_densities(mus=mus, delta=delta_dvr_)
 
-res = res_dvr.n_a, res_dvr.n_b, res_dvr.nu, res_dvr.j_a, res_dvr.j_b
+n_a, j_a, n_b, j_b, nu = res_dvr3
+
+plt.plot(dvr3.rs, n_a, label=r'$n_a$(DVR)')
+plt.plot(dvr3.rs, n_b, label=r'$n_b$(DVR)')
+plt.legend()
+
+from mmf_hfb import FuldeFerrelState
+fontsize = 11
+def HomogeneousVortx(mu, dmu, delta, k_c=50, **args):
+    k_F = np.sqrt(2*mu)   
+    E_c=k_c**2/2
+    dx = 1
+    args.update(mu=mu, dmu=dmu, delta=delta, dim=3, k_c=k_c)
+    f = FuldeFerrelState.FFState(fix_g=True, **args)
+    rs = np.linspace(0.0001,0.5, 10)
+    rs = np.append(rs, np.linspace(0.51, 4, 10))
+
+    ds = [f.solve(mu=mu, dmu=dmu, dq=1/_r, a=0.001, b=2*delta) for _r in rs]
+    ps = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=d, dq=0.5/r, use_kappa=False).n for r, d in zip(rs,ds)]
+    ps0 = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=1e-12,q=0, dq=0, use_kappa=False).n for r, d in zip(rs,ds)]
+
+    
+    plt.figure(figsize(16,8))
+    plt.subplot(321)
+    plt.plot(rs/dx, np.array(ds)/mu, label="Homogeneous")
+    plt.legend()
+    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize)
+    plt.ylabel(r'$\Delta/E_F$', fontsize=fontsize)
+    plt.subplot(322)
+    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize)
+    plt.ylabel(r"Pressure/$E_F$", fontsize=fontsize)
+    plt.plot(rs/dx, ps, label="FF State/Superfluid State Pressure")
+    plt.plot(rs/dx, ps0,'--', label="Normal State pressure")
+    plt.legend()
+
+    na = np.array([])
+    nb = np.array([])
+    for i in range(len(rs)):
+        na_, nb_ = f.get_densities(delta=ds[i], dq=0.5/rs[i], mu=mu, dmu=dmu)
+        na = np.append(na, na_.n)
+        nb = np.append(nb, nb_.n)   
+    plt.subplot(323)
+    n_p = na + nb
+    plt.plot(rs/dx, n_p/k_F, label="Homogeneous")
+    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$n_p/k_F$", fontsize=fontsize)
+    #plt.title("Total Density")
+    plt.legend()
+    plt.subplot(324)
+    n_m = na - nb
+    plt.plot(rs/dx, n_m/k_F, label="Homogeneous")
+    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$n_m/k_F$", fontsize=20)
+    #,plt.title("Density Difference")
+    plt.legend()
+
+    ja = []
+    jb = []
+    js = [f.get_current(mu=mu, dmu=dmu, delta=d,dq=0.5/r) for r, d in zip(rs,ds)]
+    for j in js:
+        ja.append(j[0].n)
+        jb.append(j[1].n)
+    ja, jb = np.array(ja), np.array(jb)
+    j_p, j_m = -(ja + jb), ja - jb
+    plt.subplot(325)
+    plt.plot(rs/dx, j_m, label="Homogeneous")
+    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$j_p$", fontsize=fontsize)
+    #,plt.title("Total Current")
+    plt.legend()
+    plt.subplot(326)
+    plt.plot(rs/dx, j_p, label="Homogeneous")
+    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$j_m$", fontsize=fontsize)
+    #,plt.title("Current Difference")
+    plt.ylim(0,15)
+    plt.legend()
+    clear_output()
+    return np.array([f.g, ps, ps0, na, nb, ja, jb])
+
+E_c = 10
+res_hom = HomogeneousVortx(mu=mu, dmu=dmu, delta=delta, k_c=(2*E_c)**5)
 
 # ## Spectrum
 
@@ -256,8 +333,6 @@ Ed=np.sort(Ed)
 
 plt.plot(dvr.rs, n_a_dvr, label=r'$n_a$(DVR)')
 plt.plot(rs, n_a_bcs.ravel(), '+', label=r'$n_a$(Grid)');plt.legend()
-
-np.sort(abs(Eb))[:32], np.sort(abs(Ed))[:32]
 
 plt.figure(figsize=(16, 6))
 plt.plot(np.sort(abs(Eb))[:100],'+', label="BCS")

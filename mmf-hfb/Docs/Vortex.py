@@ -238,9 +238,6 @@ def FFVortex(bcs_vortex, mus=None, delta=None, plot_tf=True):
     plt.legend()
     plt.xlim(0, bcs_vortex.R/dx)
 
-
-
-
 FFVortex(v0)
 
 mu = 5
@@ -283,11 +280,7 @@ FFVortex(v0)
 
 FFVortex(v1)
 
-FFVortex(v2)
-
-FFVortex(v3)
-
-
+from mmf_hfb import FuldeFerrelState
 def HomogeneousVortx(mu, dmu, delta, k_c=50):
     k_F = np.sqrt(2*mu)   
     E_c=k_c**2/2
