@@ -72,7 +72,7 @@ class dvr_odd_even_set(dvr_basis_set):
     def get_psi(self, lz, u):
         U_matrix = self.Us[lz % 2]
         if U_matrix is not None:
-            u = U_matrix.dot(u)
+            u = U_matrix.dot(u.T).T
         b = self.bases[0]
         return b._get_psi(u=u)
 
@@ -132,12 +132,12 @@ class bdg_dvr(object):
             bases = dvr_odd_even_set(l_max=100, **args)
         self.bases = bases  # basis set used
         self.l_max = max(l_max, 1)  # the angular momentum cut_off
+        self.E_c = E_c
+        self.mus = (mu + dmu, mu - dmu)
         assert T==0
         self.T = T  # only support T=0
         self.wz = wz  # pairing field winding number
         self.g = self.get_g(mu=mu, delta=np.mean(delta)) if g is None else g
-        self.mus = (mu + dmu, mu - dmu)
-        self.E_c = E_c
         self.rs = self.bases.get_rs()
         self.verbosity = verbosity
 
@@ -159,7 +159,7 @@ class bdg_dvr(object):
         """return external potential"""
         return (0, 0)
 
-    def get_H(self, mus, delta, lz=0, kz=0):
+    def get_H(self, mus, delta, lz=0, lz_offset=0, kz=0):
         """Return the full Hamiltonian (with pairing field).
 
         Arguments
@@ -168,7 +168,7 @@ class bdg_dvr(object):
            Angular momentum quantum number.  The centrifugal piece
            for this is included in the kinetic term, while the remaining
         """
-        basis = self.bases.get_basis(lz=lz)
+        basis = self.bases.get_basis(lz=lz + lz_offset)
         # kinetic energy component in perpendicular direction
         K_per = np.diag(basis.zero + kz**2/2)
         T = basis.K + K_per
@@ -190,7 +190,8 @@ class bdg_dvr(object):
         the interaction strength
         """
         # [Check] will be dim = 3 when integrate over z
-        h = homogeneous.Homogeneous(dim=2)
+        k_c = (self.E_c*2)**0.5
+        h = homogeneous.Homogeneous(dim=2, k_c=k_c)
         res = h.get_densities(mus_eff=(mu, mu), delta=delta)
         g = 0 if res.nu == 0 else delta/res.nu
         return g
@@ -201,11 +202,13 @@ class bdg_dvr(object):
         """
         return self.bases.get_psi(lz=lz, u=u)
 
-    def _get_den(self, H, lz):
+    def _get_den(self, mus, delta, lz, lz_offset=0, kz=0):
         """
         return the densities for a given H
         """
+        H = self.get_H(mus=mus, delta=delta, kz=kz, lz=lz, lz_offset=lz_offset)
         es, phis = np.linalg.eigh(H)
+        # print(np.sort(abs(es)))
         phis = phis.T
         offset = phis.shape[0] // 2
         
@@ -213,55 +216,63 @@ class bdg_dvr(object):
         # if N_states > 0:
         #     self._log(f"{N_states} states included", 1)
         dens = (self.bases.zero,)*5
-        # start_index = -1
-        # end_index = -1
-        # flags = abs(es) <= self.E_c
-        # for i, flag in enumerate(flags):
-        #     if start_index == -1 and flag:
-        #         start_index = i
-        #         continue
-        #     if start_index != -1 and not flag:
-        #         end_index = i
-        #         break
-        # if start_index == -1 or end_index == -1:
-        #     return dens
-        # es = es[start_index:end_index]
-        # phis = phis[start_index:end_index]
-        # us, vs = phis[:, 0:offset], phis[:, offset:]
-        # us = self.get_psi(lz=lz, u=us)
-        # vs = self.get_psi(lz=lz, u=vs)
-        # f_p, f_m = self.f(es), self.f(-es)
-        # n_a = sum(us*us.conj()*f_p[:, None]).real
-        # n_b = sum(vs*vs.conj()*f_m[:, None]).real
-        # nu = sum(us*vs.conj()*(f_p - f_m)[:, None])/2
-        # j_a = -n_a*self.wz/self.rs/2  # WRONG!
-        # j_b = -n_b*self.wz/self.rs/2  # WRONG!
-        # return np.array([n_a, j_a, n_b, j_b, nu])
-        # old implementation
-        for i in range(len(es)):
-            E, uv = es[i], phis[i]
-            if abs(E) > self.E_c:
+        start_index = -1
+        end_index = -1
+        flags = abs(es) <= self.E_c
+        for i, flag in enumerate(flags):
+            if start_index == -1 and flag:
+                start_index = i
                 continue
-            u, v = uv[: offset], uv[offset:]
-            u = self.get_psi(lz=lz, u=u)
-            v = self.get_psi(lz=lz, u=v)
+            if start_index != -1 and not flag:
+                end_index = i
+                break
+        if start_index == -1 or end_index == -1:
+            return dens
+        es = es[start_index:end_index]
+        phis = phis[start_index:end_index]
+        us, vs = phis[:, 0:offset], phis[:, offset:]
+        us = self.get_psi(lz=lz + lz_offset, u=us)
+        vs = self.get_psi(lz=lz + lz_offset, u=vs)
+        f_p, f_m = self.f(es), self.f(-es)
+        n_a = sum(us*us.conj()*f_p[:, None]).real
+        n_b = sum(vs*vs.conj()*f_m[:, None]).real
+        nu = sum(us*vs.conj()*(f_p - f_m)[:, None])/2
+        j_a = -n_a*self.wz/self.rs/2  # WRONG!
+        j_b = -n_b*self.wz/self.rs/2  # WRONG!
+        return np.array([n_a, j_a, n_b, j_b, nu])
+        # old implementation
+        # for i in range(len(es)):
+        #     E, uv = es[i], phis[i]
+        #     if abs(E) > self.E_c:
+        #         continue
+        #     u, v = uv[: offset], uv[offset:]
+        #     u = self.get_psi(lz=lz, u=u)
+        #     v = self.get_psi(lz=lz, u=v)
 
-            f_p, f_m = self.f(E=E), self.f(E=-E)
-            n_a = u*u.conj()*f_p
-            n_b = v*v.conj()*f_m
-            j_a = -n_a*self.wz/self.rs/2  # WRONG!
-            j_b = -n_b*self.wz/self.rs/2  # WRONG!
-            nu = u*v.conj()*(f_p - f_m)/2
-            dens = dens + np.array([n_a, j_a, n_b, j_b, nu])
-        return dens
+        #     f_p, f_m = self.f(E=E), self.f(E=-E)
+        #     n_a = u*u.conj()*f_p
+        #     n_b = v*v.conj()*f_m
+        #     j_a = -n_a*self.wz/self.rs/2  # WRONG!
+        #     j_b = -n_b*self.wz/self.rs/2  # WRONG!
+        #     nu = u*v.conj()*(f_p - f_m)/2
+        #     dens = dens + np.array([n_a, j_a, n_b, j_b, nu])
+        # return dens
         
-
-    def get_densities(self, mus, delta, kz=0, wz=None, struct=True, para_size=None):
+    def get_densities(self, mus, delta, kz=0, wz=None, struct=True, lz_offset=0):
         """
         return the particle number density and anomalous density
         Note: Here the anomalous density is represented as kappa
         instead of lz so it's not that confusing when lz has
         been used as angular momentum quantum number.
+        Parameters:
+        --------------
+        wz: Integer
+            winding number of a vortex
+        struct: bool
+            return result type: True will return a structed type
+            else, return tuple type
+        lz_offset: Integer
+            Shift the basis angular momentum by the offset
         """
         if wz is None:
             wz = self.wz
@@ -274,8 +285,7 @@ class bdg_dvr(object):
             lzs.append(-lz)
             lzs.append(lz)
         for lz in lzs:  # range(-self.l_max, self.l_max):  # sum over angular momentum
-            H = self.get_H(mus=mus, delta=delta, kz=kz, lz=lz)
-            den = self._get_den(H, lz=lz)
+            den = self._get_den(mus=mus, delta=delta, kz=kz, lz=lz, lz_offset=lz_offset)
             if np.alltrue(den==0):
                 break
             dens = dens + den
@@ -326,7 +336,6 @@ class CylindricalDVR3D(CylindricalDVR):
         k_max = (2.0*self.E_c)**0.5
 
         def f(kz):
-            print(kz)
             return CylindricalDVR.get_densities(
                 self, mus=mus, delta=delta, wz=wz, kz=kz, struct=False)
         dens = 2*mquad(f, 0, k_max, abs_tol=abs_tol)/2/np.pi

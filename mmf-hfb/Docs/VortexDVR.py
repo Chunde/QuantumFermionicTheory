@@ -103,13 +103,13 @@ from mmf_hfb.utils import block
 import mmf_hfb.VortexDVR  as vd; reload(vd)
 from mmf_hfb.VortexDVR import bdg_dvr,PeriodicDVR, CylindricalDVR, CylindricalDVR3D
 m = hbar = 1
-mu, dmu = 5, 3.5
+mu, dmu = 10, 4.5
 mus = (mu + dmu,mu - dmu)
 Ec_Emax = 0.25
-delta = 2.0
+delta = 7.5
 R_max = 5.0
-N_abscissa = 16
-winding = 2
+N_abscissa = 32
+winding = 1
 healing_length = np.sqrt(2*m*delta)/hbar
 
 # BCS
@@ -131,10 +131,10 @@ else:
     delta_bcs = delta * r*np.exp(1j*winding*theta)
     delta_dvr = delta*dvr.rs
 
-def update_plot(delta_dvr_, delta_bcs_=None):
+def update_plot(delta_dvr_, lz_offset=0, delta_bcs_=None):
     _bcs = delta_bcs_ is not None
 
-    res_dvr = dvr.get_densities(mus=mus, delta=delta_dvr_)
+    res_dvr = dvr.get_densities(mus=mus, delta=delta_dvr_, lz_offset=lz_offset)
     na_dvr, nb_dvr, nu_dvr, ja_dvr, jb_dvr = res_dvr.n_a, res_dvr.n_b, res_dvr.nu, res_dvr.j_a, res_dvr.j_b
 
     delta_dvr_tmp = dvr.g*nu_dvr
@@ -185,32 +185,62 @@ def update_plot(delta_dvr_, delta_bcs_=None):
         plt.plot(rs, (nb_bcs + na_bcs).ravel(), '+b', label=r'$n_+$(Grid)')
         plt.plot(rs, (na_bcs - nb_bcs).ravel(), '+g', label=r'$n_-$(Grid)')
     plt.legend()
-    clear_output(wait=True)
+    #clear_output(wait=True)
     plt.show()
     return (delta_bcs_tmp, delta_dvr_tmp, err_bcs, err_dvr)
 
-with NoInterrupt() as interrupted:
-    for n in range(1):
-        delta_bcs_, delta_dvr_, err_bcs, err_dvr = update_plot(delta_bcs_=delta_bcs, delta_dvr_=delta_dvr)
-        if err_dvr <1e-5:
-            break
-        err_dvr = np.max(abs(delta_dvr - delta_dvr_))
-        delta_dvr = delta_dvr_
-        delta_bcs = delta_bcs_
-        print(n, err_dvr)
+def overlay_runs(loop=1, lz_offset=0):
+    delta_dvr_ = delta_dvr
+    delta_bcs_ = delta_bcs
+    with NoInterrupt() as interrupted:
+        for n in range(loop):
+            res = update_plot(
+                delta_bcs_=delta_bcs_, delta_dvr_=delta_dvr_, lz_offset=lz_offset)
+            delta_bcs_, delta_dvr_, err_bcs, err_dvr = res
+
+
 # -
 
-dvr3 = CylindricalDVR3D(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=bcs.E_c,
+overlay_runs(lz_offset=0)
+
+overlay_runs(lz_offset=1)
+
+# ## DVR in 3D
+
+dvr3 = CylindricalDVR3D(mu=mu, dmu=dmu, delta=delta, E_c=3,
                      bases=None, wz=winding, 
                      N_root=N_abscissa, R_max=R_max, l_max=100)
 
-res_dvr3 = dvr3.get_densities(mus=mus, delta=delta_dvr_)
+delta_dvr3 = delta_dvr_
+with NoInterrupt() as interrupted:
+    for n in range(1):
+        n_a, j_a, n_b, j_b, nu = dvr3.get_densities(mus=mus, delta=delta_dvr3, abs_tol=1e-4)
+        delta_dvr3 = dvr3.g*nu
+        clear_output(wait=True)
+        plt.figure(figsize=(12, 5))
+        plt.subplot(121)
+        plt.plot(dvr3.rs, n_a, label=r'$n_a$(DVR)')
+        plt.plot(dvr3.rs, n_b, label=r'$n_b$(DVR)')
+        plt.legend()
+        plt.subplot(122)
+        plt.plot(dvr3.rs, abs(delta_dvr3), label=r'$\Delta$')
+        plt.legend()
+        plt.show()
 
-n_a, j_a, n_b, j_b, nu = res_dvr3
+# +
+from mmf_hfb import FuldeFerrelState
+k_F = np.sqrt(2*mu)   
+k_c=(dvr3.E_c*2)**0.5
+dx = 1
+args = dict(mu=mu, dmu=dmu, delta=delta, dim=3, g=dvr3.g, k_c=k_c)
+f = FuldeFerrelState.FFState(fix_g=True, **args)
+rs = np.linspace(0.0001,0.5, 10)
+rs = np.append(rs, np.linspace(0.51, 4, 10))
 
-plt.plot(dvr3.rs, n_a, label=r'$n_a$(DVR)')
-plt.plot(dvr3.rs, n_b, label=r'$n_b$(DVR)')
-plt.legend()
+ds = [f.solve(mu=mu, dmu=dmu, dq=2/_r, a=0.0001, b=2*delta) for _r in rs]
+# -
+
+plt.plot(rs, ds)
 
 from mmf_hfb import FuldeFerrelState
 fontsize = 11
@@ -676,7 +706,7 @@ for i, Es in enumerate(Ess):
 plt.legend()
 # -
 
-# ### Construct Wave Function from DVR Basis
+# ### Construct Wave Function from DVR Basis in 2D
 # * Note: To get the radial wavefunction, we should divide the functionconstructed from the DVR basis by a factor of $\sqrt{r}$, the $\phi(r)$ is not the radial wavefunction:
 # $$
 #  \ket{\phi}=\sum_i{ u_i\ket{F_i}} \qquad \text{Normalized}
@@ -692,6 +722,16 @@ plt.legend()
 # \braket{\Psi|\Psi}=1
 # $$
 # where $\Psi(r,\theta)=\psi(r)e^{in\theta}$
+# $$
+# \braket{\Psi|\Psi}=2\pi\int {r\psi^*(r)\psi(r) dr}=2\pi\int{\phi^*(r)\phi(r) dr}=2\pi\braket{\phi|\phi}=2\pi\sum_i{u^2_i}=1
+# $$
+# <font color='red'>Which means the results from diagonizing the Hamiltonian should have a weight factor of $\frac{1}{\sqrt{2\pi}}$</font>
+
+# ### Construct Wave Function from DVR Basis in 2D
+# $$
+# \braket{\Psi|\Psi}=1
+# $$
+# where $\Psi(r,\theta, k_z)=\psi(r)e^{in\theta}e^{ik_z z}$
 # $$
 # \braket{\Psi|\Psi}=2\pi\int {r\psi^*(r)\psi(r) dr}=2\pi\int{\phi^*(r)\phi(r) dr}=2\pi\braket{\phi|\phi}=2\pi\sum_i{u^2_i}=1
 # $$
