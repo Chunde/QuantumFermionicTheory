@@ -82,7 +82,7 @@ class BCS(object):
         self.E_max = np.max([(self.hbar*_k)**2/2/self.m for _k in self.kxyz])
         if E_c is None and Ec_Emax is not None:
             E_c = Ec_Emax*self.E_max
-        self.E_c = E_c
+        self.E_c = self.E_max if E_c is None else E_c
 
     @property
     def dim(self):

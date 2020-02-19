@@ -45,7 +45,7 @@ def quad_k(f, kF=None, k_0=0, k_inf=np.inf, dim=1, limit=1000, **kw):
     if abs(res.s) > 1e-6 and abs(res.s/res.n) > 1e-6:
         warnings.warn(f"Integral did not converge: {res}")
         
-    return res * factor
+    return res*factor
 
 
 def quad_l(f, Nxyz, Lxyz, N_twist=1, **kw):
@@ -88,7 +88,7 @@ def quad_l(f, Nxyz, Lxyz, N_twist=1, **kw):
         indexing='ij', sparse=True)
     k2 = sum(_k**2 for _k in ks)
     k = np.sqrt(k2)
-    return ufloat(f(k).sum() * np.prod(dkxyz), 0) / (2*np.pi)**dim
+    return ufloat(f(k).sum()*np.prod(dkxyz), 0) / (2*np.pi)**dim
 
 
 class Homogeneous(object):
@@ -211,7 +211,7 @@ class Homogeneous(object):
         
         if self.Nxyz is None:
             def quad(f):
-                return quad_k(f, dim=self.dim, kF=kF, k_inf=self.k_c).n
+                return quad_k(f, dim=self.dim, kF=kF, k_inf=self.k_c)
         else:
             def quad(f):
                 return quad_l(f, Nxyz=self.Nxyz, Lxyz=self.Lxyz,

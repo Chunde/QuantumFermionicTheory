@@ -20,11 +20,14 @@
 import mmf_setup;mmf_setup.nbinit()
 # %pylab inline --no-import-all
 from nbimports import *                # Conveniences like clear_output
+import matplotlib.pyplot as plt
+import numpy as np
 # -
 
 # Here we generate some vortices.  These are regularized by fixing the coupling constant $g$ so that the homogeneous system in the box and on the lattice gives a fixed value of $\Delta$ at the specified chemical potential.  The self-consistent solution is found by simple iterations.
 
 # +
+from mmf_hfb import FuldeFerrelState; reload(FuldeFerrelState)
 from mmf_hfb import bcs, homogeneous;reload(bcs)
 from mmfutils.math.special import mstep
 from mmfutils.plot import imcontourf
@@ -45,18 +48,19 @@ class Vortex(bcs.BCS):
 
 
 class VortexState(Vortex):
-    def __init__(self, mu, dmu, delta,N_twist=1,  **kw):
+    def __init__(self, mu, dmu, delta, N_twist=1, g=None, **kw):
         Vortex.__init__(self, **kw)
         self.delta = delta
         self.N_twist = N_twist
         self.mus = (mu+dmu, mu-dmu)
         print(self.mus)
-        self.g = self.get_g(mu=mu, delta=delta)
+        self.g = self.get_g(mu=mu, delta=delta) if g is None else g
         x, y = self.xyz
         self.Delta = delta*(x+1j*y)
 
     def get_g(self, mu=1.0, delta=0.2):
-        h = homogeneous.Homogeneous(Nxyz=self.Nxyz, Lxyz=self.Lxyz) 
+        k_c = (2*self.E_c)**0.5
+        h = homogeneous.Homogeneous(Nxyz=self.Nxyz, Lxyz=self.Lxyz, dim=2, k_c=k_c) 
         res = h.get_densities(mus_eff=(mu, mu), delta=delta)
         g = delta/res.nu.n
         return g
@@ -124,10 +128,22 @@ class VortexState(Vortex):
 
 # -
 
-mu = 5
-delta = 2**1.5*mu
-v0 = VortexState(mu=mu, dmu=0.0, delta=delta, Nxyz=(32, 32))
-v0.solve(plot=True)
+mu = 10
+dmu=4.5
+delta = 7.5
+
+
+# The angle from $\vec{a}=a_x+ia_y$ to $\vec{b}=b_x+ib_y$ is the argument of the conjugate of a times b (rotating b backwards by the angle of a, scale not considered)
+
+def clockwise(r, v):
+    """return the angle between two vectors, which take order into account"""
+    dot = r.conj()*v
+    angs = np.arctan2(dot.imag,dot.real)
+    return np.sign(angs)
+
+
+v0 = VortexState(mu=mu, dmu=dmu, delta=delta, Nxyz=(32, 32), Lxyz=(8,8))
+#v0.solve(plot=True)
 
 # ## Homogeneous
 
@@ -143,15 +159,14 @@ def FFVortex(bcs_vortex, mus=None, delta=None, plot_tf=True):
     N = bcs_vortex.Nxyz[0]
     L = bcs_vortex.Lxyz[0]
     dx = L/N
-    k_c = np.sqrt(2)*np.pi*N/L
+    k_c = (2*bcs_vortex.E_c)**0.5
     k_F = np.sqrt(2*mu)
     E_c=k_c**2/2
-    print(2.0**0.5 *np.max(bcs_vortex.kxyz))
-    args = dict(mu=mu, dmu=0, delta=delta, dim=2, k_c=500)
-    f = FuldeFerrelState.FFState(fix_g=True,   **args)
-    print(f.g, bcs_vortex.g)
-    rs = np.linspace(0.0001,1, 10)
-    rs = np.append(rs, np.linspace(1.1, bcs_vortex.R, 10))
+    # print(2.0**0.5 *np.max(bcs_vortex.kxyz))
+    args = dict(mu=mu, dmu=0, delta=delta, dim=2, k_c=k_c)
+    f = FuldeFerrelState.FFState(fix_g=True, g=bcs_vortex.g, **args)
+    rs = np.linspace(0.0001,2, 30)
+    rs = np.append(rs, np.linspace(2.01, bcs_vortex.R, 10))
     rs_ = rs/dx
     if plot_tf:
         ds = [f.solve(mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
@@ -208,8 +223,12 @@ def FFVortex(bcs_vortex, mus=None, delta=None, plot_tf=True):
     plt.ylim(0,1)
     plt.legend()
     plt.xlim(0, bcs_vortex.R/dx)
-    j_a_ = np.abs(res.j_a[0] + 1j*res.j_a[1])
-    j_b_ = np.abs(res.j_b[0] + 1j*res.j_b[1]) 
+    x, y = bcs_vortex.xyz
+    r_vec = x+1j*y
+    j_a_ = res.j_a[0] + 1j*res.j_a[1]
+    j_a_ = clockwise(r_vec, j_a_)*np.abs(j_a_)
+    j_b_ = res.j_b[0] + 1j*res.j_b[1]
+    j_b_ = clockwise(r_vec, j_b_)*np.abs(j_b_) 
     j_p_, j_m_ = j_a_ + j_b_, j_a_ - j_b_
     j_a = []
     j_b = []
@@ -220,48 +239,47 @@ def FFVortex(bcs_vortex, mus=None, delta=None, plot_tf=True):
             j_b.append(j[1].n)
         j_a, j_b = np.array(j_a), np.array(j_b)
         j_p, j_m = -(j_a + j_b), j_a - j_b
+
     plt.subplot(325)
-    
     plt.plot(r.ravel()/dx, j_a_.ravel(), '+', label="BCS")
     if plot_tf:
         plt.plot(rs_, j_a, label="Homogeneous")
     plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$j_a$", fontsize=fontsize)#,plt.title("Total Current")
+    plt.axhline(0, linestyle='dashed')
     plt.legend()
     plt.xlim(0, bcs_vortex.R/dx)
-    plt.subplot(326)
     
+    plt.subplot(326)
     plt.plot(r.ravel()/dx, j_b_.ravel(), '+', label="BCS")
     if plot_tf:
         plt.plot(rs_, -j_b, label="Homogeneous")
+    plt.axhline(0, linestyle='dashed')
     plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$j_b$", fontsize=fontsize)#,plt.title("Current Difference")
    # plt.ylim(0,15)
     plt.legend()
     plt.xlim(0, bcs_vortex.R/dx)
 
-FFVortex(v0)
+FFVortex(v0, plot_tf=True)
 
-mu = 5
-delta = 2**1.5*mu
-v1 = VortexState(mu=mu, dmu=0.5*delta, delta=delta, Nxyz=(32, 32))
-v1.solve(plot=True)
+FFVortex(v0, plot_tf=True)
 
-FFVortex(v1)
-
-FFVortex(v1, plot_tf=False)
-
-mu = 10
-delta = 7.5
-v4 = VortexState(mu=mu, dmu=0, delta=delta, Nxyz=(32, 32), Lxyz=(8,8))
-v4.solve(plot=True)
-
-FFVortex(v4)
-
-mu = 10
-delta = 7.5
-v4 = VortexState(mu=mu, dmu=4.5, delta=delta, Nxyz=(32, 32), Lxyz=(8,8))
-v4.solve(plot=True)
-
-FFVortex(v4)
+mu_a, mu_b=v0.mus
+delta = v0.delta
+mu, dmu = (mu_a + mu_b)/2, (mu_a - mu_b)/2
+N = v0.Nxyz[0]
+L = v0.Lxyz[0]
+r=0.5
+dx = L/N
+k_c = (2*v0.E_c)**0.5
+k_F = np.sqrt(2*mu)
+E_c=k_c**2/2
+args = dict(mu=mu, dmu=0, delta=delta, dim=2, k_c=k_c)
+f = FuldeFerrelState.FFState(fix_g=True, g=v0.g, **args)
+ds=np.linspace(0.001, 7, 20)
+gs = [f.f(mu=mu, dmu=dmu, dq=0.5/r, delta=d) for d in ds]
+plt.plot(ds, gs, label=f"r=r{r}")
+plt.legend()
+plt.axhline(0, ls='dashed')
 
 # ## Compare to FF State
 # * The FFVortex will compute FF State data with the same $\mu,d\mu$, and compare the results in plots
@@ -273,12 +291,6 @@ FFVortex(v4)
 #
 
 # ### Symmetric case $\delta \mu/\Delta=0$
-
-FFVortex(v0)
-
-# ### Polarized case $\delta \mu/\Delta\ne0$
-
-FFVortex(v1)
 
 from mmf_hfb import FuldeFerrelState
 def HomogeneousVortx(mu, dmu, delta, k_c=50):
@@ -355,33 +367,5 @@ delta = 1.16220056179 * mu
 dmu=0.25 * delta
 HomogeneousVortx(mu=mu, dmu=dmu, delta=delta)
 
-# # DVR Basis
-
-import mmf_hfb.VortexDVR as dvr; reload(dvr)
-from mmf_hfb.VortexDVR import VortexDVR
-from IPython.display import display, clear_output
-
-# +
-mu = 10
-dmu = 0
-mus = (mu + dmu, mu - dmu)
-delta=5
-dvr = VortexDVR(mu=mu, delta=delta)
-delta = delta + dvr.bases[0].zero
-
-while(True):
-    n_a, n_b, kappa = dvr.get_densities(mus=(mu,mu), delta=delta)
-    delta_ = -dvr.g*kappa
-    delta_, delta    
-    plt.plot(dvr.bases[0].rs, delta_)
-    plt.plot(dvr.bases[0].rs, delta,'+')
-    plt.title(f"Error={(delta-delta_).max()}")
-    plt.ylabel(r"$\Delta$")
-    plt.show()
-    clear_output(wait=True)
-    if np.allclose(delta, delta_):
-        break      
-    delta=delta_
-# -
 
 
