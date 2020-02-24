@@ -50,17 +50,10 @@ lda.C = lda._get_C(mus_eff=(mu_eff,mu_eff), delta=delta)
 
 def f(dq):
     return (lda._get_C(
-        mus_eff=(mu_eff + dmu_eff, mu_eff - dmu_eff), delta=delta, dq=dq) - lda.C).n
+        mus_eff=(mu_eff + dmu_eff, mu_eff - dmu_eff), delta=delta, dq=dq) - lda.C)
 def get_C(dmu_eff, delta, dq=0):
-    return lda._get_C(mus_eff=(mu_eff + dmu_eff,mu_eff-dmu_eff), delta=delta, dq=dq).n
+    return lda._get_C(mus_eff=(mu_eff + dmu_eff,mu_eff-dmu_eff), delta=delta, dq=dq)
 
-
-ds = np.linspace(0.001, 1.2*delta, 50)
-ret2=[]
-dqs=np.linspace(0, 0.2, 5)
-for dq in dqs:
-    Cs = [get_C(dmu_eff=0, delta=d, dq=dq) for d in ds]
-    ret2.append(Cs)
 
 dmu_effs = np.linspace(0, delta, 5)
 ds = np.linspace(0.001, 1.2*delta, 50)
@@ -77,8 +70,6 @@ plt.axvline(dmu_effs[i],linestyle='dashed')
 plt.legend()
 plt.xlabel(f"$\Delta$")
 plt.ylabel("C")
-
-lda.C
 
 ret2=[]
 dqs=np.linspace(0, 0.2, 5)

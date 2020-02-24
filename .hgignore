@@ -1,5 +1,0 @@
-syntax: glob
-
-*.sage-jupyter2
-Data/
-mmf-hfb/.vscode/
