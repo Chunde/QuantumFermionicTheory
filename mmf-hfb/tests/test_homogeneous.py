@@ -11,6 +11,7 @@ from mmf_hfb.homogeneous import Homogeneous1D, Homogeneous3D
 def dim(request):
     return request.param
 
+
 def BCS(mu_eff, delta=1.0):
     m = hbar = 1.0
     """Return `(E_N_E_2, lam)` for comparing with the exact Gaudin
@@ -127,34 +128,14 @@ class TestHomogeneous(object):
         nF = kF**3/3/np.pi**2
         eF = (hbar*kF)**2/2/m
         # E_FG = 3*nF*eF/5
-
-        mu = xi * eF
-        delta = 0.68640205206984016444108204356564421137062514068346 * eF
+        mu = xi*eF
+        delta = 0.68640205206984016444108204356564421137062514068346*eF
 
         h = homogeneous.Homogeneous3D(m=m, hbar=hbar)
         res = h.get_densities(mus_eff=(mu,)*2, delta=delta)
         assert allclose(res.n_a+res.n_b, nF)
 
 
-def _test_Homogeneous3D_T0_Unitary():
-    """Compare the Homogeneous1D class with get_BCS_v_n_e for T=0."""
-    h3 = Homogeneous3D(T=0)
-    delta = 3.4
-    res = h3.get_BCS_v_n_e(mus_eff=(1.2,)*2, delta=delta, unitary=True)
-    #1.1622005617900125710mu_+
-    mu_p = res.mus.sum() / 2.0
-    assert allclose(delta, mu_p * 1.1622005617900125710)
-
-    
-def _test_Homogeneous3D_scattering_length():
-    """Compare the Homogeneous1D class with get_BCS_v_n_e for T=0."""
-    kc = 10000.0
-    h3 = Homogeneous3D(T=0)
-    res0 = h3.get_scattering_length(mus_eff=(1.2,)*2, delta=3.4,k_c=kc)
-    res1 = h3.get_scattering_length(mus_eff=(1.2,)*2, delta=3.4,k_c=2.0 * kc)
-    print(res0, res1)
-    assert allclose(res0, res1,atol=0.0005)    
- # to debug in Visual Studio
 if __name__ == '__main__':
     t = TestHomogeneous()
     t.test_3D_T0()

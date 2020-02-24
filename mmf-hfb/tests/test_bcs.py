@@ -54,9 +54,9 @@ def test_BCS(dim, NLx, T, N_twist):
     res_h = h.get_densities((mu, mu), delta, N_twist=N_twist)
     res_b = b.get_densities((mu, mu), delta, N_twist=N_twist)
 
-    assert np.allclose(res_h.n_a.n, res_b.n_a.mean())
-    assert np.allclose(res_h.n_b.n, res_b.n_b.mean())
-    assert np.allclose(res_h.nu.n, res_b.nu.mean())
+    assert np.allclose(res_h.n_a, res_b.n_a.mean())
+    assert np.allclose(res_h.n_b, res_b.n_b.mean())
+    assert np.allclose(res_h.nu, res_b.nu.mean())
 
     
 def test_twist_average(dim, T):
