@@ -24,12 +24,12 @@ def quad_k(f, kF=None, k_0=0, k_inf=np.inf, dim=1, limit=1000, **kw):
         factor = 1./2/np.pi
         
         def integrand(k):
-            return f(k) * k
+            return f(k)*k
     elif dim == 3:
         factor = 1./2/np.pi**2
         
         def integrand(k):
-            return f(k) * k**2
+            return f(k)*k**2
     else:
         raise NotImplementedError(f"Only dim=1,2,3 supported (got {dim}).")
 
@@ -45,7 +45,7 @@ def quad_k(f, kF=None, k_0=0, k_inf=np.inf, dim=1, limit=1000, **kw):
     if abs(res.s) > 1e-6 and abs(res.s/res.n) > 1e-6:
         warnings.warn(f"Integral did not converge: {res}")
         
-    return res*factor
+    return res * factor
 
 
 def quad_l(f, Nxyz, Lxyz, N_twist=1, **kw):
@@ -88,7 +88,7 @@ def quad_l(f, Nxyz, Lxyz, N_twist=1, **kw):
         indexing='ij', sparse=True)
     k2 = sum(_k**2 for _k in ks)
     k = np.sqrt(k2)
-    return ufloat(f(k).sum()*np.prod(dkxyz), 0) / (2*np.pi)**dim
+    return ufloat(f(k).sum() * np.prod(dkxyz), 0) / (2*np.pi)**dim
 
 
 class Homogeneous(object):
@@ -105,20 +105,19 @@ class Homogeneous(object):
             k_c=np.inf, E_c=None, **kw):
         if Nxyz is None and Lxyz is None and dx is None:
             self._dim = dim
-        else:
-            if dx is not None:
-                if Lxyz is None:
-                    Lxyz = np.multiply(Nxyz, dx)
-                elif Nxyz is None:
-                    Nxyz = np.ceil(np.divide(Lxyz, dx)).astype(int)
+        elif dx is not None:
+            if Lxyz is None:
+                Lxyz = np.multiply(Nxyz, dx)
+            elif Nxyz is None:
+                Nxyz = np.ceil(np.divide(Lxyz, dx)).astype(int)
 
-                self.dxyz = np.divide(Lxyz, Nxyz)
+            self.dxyz = np.divide(Lxyz, Nxyz)
             self._dim = len(Nxyz)
             
         self.Nxyz = Nxyz
         self.Lxyz = Lxyz
         kcs=[1000, 1000, 50]
-        if k_c is None or (dim != 1 and k_c==np.inf):
+        if k_c is None: # or (dim != 1 and k_c==np.inf):
             k_c = kcs[self.dim - 1]
         self.k_c = k_c
         if k_c is not None:
@@ -158,15 +157,16 @@ class Homogeneous(object):
         return res
 
     def _get_densities_tf(
-            self, mus_eff, delta, **args):
+            self, mus_eff, delta, k_c=None, **args):
         """
         extended the homogeneous code to support FF state
         calculation, seems to be much slower.
         """
         mu_a, mu_b = mus_eff
+        k_c = self.k_c if k_c is None else k_c
         args.update(
             mu_a=mu_a, mu_b=mu_b, m_a=self.m, m_b=self.m, delta=delta,
-            dim=self.dim, hbar=self.hbar, T=self.T, k_c=self.k_c)
+            dim=self.dim, hbar=self.hbar, T=self.T, k_c=k_c)
 
         n_m = tf.integrate_q(tf.n_m_integrand, **args).n
         n_p = tf.integrate_q(tf.n_p_integrand, **args).n
@@ -188,18 +188,17 @@ class Homogeneous(object):
         """
         if dq == 0:
             return (ufloat(0, 0),)*4
-
+        k_c = self.k_c if k_c is None else k_c
         mu_a, mu_b = mus_eff
         args=dict(
             mu_a=mu_a, mu_b=mu_b, m_a=self.m, m_b=self.m, delta=delta,
-            dim=self.dim, hbar=self.hbar, T=self.T, k_c=self.k_c)
-        if k_c is not None:
-            args.update(k_c=k_c)
+            dim=self.dim, hbar=self.hbar, T=self.T, k_c=k_c)
         args.update(q=q, dq=dq)
         return tf.compute_current(**args)
 
     def get_densities(
-            self, mus_eff, delta, N_twist=1, taus_flag=True, nu_flag=True, **args):
+            self, mus_eff, delta, N_twist=1,
+            k_c=None, taus_flag=True, nu_flag=True, **args):
         """
         Return the densities (ns, taus, nu).
         --------------
@@ -208,10 +207,10 @@ class Homogeneous(object):
         if 'dq' in args and args['dq'] !=0:
             return self._get_densities_tf(mus_eff=mus_eff, delta=delta, **args)
         kF = np.sqrt(2*max(0, np.max(mus_eff)))
-        
+        k_c = self.k_c if k_c is None else k_c
         if self.Nxyz is None:
             def quad(f):
-                return quad_k(f, dim=self.dim, kF=kF, k_inf=self.k_c).n
+                return quad_k(f, dim=self.dim, kF=kF, k_inf=k_c).n
         else:
             def quad(f):
                 return quad_l(f, Nxyz=self.Nxyz, Lxyz=self.Lxyz,
@@ -266,7 +265,7 @@ class Homogeneous(object):
         else:
             tau_a = tau_b = None
         if nu_flag:
-            if self.k_c is None:  # if not cutoff
+            if k_c is None:  # if not cutoff
                 if self.Nxyz is None and self.dim != 1:
                     # This is divergent:
                     nu = np.inf
@@ -282,13 +281,13 @@ class Homogeneous(object):
         return namedtuple('Densities', ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu'])(
             n_a, n_b, tau_a, tau_b, nu)
 
-    def get_entropy(self, mus_eff, delta, N_twist=1):
+    def get_entropy(self, mus_eff, delta, N_twist=1, k_c=None):
         """Return the entropy"""
         kF = np.sqrt(2*max(0, max(mus_eff)))
-        
+        k_c = self.k_c if k_c is None else k_c        
         if self.Nxyz is None:
             def quad(f):
-                return quad_k(f, dim=self.dim, kF=kF, k_inf=self.k_c)
+                return quad_k(f, dim=self.dim, kF=kF, k_inf=k_c)
         else:
             def quad(f):
                 return quad_l(f, Nxyz=self.Nxyz, Lxyz=self.Lxyz,

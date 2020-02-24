@@ -132,7 +132,7 @@ class TestHomogeneous(object):
         delta = 0.68640205206984016444108204356564421137062514068346*eF
 
         h = homogeneous.Homogeneous3D(m=m, hbar=hbar)
-        res = h.get_densities(mus_eff=(mu,)*2, delta=delta)
+        res = h.get_densities(mus_eff=(mu,)*2, delta=delta, k_c=np.inf)
         assert allclose(res.n_a+res.n_b, nF)
 
 
