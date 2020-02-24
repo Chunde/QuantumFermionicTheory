@@ -352,9 +352,9 @@ class FFState(object):
             mu, dmu = (mu_a + mu_b)/2.0, (mu_a - mu_b)/2.0
 
         if a is None:
-            a = self.delta * 0.1
+            a = self.delta*0.1
         if b is None:
-            b = self.delta * 2
+            b = self.delta*2
 
         def f(delta):
             return self.f(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
@@ -378,14 +378,14 @@ class FFState(object):
                 delta = 0
                 for i in reversed(range(0, len(ds)-1)):
                     f_ = f(ds[i])
-                    if f0 * f_ < 0:
+                    if f0*f_ < 0:
                         delta = brentq(f, ds[index0], ds[i])
                         if f_ * f(ds[0]) < 0:  # another solution
                             delta_ = brentq(f, ds[0], ds[i])
                             self._delta = delta_
                             print(
-                                f"Another solution delta={delta_} was found,"
-                                + f"return the one with higher pressure")
+                                f"Another solution {delta_} found,"
+                                + f"{delta}")
                             p_ = self.get_pressure(
                                 mu_eff=mu, dmu_eff=dmu, delta=delta_, q=q, dq=dq)
                             p = self.get_pressure(
@@ -397,8 +397,8 @@ class FFState(object):
                     else:
                         f0 = f_
                         index0 = i
-                if delta == 0 and (f(0.999 * self.delta) * f(1.001 * self.delta) < 0):
-                    delta = brentq(f, 0.999 *self.delta, 1.001 *self.delta)
+                if delta == 0 and (f(0.999*self.delta) * f(1.001*self.delta) < 0):
+                    delta = brentq(f, 0.999*self.delta, 1.001*self.delta)
         if self.bStateSentinel:
             assert self.bSuperfluidity == (delta > 0)
         return delta

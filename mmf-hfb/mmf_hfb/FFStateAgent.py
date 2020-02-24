@@ -101,7 +101,7 @@ class FFStateAgent(object):
             dqs = np.linspace(q_lower, q_upper, q_N)
             gs = [f(dq) for dq in dqs]
             g0, i0 = gs[0], 0
-            if np.allclose(gs[0], 0, rtol=rtol):
+            if np.allclose(gs[0].n, 0, rtol=rtol):
                 rets.append(gs[0])
                 g0, i0= gs[1], 1
             for i in range(len(rets), len(gs)):
@@ -355,10 +355,10 @@ def search_states_worker(mus_delta):
     mu_eff, dmu_eff, delta = mus_delta
     args = dict(
         mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
-        T=0, dim=3, k_c=50, verbosity=False)
+        T=0, dim=2, k_c=100, verbosity=False)
     lda = ClassFactory(
         "LDA", (FFStateAgent,),
-        functionalType=FunctionalType.SLDA,
+        functionalType=FunctionalType.BDG,
         kernelType=KernelType.HOM, args=args)
     lda.Search(
         delta_N=100, delta_lower=0.0001, delta_upper=delta,
@@ -367,15 +367,16 @@ def search_states_worker(mus_delta):
 
 def search_states(mu_eff=None, delta=1):
     e_F = 10
-    mu0 = 0.59060550703283853378393810185221521748413488992993*e_F
+    # mu0 = 0.59060550703283853378393810185221521748413488992993*e_F
+    mu0 = 0.5*e_F
     # delta0 = 0.68640205206984016444108204356564421137062514068346*e_F
     if mu_eff is None:
         mu_eff = mu0
     """compute current and pressure"""
-    dmus = np.linspace(0.3*delta, 0.7*delta, 10)
-    dmus = [1.0875000000000001]
+    dmus = np.linspace(0.01*delta, delta, 10)
+    # dmus = [1.0875000000000001]
     mus_deltas = [(mu_eff, dmu, delta) for dmu in dmus]
-    if False:  # Debugging
+    if True:  # Debugging
         for item in mus_deltas:
             search_states_worker(item)
     else:

@@ -5,8 +5,8 @@
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.4'
-#       jupytext_version: 1.2.3
+#       format_version: '1.5'
+#       jupytext_version: 1.3.2
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -33,12 +33,13 @@ import mmf_hfb.FFStateAgent as ffa
 reload(ffa)
 import mmf_hfb.FFStatePlot as ffp
 reload(ffp)
+import numpy as np
 currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","mmf_hfb","data")
 
 mu_eff=10
 dmu_eff=0.5
-delta=0.00001
-dim=3
+delta=5
+dim=2
 LDA = ClassFactory(
             className="LDA",
             functionalType=FunctionalType.SLDA,
@@ -46,17 +47,23 @@ LDA = ClassFactory(
 lda = LDA(mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta, T=0, dim=dim)
 lda.C = lda._get_C(mus_eff=(mu_eff,mu_eff), delta=delta)
 
-ns, e, p=lda.get_ns_e_p(mus=(mu_eff, dmu_eff), delta=delta)
 
-(6*np.pi**2*(sum(ns))**(5.0/3))/20/np.pi**2*lda._G(lda.get_p(ns)), e, lda.get_p(ns), ns
-
-
+def f(dq):
+    return (lda._get_C(
+        mus_eff=(mu_eff + dmu_eff, mu_eff - dmu_eff), delta=delta, dq=dq) - lda.C).n
 def get_C(dmu_eff, delta, dq=0):
-    return lda._get_C(mus_eff=(mu_eff + dmu_eff,mu_eff-dmu_eff), delta=delta, dq=dq)
+    return lda._get_C(mus_eff=(mu_eff + dmu_eff,mu_eff-dmu_eff), delta=delta, dq=dq).n
 
+
+ds = np.linspace(0.001, 1.2*delta, 50)
+ret2=[]
+dqs=np.linspace(0, 0.2, 5)
+for dq in dqs:
+    Cs = [get_C(dmu_eff=0, delta=d, dq=dq) for d in ds]
+    ret2.append(Cs)
 
 dmu_effs = np.linspace(0, delta, 5)
-ds = np.linspace(0.001, 1.2*delta, 10)
+ds = np.linspace(0.001, 1.2*delta, 50)
 
 rets = []
 for dmu_eff in dmu_effs:
@@ -66,21 +73,12 @@ for dmu_eff in dmu_effs:
 plt.figure(figsize(16,8))
 for i in range(len(dmu_effs)):
     plt.plot(ds, rets[i], label=f"d$\mu$={dmu_effs[i]}")
-    plt.axvline(dmu_effs[i],linestyle='dashed')
+plt.axvline(dmu_effs[i],linestyle='dashed')
 plt.legend()
 plt.xlabel(f"$\Delta$")
 plt.ylabel("C")
 
-ret1=[]
-dqs=np.linspace(0, 0.2, 5)
-for dq in dqs:
-    Cs = [get_C(dmu_eff=0.2, delta=d, dq=dq) for d in ds]
-    ret1.append(Cs)
-
-plt.figure(figsize(16,8))
-for i in range(len(dqs)):
-    plt.plot(ds, ret1[i], label=f"d$\delta q$={dqs[i]}")
-plt.legend()
+lda.C
 
 ret2=[]
 dqs=np.linspace(0, 0.2, 5)
