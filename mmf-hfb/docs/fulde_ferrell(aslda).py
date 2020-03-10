@@ -36,9 +36,11 @@ reload(ffp)
 import numpy as np
 currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","mmf_hfb","data")
 
-mu_eff=10
+# # Solution Check
+
+mu_eff=5
 dmu_eff=0.5
-delta=5
+delta=1.5
 dim=2
 LDA = ClassFactory(
             className="LDA",
@@ -56,7 +58,7 @@ def get_C(dmu_eff, delta, dq=0):
 
 
 dmu_effs = np.linspace(0, delta, 5)
-ds = np.linspace(0.001, 1.2*delta, 50)
+ds = np.linspace(0.001, 1.2*delta, 25)
 
 rets = []
 for dmu_eff in dmu_effs:
@@ -71,8 +73,28 @@ plt.legend()
 plt.xlabel(f"$\Delta$")
 plt.ylabel("C")
 
+# [0.4684362992740691, None, 0.9697323232323233]
+
+dmu0=0.51
+dq0, delta0=0.4684362992740691, 0.9697323232323233
+
+
+def get_f(dmu=0, dq=0, delta=0):
+    return get_C(dmu_eff=dmu, dq=dq, delta=delta) - lda.C
+
+
+ds = np.linspace(0.0001, delta, 10)
+fs = [get_f(dmu=dmu0, dq=dq0, delta=d) for d in ds]
+
+plt.plot(ds, fs)
+plt.axhline(0, ls='dashed')
+plt.axvline(delta, ls='dashed')
+plt.axvline(delta0, ls='dashed', c='red')
+
+# ## Check dq effect
+
 ret2=[]
-dqs=np.linspace(0, 0.2, 5)
+dqs=np.linspace(0, 0.2, 3)
 for dq in dqs:
     Cs = [get_C(dmu_eff=0, delta=d, dq=dq) for d in ds]
     ret2.append(Cs)
@@ -113,7 +135,7 @@ get_C(dmu_eff=0.3, delta=1), get_C(dmu_eff=1.5, delta=1)
 # # Visualize Data
 
 def filter_state(mu, dmu, delta, C, dim):
-    if dim != 3:
+    if dim != 2:
         return True
     #return False
     #if g != -2.8:
@@ -123,24 +145,24 @@ def filter_state(mu, dmu, delta, C, dim):
     #    return True
     if delta != 1.5:
         return True
-    #if dmu > 0.71 or dmu < 0.7:  
-        #return True
+#     if dmu > 0.1:  
+#         return True
     #if not np.allclose(dmu, 0.35, rtol=0.01):
     #    return True
-    print(dmu)
+    #print(dmu)
     return False
 
 
 plt.figure(figsize(8,8))
-ffp.PlotStates(two_plot=False, filter_fun=filter_state, print_file_name= True)
+ffp.PlotStates(two_plot=False, filter_fun=filter_state, plot_legend=True, print_file_name=False)
 
 plt.figure(figsize(16,10))
-ffp.PlotCurrentPressure(filter_fun=filter_state, showLegend=True, FFState_only=False, print_file_name=True)
+ffp.PlotCurrentPressure(filter_fun=filter_state, showLegend=True, FFState_only=False, print_file_name=False)
 
 # # Plot the Diagram
 # * Check the particle density, pressure, and $d\mu$ etc to see if a configuration is a FF state $\Delta$
 
-output = ffa.label_states(raw_data=True)
+output = ffa.label_states(raw_data=True, verbosity=False)
 
 plt.figure(figsize(16,8))
 ffp.PlotPhaseDiagram(output=output)

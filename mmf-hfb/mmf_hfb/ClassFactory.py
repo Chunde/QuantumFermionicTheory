@@ -1,6 +1,6 @@
 """
-This file contains classes used for creating ASLDA related class
-factory. The Adater class glues functional and Kernel(BCS or Homogenous)
+This file contains classes used for creating LDA d class
+factory. The Adapter class glues functional and Kernel(BCS or Homogenous)
 as a brand new class used for all kind of calculation.
 """
 from mmf_hfb.Functionals import FunctionalBdG, FunctionalSLDA, FunctionalASLDA
@@ -112,9 +112,10 @@ class Adapter(object):
         """
         compute g for give effective mus
         """
-        res = self.get_densities(mus_eff=mus_eff, delta=delta, dq=dq)
-        _, _, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
-        g_eff = delta/nu if np.alltrue(delta !=0) else 0*delta
+        res = self.get_densities(
+            mus_eff=mus_eff, delta=delta, dq=dq,
+            ns_flag=False, taus_flag=False)
+        g_eff = delta/res.nu if np.alltrue(delta !=0) else 0*delta
         return g_eff
 
     def get_g(self, mus, delta, dq=0, ns=None, taus=None, nu=None):

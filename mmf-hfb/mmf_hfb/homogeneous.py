@@ -157,7 +157,8 @@ class Homogeneous(object):
         return res
 
     def _get_densities_tf(
-            self, mus_eff, delta, k_c=None, **args):
+            self, mus_eff, delta, k_c=None,
+            ns_flag=True, taus_flag=True, nu_flag=True, **args):
         """
         extended the homogeneous code to support FF state
         calculation, seems to be much slower.
@@ -167,17 +168,20 @@ class Homogeneous(object):
         args.update(
             mu_a=mu_a, mu_b=mu_b, m_a=self.m, m_b=self.m, delta=delta,
             dim=self.dim, hbar=self.hbar, T=self.T, k_c=k_c)
-
-        n_m = tf.integrate_q(tf.n_m_integrand, **args).n
-        n_p = tf.integrate_q(tf.n_p_integrand, **args).n
-        n_a = (n_p + n_m)/2.0
-        n_b = (n_p - n_m)/2.0
-        tau_m = tf.integrate_q(tf.tau_m_integrand, **args).n
-        tau_p = tf.integrate_q(tf.tau_p_integrand, **args).n
-        tau_a = (tau_p + tau_m)/2.0
-        tau_b = (tau_p - tau_m)/2.0
-        nu_delta = tf.integrate_q(tf.nu_delta_integrand, **args).n
-        nu = nu_delta*delta
+        n_a, n_b, tau_a, tau_b, nu=None, None, None, None, None
+        if ns_flag:
+            n_m = tf.integrate_q(tf.n_m_integrand, **args).n
+            n_p = tf.integrate_q(tf.n_p_integrand, **args).n
+            n_a = (n_p + n_m)/2.0
+            n_b = (n_p - n_m)/2.0
+        if taus_flag:
+            tau_m = tf.integrate_q(tf.tau_m_integrand, **args).n
+            tau_p = tf.integrate_q(tf.tau_p_integrand, **args).n
+            tau_a = (tau_p + tau_m)/2.0
+            tau_b = (tau_p - tau_m)/2.0
+        if nu_flag:
+            nu_delta = tf.integrate_q(tf.nu_delta_integrand, **args).n
+            nu = nu_delta*delta
         return namedtuple('Densities', ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu'])(
             n_a, n_b, tau_a, tau_b, nu)
 
@@ -198,14 +202,16 @@ class Homogeneous(object):
 
     def get_densities(
             self, mus_eff, delta, N_twist=1,
-            k_c=None, taus_flag=True, nu_flag=True, **args):
+            k_c=None, ns_flag=True, taus_flag=True, nu_flag=True, **args):
         """
         Return the densities (ns, taus, nu).
         --------------
         Note: if dq is in args, that means we try to calculate FF state
         """
         if 'dq' in args and args['dq'] !=0:
-            return self._get_densities_tf(mus_eff=mus_eff, delta=delta, **args)
+            return self._get_densities_tf(
+                mus_eff=mus_eff, delta=delta, ns_flag=ns_flag,
+                taus_flag=taus_flag, nu_flag=nu_flag, **args)
         kF = np.sqrt(2*max(0, np.max(mus_eff)))
         k_c = self.k_c if k_c is None else k_c
         if self.Nxyz is None:
@@ -252,11 +258,13 @@ class Homogeneous(object):
             res = self.get_res(k=k, mus_eff=mus_eff, delta=delta)
             f_nu = self.f(res.w_m) - self.f(res.w_p)
             return -0.5/res.E*f_nu
-
-        n_m = quad(nm_integrand)
-        n_p = quad(np_integrand)
-        n_a = (n_p + n_m)/2.0
-        n_b = (n_p - n_m)/2.0
+        if ns_flag:
+            n_m = quad(nm_integrand)
+            n_p = quad(np_integrand)
+            n_a = (n_p + n_m)/2.0
+            n_b = (n_p - n_m)/2.0
+        else:
+            n_a, n_b = None, None
         if taus_flag:
             tau_m = quad(tau_m_integrand)
             tau_p = quad(tau_p_integrand)

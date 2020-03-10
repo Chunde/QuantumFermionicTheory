@@ -55,14 +55,15 @@ class VortexState(Vortex):
         self.mus = (mu+dmu, mu-dmu)
         print(self.mus)
         self.g = self.get_g(mu=mu, delta=delta) if g is None else g
-        x, y = self.xyz
+        x, y = self.xyz[:2]
         self.Delta = delta*(x+1j*y)
 
     def get_g(self, mu=1.0, delta=0.2):
-        k_c = (2*self.E_c)**0.5
-        h = homogeneous.Homogeneous(Nxyz=self.Nxyz, Lxyz=self.Lxyz, dim=2, k_c=k_c) 
+        E_c = self.E_max if self.E_c is None else self.E_c
+        self.k_c = (2*E_c)**0.5
+        h = homogeneous.Homogeneous(Nxyz=self.Nxyz, Lxyz=self.Lxyz, dim=2, k_c=self.k_c) 
         res = h.get_densities(mus_eff=(mu, mu), delta=delta)
-        g = delta/res.nu.n
+        g = delta/res.nu
         return g
 
     def solve(self, tol=0.05, plot=True):
@@ -86,11 +87,14 @@ class VortexState(Vortex):
                     clear_output(wait=True)
 
     def plot(self, fig=None, res=None):
-        x, y = self.xyz
+        x, y = self.xyz[:2]
         if fig is None:
             fig = plt.figure(figsize=(20, 10))
         plt.subplot(233)
-        imcontourf(x, y, abs(self.Delta), aspect=1)
+        if self.dim == 2:
+            imcontourf(x, y, abs(self.Delta), aspect=1)
+        elif self.dim == 3:
+            imcontourf(x, y,  np.sum(abs(self.Delta), axis=2))
         plt.title(r'$|\Delta|$'); plt.colorbar()
 
         if res is not None:
@@ -142,8 +146,19 @@ def clockwise(r, v):
     return np.sign(angs)
 
 
+v0 = VortexState(mu=mu, dmu=dmu, delta=delta, Nxyz=(8, 8, 8), Lxyz=(2,2,2))
+v0.solve(plot=True)
+
+ abs(np.sum(v0.Delta, axis=2)).shape
+
+x, y = v0.xyz[:2]
+
+xx=yy=np.sum(x[:,0:1,:],axis=1)
+
+imcontourf(xx,yy,  abs(np.sum(v0.Delta, axis=2)))
+
 v0 = VortexState(mu=mu, dmu=dmu, delta=delta, Nxyz=(32, 32), Lxyz=(8,8))
-#v0.solve(plot=True)
+v0.solve(plot=True)
 
 # ## Homogeneous
 
@@ -159,10 +174,8 @@ def FFVortex(bcs_vortex, mus=None, delta=None, plot_tf=True):
     N = bcs_vortex.Nxyz[0]
     L = bcs_vortex.Lxyz[0]
     dx = L/N
-    k_c = (2*bcs_vortex.E_c)**0.5
+    k_c = bcs_vortex.k_c
     k_F = np.sqrt(2*mu)
-    E_c=k_c**2/2
-    # print(2.0**0.5 *np.max(bcs_vortex.kxyz))
     args = dict(mu=mu, dmu=0, delta=delta, dim=2, k_c=k_c)
     f = FuldeFerrelState.FFState(fix_g=True, g=bcs_vortex.g, **args)
     rs = np.linspace(0.0001,2, 30)
@@ -244,7 +257,7 @@ def FFVortex(bcs_vortex, mus=None, delta=None, plot_tf=True):
     plt.plot(r.ravel()/dx, j_a_.ravel(), '+', label="BCS")
     if plot_tf:
         plt.plot(rs_, j_a, label="Homogeneous")
-    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$j_a$", fontsize=fontsize)#,plt.title("Total Current")
+    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$j_a$", fontsize=fontsize)
     plt.axhline(0, linestyle='dashed')
     plt.legend()
     plt.xlim(0, bcs_vortex.R/dx)
@@ -254,32 +267,34 @@ def FFVortex(bcs_vortex, mus=None, delta=None, plot_tf=True):
     if plot_tf:
         plt.plot(rs_, -j_b, label="Homogeneous")
     plt.axhline(0, linestyle='dashed')
-    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$j_b$", fontsize=fontsize)#,plt.title("Current Difference")
-   # plt.ylim(0,15)
+    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$j_b$", fontsize=fontsize)
     plt.legend()
     plt.xlim(0, bcs_vortex.R/dx)
 
-FFVortex(v0, plot_tf=True)
+FFVortex(v0, plot_tf=False)
 
 FFVortex(v0, plot_tf=True)
 
+# +
 mu_a, mu_b=v0.mus
 delta = v0.delta
 mu, dmu = (mu_a + mu_b)/2, (mu_a - mu_b)/2
 N = v0.Nxyz[0]
 L = v0.Lxyz[0]
-r=0.5
+r=0.65
 dx = L/N
-k_c = (2*v0.E_c)**0.5
+
+k_c = v0.k_c
 k_F = np.sqrt(2*mu)
 E_c=k_c**2/2
 args = dict(mu=mu, dmu=0, delta=delta, dim=2, k_c=k_c)
 f = FuldeFerrelState.FFState(fix_g=True, g=v0.g, **args)
-ds=np.linspace(0.001, 7, 20)
+ds=np.linspace(0.001, 3, 20)
 gs = [f.f(mu=mu, dmu=dmu, dq=0.5/r, delta=d) for d in ds]
 plt.plot(ds, gs, label=f"r=r{r}")
 plt.legend()
 plt.axhline(0, ls='dashed')
+# -
 
 # ## Compare to FF State
 # * The FFVortex will compute FF State data with the same $\mu,d\mu$, and compare the results in plots

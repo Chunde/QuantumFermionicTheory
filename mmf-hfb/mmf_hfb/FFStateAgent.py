@@ -33,9 +33,10 @@ class FFStateAgent(object):
             self.fileName = prefix
 
     def _get_fileName(self):
-        currentdir = os.path.dirname(
-            os.path.abspath(inspect.getfile(inspect.currentframe())))
-        return join(currentdir, "data", self.fileName)
+        currentdir = join(os.path.dirname(
+            os.path.abspath(inspect.getfile(inspect.currentframe()))), "data")
+        os.makedirs(currentdir, exist_ok=True)
+        return join(currentdir, self.fileName)
 
     def get_other_pressures(self, mus, delta, dq, C, mus_eff):
         self.C = C
@@ -48,7 +49,6 @@ class FFStateAgent(object):
             mus=mus, delta=0, verbosity=False, solver=Solvers.BROYDEN1)
         return (P_ss[2], P_ns[2])
  
-        
     def SaveToFile(self, data, extra_items=None):
         """
         Save states to persistent storage
@@ -85,13 +85,14 @@ class FFStateAgent(object):
             the solution to q.
         q_lower{upper}  : the lower{upper} boundary to redo search
             if not solution is found for given guessed boundary.
+        dx: the change range of the dq based on a given reference value
+            dq = [old_dq - dx, old_dq + dx]
         """
 
         def f(dq):
             return self._get_C(
                 mus_eff=(mu_eff + dmu_eff, mu_eff - dmu_eff),
                     delta=delta, dq=dq) - self.C
-
 
         def refine(a, b, v):
             return brentq(f, a, b)
@@ -101,7 +102,7 @@ class FFStateAgent(object):
             dqs = np.linspace(q_lower, q_upper, q_N)
             gs = [f(dq) for dq in dqs]
             g0, i0 = gs[0], 0
-            if np.allclose(gs[0].n, 0, rtol=rtol):
+            if np.allclose(gs[0], 0, rtol=rtol):
                 rets.append(gs[0])
                 g0, i0= gs[1], 1
             for i in range(len(rets), len(gs)):
@@ -161,7 +162,7 @@ class FFStateAgent(object):
         -------------
         Note:
             dmu_eff must not larger than delta, or no solution
-            could be found[See notebook FFState(ASLDA).py]
+            could be found[See notebook ff_state_aslda.py]
         """
         rets = []
         dx = dx0 = 0.001
@@ -175,6 +176,8 @@ class FFStateAgent(object):
         if dmu_eff is None:
             dmu_eff = self.dmu_eff
         self.C = self._get_C(mus_eff=(mu_eff, mu_eff), delta=delta)
+        if abs(delta_upper - delta) < abs(delta - delta_lower):
+            deltas = deltas[::-1] #
         lg, ug=None, None
         print(
             f"Search: delta={delta},mu={mu_eff},dmu={dmu_eff},C={self.C},"
@@ -220,7 +223,7 @@ class FFStateAgent(object):
                         ret =[None, None]
                         for t in trails:
                             dx = dx0*t
-                            print(dx)
+                            print(f"dx={dx}")
                             ret0 = self.SearchFFStates(
                                 mu_eff=mu_eff, dmu_eff=dmu_eff,
                                 delta=delta_, guess_lower=lg, guess_upper=ug,
@@ -249,7 +252,7 @@ class FFStateAgent(object):
                             break
                         continue
                 # add a pending flag indicating state searching is still going on
-                self.SaveToFile(rets, extra_items={"pending":0})  
+                self.SaveToFile(rets, extra_items={"pending":0}) 
             if auto_incremental:
                 print("Append 20 more search points")
                 deltas = np.linspace(1, 20, 20)*incremental_step + deltas[-1]
@@ -344,7 +347,7 @@ def compute_pressure_current(root=None):
                 jsonObjects.append(
                     (json.load(rf), os.path.splitext(os.path.basename(file))[0]))
  
-    if True:  # Debugging
+    if False:  # Debugging
         for item in jsonObjects:
             compute_pressure_current_worker(item)
     else:
@@ -373,14 +376,13 @@ def search_states(mu_eff=None, delta=1):
     if mu_eff is None:
         mu_eff = mu0
     """compute current and pressure"""
-    dmus = np.linspace(0.01*delta, delta, 10)
-    # dmus = [1.0875000000000001]
+    dmus = np.linspace(0.01*delta, 0.5*delta, 10)
     mus_deltas = [(mu_eff, dmu, delta) for dmu in dmus]
-    if True:  # Debugging
+    if False:  # Debugging
         for item in mus_deltas:
             search_states_worker(item)
     else:
-        PoolHelper.run(search_states_worker, mus_deltas, poolsize=10)
+        PoolHelper.run(search_states_worker, mus_deltas, poolsize=8)
 
 
 def label_states(current_dir=None, raw_data=False, verbosity=False):
@@ -411,6 +413,7 @@ def label_states(current_dir=None, raw_data=False, verbosity=False):
 
     for file in files[0:]:
         if os.path.exists(file):
+            print(file)
             with open(file, 'r') as rf:
                 ret = json.load(rf)
                 dim, mu_eff, dmu_eff, delta, C=(
@@ -482,6 +485,8 @@ def label_states(current_dir=None, raw_data=False, verbosity=False):
 
         
 if __name__ == "__main__":
-    search_states(delta=1.5)
+    # ds = np.linspace(1.1, 1.5, 10)
+    # for delta in ds:
+    # search_states(delta=0.5)
     compute_pressure_current()
     # label_states(raw_data=True)

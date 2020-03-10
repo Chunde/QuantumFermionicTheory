@@ -76,9 +76,10 @@ delta = 1.0
 mu_eff = 1.0
 m = 1.0
 N_twist = 4
-v_0, n, mu, e_0 = homogeneous._get_BCS_v_n_e(delta=delta, mu_eff=mu_eff)
+h = homogeneous.Homogeneous1D()
+v_0, n, mu, e_0 = h.get_BCS_v_n_e(delta=delta, mus_eff=(mu_eff,mu_eff))
 print(v_0,n,mu,e_0)
-v_0, n, mu, e_0 = homogeneous.Homogeneous1D(m=m).get_BCS_v_n_e(delta=delta, mus_eff=(mu_eff,mu_eff),N_twist = N_twist)
+v_0, n, mu, e_0 = h.get_BCS_v_n_e(delta=delta, mus_eff=(mu_eff,mu_eff),N_twist = N_twist)
 
 v_0, n, mu, e_0 = v_0.n,(n[0].n,n[1].n),(mu[0].n,mu[1].n),e_0.n
 n = n[0]+n[1]
@@ -86,7 +87,8 @@ print(v_0,n,mu,e_0)
 
 def get_err(N, L, N_twist=1):
     b = bcs.BCS(T=0, Nxyz=(N,), Lxyz=(L,))
-    n_a,n_b,kappa = b.get_densities(mus_eff=(mu_eff,mu_eff), delta=delta,N_twist=N_twist)
+    res = b.get_densities(mus_eff=(mu_eff,mu_eff), delta=delta,N_twist=N_twist)
+    n_a,n_b,kappa = res.n_a, res.n_b, res.nu
     #R = b.get_R(mus=(mu_eff, mu_eff), delta=delta, N_twist=N_twist)
     k_max = np.pi*N/L
     dn_UV = 2*b.m**2*delta**2/3/np.pi/k_max**3 + 8*b.m**3*mu_eff*delta**2/5/np.pi/k_max**5
@@ -125,10 +127,11 @@ for _n, N_twist in enumerate(N_twists):
                    label=r'$\Delta({})$'.format(L), alpha=0.5)
         plt.loglog(Ns, abs(res_UV[_i, :, 0])/n, ':', c=_l.get_c())
         plt.loglog(Ns, abs(res_UV[_i, :, 1])/delta, ':', c=_l.get_c())
-    plt.ylabel('Rel err')
+    plt.ylabel('Error')
     plt.xlabel('N')
     plt.legend()
     plt.title("N_twist={}".format(N_twist))
+plt.savefig('uv_ir_twisting.pdf')
 
 # This plot shows that our estimates of the UV errors is accurate, that the UV errors in $\Delta$ dominate, and that $L\approx 25$ is required for reasonable IR convergence.  The following plot shows that the IR errors are quite complicated in structure (shell effects).  Fortunately, we can reduce these errors by explicitly performing the **Bloch (twist) averaging**  (see examples [Lin:2001] ,[Kolorenc:2011]) as we shall describe below.
 #
