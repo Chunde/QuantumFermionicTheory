@@ -1,5 +1,5 @@
 from mmf_hfb.DataHelper import ff_state_sort_data
-from mmf_hfb.FuldeFerrelState import FFState
+from mmf_hfb.FuldeFerrellState import FFState
 from scipy.optimize import brentq
 from os.path import join
 import numpy as np

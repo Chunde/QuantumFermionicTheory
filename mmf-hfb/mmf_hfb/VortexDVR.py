@@ -3,7 +3,6 @@ from mmfutils.math.integrate import mquad
 from mmf_hfb.utils import block
 from mmf_hfb import homogeneous
 import numpy as np
-import sys
 from mmfutils.math.special import mstep
 from collections import namedtuple
 from mmf_hfb.bcs import BCS
@@ -317,7 +316,7 @@ class PeriodicDVR(VortexMixin, BCS):
         BCS.__init__(self, **args)
         h = homogeneous.Homogeneous(Nxyz=self.Nxyz, Lxyz=self.Lxyz)
         res = h.get_densities(mus_eff=mus_eff, delta=delta)
-        self.g = delta/res.nu.n
+        self.g = delta/res.nu
 
     def get_Vext(self, **kw):
         # self.R = min(self.Lxyz)/2

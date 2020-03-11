@@ -17,7 +17,7 @@ import mmf_setup;mmf_setup.nbinit()
 # %pylab inline --no-import-all
 from nbimports import * 
 from mmf_hfb import tf_completion as tf
-from mmf_hfb.FuldeFerrelState import FFState
+from mmf_hfb.FuldeFerrellState import FFState
 from scipy.optimize import brentq
 from mmfutils.plot import imcontourf
 

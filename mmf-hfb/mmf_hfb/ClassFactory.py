@@ -1,7 +1,19 @@
 """
-This file contains classes used for creating LDA d class
-factory. The Adapter class glues functional and Kernel(BCS or Homogenous)
-as a brand new class used for all kind of calculation.
+This file contains classes used for creating LDA class
+factory. The Adapter class glues a functional and a Kernel
+to form a new class. The available kernels are BCS and Homogenous.
+The available functional: BdG, SLDA and ASLDA
+When a new class is created, it can be instantialized. The
+factory class accept some more agent classes to fulfil other
+functions. The idea of the factory class is to create a brand
+new class without passing a functional, a kernel and other
+classes as parameter, which can be tightly coupled. With the
+factory class, new functionalities can be implemented elsewhere
+and be loaded as an agent.
+---------------------------------------------------------------
+For functional type, please check the FunctionalType enum class
+For kernel type, please check the KernelType enum class.
+For agent class, please check the FFStateAgent class.
 """
 from mmf_hfb.Functionals import FunctionalBdG, FunctionalSLDA, FunctionalASLDA
 from mmf_hfb.KernelHomogeneouse import KernelHomogeneous
@@ -43,8 +55,8 @@ class Solvers(Enum):
 class Adapter(object):
     """
     the adapter used to connect functional and HFB kernel
-    (see interface.py). In the factory method, a new class
-    inherit from this class will be able to change the behavior
+    In the factory method, a new class inherit from 
+    this class will be able to change the behavior
     of both functional and kernel as any method defined in
     this class can override method in other classes.
     """

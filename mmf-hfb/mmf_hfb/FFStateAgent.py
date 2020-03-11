@@ -1,3 +1,23 @@
+"""
+This is a class used to search Fulde Ferrell state. 
+The class FFStateAgent is a class that will be fed
+into to the 'ClassFactory' instance to create a new class
+that will perform the search task.
+
+Example:
+
+def search_states_worker(mu_eff, dmu_eff, delta):
+    args = dict(
+        mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
+        T=0, dim=2, k_c=100, verbosity=False)
+    lda = ClassFactory(
+        "LDA", (FFStateAgent,),
+        functionalType=FunctionalType.BDG,
+        kernelType=KernelType.HOM, args=args)
+    lda.Search(
+        delta_N=100, delta_lower=0.0001, delta_upper=delta,
+        q_lower=0, q_upper=dmu_eff, q_N=10, auto_incremental=False)
+"""
 from mmf_hfb.ClassFactory import ClassFactory, FunctionalType, KernelType, Solvers
 from mmf_hfb.DataHelper import ff_state_sort_data
 from mmf_hfb.ParallelHelper import PoolHelper
@@ -43,9 +63,9 @@ class FFStateAgent(object):
         # P_ff = self.get_ns_e_p(
         #     mus=mus, delta=delta, dq=dq, verbosity=False,
         #     x0=mus_eff +(delta,), solver=Solvers.BROYDEN1)
-        P_ss = self.get_ns_e_p(
+        P_ss = self.get_ns_e_p( # superfluid pressure
             mus=mus, delta=None, verbosity=False, solver=Solvers.BROYDEN1)
-        P_ns = self.get_ns_e_p(
+        P_ns = self.get_ns_e_p( # normal state pressure
             mus=mus, delta=0, verbosity=False, solver=Solvers.BROYDEN1)
         return (P_ss[2], P_ns[2])
  
@@ -156,7 +176,7 @@ class FFStateAgent(object):
         q_lower    : lower boundary for q
         q_upper    : upper boundary for q
         auto_incremental: if True, the search will continue as long
-            as there are some more possible solution based on the 
+            as there are some more possible solution based on the
             condition that the last delta in the  deltas yields valid
             states
         -------------
@@ -252,7 +272,7 @@ class FFStateAgent(object):
                             break
                         continue
                 # add a pending flag indicating state searching is still going on
-                self.SaveToFile(rets, extra_items={"pending":0}) 
+                self.SaveToFile(rets, extra_items={"pending" : 0}) 
             if auto_incremental:
                 print("Append 20 more search points")
                 deltas = np.linspace(1, 20, 20)*incremental_step + deltas[-1]

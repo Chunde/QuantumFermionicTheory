@@ -36,7 +36,7 @@ def db(request):
 def N_state(request):
     return request.param
 
-
+# @pytest.mark.skip(reason="Not pass yet")
 def test_derivative_cooling(n, da, db):
     """
     Test that for free particle hamiltonian, when da=da, Vc is zero
@@ -78,7 +78,7 @@ def test_derivative_cooling(n, da, db):
         Hpsi_a*psi_b.conj(),
         (-1j)*(n*k0)**(da+db)*E*psi*psi.conj()*((-1j)**db)*(1j)**da)
 
-
+#@pytest.mark.skip(reason="Not pass yet")
 def test_Vd_to_Vc(N):
     """if da=db=0, Vd should equal to Vc"""
     T=0.5

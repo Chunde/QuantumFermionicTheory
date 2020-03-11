@@ -27,7 +27,7 @@ import numpy as np
 # Here we generate some vortices.  These are regularized by fixing the coupling constant $g$ so that the homogeneous system in the box and on the lattice gives a fixed value of $\Delta$ at the specified chemical potential.  The self-consistent solution is found by simple iterations.
 
 # +
-from mmf_hfb import FuldeFerrelState; reload(FuldeFerrelState)
+from mmf_hfb import FuldeFerrellState; reload(FuldeFerrellState)
 from mmf_hfb import bcs, homogeneous;reload(bcs)
 from mmfutils.math.special import mstep
 from mmfutils.plot import imcontourf
@@ -162,7 +162,7 @@ v0.solve(plot=True)
 
 # ## Homogeneous
 
-from mmf_hfb import FuldeFerrelState; reload(FuldeFerrelState)
+from mmf_hfb import FuldeFerrellState; reload(FuldeFerrellState)
 import warnings
 warnings.filterwarnings("ignore")
 fontsize = 18
@@ -177,7 +177,7 @@ def FFVortex(bcs_vortex, mus=None, delta=None, plot_tf=True):
     k_c = bcs_vortex.k_c
     k_F = np.sqrt(2*mu)
     args = dict(mu=mu, dmu=0, delta=delta, dim=2, k_c=k_c)
-    f = FuldeFerrelState.FFState(fix_g=True, g=bcs_vortex.g, **args)
+    f = FuldeFerrellState.FFState(fix_g=True, g=bcs_vortex.g, **args)
     rs = np.linspace(0.0001,2, 30)
     rs = np.append(rs, np.linspace(2.01, bcs_vortex.R, 10))
     rs_ = rs/dx
@@ -288,7 +288,7 @@ k_c = v0.k_c
 k_F = np.sqrt(2*mu)
 E_c=k_c**2/2
 args = dict(mu=mu, dmu=0, delta=delta, dim=2, k_c=k_c)
-f = FuldeFerrelState.FFState(fix_g=True, g=v0.g, **args)
+f = FuldeFerrellState.FFState(fix_g=True, g=v0.g, **args)
 ds=np.linspace(0.001, 3, 20)
 gs = [f.f(mu=mu, dmu=dmu, dq=0.5/r, delta=d) for d in ds]
 plt.plot(ds, gs, label=f"r=r{r}")
@@ -307,13 +307,13 @@ plt.axhline(0, ls='dashed')
 
 # ### Symmetric case $\delta \mu/\Delta=0$
 
-from mmf_hfb import FuldeFerrelState
+from mmf_hfb import FuldeFerrellState
 def HomogeneousVortx(mu, dmu, delta, k_c=50):
     k_F = np.sqrt(2*mu)   
     E_c=k_c**2/2
     dx = 1
     args = dict(mu=mu, dmu=dmu, delta=delta, dim=3, k_c=k_c)
-    f = FuldeFerrelState.FFState(fix_g=True, **args)
+    f = FuldeFerrellState.FFState(fix_g=True, **args)
     rs = np.linspace(0.0001,1, 30)
     rs = np.append(rs, np.linspace(1.1, 4, 10))
 

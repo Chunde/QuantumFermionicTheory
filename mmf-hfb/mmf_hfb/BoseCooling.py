@@ -5,7 +5,7 @@ import numpy as np
 class CoolingBose(object):
     g = hbar = m = 1.0
 
-    def __init__(self, beta_0=1.0, beta_V=1.0, beta_K=1.0, N=256, dx=0.1, 
+    def __init__(self, beta_0=1.0, beta_V=1.0, beta_K=1.0, N=256, dx=0.1,
                  dt_Emax=1.0):
         """
         Arguments

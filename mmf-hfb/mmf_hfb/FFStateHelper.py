@@ -1,4 +1,4 @@
-from mmf_hfb.FuldeFerrelState import FFState
+from mmf_hfb.FuldeFerrellState import FFState
 from mmf_hfb.FFStateFinder import FFStateFinder
 from mmf_hfb.ParallelHelper import PoolHelper
 from multiprocessing import Pool

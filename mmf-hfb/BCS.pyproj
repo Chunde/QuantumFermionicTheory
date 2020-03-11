@@ -81,7 +81,7 @@
     <Compile Include="mmf_hfb\FFStateHelper.py" />
     <Compile Include="mmf_hfb\FFStatePhaser.py" />
     <Compile Include="mmf_hfb\FFStatePlot.py" />
-    <Compile Include="mmf_hfb\FuldeFerrelState.py" />
+    <Compile Include="mmf_hfb\FuldeFerrellState.py" />
     <Compile Include="mmf_hfb\Functionals.py" />
     <Compile Include="mmf_hfb\homogeneous.py" />
     <Compile Include="mmf_hfb\homogeneous_aslda.py" />

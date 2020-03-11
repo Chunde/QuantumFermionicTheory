@@ -117,7 +117,7 @@ class Homogeneous(object):
         self.Nxyz = Nxyz
         self.Lxyz = Lxyz
         kcs=[1000, 1000, 50]
-        if k_c is None: # or (dim != 1 and k_c==np.inf):
+        if k_c is None:  # or (dim != 1 and k_c==np.inf):
             k_c = kcs[self.dim - 1]
         self.k_c = k_c
         if k_c is not None:
@@ -292,7 +292,7 @@ class Homogeneous(object):
     def get_entropy(self, mus_eff, delta, N_twist=1, k_c=None):
         """Return the entropy"""
         kF = np.sqrt(2*max(0, max(mus_eff)))
-        k_c = self.k_c if k_c is None else k_c        
+        k_c = self.k_c if k_c is None else k_c
         if self.Nxyz is None:
             def quad(f):
                 return quad_k(f, dim=self.dim, kF=kF, k_inf=k_c)

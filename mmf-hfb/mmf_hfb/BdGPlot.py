@@ -1,4 +1,4 @@
-from mmf_hfb.FuldeFerrelState import FFState
+from mmf_hfb.FuldeFerrellState import FFState
 import matplotlib.pyplot as plt
 from os.path import join
 import numpy as np

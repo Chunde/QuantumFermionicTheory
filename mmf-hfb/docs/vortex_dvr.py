@@ -109,7 +109,7 @@ Ec_Emax = 0.25
 delta = 7.5
 R_max = 5.0
 N_abscissa = 32
-winding = 1
+winding = 2
 healing_length = np.sqrt(2*m*delta)/hbar
 
 # BCS
@@ -203,7 +203,36 @@ def overlay_runs(loop=1, lz_offset=0):
 
 overlay_runs(lz_offset=0)
 
-overlay_runs(lz_offset=1)
+dmu=0
+
+d = CylindricalDVR(mu=mu, dmu=dmu, delta=delta, g=bcs.g, E_c=bcs.E_c,
+                     bases=None, wz=winding, verbosity=0,
+                     N_root=2, R_max=R_max, l_max=100)
+mus = (mu+dmu, mu-dmu)
+delta = 1
+H1 = d.get_H(mus=mus, delta=delta, lz=0)
+H2 = d.get_H(mus=mus, delta=delta, lz=1, lz_offset=1)
+
+dmu
+
+H1
+
+H2
+
+H2[2:,2:]
+
+# +
+N_root=2
+
+H1 = d.get_H(mus=mus, delta=delta, lz=0)
+H2 = d.get_H(mus=mus, delta=delta, lz=1, lz_offset=1)
+H1_ = H1[0:N_root, 0:N_root]
+H2_ = -1*H2[N_root:, N_root:]
+# -
+
+H1_
+
+H2_
 
 # ## DVR in 3D
 

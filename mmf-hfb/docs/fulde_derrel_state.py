@@ -20,9 +20,9 @@ from scipy.optimize import brentq
 import math
 from mmf_hfb import tf_completion as tf
 reload(tf)
-import mmf_hfb.FuldeFerrelState
-reload(mmf_hfb.FuldeFerrelState)
-from mmf_hfb.FuldeFerrelState import FFState as FF
+import mmf_hfb.FuldeFerrellState
+reload(mmf_hfb.FuldeFerrellState)
+from mmf_hfb.FuldeFerrellState import FFState as FF
 
 # # Polarized Vortex
 
@@ -171,10 +171,10 @@ fig.legend()
 # -
 
 # ## 2D Case
-# The 2d data is genereated by the temporarily test code in ['FuldeFerrelState.py'](FuldeFerrelState.py), then output file is a json text file ['delta_ns.txt'](delta_ns.txt) in the same folder as  ['FuldeFerrelState.py'](FuldeFerrelState.py), that take very long time to do. Once that is done, you may copy the ['delta_ns.txt'](delta_ns.txt) file to the Doc foler, and run code in this section to get the plots.
+# The 2d data is genereated by the temporarily test code in ['FuldeFerrellState.py'](FuldeFerrellState.py), then output file is a json text file ['delta_ns.txt'](delta_ns.txt) in the same folder as  ['FuldeFerrellState.py'](FuldeFerrellState.py), that take very long time to do. Once that is done, you may copy the ['delta_ns.txt'](delta_ns.txt) file to the Doc foler, and run code in this section to get the plots.
 # ### Parallelization
 # * To compute the 2d FF state is slow slow, we need to go multi-processing
-# * Will be done in['FuldeFerrelState.py'](FuldeFerrelState.py) to generate the output
+# * Will be done in['FuldeFerrellState.py'](FuldeFerrellState.py) to generate the output
 # * Load the output file ['delta_ns.txt'](delta_ns.txt), and plot here
 
 # #### Load Data
