@@ -6,6 +6,7 @@ import numpy as np
 from mmfutils.math.special import mstep
 from collections import namedtuple
 from mmf_hfb.bcs import BCS
+import warnings
 
 
 Densities = namedtuple('Densities', ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu', 'j_a', 'j_b'])
@@ -257,8 +258,10 @@ class bdg_dvr(object):
         #     nu = u*v.conj()*(f_p - f_m)/2
         #     dens = dens + np.array([n_a, j_a, n_b, j_b, nu])
         # return dens
-        
-    def get_densities(self, mus, delta, kz=0, wz=None, struct=True, lz_offset=0):
+
+    def get_densities(
+            self, mus, delta, kz=0, wz=None, struct=True,
+            lz_offset=0, basis_interpolation=True):
         """
         return the particle number density and anomalous density
         Note: Here the anomalous density is represented as kappa
@@ -272,7 +275,11 @@ class bdg_dvr(object):
             return result type: True will return a structed type
             else, return tuple type
         lz_offset: Integer
-            Shift the basis angular momentum by the offset
+            Shift the basis angular momentum by the offset, this is
+            equivalent to shift the basis
+        basis_interpolation:
+            indicate if to interpolate results from different bases
+            when the winding number is odd.
         """
         if wz is None:
             wz = self.wz
@@ -284,7 +291,12 @@ class bdg_dvr(object):
         for lz in range(1, self.l_max):
             lzs.append(-lz)
             lzs.append(lz)
-
+        # the average over \nu is not good, a better solution
+        # may be save the u and v from different basis, and then
+        # compute all densities when all are accurate, as the
+        # \nu=u*v, u and v need different bases to have good
+        # accuracy. But the eigen energy from different bases
+        # may are different.
         if self.wz % 2 == 0:
             # for even winding, both results for both spins
             # are accurate
@@ -292,23 +304,33 @@ class bdg_dvr(object):
                 return self._get_den(
                     mus=mus, delta=delta, kz=kz, lz=lz, lz_offset=lz_offset)
         else:
-            def get_den(lz):
-                den1 = self._get_den(
-                    mus=mus, delta=delta, kz=kz, lz=lz, lz_offset=lz_offset)
-                den2 = self._get_den(
-                    mus=mus, delta=delta, kz=kz, lz=lz, lz_offset=lz_offset + 1)
-                if lz_offset % 2 != 0:
-                    return np.array(
-                        [den1[0], den1[1], den2[2], den2[3], (den1[4]+den2[4])/2])
-                else:
-                    return np.array(
-                        [den2[0], den2[1], den1[2], den1[3], (den1[4]+den2[4])/2])
+            if basis_interpolation:
+                warnings.warn(
+                    f"The winding number is odd, and bases interpolation is used,"
+                    +"this may lead to in accurate result")
+
+                def get_den(lz):
+                    den1 = self._get_den(
+                        mus=mus, delta=delta, kz=kz, lz=lz, lz_offset=lz_offset)
+                    den2 = self._get_den(
+                        mus=mus, delta=delta, kz=kz, lz=lz, lz_offset=lz_offset + 1)
+                    if lz_offset % 2 != 0:
+                        return np.array(
+                            [den1[0], den1[1], den2[2], den2[3], (den1[4]+den2[4])/2])
+                    else:
+                        return np.array(
+                            [den2[0], den2[1], den1[2], den1[3], (den1[4]+den2[4])/2])
+            else:
+                def get_den(lz):
+                    return self._get_den(
+                        mus=mus, delta=delta, kz=kz, lz=lz, lz_offset=lz_offset)
 
         for lz in lzs:  # range(-self.l_max, self.l_max):  # sum over angular momentum
             # Fun fact, calling the following line will be much slower than calling its
-            # next line, that meaning the function defined above runs faster, may be due
-            # to the stack operation? as only lz is past to it. 
-            # get_den(...) takes only half of the time for self._get_den(...)
+            # next line, that means the function defined above runs faster, may be due
+            # to the stack operation? as only lz is past to it in the get_den(...) call.
+            # get_den(...) takes only half of the time compared to self._get_den(...)
+            # -------------------------------------------------------------------------
             # den = self._get_den(mus=mus, delta=delta, kz=kz, lz=lz, lz_offset=lz_offset)
             den = get_den(lz)
             if np.alltrue(den==0):

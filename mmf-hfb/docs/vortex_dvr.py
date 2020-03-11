@@ -131,10 +131,10 @@ else:
     delta_bcs = delta * r*np.exp(1j*winding*theta)
     delta_dvr = delta*dvr.rs
 
-def update_plot(delta_dvr_, lz_offset=0, delta_bcs_=None):
+def update_plot(delta_dvr_, lz_offset=0, delta_bcs_=None, basis_interpolation=True):
     _bcs = delta_bcs_ is not None
 
-    res_dvr = dvr.get_densities(mus=mus, delta=delta_dvr_, lz_offset=lz_offset)
+    res_dvr = dvr.get_densities(mus=mus, delta=delta_dvr_, lz_offset=lz_offset, basis_interpolation=basis_interpolation)
     na_dvr, nb_dvr, nu_dvr, ja_dvr, jb_dvr = res_dvr.n_a, res_dvr.n_b, res_dvr.nu, res_dvr.j_a, res_dvr.j_b
 
     delta_dvr_tmp = dvr.g*nu_dvr
@@ -185,25 +185,26 @@ def update_plot(delta_dvr_, lz_offset=0, delta_bcs_=None):
         plt.plot(rs, (nb_bcs + na_bcs).ravel(), '+b', label=r'$n_+$(Grid)')
         plt.plot(rs, (na_bcs - nb_bcs).ravel(), '+g', label=r'$n_-$(Grid)')
     plt.legend()
-    #clear_output(wait=True)
+    clear_output(wait=True)
     plt.show()
     return (delta_bcs_tmp, delta_dvr_tmp, err_bcs, err_dvr)
 
-def overlay_runs(loop=1, lz_offset=0):
+def overlay_runs(loop=1, lz_offset=0, basis_interpolation=True):
     delta_dvr_ = delta_dvr
-    delta_bcs_ = None # delta_bcs
+    delta_bcs_ = delta_bcs
     with NoInterrupt() as interrupted:
         for n in range(loop):
             res = update_plot(
-                delta_bcs_=delta_bcs_, delta_dvr_=delta_dvr_, lz_offset=lz_offset)
+                delta_bcs_=delta_bcs_, delta_dvr_=delta_dvr_,
+                lz_offset=lz_offset, basis_interpolation=basis_interpolation)
             delta_bcs_, delta_dvr_, err_bcs, err_dvr = res
 
 
 # -
 
-overlay_runs(lz_offset=0)
+overlay_runs(lz_offset=0, basis_interpolation=True)
 
-overlay_runs(lz_offset=1)
+overlay_runs(loop=10, lz_offset=0)
 
 # ## DVR in 3D
 
