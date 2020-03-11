@@ -36,7 +36,7 @@ class dvr_basis_set(object):
 
 class dvr_odd_even_set(dvr_basis_set):
     """
-    A DVR basis set class, this class only 
+    A DVR basis set class, this class only
     use $\nu=0$ and $\nu=1$ bessel DVR basis.
     The $\nu=0$ basis can be used as replacement
     for all even angular momentum, while the
@@ -207,13 +207,13 @@ class bdg_dvr(object):
         """
         H = self.get_H(mus=mus, delta=delta, kz=kz, lz=lz, lz_offset=lz_offset)
         es, phis = np.linalg.eigh(H)
-        # print(np.sort(abs(es)))
         phis = phis.T
         offset = phis.shape[0] // 2
         
         # N_states = np.sum(abs(es) <= self.E_c)
         # if N_states > 0:
         #     self._log(f"{N_states} states included", 1)
+
         dens = (self.bases.zero,)*5
         start_index = -1
         end_index = -1
@@ -239,7 +239,8 @@ class bdg_dvr(object):
         j_a = -n_a*self.wz/self.rs/2  # WRONG!
         j_b = -n_b*self.wz/self.rs/2  # WRONG!
         return np.array([n_a, j_a, n_b, j_b, nu])
-        # old implementation
+        # old implementation easier to read
+        # speed is the same,.
         # for i in range(len(es)):
         #     E, uv = es[i], phis[i]
         #     if abs(E) > self.E_c:
@@ -283,8 +284,33 @@ class bdg_dvr(object):
         for lz in range(1, self.l_max):
             lzs.append(-lz)
             lzs.append(lz)
+
+        if self.wz % 2 == 0:
+            # for even winding, both results for both spins
+            # are accurate
+            def get_den(lz):
+                return self._get_den(
+                    mus=mus, delta=delta, kz=kz, lz=lz, lz_offset=lz_offset)
+        else:
+            def get_den(lz):
+                den1 = self._get_den(
+                    mus=mus, delta=delta, kz=kz, lz=lz, lz_offset=lz_offset)
+                den2 = self._get_den(
+                    mus=mus, delta=delta, kz=kz, lz=lz, lz_offset=lz_offset + 1)
+                if lz_offset % 2 != 0:
+                    return np.array(
+                        [den1[0], den1[1], den2[2], den2[3], (den1[4]+den2[4])/2])
+                else:
+                    return np.array(
+                        [den2[0], den2[1], den1[2], den1[3], (den1[4]+den2[4])/2])
+
         for lz in lzs:  # range(-self.l_max, self.l_max):  # sum over angular momentum
-            den = self._get_den(mus=mus, delta=delta, kz=kz, lz=lz, lz_offset=lz_offset)
+            # Fun fact, calling the following line will be much slower than calling its
+            # next line, that meaning the function defined above runs faster, may be due
+            # to the stack operation? as only lz is past to it. 
+            # get_den(...) takes only half of the time for self._get_den(...)
+            # den = self._get_den(mus=mus, delta=delta, kz=kz, lz=lz, lz_offset=lz_offset)
+            den = get_den(lz)
             if np.alltrue(den==0):
                 break
             dens = dens + den
