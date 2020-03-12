@@ -277,9 +277,14 @@ class bdg_dvr(object):
         lz_offset: Integer
             Shift the basis angular momentum by the offset, this is
             equivalent to shift the basis
-        basis_interpolation:
+        basis_interpolation: bool
             indicate if to interpolate results from different bases
             when the winding number is odd.
+        ----------------
+        Potential issue: it seems the delta pass into this function
+            is in a specific basis(kz=0 basis), then when do iteration
+            should it be converted to the proper new basis? Yes, so this
+            need to be fixed
         """
         if wz is None:
             wz = self.wz
