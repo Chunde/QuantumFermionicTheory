@@ -29,7 +29,7 @@ def get_init_states(N=128, dx=0.1):
     b = BCSCooling(N=N, dx=dx)
     x = b.xyz[0]
     H0 = b._get_H(mu_eff=0, V=0)
-    U0, _ = b.get_U_E(H0, transpose=True)
+    U0, _ = b.get_psis_es(H0, transpose=True)
     psi_standing_wave=Normalize(U0[1], dx=dx)
     psi_gaussian_mixing = random_gaussian_mixing(x, dx=dx)
     psi_uniform = Normalize(U0[0], dx=dx)
@@ -84,7 +84,7 @@ class TestCase(object):
     def get_ground_state(self, psi_init, T=None, plot=False):
         b = BCSCooling(N=self.b.N, dx=self.b.dx, g=self.g, V=self.b.V, beta_0=-1j)
         H = b._get_H(mu_eff=0, V=self.b.V)
-        U, _ = b.get_U_E(H, transpose=True)
+        U, _ = b.get_psis_es(H, transpose=True)
         psi0 = Normalize(U[0], dx=b.dx)
         self.psi_0 = psi0
         if self.g == 0:

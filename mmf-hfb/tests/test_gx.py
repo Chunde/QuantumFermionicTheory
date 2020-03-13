@@ -12,7 +12,7 @@ import numpy as np
 def g(e, ns):
     g = (e/0.6/0.5/(6*np.pi**2)**(2.0/3))/(ns[0]**(5.0/3))
     g=g**0.6
-    return g 
+    return g
 
 
 def test_g(mu_eff=10):
@@ -34,7 +34,3 @@ def test_g(mu_eff=10):
     assert np.allclose(ns1[0], ns1[0])
     assert np.allclose(ns2[0], ns2[0])
     assert np.allclose(g1, g2)
-       
-        
-if __name__ == "__main__":
-    test_g()

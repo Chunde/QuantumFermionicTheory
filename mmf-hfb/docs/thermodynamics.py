@@ -125,8 +125,8 @@ def Cooling(plot=True, N_state=2, plot_dE=True, T=0.5, log=False, **args):
     b.V = 0
     b.g = -1
     H1 = b._get_H(mu_eff=0, V=V)
-    U0, E0 = b.get_U_E(H0, transpose=True)
-    U1, E1 = b.get_U_E(H1, transpose=True)
+    U0, E0 = b.get_psis_es(H0, transpose=True)
+    U1, E1 = b.get_psis_es(H1, transpose=True)
     psi0 = [b.Normalize(U1[i]) for i in range(N_state)]
     phase = ((x-x0) + 1j*y)*((x+x0) - 1j*y)
     psi =  [b.Normalize(U0[i]) for i in range(N_state)] # b.Normalize(1.0*np.exp(1j*np.angle(phase))) #
@@ -191,8 +191,8 @@ V0 = x**2
 V1 = x**2/2
 H0 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(V0, V0))
 H1 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(V1, V1))
-U0, Es0 = b.get_U_E(H0, transpose=True)
-U1, Es1 = b.get_U_E(H1, transpose=True)
+U0, Es0 = b.get_psis_es(H0, transpose=True)
+U1, Es1 = b.get_psis_es(H1, transpose=True)
 psis0 = U1[:3]
 psis = U0[7:10]
 b.V = V1
@@ -218,9 +218,9 @@ x = b.xyz[0]
 V = x**2/2
 b.V = V
 H0 = b._get_H(mu_eff=0, V=V)
-psis0, Es0 = b.get_U_E(H0, transpose=True)
+psis0, Es0 = b.get_psis_es(H0, transpose=True)
 H = b._get_H(mu_eff=0, V=0)
-psis, _ = b.get_U_E(H, transpose=True)
+psis, _ = b.get_psis_es(H, transpose=True)
 for n, T in zip([2,3,4,5],[5,2,2,2]):
    
     psis_init = [b.Normalize(psis[i]) for i in range(n)]

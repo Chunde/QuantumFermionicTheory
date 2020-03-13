@@ -31,8 +31,8 @@ class TestCaseBCS(object):
         b.V = V
         H0 = b._get_H(mu_eff=0, V=0)  # free particle
         H1 = b._get_H(mu_eff=0, V=V)  # harmonic trap
-        U0, _ = b.get_U_E(H0, transpose=True)
-        U1, Es1 = b.get_U_E(H1, transpose=True)
+        U0, _ = b.get_psis_es(H0, transpose=True)
+        U1, Es1 = b.get_psis_es(H1, transpose=True)
         self.psis_init = [self.Normalize(psi) for psi in U0[:N_state]]
         self.psis_ground = [self.Normalize(psi) for psi in U1[:N_state]]
         self.E0=sum(Es1[:N_state])

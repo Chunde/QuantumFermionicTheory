@@ -1,7 +1,8 @@
 import numpy as np
 import pytest
 from mmf_hfb.DVRBasis import HarmonicDVR
-from mmf_hfb.VortexDVR import CylindricalDVR, CylindricalDVR3D
+from mmf_hfb.VortexDVR import CylindricalDVR
+
 
 @pytest.fixture(params=[2, 10, 32])
 def N_root(request):
@@ -38,7 +39,6 @@ def HO_psi(n, m, rs):
 
 
 def test_wave_function_reconstruction():
-
     # test  basis for even angular momentum
     h = HarmonicDVR(nu=0, dim=2, w=1)
     H = h.get_H()
@@ -65,7 +65,7 @@ def test_vortex_hamiltonian(N_root=32):
     # The T with the same lz should not
     # be the same, but when N_root is small
     # they should be close.
-    #=---------------------------------------
+    # ---------------------------------------
     # However, we can shift the basis so
     # in any case we still use the same basis
     # then the resulted Hamiltonian piece
@@ -85,7 +85,3 @@ def test_vortex_hamiltonian(N_root=32):
     H1_ = H1[0:N_root, 0:N_root]
     H2_ = -1*H2[N_root:, N_root:]
     assert np.allclose(H1_, H2_)
-
-
-if __name__ == "__main__":
-    test_vortex_hamiltonian(2)

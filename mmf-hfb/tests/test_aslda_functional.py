@@ -13,7 +13,7 @@ def test_derivative():
 
     for ns in nss:
         na, nb = ns
-        N1 = (6 * np.pi**2 *(na + nb))**(5.0/3)/20/np.pi**2
+        # N1 = (6 * np.pi**2 *(na + nb))**(5.0/3)/20/np.pi**2
         p = a._get_p(ns)
 
         # test _dalpha_dp
@@ -59,11 +59,8 @@ def test_derivative():
         # ......add more tests here......
         for l in ls:
             # test alpha(l * n_a, l*n_b)=alpha(n_a, n_b)
-            assert np.allclose(a.get_alphas(ns=(ns[0]*l, ns[1]*l)), a.get_alphas(ns=ns), rtol=1e-16)
+            assert np.allclose(
+                a.get_alphas(ns=(ns[0]*l, ns[1]*l)), a.get_alphas(ns=ns), rtol=1e-16)
             # test D(l*n_a,l*n_b)=l**(5/3)D(n_a, n_b)
-            assert np.allclose(a.get_D(ns=(ns[0]*l, ns[1]*l)), l**(5.0/3)*a.get_D(ns=ns), rtol=1e-16)
-
-
-if __name__ == '__main__':
-    test_derivative()
-    print("pass...")
+            assert np.allclose(
+                a.get_D(ns=(ns[0]*l, ns[1]*l)), l**(5.0/3)*a.get_D(ns=ns), rtol=1e-16)

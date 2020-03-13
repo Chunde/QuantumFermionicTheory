@@ -40,8 +40,8 @@ def get_init_states(N=128, dx=0.1):
     V = x**2/2
     H0 = b._get_H(mu_eff=0, V=0)
     H1 = b._get_H(mu_eff=0, V=V)
-    U0, E0 = b.get_U_E(H0, transpose=True)
-    U1, E1 = b.get_U_E(H1, transpose=True)
+    U0, E0 = b.get_psis_es(H0, transpose=True)
+    U1, E1 = b.get_psis_es(H1, transpose=True)
     psi_standing_wave=Normalize(U0[1],dx=dx)
     psi_gaussian_mixing = random_gaussian_mixing(x, dx=dx)
     psi_uniform = Normalize(U0[0], dx=dx)
@@ -478,8 +478,8 @@ V = x**2/2
 b.V = V
 H0 = b._get_H(mu_eff=0, V=0)  # free particle
 H1 = b._get_H(mu_eff=0, V=V)  # harmonic trap
-U0, Es0 = b.get_U_E(H0, transpose=True)
-U1, Es1 = b.get_U_E(H1, transpose=True)
+U0, Es0 = b.get_psis_es(H0, transpose=True)
+U1, Es1 = b.get_psis_es(H1, transpose=True)
 psis_init = U0[:N_state]  # change the start states here if needed.
 psis_ground = U1[:N_state]  # change the start states here if needed.
 E0=sum(Es1[:N_state])

@@ -1,6 +1,7 @@
 """ASLDA class
 This module provides a ASLDA method for solving the polarized
 two-species Fermi gas with short-range interaction.
+Note: This class can 
 """
 from mmf_hfb.Functionals import FunctionalASLDA, FunctionalBdG, FunctionalSLDA
 from mmf_hfb.bcs import BCS

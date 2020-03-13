@@ -163,8 +163,8 @@ def test_der_cooling(plot=True, plot_dE=True, T=0.5, log=False, **args):
     b.V = V
     H0 = b._get_H(mu_eff=0, V=0)
     H1 = b._get_H(mu_eff=0, V=V)
-    U0, E0 = b.get_U_E(H0, transpose=True)
-    U1, E1 = b.get_U_E(H1, transpose=True)
+    U0, E0 = b.get_psis_es(H0, transpose=True)
+    U1, E1 = b.get_psis_es(H1, transpose=True)
     psi0 = b.Normalize(h.get_wf(x))
     psi0 = b.Normalize(U1[0])
     psi = b.Normalize(h0.get_wf(x, n=2))
@@ -282,8 +282,8 @@ H0 = bcs._get_H(mu_eff=0, V=0)  # free particle
 x = bcs.xyz[0]
 V = x**2/2
 H1 = bcs._get_H(mu_eff=0, V=V)  # harmonic trap
-U0, Es0 = bcs.get_U_E(H0, transpose=True)
-U1, Es1 = bcs.get_U_E(H1, transpose=True)
+U0, Es0 = bcs.get_psis_es(H0, transpose=True)
+U1, Es1 = bcs.get_psis_es(H1, transpose=True)
 
 # + [markdown] {"id": "gmdvwhivQ6eN", "colab_type": "text"}
 # # Prerequisite Test
@@ -479,8 +479,8 @@ V0 = x**2/3
 V1 = x**2/2
 H0 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(V0, V0))
 H1 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(V1, V1))
-U0, Es0 = b.get_U_E(H0, transpose=True)
-U1, Es1 = b.get_U_E(H1, transpose=True)
+U0, Es0 = b.get_psis_es(H0, transpose=True)
+U1, Es1 = b.get_psis_es(H1, transpose=True)
 psi0 = U1[0]
 psi = U0[0]
 plt.plot(psi0)

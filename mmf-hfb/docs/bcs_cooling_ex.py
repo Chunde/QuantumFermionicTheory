@@ -2,19 +2,20 @@
 # ---
 # jupyter:
 #   jupytext:
+#     cell_metadata_json: true
 #     formats: ipynb,py:light
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.4'
-#       jupytext_version: 1.2.3
+#       format_version: '1.5'
+#       jupytext_version: 1.3.2
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
 #     name: python3
 # ---
 
-# + {"id": "ptb73kVS8ceS", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "ptb73kVS8ceS", "colab_type": "text"}
 # # Quantum Friction Demonstration
 # $$
 #   \newcommand{\I}{\mathrm{i}}
@@ -57,7 +58,7 @@ def Normalize(psi):
 N_data = 20
 N_step = 100
 
-# + {"id": "zgRcXDoEJfi3", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "zgRcXDoEJfi3", "colab_type": "text"}
 # # Formation of a Fermi Surface
 #
 # ## Start with 20 initial plane-wave states
@@ -96,7 +97,7 @@ Cooling(N_state=3, Nx=128, N_data=20,
         init_state_ids=(1, 3, 5),
         N_step=N_step, beta_V=2, beta_K=2, divs=(1,1), beta_D=0, plot_n=True, plot_k=False);
 
-# + {"id": "gfSJNhrj7vcr", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "gfSJNhrj7vcr", "colab_type": "text"}
 # $$
 #   n(x) = \sum_{n} \braket{x|\psi_n}\braket{\psi_n|x}\qquad
 #   n_k = \sum_{n} \braket{k|\psi_n}\braket{\psi_n|k}, \qquad
@@ -107,7 +108,7 @@ Cooling(N_state=3, Nx=128, N_data=20,
 #   \sum_n\int\d{x} e^{-\I k x}n(x) \braket{x|\psi_n}\braket{\psi_n|x}
 # $$
 
-# + {"id": "lLIWw-ya8ceW", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "lLIWw-ya8ceW", "colab_type": "text"}
 # # Free Fermions and Fermions in a Harmonic Trap
 
 # + {"id": "EyLTqCwj8ceX", "colab_type": "code", "colab": {}}
@@ -123,13 +124,13 @@ H0 = bcs._get_H(mu_eff=0, V=0)  # free particle
 x = bcs.xyz[0]
 V = x**2/2
 H1 = bcs._get_H(mu_eff=0, V=V)  # harmonic trap
-U0, Es0 = bcs.get_U_E(H0, transpose=True)
-U1, Es1 = bcs.get_U_E(H1, transpose=True)
+U0, Es0 = bcs.get_psis_es(H0, transpose=True)
+U1, Es1 = bcs.get_psis_es(H1, transpose=True)
 
-# + {"id": "gmdvwhivQ6eN", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "gmdvwhivQ6eN", "colab_type": "text"}
 # # Prerequisite Test
 
-# + {"id": "B3ifArgkA90M", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "B3ifArgkA90M", "colab_type": "text"}
 # ## Check relation of $V_c(x)$, $K_c(k)$ with $H_c$
 # * By defination, $V_c$ should be equal to the diagonal terms of $H_c$ in position space while $K_c$ in momentum space
 
@@ -142,7 +143,7 @@ Hc = bcs.get_Hc(psi, V=0)
 Hc_k = np.fft.ifft(np.fft.fft(Hc, axis=0), axis=1)
 np.allclose(np.diag(Hc_k).real - Kc, 0), np.allclose(np.diag(Hc) - Vc, 0)
 
-# + {"id": "cBYbgtdFBF72", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "cBYbgtdFBF72", "colab_type": "text"}
 # ## Check Derivatives
 # * As derivatitves will be used, we need to make sure the numerical method works by comparing its results to analytical ones
 
@@ -158,7 +159,7 @@ dy = bcs.Del(y, n=2)
 plt.plot(x, dy)
 plt.plot(x, -2*np.cos(2*x), '+')
 
-# + {"id": "Nkt4KOoaRQ0C", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "Nkt4KOoaRQ0C", "colab_type": "text"}
 # ## Demostrate the $V_c$ and $K_c$ are Independent of Box Size
 # * with fixed $dx$
 #
@@ -200,18 +201,18 @@ def Check_Vc():
 Check_Vc()
 
 
-# + {"id": "s5LBtTtXSt_a", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "s5LBtTtXSt_a", "colab_type": "text"}
 # ## Check machine precision
 # * Also do this for exiting states in both postion and momentum space
 
 # + {"id": "BDFIOcIYSqcT", "colab_type": "code", "outputId": "1ed6c686-4e59-4cc8-e83d-ef6459b32475", "colab": {"base_uri": "https://localhost:8080/", "height": 395}}
 bcs = BCSCooling(N=Nx, L=None, dx=dx, beta_0=1, beta_V=1, beta_K=0, smooth=True) 
 H = bcs._get_H(mu_eff=0, V=V)  # harmonic trap
-Us, Es = bcs.get_U_E(H, transpose=True)
+Us, Es = bcs.get_psis_es(H, transpose=True)
 check_uv_ir_error(Us[0], plot=True)
 
 
-# + {"id": "ysb1C9Hu8ces", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "ysb1C9Hu8ces", "colab_type": "text"}
 # # Evolve in Imaginary Time
 
 # + {"id": "D2BW3sz38cet", "colab_type": "code", "colab": {}}
@@ -259,7 +260,7 @@ def ImaginaryCooling():
 # + {"id": "-0u8hZIMBjN2", "colab_type": "code", "outputId": "355cd01f-8894-4fb2-8dda-582f5d5450f4", "colab": {"base_uri": "https://localhost:8080/", "height": 392}}
 ImaginaryCooling()
 
-# + {"id": "p5nZgiVpBr6w", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "p5nZgiVpBr6w", "colab_type": "text"}
 # # Evolve in Real Time(Locally)
 # * Unlike the imagary time situation, where all wavefunction or orbits are used to renormlized the results, which can be expensive. Here wave functions are evolved in real time only using the local wavefunctions to cool down the enery.
 #
@@ -272,25 +273,25 @@ ImaginaryCooling()
 # * In this section, all kinds of configuration will be presented. The initial state(s) is (are) picked from the free fermions in a box. 
 #
 
-# + {"id": "Eo0kxBxAVMhZ", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "Eo0kxBxAVMhZ", "colab_type": "text"}
 # ## single wave
 # * In the follow demo, we will show the efficiency of the Cooling algorithm in different condition. Start with the simplest case where the inital state is a uniform wavefunction, then we turn on the hamonic potential, and monitor how the wave function evolve and the true ground state of the harmonic system is pupulated as the cooling proceeds. In the plot, the left panel plot the true ground state probability distribution $\psi^\dagger\psi$ in '+', and the evolving wavefunction probability distribution in solid line. 
 
-# + {"id": "3g1oa3n8WRqx", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "3g1oa3n8WRqx", "colab_type": "text"}
 # ### Start with and Even Single State
 # If we pick the initial state with even nodes(state id is even), then such state have some overlap with the ground state in a harmonic trap. It's expected to cooling down to the ground state as above case.
 
 # + {"id": "vLvdhzU4WYFS", "colab_type": "code", "outputId": "a06373d9-f8df-4c59-fae3-7237025fe264", "colab": {"base_uri": "https://localhost:8080/", "height": 392}}
 rets = Cooling(N_state=1, Nx=64, init_state_ids=(2,), N_data=25, N_step=100, beta_V=1, beta_K=1, beta_D=0., divs=(1,1))
 
-# + {"id": "c7vQCjWHVsaW", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "c7vQCjWHVsaW", "colab_type": "text"}
 # ### Start with an odd single state
 # * if the initial state has no overlap with the true ground state, in single state case, we will see the cooling does not works.
 
 # + {"id": "BXaJWUplV13u", "colab_type": "code", "outputId": "484ada2f-5cc4-433e-c691-01e811d074fa", "colab": {"base_uri": "https://localhost:8080/", "height": 392}}
 rets = Cooling(N_state=1, Nx=64, init_state_ids=(3,), N_data=20, N_step=100, beta_V=1, beta_K=1, beta_D=0., divs=(1,1), use_sp=True)
 
-# + {"id": "he1QRomv6Ip8", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "he1QRomv6Ip8", "colab_type": "text"}
 # ## Triple-States
 # * if set Nx=128, the environment of Google colaberator will yield different result than than I run locally. Where it not converge properly, but will give desired result on my local environment.
 
@@ -304,7 +305,7 @@ Cooling(N_state=6, Nx=128, N_data=25,
         init_state_ids=(2,3,6,7),
         N_step=N_step*10, beta_V=2, beta_K=2, divs=(1,1), beta_D=0, plot_k=True);
 
-# + {"id": "kS_QPkqhM39e", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "kS_QPkqhM39e", "colab_type": "text"}
 # ## Many-States
 # * Here we demostrate initally highly exicted states can be cooled down to the fermi surface.
 
@@ -318,11 +319,11 @@ Cooling(N_state=20, Nx=128, N_data=15,
         init_state_ids=list(range(5,25)),
         N_step=N_step*10, beta_V=5, beta_K=10, divs=(1,1), beta_D=0, plot_n=True, plot_k=True);
 
-# + {"id": "DtyhhJd5vM94", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "DtyhhJd5vM94", "colab_type": "text"}
 # ## Cooling With Derivatives
 #
 
-# + {"id": "lyFRMrlPdgVO", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "lyFRMrlPdgVO", "colab_type": "text"}
 # Consider the following cooling Hamiltonian.  (The motivation here is that the operators $\op{D}$ are derivatives, so this Hamiltonian is quasi-local.)
 #
 # $$
@@ -330,7 +331,7 @@ Cooling(N_state=20, Nx=128, N_data=15,
 #   \hbar \dot{E} = -\I\left(
 #     \int\d{x}\;V_{ab}(x)
 #     \braket{x|\op{D}_b[\op{R},\op{H}]\op{D}_a^\dagger|x}
-#     + \text{h.c.}
+# + \text {"incorrectly_encoded_metadata": "{h.c.}"}
 #   \right).
 # $$
 #
@@ -341,7 +342,7 @@ Cooling(N_state=20, Nx=128, N_data=15,
 #   = (\I\hbar\braket{x|\op{D}_b[\op{R},\op{H}]\op{D}_a^\dagger|x})^*
 #   = \I\hbar\braket{x|\op{D}_a[\op{R},\op{H}]\op{D}_b^\dagger|x}\\
 #   = \braket{x|\op{D}_a|\psi}\braket{x|\op{D}_b|\dot{\psi}}^*
-#   + \braket{x|\op{D}_a|\dot{\psi}}\braket{x|\op{D}_b|\psi}^*.
+# + \braket {"incorrectly_encoded_metadata": "{x|\\op{D}_a|\\dot{\\psi}}\\braket{x|\\op{D}_b|\\psi}^*."}
 # $$
 #
 # If $\op{D}_{a,b}(x)$ are just derivative operators $\braket{x|\op{D}_{a}|\psi} = \psi^{(a)}(x)$, then we have
@@ -349,7 +350,7 @@ Cooling(N_state=20, Nx=128, N_data=15,
 # $$
 #   \hbar V_{ab}(x) 
 #   = \psi^{(a)}(x)\overline{\dot{\psi}^{(b)}(x)}
-#   + \dot{\psi}^{(a)}(x)\overline{\psi^{(b)}(x)},
+# + \dot {"incorrectly_encoded_metadata": "{\\psi}^{(a)}(x)\\overline{\\psi^{(b)}(x)},"}
 # $$
 #
 # where
@@ -360,14 +361,14 @@ Cooling(N_state=20, Nx=128, N_data=15,
 #
 # is the time-derivative with respect to the original Hamiltonian.  Note that these "potentials" are no longer diagonal in either momentum or position space, so they should be implemented in the usual fashion with an integrator like ABM.
 
-# + {"id": "8xx81MBqDWqL", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "8xx81MBqDWqL", "colab_type": "text"}
 # * <font color='red'>if turn on the derivative terms(beta_D !=1), with both sides with the first order derivative of the wavefunction(divs=(1, 1)), it will screw up the cooling. beta_D=1 may be too big.
 # </font>
 
 # + {"id": "O0gXrx5UL8Nb", "colab_type": "code", "outputId": "01812047-37ae-400d-fab1-3e37d68b1f71", "colab": {"base_uri": "https://localhost:8080/", "height": 392}}
 Cooling(N_data=N_data, N_step=N_step, beta_0=1, beta_V=1, beta_K=0, beta_D=1, divs=(1, 1));
 
-# + {"id": "QETrGFXTGhcb", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "QETrGFXTGhcb", "colab_type": "text"}
 # # Epxeriment with another wavefunction
 # * All the above trails used the 1D harmonic wavefunction, in which case, the $V_c$ and $K_c$ both works well to cool the energy($K_c$ performs better). However, in some case, $K_c$ may fail to cool the energy. The follow example we use GP wavefunction with interaction strength $g=1$, and no external potential.
 
@@ -418,7 +419,7 @@ plt.xlabel("t")
 plt.ylabel("E-E0")
 plt.legend()
 
-# + {"id": "LedHtcO3PO-1", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "LedHtcO3PO-1", "colab_type": "text"}
 # # With Pairing Field
 # * to-do: update the code to support BCS with pairing field.
 
@@ -427,7 +428,7 @@ plt.legend()
 
 
 
-# + {"id": "rhoysAzbqs3Q", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "rhoysAzbqs3Q", "colab_type": "text"}
 # ## BCSCooling Class
 
 # + {"id": "HUoihT6vokj6", "colab_type": "code", "colab": {}}

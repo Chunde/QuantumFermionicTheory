@@ -7,9 +7,11 @@ import pytest
 def Prob(psi):
     return np.abs(psi)**2
 
+
 @pytest.fixture(params=[64, 225, 128])
 def N(request):
     return request.param
+
 
 @pytest.fixture(params=[1, 2, 3])
 def n(request):
@@ -40,17 +42,13 @@ def test_derivative_cooling(n, da, db):
     k0 = 2*np.pi/b.L
     x = b.xyz[0]
     H0 = b._get_H(mu_eff=0, V=0)
-    U0, E0 = b.get_U_E(H0, transpose=True)
+    U0, E0 = b.get_psis_es(H0, transpose=True)
     psi_1 = b.Normalize(np.cos(k0*x))
     assert np.allclose(Prob(psi_1), Prob(b.Normalize(U0[1])))
     assert np.allclose(E0[1], k0**2/2.0)
     psi = np.exp(1j*n*(k0*x))
     E =n**2*k0**2/2
-    #tex:
-    # compute $d^n \psi / d^n x$
     psi_a = b.Del(psi, n=da)
-    #tex:
-    # $\frac{d}{dt}[\frac{d^n\psi}{d^n x}]$
     Hpsi = np.array(b.apply_H([psi]))[0]/(1j)
     Hpsi_a = b.Del(Hpsi, n=da)
 
@@ -78,7 +76,6 @@ def test_Vd_to_Vc(N):
     args1 = dict(N=N, dx=0.1, divs=(0, 0), beta_V=1, T=T, check_dE=True)
     b0 = BCSCooling(**args0)
     h0 = HarmonicOscillator(w=1)
-    h = HarmonicOscillator()
     x = b0.xyz[0]
     V = x**2/2
     psi = h0.get_wf(x, n=2)
@@ -94,10 +91,10 @@ def test_apply_Vs(N_state=2):
     """
     args = dict(N=128, dx=0.1, beta_0=1, divs=(1, 1), beta_K=0, beta_V=0, beta_D=1)
     b = BCSCooling(**args)
-    x = b.xyz[0]
-    V = x**2/2
+    # x = b.xyz[0]
+    # V = x**2/2
     H0 = b._get_H(mu_eff=0, V=0)
-    U0, E0 = b.get_U_E(H0, transpose=True)
+    U0, E0 = b.get_psis_es(H0, transpose=True)
     psis = U0[:N_state]
 
     def get_kc(psis, fun):
@@ -217,8 +214,8 @@ def test_uv_ir_kc():
                 base_value = sum(abs(Kc))*s.dx
             else:
                 new_value = sum(abs(Kc))*s.dx
-                #assert new_value > 1e-5
-                #assert base_value > 1e-5
+                # assert new_value > 1e-5
+                # assert base_value > 1e-5
                 assert np.allclose(base_value, new_value, rtol=0.01)
 
 
@@ -229,9 +226,9 @@ def test_full_Hc():
     V = x**2/2
     b.V = V
     H0 = b._get_H(mu_eff=0, V=V)
-    psis0, Es0 = b.get_U_E(H0, transpose=True)
+    psis0, Es0 = b.get_psis_es(H0, transpose=True)
     H = b._get_H(mu_eff=0, V=0)
-    psis, _ = b.get_U_E(H, transpose=True)
+    psis, _ = b.get_psis_es(H, transpose=True)
     for n, T in zip([2, 3, 4, 5], [5, 2, 2, 2]):
     
         psis_init = [b.Normalize(psis[i]) for i in range(n)]
@@ -258,7 +255,7 @@ def test_cooling_with_pairing():
     V0 = x**2/3
     V1 = x**2/2
     H0 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(V0, V0))
-    U0, _ = b.get_U_E(H0, transpose=True)
+    U0, _ = b.get_psis_es(H0, transpose=True)
     psi = U0[10]
     b.V = V1
     psis = [psi]

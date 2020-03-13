@@ -116,8 +116,9 @@ def get_dE_dn(mu, dmu, dim, q=0, dq=0):
     return (e1-e2)/(sum(n1)-sum(n2))
 
 
-def Thermodynamic(mu, dmu, delta0=1, dim=3, k_c=100, q=0, dq=0,
-                    T=0.0, a=0.8, b=1.2, dx=1e-3, N=10):
+def Thermodynamic(
+        mu, dmu, delta0=1, dim=3, k_c=100, q=0, dq=0,
+        T=0.0, a=0.8, b=1.2, dx=1e-3, N=10):
     if dim == 1:  # Because 1d case does not pass yet
         print("This method does nothing for 1d case")
         return
@@ -193,7 +194,7 @@ def Thermodynamic(mu, dmu, delta0=1, dim=3, k_c=100, q=0, dq=0,
     assert np.allclose(n_b.n, n_b_.n)
 
    
-#@pytest.mark.skip(reason="pass")
+# @pytest.mark.skip(reason="pass")
 def test_efftive_mus():
     """Test a few values from Table I of Quick:1993."""
     lam_invs = [0.5]  # 1.5
@@ -351,7 +352,8 @@ def test_Thermodynamic_1d(
                             continue
                 except:
                     continue
-            warnings.warn(f"Can't find a solution in that region, use the default value={dmu}")
+            warnings.warn(
+                f"Can't find a solution in that region, use the default value={dmu}")
             return dmu  # when no solution is found
 
     # return # The follow part test is too slow, skip it at this point!
@@ -361,7 +363,7 @@ def test_Thermodynamic_1d(
     na1, nb1, E1, p1, mus1 = ff.get_ns_p_e_mus_1d(
         mu=mu+dx, dmu=dmu1,
         mus_eff=mus_eff, q=q, dq=dq, update_g=False)
-    na0, nb0, E0, p0, mus0 = ff.get_ns_p_e_mus_1d(
+    na0, nb0, E0, _, _ = ff.get_ns_p_e_mus_1d(
         mu=mu-dx, dmu=dmu2,
         mus_eff=mus_eff, q=q, dq=dq, update_g=False)
     n1, n0 = (na1 + nb1), (na0 + nb0)
@@ -369,7 +371,8 @@ def test_Thermodynamic_1d(
     print(f"Fix dn:\t[dn1={(na1-nb1)}\tdn0={(na0-nb0)}]")
     print(f"Expected mu={mu}\tNumerical mu={mu_}")
     assert np.allclose((na1-nb1), (na0-nb0))
-    assert np.allclose(mu,mu_, rtol=1e-4)
+    assert np.allclose(mu, mu_, rtol=1e-4)
+
 
 def test_Thermodynamic_1d_fast(
         delta, mu_delta, dmu_delta=0,
@@ -402,11 +405,3 @@ def test_Thermodynamic_1d_fast(
 
     assert np.allclose((n_a_1 - n_b_1), (n_a_2-n_b_2))
     assert np.allclose(mu, mu_, rtol=1e-4)
-
-
-if __name__ == "__main__":
-    test_efftive_mus()
-    test_Thermodynamic_1d_fast(delta=1, mu_delta=10)
-    #Thermodynamic(mu=10,dmu=0)
-    #test_Thermodynamic_1d(delta=1, mu_delta=2.0, dmu_delta=0, q_dmu=0, dq_dmu=0)
-    #Thermodynamic(mu=10, dmu=0, k_c=50, q=0, dq=0, dim=3, delta0=1)

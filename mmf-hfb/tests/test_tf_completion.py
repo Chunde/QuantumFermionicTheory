@@ -1,8 +1,7 @@
 import numpy as np
 from scipy.optimize import brentq
-import py.test
-import warnings
 from mmf_hfb import tf_completion, homogeneous
+
 
 def test_ws():
     np.random.seed(1)
@@ -15,9 +14,10 @@ def test_ws():
         dq, q = np.random.random(2) * 2
         k2_a = (k + q)**2
         k2_b = (k - q)**2
-        em0, ep0, _, _, _ = tf_completion.get_ws(k2_a, k2_b,  mu_a, mu_b, 1, m, m, 1, 0)
+        em0, ep0, _, _, _ = tf_completion.get_ws(k2_a, k2_b, mu_a, mu_b, 1, m, m, 1, 0)
         assert np.allclose(ep0, k**2/2/m - (mu_p - q**2/2/m))
         assert np.allclose(em0, q*k/m - mu_m)
+
 
 def test_3D():
     """Test the 3D UFG solution."""
@@ -61,7 +61,8 @@ def test_2D():
 
     n_p = tf_completion.integrate_q(tf_completion.n_p_integrand, dim=2, dq=0, **args)
     assert np.allclose(n_p.n, nF)
-    
+
+
 def BCS(mu_eff, delta=1.0):
     m = hbar = 1.0
     """Return `(E_N_E_2, lam)` for comparing with the exact Gaudin
@@ -120,8 +121,8 @@ def test_1D():
     mu = mu_eff - n_p.n*v_0/2
     lam = m*v_0/n_p.n/hbar**2
     
-    #v_0, n, mu, e = homogeneous.get_BCS_v_n_e(mu_eff=mu_eff, delta=delta)
-    E_N_E_2, lam = BCS(mu_eff=mu_eff,  delta=delta)
+    # v_0, n, mu, e = homogeneous.get_BCS_v_n_e(mu_eff=mu_eff, delta=delta)
+    E_N_E_2, lam = BCS(mu_eff=mu_eff, delta=delta)
     mu_tilde = (hbar**2/m/v_0**2)*mu
     assert np.allclose(lam, 1./lam_inv)
     assert np.allclose(mu_tilde, 0.0864, atol=0.0005)
@@ -136,7 +137,3 @@ def test_1D():
     mu_tilde = (hbar**2/m/v_0**2)*mu
     assert np.allclose(lam, 1./lam_inv)
     assert np.allclose(mu_tilde, 0.0864, atol=0.0005)
-
-
-if __name__ == "__main__":
-    test_1D()

@@ -1,10 +1,8 @@
 """Test integrate module."""
 from functools import partial
-from itertools import chain
 import sympy
 import numpy as np
 import pytest
-
 from mmf_hfb import integrate
 
 

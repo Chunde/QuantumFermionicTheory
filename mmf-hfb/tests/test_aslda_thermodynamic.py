@@ -1,5 +1,5 @@
 from mmf_hfb.homogeneous_aslda import BDG, SLDA, ASLDA
-from  mmf_hfb import bcs_aslda
+from mmf_hfb import bcs_aslda
 import numpy as np
 import pytest
 import warnings
@@ -27,7 +27,7 @@ def Functional(request):
 
 
 def test_homogeneous_aslda_thermodynamic(Functional, T, C, dim):
-    #if Functional == BDG and C is None:
+    #  if Functional == BDG and C is None:
     #    return
     dx=1e-2
     delta = 1
@@ -40,7 +40,6 @@ def test_homogeneous_aslda_thermodynamic(Functional, T, C, dim):
             mus=(mu + dmu, mu - dmu), delta=delta, update_C=update_C, use_solver=True)
         return ns, e, p
 
-    ns, _, _ = get_ns_e_p(mu=mu, dmu=dmu, delta=None)
     ns1, e1, p1 = get_ns_e_p(mu=mu+dx, dmu=dmu, delta=None)
     print("-------------------------------------")
 
@@ -56,6 +55,7 @@ def test_homogeneous_aslda_thermodynamic(Functional, T, C, dim):
     assert np.allclose(n_p, sum(ns1 + ns2)/2.0, rtol=1e-2)
     assert np.allclose(mu_, mu, rtol=1e-2)
 
+
 @pytest.mark.skip(reason="Not pass yet")
 def test_bcs_aslda_thermodynamic(dx=1e-3):
     L = 0.46
@@ -64,9 +64,9 @@ def test_bcs_aslda_thermodynamic(dx=1e-3):
     delta = 1.0
     mu=10
     dmu = 0
-    lda = bcs_aslda.BDG(T=0, Nxyz=(N,N), Lxyz=(L,N))
-    k_c = abs(np.array(lda.kxyz).max())
-    #lda.E_c = 3 * (lda.hbar*k_c)**2/2/lda.m
+    lda = bcs_aslda.BDG(T=0, Nxyz=(N, N), Lxyz=(L, N))
+    # k_c = abs(np.array(lda.kxyz).max())
+    # lda.E_c = 3 * (lda.hbar*k_c)**2/2/lda.m
 
     def get_ns_e_p(mu, dmu, update_C=False):
         ns, e, p = lda.get_ns_e_p(

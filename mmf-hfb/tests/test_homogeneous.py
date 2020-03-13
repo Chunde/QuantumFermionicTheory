@@ -4,7 +4,7 @@ from scipy.optimize import brentq
 import pytest
 from mmfutils.testing import allclose
 from mmf_hfb import homogeneous
-from mmf_hfb.homogeneous import Homogeneous1D, Homogeneous3D
+from mmf_hfb.homogeneous import Homogeneous1D
 
 
 @pytest.fixture(params=[1, 2, 3])
@@ -134,8 +134,3 @@ class TestHomogeneous(object):
         h = homogeneous.Homogeneous3D(m=m, hbar=hbar)
         res = h.get_densities(mus_eff=(mu,)*2, delta=delta, k_c=np.inf)
         assert allclose(res.n_a+res.n_b, nF)
-
-
-if __name__ == '__main__':
-    t = TestHomogeneous()
-    t.test_3D_T0()

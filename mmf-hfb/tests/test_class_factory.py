@@ -56,7 +56,8 @@ def test_BDG(mu, dmu):
 
     def get_ns_e_p(mu, dmu, update_C=False):
         ns, e, p = lda.get_ns_e_p(
-            mus=(mu + dmu, mu - dmu), delta=delta, solver=Solvers.BROYDEN1, verbosity=False)
+            mus=(mu + dmu, mu - dmu), delta=delta,
+            solver=Solvers.BROYDEN1, verbosity=False)
         return ns, e, p
 
     ns_, _, _ = get_ns_e_p(mu=mu, dmu=dmu)
@@ -197,10 +198,11 @@ def test_C():
 
 
 if __name__ == "__main__":
-    #test_bare_mus(mu=np.pi, dmu=0.5)
+    # test_bare_mus(mu=np.pi, dmu=0.5)
     test_effective_mus_thermodynamic(mu=np.pi)
     test_effective_mus(mu=np.pi, dmu=0.3, dq=0)
     test_BDG(mu=5, dmu=1)
-    test_class_factory(functional=FunctionalType.ASLDA, kernel=KernelType.HOM, mu=np.pi, dim=3)
+    test_class_factory(
+        functional=FunctionalType.ASLDA, kernel=KernelType.HOM, mu=np.pi, dim=3)
     test_C()
     test_effective_mus_BdG(mu=10, dmu=1)

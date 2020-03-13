@@ -43,8 +43,8 @@ class BCSCooling(BCS):
         x0 = 0.5
         H0 = b._get_H(mu_eff=0, V=0)
         H1 = b._get_H(mu_eff=0, V=V)
-        U0, E0 = b.get_U_E(H0, transpose=True)
-        U1, E1 = b.get_U_E(H1, transpose=True)
+        U0, E0 = b.get_psis_es(H0, transpose=True)
+        U1, E1 = b.get_psis_es(H1, transpose=True)
         psi0 = [b.Normalize(U1[i]) for i in range(N_state)]
         phase = ((x-x0) + 1j*y)*((x+x0) - 1j*y)
         psi =  [b.Normalize(U0[i]) for i in range(N_state)]
@@ -527,7 +527,7 @@ class BCSCooling(BCS):
                 Hpsis[i] -= self.dotc(psi, Hpsis[i])/self.dotc(psi, psi)*psi
         return self.pack(np.array(Hpsis)/(1j*self.hbar))
     
-    def get_U_E(self, H, transpose=False):
+    def get_psis_es(self, H, transpose=False):
         """return Us and Vs and energy"""
         Es, U = numpy.linalg.eigh(H)
         if transpose:
