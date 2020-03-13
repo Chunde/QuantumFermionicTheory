@@ -4,18 +4,12 @@ import numpy as np
 import pytest
 
 
-def Normalize(psi, dx=0.1):
-    return psi/(psi.dot(psi.conj())*dx)**0.5
-
-
 def Prob(psi):
     return np.abs(psi)**2
-
 
 @pytest.fixture(params=[64, 225, 128])
 def N(request):
     return request.param
-
 
 @pytest.fixture(params=[1, 2, 3])
 def n(request):
@@ -36,28 +30,26 @@ def db(request):
 def N_state(request):
     return request.param
 
-# @pytest.mark.skip(reason="Not pass yet")
+
 def test_derivative_cooling(n, da, db):
     """
     Test that for free particle hamiltonian, when da=da, Vc is zero
     """
-    if da != db:
-        return  # for da=0, db=1, the there is error!
     args = dict(N=128, dx=0.1, beta_0=1, V=0, beta_K=0, beta_V=0, beta_D=1)
     b = BCSCooling(**args)
     k0 = 2*np.pi/b.L
     x = b.xyz[0]
     H0 = b._get_H(mu_eff=0, V=0)
     U0, E0 = b.get_U_E(H0, transpose=True)
-    psi_1 = Normalize(np.cos(k0*x))
-    assert np.allclose(Prob(psi_1), Prob(U0[1]))
+    psi_1 = b.Normalize(np.cos(k0*x))
+    assert np.allclose(Prob(psi_1), Prob(b.Normalize(U0[1])))
     assert np.allclose(E0[1], k0**2/2.0)
     psi = np.exp(1j*n*(k0*x))
     E =n**2*k0**2/2
-    # tex:
+    #tex:
     # compute $d^n \psi / d^n x$
     psi_a = b.Del(psi, n=da)
-    # tex:
+    #tex:
     # $\frac{d}{dt}[\frac{d^n\psi}{d^n x}]$
     Hpsi = np.array(b.apply_H([psi]))[0]/(1j)
     Hpsi_a = b.Del(Hpsi, n=da)
@@ -78,7 +70,7 @@ def test_derivative_cooling(n, da, db):
         Hpsi_a*psi_b.conj(),
         (-1j)*(n*k0)**(da+db)*E*psi*psi.conj()*((-1j)**db)*(1j)**da)
 
-#@pytest.mark.skip(reason="Not pass yet")
+
 def test_Vd_to_Vc(N):
     """if da=db=0, Vd should equal to Vc"""
     T=0.5
@@ -86,6 +78,7 @@ def test_Vd_to_Vc(N):
     args1 = dict(N=N, dx=0.1, divs=(0, 0), beta_V=1, T=T, check_dE=True)
     b0 = BCSCooling(**args0)
     h0 = HarmonicOscillator(w=1)
+    h = HarmonicOscillator()
     x = b0.xyz[0]
     V = x**2/2
     psi = h0.get_wf(x, n=2)
@@ -101,6 +94,8 @@ def test_apply_Vs(N_state=2):
     """
     args = dict(N=128, dx=0.1, beta_0=1, divs=(1, 1), beta_K=0, beta_V=0, beta_D=1)
     b = BCSCooling(**args)
+    x = b.xyz[0]
+    V = x**2/2
     H0 = b._get_H(mu_eff=0, V=0)
     U0, E0 = b.get_U_E(H0, transpose=True)
     psis = U0[:N_state]
@@ -174,7 +169,9 @@ def test_ImaginaryCooling_with_desired_energy():
     u0 = u0/u0.dot(u0.conj())**0.5
     u1=(np.sqrt(2)*x*np.exp(-x**2/2))/np.pi**4
     u1 = u1/u1.dot(u1.conj())**0.5
-    psi_0 = Normalize(V*0 + 1+0*1j)
+    psi_0 = s.Normalize(V*0 + 1+0*1j)
+    E0 = s.get_E_Ns([psi_0])[0]
+    s.E_stop = 0.75*E0
     _, psis, _ = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, method='BDF')
     psi_ground = psis[-1]
     E= s.get_E_Ns(psi_ground)[0]
@@ -203,7 +200,7 @@ def test_uv_ir_Vc():
                 assert np.allclose(base_value, new_value, rtol=0.01)
 
 
-def test_uv_ir_Kc():
+def test_uv_ir_kc():
     """test the uv and ir error."""
     dx = 0.1
     base_value = None
@@ -219,10 +216,9 @@ def test_uv_ir_Kc():
             if base_value is None:
                 base_value = sum(abs(Kc))*s.dx
             else:
-
                 new_value = sum(abs(Kc))*s.dx
-                assert new_value > 1e-5
-                assert base_value > 1e-5
+                #assert new_value > 1e-5
+                #assert base_value > 1e-5
                 assert np.allclose(base_value, new_value, rtol=0.01)
 
 
@@ -262,7 +258,6 @@ def test_cooling_with_pairing():
     V0 = x**2/3
     V1 = x**2/2
     H0 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(V0, V0))
-    H1 = b.get_H(mus_eff=b.mus, delta=b.delta, Vs=(V1, V1))
     U0, _ = b.get_U_E(H0, transpose=True)
     psi = U0[10]
     b.V = V1
@@ -274,7 +269,3 @@ def test_cooling_with_pairing():
         if abs((E-E_old)/E_old) > 1e-2:
             assert E<= E_old
         E_old = E
-
-
-if __name__ == "__main__":
-    test_dE_dt()
