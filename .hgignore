@@ -1,0 +1,11 @@
+syntax: glob
+
+__pycache__
+.pytest_cache/
+commit_notes.txt
+htmlcov/
+.coverage
+_ext
+*.pyc
+*.pyo
+*.egg-info/
