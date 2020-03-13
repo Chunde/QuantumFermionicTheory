@@ -1,9 +1,7 @@
-"""ASLDA class
-This module provides a ASLDA method for solving the polarized
-two-species Fermi gas with short-range interaction.
-"""
-from mmf_hfb.bcs import BCS
+"""????"""
 import numpy as np
+
+from .hfb import BCS
 
 
 class KernelBCS(BCS):

@@ -30,7 +30,7 @@ install_requires = [
     'matplotlib>=1.5',
     'uncertainties', 
     'sympy',
-    'ad',
+    # 'ad',
     'mmf_setup>=0.1.11', 
     'mmfutils>=0.4.8',
     'zope.interface>=3.8.0',

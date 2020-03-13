@@ -1,10 +1,14 @@
-import numpy as np
-from mmf_hfb.bcs import BCS
-from mmf_hfb import bcs_aslda
 from collections import namedtuple
 import warnings
+
+import numpy as np
+
 import scipy.integrate
 import scipy as sp
+
+from mmf_hfb.hfb import BCS
+from mmf_hfb import bcs_aslda
+
 hbar = 1
 m = 1
 

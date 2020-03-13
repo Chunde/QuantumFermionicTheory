@@ -3,16 +3,14 @@ This module provides a ASLDA method for solving the polarized
 two-species Fermi gas with short-range interaction.
 Note: This class can 
 """
-from mmf_hfb.Functionals import FunctionalASLDA, FunctionalBdG, FunctionalSLDA
-from mmf_hfb.bcs import BCS
-from mmf_hfb.KernelBCS import KernelBCS
 import numpy as np
-import numpy
-import scipy.optimize
+
+from .Functionals import FunctionalASLDA, FunctionalBdG, FunctionalSLDA
+from .KernelBCS import KernelBCS
 
 
 class BDG(FunctionalBdG, KernelBCS):
-    
+    """????"""
     def __init__(self, Nxyz, Lxyz, dx=None, T=0, C=None, fix_C=False, **args):
         KernelBCS.__init__(self, Nxyz=Nxyz, Lxyz=Lxyz, dx=dx, T=T, **args)
 

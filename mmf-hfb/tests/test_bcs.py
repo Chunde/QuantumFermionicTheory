@@ -1,9 +1,12 @@
 """Test the bcs code."""
-import pytest
+import itertools
+
 import numpy as np
 import numpy
-from mmf_hfb import bcs, homogeneous
-import itertools
+
+import pytest
+
+from mmf_hfb import hfb, homogeneous
 
 
 @pytest.fixture(params=[1, 2, 3])
@@ -49,7 +52,7 @@ def test_BCS(dim, NLx, T, N_twist):
     args.update(T=T)
 
     h = homogeneous.Homogeneous(**args)
-    b = bcs.BCS(**args)
+    b = hfb.BCS(**args)
 
     res_h = h.get_densities((mu, mu), delta, N_twist=N_twist)
     res_b = b.get_densities((mu, mu), delta, N_twist=N_twist)
@@ -75,7 +78,7 @@ def test_twist_average(dim, T):
     dx = 0.01
     args = dict(Nxyz=(N,)*dim, dx=dx, T=T)
     h = homogeneous.Homogeneous(dim=dim, T=T)
-    b = bcs.BCS(**args)
+    b = hfb.BCS(**args)
 
     if dim == 1:
         res_h = h.get_densities((mu, mu), delta)
@@ -93,7 +96,7 @@ def test_twist_average(dim, T):
 def test_BCS_get_densities(dim, NLx, T, N_twist):
     """Compare the two get_densities methods."""
     np.random.seed(1)
-    hbar, m, kF = 1 + numpy.random.random(3)
+    hbar, m, kF = 1 + np.random.random(3)
     eF = (hbar*kF)**2/2/m
     # nF = kF/np.pi
     # E_FG = 2*nF*eF/3
@@ -112,7 +115,7 @@ def test_BCS_get_densities(dim, NLx, T, N_twist):
 
     args.update(T=T)
 
-    b = bcs.BCS(**args)
+    b = hfb.BCS(**args)
 
     delta = np.exp(1j*b.xyz[0])
     res = b.get_densities((mu, mu), delta, N_twist=N_twist)
@@ -176,7 +179,7 @@ def test_BCS_get_currents_1d(dim, NLx, T, N_twist):
 
     args.update(T=T)
 
-    b = bcs.BCS(**args)
+    b = hfb.BCS(**args)
 
     delta = np.exp(1j*b.xyz[0])
     res = b.get_densities((mu, mu), delta, N_twist=N_twist)

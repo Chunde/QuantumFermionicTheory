@@ -1,12 +1,17 @@
-from mmf_hfb.DVRBasis import CylindricalBasis
-from mmfutils.math.integrate import mquad
-from mmf_hfb.utils import block
-from mmf_hfb import homogeneous
-import numpy as np
-from mmfutils.math.special import mstep
+"""????"""
+
 from collections import namedtuple
-from mmf_hfb.bcs import BCS
 import warnings
+
+import numpy as np
+
+from mmfutils.math.integrate import mquad
+from mmfutils.math.special import mstep
+
+from .DVRBasis import CylindricalBasis
+from .utils import block
+from . import homogeneous
+from .hfb import BCS
 
 
 Densities = namedtuple('Densities', ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu', 'j_a', 'j_b'])
