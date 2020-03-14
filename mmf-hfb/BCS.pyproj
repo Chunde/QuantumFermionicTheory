@@ -74,8 +74,8 @@
     <Compile Include="mmf_hfb\CoolingCaseTests2D.py" />
     <Compile Include="mmf_hfb\CoolingCaseTestsBCS.py" />
     <Compile Include="mmf_hfb\CoolingEg.py" />
-    <Compile Include="mmf_hfb\CylindricalBasis.py" />
-    <Compile Include="mmf_hfb\DVRBasis.py" />
+    <Compile Include="mmf_hfb\cylindrical_basis.py" />
+    <Compile Include="mmf_hfb\dvr_basis.py" />
     <Compile Include="mmf_hfb\FFStateAgent.py" />
     <Compile Include="mmf_hfb\FFStateFinder.py" />
     <Compile Include="mmf_hfb\FFStateHelper.py" />
@@ -96,7 +96,7 @@
     <Compile Include="mmf_hfb\DataHelper.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="mmf_hfb\ParallelHelper.py" />
+    <Compile Include="mmf_hfb\parallel_helper.py" />
     <Compile Include="mmf_hfb\Potentials.py" />
     <Compile Include="mmf_hfb\quantum_friction.py" />
     <Compile Include="mmf_hfb\scratch.py">
@@ -105,7 +105,7 @@
     <Compile Include="mmf_hfb\SolverABM.py" />
     <Compile Include="mmf_hfb\tf_completion.py" />
     <Compile Include="mmf_hfb\utils.py" />
-    <Compile Include="mmf_hfb\VortexDVR.py" />
+    <Compile Include="mmf_hfb\dvr_vortex.py" />
     <Compile Include="mmf_hfb\VortexState.py">
       <SubType>Code</SubType>
     </Compile>

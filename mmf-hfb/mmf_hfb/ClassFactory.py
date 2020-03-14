@@ -15,9 +15,9 @@ For functional type, please check the FunctionalType enum class
 For kernel type, please check the KernelType enum class.
 For agent class, please check the FFStateAgent class.
 """
-from mmf_hfb.Functionals import FunctionalBdG, FunctionalSLDA, FunctionalASLDA
-from mmf_hfb.KernelHomogeneouse import KernelHomogeneous
-from mmf_hfb.KernelBCS import KernelBCS
+from mmf_hfb.functionals import FunctionalBdG, FunctionalSLDA, FunctionalASLDA
+from mmf_hfb.homogeneouse_kernel import homogeneous_kernel
+from mmf_hfb.bcs_kernel import bcs_kernel
 from mmf_hfb import tf_completion as tf
 from scipy.optimize import brentq
 from enum import Enum
@@ -52,7 +52,7 @@ class Solvers(Enum):
     DIAGBROYDEN=scipy.optimize.diagbroyden
 
 
-class Adapter(object):
+class FuldeFurrellAdapter(object):
     """
     the adapter used to connect functional and HFB kernel
     In the factory method, a new class inherit from 
@@ -311,7 +311,7 @@ class Adapter(object):
 def ClassFactory(
         className="LDA", AgentClass=(),
         functionalType=FunctionalType.SLDA,
-        kernelType=KernelType.HOM,
+        kernelType=KernelType.HOM, adapter=None,
         functionalIndex=None, kernelIndex=None, args=None):
     """
     A function that create a new class that uses an adapter class
@@ -332,13 +332,15 @@ def ClassFactory(
         parameters fed to all base classes.
     """
     Functionals = [FunctionalBdG, FunctionalSLDA, FunctionalASLDA]
-    Kernels = [KernelBCS, KernelHomogeneous]
+    Kernels = [bcs_kernel, homogeneous_kernel]
     if kernelIndex is not None:
         return KernelType(kernelIndex)
     if functionalIndex is not None:
         return FunctionalType(functionalIndex)
+    if adapter is None:
+        adapter = FuldeFurrellAdapter
     base_classes = AgentClass + (
-        Adapter, Kernels[kernelType.value],
+        adapter, Kernels[kernelType.value],
         Functionals[functionalType.value])
 
     def __init__(self, **args):

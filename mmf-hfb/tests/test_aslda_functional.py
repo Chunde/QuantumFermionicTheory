@@ -1,5 +1,5 @@
 import numpy as np
-from mmf_hfb.Functionals import FunctionalASLDA
+from mmf_hfb.functionals import FunctionalASLDA
 import itertools  
 
 

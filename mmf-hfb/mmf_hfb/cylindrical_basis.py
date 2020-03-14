@@ -82,7 +82,7 @@ def idst(F, axis=-1):
     return sp.fftpack.dst(F, **args)/(2.0*N)
 
 
-class CylindricalBasis(object):
+class cylindrical_basis(object):
     r"""2D basis for Cylindrical coordinates via a DVR basis.
 
     This represents 3-dimensional problems with axial symmetry, but only has
@@ -510,7 +510,7 @@ if __name__ == "__main__":
     k_max = np.sqrt(-np.log(eps)/a0**2)
     Nr = int(np.ceil(k_max * 2*R / np.pi))
 
-    basis = CylindricalBasis(Nxr=(1, Nr), Lxr=(1.0, R))
+    basis = cylindrical_basis(Nxr=(1, Nr), Lxr=(1.0, R))
 
     def get_V(r):
         return m*w**2*r**2/2

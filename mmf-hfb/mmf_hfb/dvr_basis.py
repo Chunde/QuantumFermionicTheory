@@ -9,7 +9,7 @@ def nan0(data):
     return np.nan_to_num(data, 0)
 
 
-class CylindricalBasis(object):
+class cylindrical_basis(object):
     eps = np.finfo(float).eps
     m = hbar = 1
     N_root_max = 128
@@ -188,12 +188,12 @@ class CylindricalBasis(object):
         return (lz**2 - self.lz**2)*self.hbar**2/2.0/self.rs**2
 
 
-class HarmonicDVR(CylindricalBasis):
+class HarmonicDVR(cylindrical_basis):
     m=hbar=w=1
     eps = 7./3 - 4./3 -1  # machine accuracy
 
     def __init__(self, w=1, lz=0, dim=2, **args):
-        CylindricalBasis.__init__(self, lz=lz, dim=dim, **args)
+        cylindrical_basis.__init__(self, lz=lz, dim=dim, **args)
         self.w = w
 
     def get_V(self):

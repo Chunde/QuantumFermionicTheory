@@ -7,7 +7,7 @@ import numpy as np
 import scipy.optimize
 
 
-class KernelHomogeneous(Homogeneous):
+class homogeneous_kernel(Homogeneous):
     
     def __init__(
         self, mu_eff, dmu_eff, delta=1, m=1, T=0,

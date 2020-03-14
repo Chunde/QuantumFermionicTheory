@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
-from mmf_hfb.DVRBasis import HarmonicDVR
-from mmf_hfb.VortexDVR import CylindricalDVR
+from mmf_hfb.dvr_basis import HarmonicDVR
+from mmf_hfb.dvr_vortex import CylindricalDVR
 
 
 @pytest.fixture(params=[2, 10, 32])

@@ -1,5 +1,9 @@
-from mmf_hfb.BCSCooling import BCSCooling
-from mmf_hfb.Potentials import HarmonicOscillator
+
+import sys
+sys.path.insert(1, '../QuantumFriction/')
+
+from BCSCooling import BCSCooling
+from mmf_hfb.potentials import HarmonicOscillator
 import numpy as np
 import pytest
 
@@ -47,7 +51,7 @@ def test_derivative_cooling(n, da, db):
     assert np.allclose(Prob(psi_1), Prob(b.Normalize(U0[1])))
     assert np.allclose(E0[1], k0**2/2.0)
     psi = np.exp(1j*n*(k0*x))
-    E =n**2*k0**2/2
+    E = n**2*k0**2/2
     psi_a = b.Del(psi, n=da)
     Hpsi = np.array(b.apply_H([psi]))[0]/(1j)
     Hpsi_a = b.Del(Hpsi, n=da)
@@ -71,7 +75,7 @@ def test_derivative_cooling(n, da, db):
 
 def test_Vd_to_Vc(N):
     """if da=db=0, Vd should equal to Vc"""
-    T=0.5
+    T = 0.5
     args0 = dict(N=N, dx=0.1, divs=(0, 0), beta_D=1, T=T, check_dE=True)
     args1 = dict(N=N, dx=0.1, divs=(0, 0), beta_V=1, T=T, check_dE=True)
     b0 = BCSCooling(**args0)
@@ -89,7 +93,8 @@ def test_apply_Vs(N_state=2):
     """
     check the equivalence of apply_H, apply_V, and apply_K for computing Vc and Kc
     """
-    args = dict(N=128, dx=0.1, beta_0=1, divs=(1, 1), beta_K=0, beta_V=0, beta_D=1)
+    args = dict(
+        N=128, dx=0.1, beta_0=1, divs=(1, 1), beta_K=0, beta_V=0, beta_D=1)
     b = BCSCooling(**args)
     # x = b.xyz[0]
     # V = x**2/2
@@ -164,7 +169,7 @@ def test_ImaginaryCooling_with_desired_energy():
     s.V = V
     u0 = np.exp(-x**2/2)/np.pi**4
     u0 = u0/u0.dot(u0.conj())**0.5
-    u1=(np.sqrt(2)*x*np.exp(-x**2/2))/np.pi**4
+    u1 = (np.sqrt(2)*x*np.exp(-x**2/2))/np.pi**4
     u1 = u1/u1.dot(u1.conj())**0.5
     psi_0 = s.Normalize(V*0 + 1+0*1j)
     E0 = s.get_E_Ns([psi_0])[0]
@@ -243,7 +248,7 @@ def test_full_Hc():
         _, ys, nfev = b.solve(
             psis=psis_init, T=T, dy_dt=compute_dy_dt,
             rtol=1e-5, atol=1e-6, method='BDF')
-        E, N= b.get_E_Ns(psis=ys[-1])
+        E, N = b.get_E_Ns(psis=ys[-1])
         E0 = np.sum(Es0[:n])
         print(f"State Num={n}, E0={E0},E={E},N={N}, nfev={nfev}")
         assert np.allclose(E, E0, rtol=1e-2)
@@ -263,6 +268,10 @@ def test_cooling_with_pairing():
     for _ in range(100):
         psis = b.step(psis=psis, n=100)
         E, _ = b.get_E_Ns(psis=psis)
-        if abs((E-E_old)/E_old) > 1e-2:
-            assert E<= E_old
+        if abs((E - E_old)/E_old) > 1e-2:
+            assert E <= E_old
         E_old = E
+
+
+if __name__ == "__main__":
+    test_apply_Vs()

@@ -1,4 +1,4 @@
-from mmf_hfb.FuldeFerrellState import FFState as FF
+from ./FuldeFerrellState import FFState as FF
 from mmf_hfb import tf_completion as tf
 from collections import namedtuple
 from scipy.optimize import brentq

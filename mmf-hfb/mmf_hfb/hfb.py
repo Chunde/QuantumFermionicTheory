@@ -8,7 +8,7 @@ import itertools
 import numpy
 import numpy as np
 from mmfutils.math.integrate import mquad
-from mmf_hfb.ParallelHelper import PoolHelper
+from mmf_hfb.parallel_helper import PoolHelper
 from mmf_hfb.utils import block
 
 

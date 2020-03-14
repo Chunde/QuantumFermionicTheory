@@ -5,14 +5,14 @@ Note: This class can
 """
 import numpy as np
 
-from .Functionals import FunctionalASLDA, FunctionalBdG, FunctionalSLDA
-from .KernelBCS import KernelBCS
+from .functionals import FunctionalASLDA, FunctionalBdG, FunctionalSLDA
+from .bcs_kernel import bcs_kernel
 
 
-class BDG(FunctionalBdG, KernelBCS):
+class BDG(FunctionalBdG, bcs_kernel):
     """????"""
     def __init__(self, Nxyz, Lxyz, dx=None, T=0, C=None, fix_C=False, **args):
-        KernelBCS.__init__(self, Nxyz=Nxyz, Lxyz=Lxyz, dx=dx, T=T, **args)
+       bcs_kernel.__init__(self, Nxyz=Nxyz, Lxyz=Lxyz, dx=dx, T=T, **args)
 
     def solve(self, mus, delta, use_solver=True, rtol=1e-12, **args):
         """use the Broyden solver may be much faster"""

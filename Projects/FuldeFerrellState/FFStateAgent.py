@@ -20,7 +20,7 @@ def search_states_worker(mu_eff, dmu_eff, delta):
 """
 from mmf_hfb.ClassFactory import ClassFactory, FunctionalType, KernelType, Solvers
 from mmf_hfb.DataHelper import ff_state_sort_data
-from mmf_hfb.ParallelHelper import PoolHelper
+from mmf_hfb.parallel_helper import PoolHelper
 from scipy.optimize import brentq
 from os.path import join
 import numpy as np

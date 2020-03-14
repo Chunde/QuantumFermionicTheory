@@ -2,8 +2,8 @@
 This module provides a ASLDA method for solving the polarized
 two-species Fermi gas with short-range interaction.
 """
-from mmf_hfb.Functionals import FunctionalBdG, FunctionalSLDA
-from mmf_hfb.Functionals import FunctionalASLDA
+from mmf_hfb.functionals import FunctionalBdG, FunctionalSLDA
+from mmf_hfb.functionals import FunctionalASLDA
 from mmf_hfb.homogeneous import Homogeneous
 import scipy.optimize
 import numpy as np
@@ -117,7 +117,7 @@ class BDG(Homogeneous, FunctionalBdG):
             energy_density = (
                 energy_density
                 + self.T*self.get_entropy(mus_eff=(mu_a_eff, mu_b_eff), delta=delta).n)
-        energy_density = energy_density  + D
+        energy_density = energy_density + D
         pressure = ns[0]*mu_a + ns[1]*mu_b - energy_density
         if update_C:
             self.C = self.get_C(ns)

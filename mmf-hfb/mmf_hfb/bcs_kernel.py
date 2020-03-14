@@ -4,7 +4,7 @@ import numpy as np
 from .hfb import BCS
 
 
-class KernelBCS(BCS):
+class bcs_kernel(BCS):
     
     def __init__(
         self, Nxyz, Lxyz, dx=None, T=0, 

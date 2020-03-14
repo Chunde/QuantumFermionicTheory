@@ -343,7 +343,7 @@ def compute_particle(N):
 
 def AurelPlot():
     import matplotlib.pyplot as plt
-    from mmf_hfb.ParallelHelper import PoolHelper
+    from mmf_hfb.parallel_helper import PoolHelper
     En = [1.37, ]
     R2 = [1.37, ]
     Nn = [1]

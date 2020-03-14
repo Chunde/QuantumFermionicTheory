@@ -28,7 +28,7 @@ from mmfutils.plot import imcontourf
 from collections import namedtuple
 from mmfutils.math.special import mstep
 from mmf_hfb.DVRBasis import CylindricalBasis
-from mmf_hfb.VortexDVR import bdg_dvr, bdg_dvr_ho,dvr_full_set
+from mmf_hfb.dvr_vortex import bdg_dvr, bdg_dvr_ho,dvr_full_set
 from mmf_hfb.utils import block
 
 # # Vortices
@@ -100,8 +100,8 @@ from mmf_hfb.utils import block
 
 # +
 # Compare Periodic and Cylindrical Solutions
-import mmf_hfb.VortexDVR  as vd; reload(vd)
-from mmf_hfb.VortexDVR import bdg_dvr,PeriodicDVR, CylindricalDVR, CylindricalDVR3D
+import mmf_hfb.dvr_vortex  as vd; reload(vd)
+from mmf_hfb.dvr_vortex import bdg_dvr,PeriodicDVR, CylindricalDVR, CylindricalDVR3D
 m = hbar = 1
 mu, dmu = 10, 4.5
 mus = (mu + dmu,mu - dmu)

@@ -9,7 +9,7 @@ from scipy.integrate import solve_ivp
 
 import matplotlib.pyplot as plt
 
-from .hfb import BCS
+from mmf_hfb.hfb import BCS
 #  import warnings
 #  warnings.filterwarnings("error")
 

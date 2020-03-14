@@ -10,3 +10,5 @@ _ext
 *.pyc
 *.pyo
 *.egg-info/
+Data/
+mmf-hfb/__Docs/
