@@ -1,14 +1,17 @@
-"""????"""
+"""The unitary cooling class that can cool more than one states
+with unitary operations that will maintain the normorthogonal
+among states.
+Serveal cooling potentials are supported. But it turns out the
+V_c and K_c potentials work much better than others in general
+cases. It also support cooling with pairing and multiple dimensional
+systems.
+"""
 
 import time
-
 import numpy as np
 import numpy.linalg
-
 from scipy.integrate import solve_ivp
-
 import matplotlib.pyplot as plt
-
 from mmf_hfb.hfb import BCS
 #  import warnings
 #  warnings.filterwarnings("error")

@@ -1,12 +1,15 @@
 
 import sys
-sys.path.insert(1, '../QuantumFriction/')
-
-from BCSCooling import BCSCooling
-from mmf_hfb.potentials import HarmonicOscillator
 import numpy as np
 import pytest
-
+import os
+from os.path import join
+import inspect
+from mmf_hfb.potentials import HarmonicOscillator
+currentdir = os.path.dirname(
+            os.path.abspath(inspect.getfile(inspect.currentframe())))
+sys.path.insert(0, join(currentdir, '..', 'QuantumFriction'))
+from BCSCooling import BCSCooling
 
 def Prob(psi):
     return np.abs(psi)**2
@@ -271,7 +274,3 @@ def test_cooling_with_pairing():
         if abs((E - E_old)/E_old) > 1e-2:
             assert E <= E_old
         E_old = E
-
-
-if __name__ == "__main__":
-    test_apply_Vs()

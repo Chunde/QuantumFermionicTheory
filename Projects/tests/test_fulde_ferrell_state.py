@@ -1,11 +1,20 @@
-from ./FuldeFerrellState import FFState as FF
-from mmf_hfb import tf_completion as tf
+
 from collections import namedtuple
 from scipy.optimize import brentq
-from mmf_hfb import homogeneous
+from os.path import join
 import numpy as np
 import warnings
+import inspect
 import pytest
+import sys
+import os
+
+from mmf_hfb import tf_completion as tf
+from mmf_hfb import homogeneous
+currentdir = os.path.dirname(
+            os.path.abspath(inspect.getfile(inspect.currentframe())))
+sys.path.insert(0, join(currentdir, '..', 'FuldeFerrellState'))
+from FuldeFerrellState import FFState as FF
 
 tf.MAX_DIVISION = 200
 

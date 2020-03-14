@@ -2,9 +2,8 @@
 This module provides a ASLDA method for solving the polarized
 two-species Fermi gas with short-range interaction.
 """
-from mmf_hfb.homogeneous import Homogeneous
 import numpy as np
-import scipy.optimize
+from .homogeneous import Homogeneous
 
 
 class homogeneous_kernel(Homogeneous):

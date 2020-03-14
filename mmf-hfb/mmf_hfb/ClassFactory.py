@@ -15,15 +15,16 @@ For functional type, please check the FunctionalType enum class
 For kernel type, please check the KernelType enum class.
 For agent class, please check the FFStateAgent class.
 """
-from mmf_hfb.functionals import FunctionalBdG, FunctionalSLDA, FunctionalASLDA
-from mmf_hfb.homogeneouse_kernel import homogeneous_kernel
-from mmf_hfb.bcs_kernel import bcs_kernel
-from mmf_hfb import tf_completion as tf
 from scipy.optimize import brentq
 from enum import Enum
 import scipy.optimize
 import numpy as np
 import inspect
+from mmf_hfb.functionals import FunctionalBdG, FunctionalSLDA, FunctionalASLDA
+from mmf_hfb.homogeneouse_kernel import homogeneous_kernel
+from mmf_hfb.bcs_kernel import bcs_kernel
+from mmf_hfb import tf_completion as tf
+
 
 
 class FunctionalType(Enum):
