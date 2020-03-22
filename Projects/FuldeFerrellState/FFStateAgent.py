@@ -1,7 +1,7 @@
 """
 This is a class used to search Fulde Ferrell state. 
 The class FFStateAgent is a class that will be fed
-into to the 'ClassFactory' instance to create a new class
+into to the 'class_factory' instance to create a new class
 that will perform the search task.
 
 Example:
@@ -10,7 +10,7 @@ def search_states_worker(mu_eff, dmu_eff, delta):
     args = dict(
         mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
         T=0, dim=2, k_c=100, verbosity=False)
-    lda = ClassFactory(
+    lda = class_factory(
         "LDA", (FFStateAgent,),
         functionalType=FunctionalType.BDG,
         kernelType=KernelType.HOM, args=args)
@@ -18,7 +18,7 @@ def search_states_worker(mu_eff, dmu_eff, delta):
         delta_N=100, delta_lower=0.0001, delta_upper=delta,
         q_lower=0, q_upper=dmu_eff, q_N=10, auto_incremental=False)
 """
-from mmf_hfb.ClassFactory import ClassFactory, FunctionalType, KernelType, Solvers
+from mmf_hfb.class_factory import class_factory, FunctionalType, KernelType, Solvers
 from mmf_hfb.DataHelper import ff_state_sort_data
 from mmf_hfb.parallel_helper import PoolHelper
 from scipy.optimize import brentq
@@ -307,9 +307,9 @@ def compute_pressure_current_worker(jsonData_file):
         mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
         T=0, dim=dim, k_c=k_c, verbosity=False,
         prefix=f"{output_fileName}", timeStamp=False)
-    lda = ClassFactory(
+    lda = class_factory(
         "LDA", (FFStateAgent,),
-        functionalType=ClassFactory(functionalIndex=functional_index),
+        functionalType=class_factory(functionalIndex=functional_index),
         kernelType=KernelType.HOM, args=args)
     C_ = lda._get_C(mus_eff=mus_eff, delta=delta)
     assert np.allclose(C, C_, rtol=1e-16)  # verify the C value
@@ -379,7 +379,7 @@ def search_states_worker(mus_delta):
     args = dict(
         mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
         T=0, dim=2, k_c=100, verbosity=False)
-    lda = ClassFactory(
+    lda = class_factory(
         "LDA", (FFStateAgent,),
         functionalType=FunctionalType.BDG,
         kernelType=KernelType.HOM, args=args)
@@ -471,9 +471,9 @@ def label_states(current_dir=None, raw_data=False, verbosity=False):
                     args = dict(
                         mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
                         T=0, dim=dim, k_c=ret['k_c'], verbosity=False, C=C)
-                    lda = ClassFactory(
+                    lda = class_factory(
                         "LDA", (FFStateAgent,),
-                        functionalType=ClassFactory(functionalIndex=functional_index),
+                        functionalType=class_factory(functionalIndex=functional_index),
                         kernelType=KernelType.HOM, args=args)
                     
                     if verbosity:

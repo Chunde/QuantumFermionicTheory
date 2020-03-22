@@ -7,11 +7,11 @@
 #       extension: .py
 #       format_name: light
 #       format_version: '1.5'
-#       jupytext_version: 1.4.0
+#       jupytext_version: 1.3.2
 #   kernelspec:
-#     display_name: Python [conda env:_qt]
+#     display_name: Python 3
 #     language: python
-#     name: conda-env-_qt-py
+#     name: python3
 # ---
 
 # + {"init_cell": true}

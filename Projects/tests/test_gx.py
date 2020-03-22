@@ -5,7 +5,7 @@ by SLDA and ASLDA should be identical even the alpha terms
 are different. [2019/08/18]
 The above statement may be wrong![2019/09/23]
 """
-from mmf_hfb.ClassFactory import ClassFactory, FunctionalType, KernelType, Solvers
+from mmf_hfb.class_factory import class_factory, FunctionalType, KernelType, Solvers
 import numpy as np
 
 
@@ -18,10 +18,10 @@ def g(e, ns):
 def test_g(mu_eff=10):
     args = dict(
         mu_eff=mu_eff, dmu_eff=0, delta=1, T=0, dim=3, k_c=100, verbosity=False)
-    slda = ClassFactory(
+    slda = class_factory(
         "LDA", functionalType=FunctionalType.SLDA,
         kernelType=KernelType.HOM, args=args)
-    aslda = ClassFactory(
+    aslda = class_factory(
         "LDA", functionalType=FunctionalType.ASLDA,
         kernelType=KernelType.HOM, args=args)
     

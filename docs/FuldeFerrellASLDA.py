@@ -17,9 +17,9 @@ import mmf_setup;mmf_setup.nbinit()
 # %pylab inline --no-import-all
 from nbimports import *
 from scipy.optimize import brentq
-import mmf_hfb.ClassFactory as cf
+import mmf_hfb.class_factory as cf
 reload(cf)
-from mmf_hfb.ClassFactory import ClassFactory, FunctionalType, KernelType, Solvers
+from mmf_hfb.class_factory import class_factory, FunctionalType, KernelType, Solvers
 import warnings
 warnings.filterwarnings("ignore")
 import os
@@ -42,7 +42,7 @@ mu_eff=5
 dmu_eff=0.5
 delta=1.5
 dim=2
-LDA = ClassFactory(
+LDA = class_factory(
             className="LDA",
             functionalType=FunctionalType.SLDA,
             kernelType=KernelType.HOM)
@@ -237,7 +237,7 @@ mu_eff, dmu_eff, mu, dmu, C, delta, dq
 
 from mmf_hfb.FFStateAgent import FFStateAgent
 args = dict(mu_eff=mu_eff, dmu_eff=dmu_eff, delta=1, T=0, dim=3, k_c=50, verbosity=False, C=C)
-lda = ClassFactory("LDA", (ffa.FFStateAgent,),  functionalType=FunctionalType.ASLDA, kernelType=KernelType.HOM, args=args)
+lda = class_factory("LDA", (ffa.FFStateAgent,),  functionalType=FunctionalType.ASLDA, kernelType=KernelType.HOM, args=args)
 
 mu_a_eff_, mu_b_eff_ = lda.get_mus_eff(mus=mus, delta=delta, dq=dq, verbosity=False)
 mu_eff_=(mu_a_eff_ + mu_b_eff_)/2

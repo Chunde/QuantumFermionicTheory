@@ -1,22 +1,23 @@
 # ---
 # jupyter:
 #   jupytext:
+#     cell_metadata_json: true
 #     formats: ipynb,py:light
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.4'
-#       jupytext_version: 1.2.3
+#       format_version: '1.5'
+#       jupytext_version: 1.3.2
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
 #     name: python3
 # ---
 
-# + {"id": "40nYf7WoWEp7", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "40nYf7WoWEp7", "colab_type": "text"}
 # # Equation of State and Thermodynamics
 
-# + {"id": "4grqmC9WWKOO", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "4grqmC9WWKOO", "colab_type": "text"}
 # Suppose we have energy density $\mathcal{E}(n)$.
 # -
 
@@ -90,7 +91,7 @@ plt.plot(n, E(n)/n)
 plt.ylim(-1.5,1)
 
 
-# + {"id": "F8ViDMXNkz3R", "colab_type": "code", "colab": {}, "cell_type": "markdown"}
+# + [markdown] {"id": "F8ViDMXNkz3R", "colab_type": "code", "colab": {}}
 # # 2D BCS Cooling
 # -
 def plot_occupancy_k(b, psis):

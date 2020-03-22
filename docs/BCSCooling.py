@@ -39,15 +39,26 @@ import numpy as np
 # * A class implement local friction that supports GP type cooling(single wave function) and BCS type cooling(multiple wavefunctions). When applied to BCS orbits, it will maintain the particle number and orthogonality of these orbits
 
 # +
-import mmf_hfb.BCSCooling as bcsc; reload(bcsc)
-from mmf_hfb.BCSCooling import BCSCooling
-from mmf_hfb.SolverABM import ABMEvolverAdapter
-from mmf_hfb.Cooling import Cooling
-from mmf_hfb.Potentials import HarmonicOscillator
+from mmf_hfb.potentials import HarmonicOscillator
 from IPython.core.debugger import set_trace
 from IPython.display import display, clear_output
 import numpy as np
 import scipy as sp
+import inspect
+from os.path import join
+import json
+import glob
+import os
+import sys
+currentdir = os.path.dirname(
+            os.path.abspath(inspect.getfile(inspect.currentframe())))
+sys.path.insert(0, join(currentdir, '..','Projects', 'QuantumFriction'))
+
+from mmf_hfb.potentials import HarmonicOscillator
+from SolverABM import ABMEvolverAdapter
+from BCSCooling import BCSCooling
+from Cooling import Cooling
+
 
 def Normalize(psi):
     return psi/psi.dot(psi.conj())**0.5

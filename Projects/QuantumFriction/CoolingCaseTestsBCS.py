@@ -1,12 +1,18 @@
-from mmf_hfb.BCSCooling import BCSCooling
-from mmf_hfb.SolverABM import ABMEvolverAdapter
+
+import os
+import sys
+import time
+import inspect
+import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 import xlwt
-import time
-import argparse
-import os
 import pandas as pd
+currentdir = os.path.dirname(
+            os.path.abspath(inspect.getfile(inspect.currentframe())))
+sys.path.insert(0, currentdir)
+from BCSCooling import BCSCooling
+from SolverABM import ABMEvolverAdapter
 
 
 def Normalize(psi, dx=0.1):

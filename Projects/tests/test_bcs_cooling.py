@@ -11,6 +11,7 @@ currentdir = os.path.dirname(
 sys.path.insert(0, join(currentdir, '..', 'QuantumFriction'))
 from BCSCooling import BCSCooling
 
+
 def Prob(psi):
     return np.abs(psi)**2
 
@@ -179,7 +180,7 @@ def test_ImaginaryCooling_with_desired_energy():
     s.E_stop = 0.75*E0
     _, psis, _ = s.solve([psi_0], T=10, rtol=1e-5, atol=1e-6, method='BDF')
     psi_ground = psis[-1]
-    E= s.get_E_Ns(psi_ground)[0]
+    E = s.get_E_Ns(psi_ground)[0]
     assert np.allclose(E, s.E_stop, rtol=1e-10)
 
 

@@ -21,17 +21,17 @@ import mmf_setup;mmf_setup.nbinit()
 from nbimports import *
 import numpy as np
 
-from mmf_hfb.ClassFactory import ClassFactory, FunctionalType, KernelType, Solvers
+from mmf_hfb.class_factory import class_factory, FunctionalType, KernelType, Solvers
 
 
-# * The latest code unifies the old code, which supports both Homogeneous and BCS, different functionals can be chosen. The factory function is defnied in file 'ClassFactory.py'
+# * The latest code unifies the old code, which supports both Homogeneous and BCS, different functionals can be chosen. The factory function is defnied in file 'class_factory.py'
 
 def create_lda(mu, dmu, delta):
     """
     Functional Type: BDG/SLDA/ASLDA
     Kernel Type:HOM/BCS
     """    
-    LDA = ClassFactory(className="LDA", functionalType=FunctionalType.ASLDA, kernelType=KernelType.HOM)
+    LDA = class_factory(className="LDA", functionalType=FunctionalType.ASLDA, kernelType=KernelType.HOM)
     lda = LDA(mu_eff=mu, dmu_eff=dmu, delta=delta, T=0, dim=3)
     lda.C = 0 #lda._get_C(mus_eff=(mu+dmu, mu-dmu), delta=delta)  # unitary case
     return lda

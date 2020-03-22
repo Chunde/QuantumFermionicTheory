@@ -5,30 +5,41 @@
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.4'
-#       jupytext_version: 1.2.3
+#       format_version: '1.5'
+#       jupytext_version: 1.3.2
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
 #     name: python3
 # ---
 
+# +
 import mmf_setup;mmf_setup.nbinit()
 import matplotlib.pyplot as plt
 # %pylab inline --no-import-all
 from nbimports import *
+import sys
 import numpy as np
-from mmf_hfb.BCSCooling import BCSCooling
-from mmf_hfb.Potentials import HarmonicOscillator
-from mmf_hfb.SolverABM import ABMEvolverAdapter
-from os.path import join
 import inspect
+from os.path import join
 import json
 import glob
 import os
 from IPython.display import display, clear_output
-from mmf_hfb.CoolingCaseTests import TestCase, Prob, Normalize, random_gaussian_mixing
 
+
+currentdir = os.path.dirname(
+            os.path.abspath(inspect.getfile(inspect.currentframe())))
+sys.path.insert(0, join(currentdir, '..','Projects', 'QuantumFriction'))
+
+from mmf_hfb.potentials import HarmonicOscillator
+from SolverABM import ABMEvolverAdapter
+from BCSCooling import BCSCooling
+
+from CoolingCaseTests import TestCase, Prob, Normalize, random_gaussian_mixing
+
+
+# -
 
 # # 1D Cooling
 
@@ -154,8 +165,8 @@ test_2d_Cooling()
 import pandas as pd 
 import sys
 
-currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","FFStateData", "CoolingData")
-currentdir = 'E:\Physics\quantum-fermion-theories\mmf-hfb\FFStateData\CoolingData'
+currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","projects","FFStateData", "CoolingData")
+#currentdir = 'E:\Physics\quantum-fermion-theories\mmf-hfb\FFStateData\CoolingData'
 
 currentdir
 
@@ -246,7 +257,8 @@ def ReadAllExcelFile():
 
 # -
 
-data = MergeExcels()
+# data = MergeExcels()
+data = CombineExcelSheetsToCSV()
 #data.to_csv("merged_data.csv", encoding='utf-8')
 
 # ## Query
@@ -400,16 +412,17 @@ def BestPlot(dict_kvs, title=None, iState="ST", style="semi", V="HO", use_nfev=F
 
 # $\beta_V$, $\beta_K$, $V_c$, $K_c$
 
-E_E0=1.5
-use_nfev=True
+E_E0=1.01
+use_nfev=False
 output, dict_kvs = find_best_betas(data, p=E_E0)
 plt.figure(figsize=(16,16))
 for i, state in enumerate(iStates):
     plt.subplot(2, 2,i+1)
-    BestPlot(dict_kvs, title = f"Fig.{i+1}:{data_key}={state}",iState=state, style="semi", V="HO", use_nfev=use_nfev)
+    BestPlot(dict_kvs, title = f"Panel.{i+1}:{data_key}={state}",iState=state, style="semi", V="HO", use_nfev=use_nfev)
 if use_nfev:
     plt.xlabel("nfev")
-plt.title(r"BCS with final energy $E/E0$<"+f"{E_E0} ")
+#plt.title(r"BCS with final energy $E/E0$<"+f"{E_E0} ")
+plt.savefig(f"cooling_results_precision_{int(E_E0*100)}.pdf", bbox_inches='tight')
 
 
 # ## Plot Wall-Time vs $\beta$ s

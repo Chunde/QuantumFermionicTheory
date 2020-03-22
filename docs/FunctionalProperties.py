@@ -18,7 +18,7 @@ import mmf_setup; mmf_setup.nbinit()
 import matplotlib.pyplot as plt
 from nbimports import *
 import numpy as np
-from mmf_hfb.ClassFactory import ClassFactory, FunctionalType, KernelType, Solvers
+from mmf_hfb.class_factory import class_factory, FunctionalType, KernelType, Solvers
 import mmf_hfb.FFStateAgent as ffa
 
 # # Test $g(x)$
@@ -41,13 +41,13 @@ import mmf_hfb.FFStateAgent as ffa
 
 delta=0
 args = dict(mu_eff=10, dmu_eff=0, delta=1, T=0, dim=3, k_c=100, verbosity=False)
-bdg = ClassFactory(
+bdg = class_factory(
     "BDG", (ffa.FFStateAgent,), functionalType=FunctionalType.BDG,
     kernelType=KernelType.HOM, args=args)
-slda = ClassFactory(
+slda = class_factory(
     "SLDA", (ffa.FFStateAgent,), functionalType=FunctionalType.ASLDA,
     kernelType=KernelType.HOM, args=args)
-aslda = ClassFactory(
+aslda = class_factory(
     "ASLDA", (ffa.FFStateAgent,), functionalType=FunctionalType.ASLDA,
     kernelType=KernelType.HOM, args=args)
 def g(e, ns):

@@ -77,11 +77,11 @@ ffs.get_densities(mu=mu0, dmu=0, delta=None) # check density
 # * In ASLDA case(here I used SLDA because the alpha terms in ASLDA seems not right), if we set the effective mus to the mus we used in the BdG case above, and set the D term to zero by setting the weight of D to zero(D0 is the weight), we should be able to get the same result as that of BdG.
 # * By varying the D0 term, we may be able to see at which value of D0 does the FF state vanish.
 
-import mmf_hfb.ClassFactory as cf; reload(cf)
-from mmf_hfb.ClassFactory import ClassFactory, FunctionalType, KernelType, Solvers
+import mmf_hfb.class_factory as cf; reload(cf)
+from mmf_hfb.class_factory import class_factory, FunctionalType, KernelType, Solvers
 
 args = dict(mu_eff=mu, dmu_eff=dmu, delta=delta0,T=0, dim=3, k_c=50, verbosity=False)
-lda = ClassFactory("LDA",functionalType=FunctionalType.SLDA, kernelType=KernelType.HOM, args=args)
+lda = class_factory("LDA",functionalType=FunctionalType.SLDA, kernelType=KernelType.HOM, args=args)
 lda.C=lda._get_C(mus_eff=(mu+dmu, mu - dmu), delta=delta0)
 
 # ## Check the pressure of the configuration
@@ -125,7 +125,7 @@ def f_d(D0):
 mu=5
 delta = 1
 args = dict(mu_eff=mu, dmu_eff=0, delta=delta,T=0, dim=3, k_c=50, verbosity=False)
-lda = ClassFactory("LDA",functionalType=FunctionalType.SLDA, kernelType=KernelType.HOM, args=args)
+lda = class_factory("LDA",functionalType=FunctionalType.SLDA, kernelType=KernelType.HOM, args=args)
 def f(dmu=0, dq=0.1): 
     args = dict(mus_eff=(mu + dmu, mu - dmu),delta=delta, dq=dq)
     js = lda.get_current(**args)

@@ -1,12 +1,19 @@
-from mmf_hfb.BCSCooling import BCSCooling
-from mmf_hfb.SolverABM import ABMEvolverAdapter
-import matplotlib.pyplot as plt
-import numpy as np
-import xlwt
-import time
-import argparse
+
 import os
+import sys
+import inspect
+import time
+import numpy as np
+import matplotlib.pyplot as plt
+import xlwt
+import argparse
 import pandas as pd
+from os.path import join
+currentdir = os.path.dirname(
+            os.path.abspath(inspect.getfile(inspect.currentframe())))
+sys.path.insert(0, currentdir)
+from BCSCooling import BCSCooling
+from SolverABM import ABMEvolverAdapter
 
 
 def Normalize(psi, dx=0.1):
@@ -30,7 +37,7 @@ def get_init_states(N=128, dx=0.1):
     x = b.xyz[0]
     H0 = b._get_H(mu_eff=0, V=0)
     U0, _ = b.get_psis_es(H0, transpose=True)
-    psi_standing_wave=Normalize(U0[1], dx=dx)
+    psi_standing_wave = Normalize(U0[1], dx=dx)
     psi_gaussian_mixing = random_gaussian_mixing(x, dx=dx)
     psi_uniform = Normalize(U0[0], dx=dx)
     psi_bright_soliton = Normalize(np.exp(-x**2/2.0)*np.exp(1j*x), dx=dx)

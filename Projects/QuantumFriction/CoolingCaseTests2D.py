@@ -1,10 +1,16 @@
-from mmf_hfb.BCSCooling import BCSCooling
-import numpy as np
-import xlwt
 import time
 import argparse
 import os
+import sys
+import inspect
 import pandas as pd
+import xlwt
+import numpy as np
+from os.path import join
+currentdir = os.path.dirname(
+            os.path.abspath(inspect.getfile(inspect.currentframe())))
+sys.path.insert(0, currentdir)
+from BCSCooling import BCSCooling
 
 
 class TestCase2D(object):
