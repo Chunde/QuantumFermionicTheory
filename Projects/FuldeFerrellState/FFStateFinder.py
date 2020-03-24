@@ -1,5 +1,3 @@
-from mmf_hfb.DataHelper import ff_state_sort_data
-from mmf_hfb.FuldeFerrellState import FFState
 from scipy.optimize import brentq
 from os.path import join
 import numpy as np
@@ -7,8 +5,14 @@ import inspect
 import json
 import time
 import os
+import sys
 # import warnings
 # warnings.filterwarnings("ignore")
+currentdir = os.path.dirname(
+            os.path.abspath(inspect.getfile(inspect.currentframe())))
+sys.path.insert(0, currentdir)
+from FuldeFerrellState import FFState
+from DataHelper import ff_state_sort_data
 
 
 class FFStateFinder():
@@ -21,11 +25,12 @@ class FFStateFinder():
         self.dmu_eff = dmu  # dmu_eff for 1d
         if timeStamp:
             ts = time.strftime("%Y_%m_%d_%H_%M_%S.json")
-            self.fileName = prefix + f"({dim}d_{delta:.2f}_{mu:.2f}_{dmu:.2f})" + ts
+            self.fileName = (
+                prefix + f"({dim}d_{delta:.2f}_{mu:.2f}_{dmu:.2f})" + ts)
         else:
             self.fileName = prefix
         if k_c is None:
-            if dim ==1:
+            if dim == 1:
                 k_c = np.inf
             elif dim == 2:
                 k_c = 100
@@ -35,7 +40,9 @@ class FFStateFinder():
         self.ff = FFState(
             mu=mu, dmu=0, delta=delta, g=g, dim=dim,
             k_c=k_c, fix_g=True, bStateSentinel=True)
-        print(f"dim={dim}\tdelta={delta}\tmu={mu}\tdmu={dmu}\tg={self.ff.g}\tk_c={k_c}")
+        print(
+            f"dim={dim}\tdelta={delta}\tmu={mu}"
+            + "\tdmu={dmu}\tg={self.ff.g}\tk_c={k_c}")
 
     def _gc(self, delta, mu=None, dmu=None, dq=0, update_mus=True):
         """compute the difference of a g_c[ using delta, dq] and fixed g_c"""
@@ -49,13 +56,11 @@ class FFStateFinder():
     def get_mus_eff(self, delta, q=0, dq=0, mus_eff=None):
         """return effective mus"""
         return self.ff._get_effective_mus(
-            mu=self.mu_eff, dmu=self.dmu_eff, delta=delta, q=q, dq=dq, update_g=False)
+            mu=self.mu_eff, dmu=self.dmu_eff,
+            delta=delta, q=q, dq=dq, update_g=False)
 
     def get_densities(self, mus_eff=None, delta=None, q=0, dq=0):
         """return the pressure"""
-        
-        # if delta is None:
-        #    delta = self.delta
         if mus_eff is None:
             mu_eff, dmu_eff = self.mu_eff, self.dmu_eff
         else:
@@ -64,7 +69,7 @@ class FFStateFinder():
 
     def get_pressure(self, mus_eff=None, delta=None, q=0, dq=0):
         """return the pressure"""
-        
+
         if delta is None:
             delta = self.delta
         if mus_eff is None:
@@ -72,7 +77,8 @@ class FFStateFinder():
         else:
             mu_eff, dmu_eff = mus_eff
         return self.ff.get_pressure(
-            mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta, q=q, dq=dq, use_kappa=False)
+            mu_eff=mu_eff, dmu_eff=dmu_eff,
+            delta=delta, q=q, dq=dq, use_kappa=False)
         
         n_a, n_b = self.ff.get_densities(mu=mu_eff, dmu=dmu_eff,
                                          delta=delta, dq=dq)
@@ -99,7 +105,8 @@ class FFStateFinder():
             delta = self.delta
         if mus_eff is None:
             mu_eff, dmu_eff = self.ff._get_effective_mus(
-                mu=self.mu_eff, dmu=self.dmu_eff, delta=delta, q=q, dq=dq, update_g=False)
+                mu=self.mu_eff, dmu=self.dmu_eff,
+                delta=delta, q=q, dq=dq, update_g=False)
         else:
             mu_eff, dmu_eff = mus_eff
         return self.ff.get_current(mu=mu_eff, dmu=dmu_eff, delta=delta, q=q, dq=dq)
@@ -113,7 +120,7 @@ class FFStateFinder():
         """Save states to persistent storage"""
         file = self._get_fileName()
         output = {}
-        output["dim"]= self.dim
+        output["dim"] = self.dim
         output["delta"] = self.delta
         output["mu"] = self.mu_eff
         output["dmu"] = self.dmu_eff
@@ -140,7 +147,7 @@ class FFStateFinder():
     
         def refine(a, b, v):
             return brentq(g, a, b)
-        
+
         rets = []
         if lg is None and ug is None:
             dqs = np.linspace(ql, qu, dn)
@@ -148,7 +155,7 @@ class FFStateFinder():
             g0, i0 = gs[0], 0
             if np.allclose(gs[0], 0, rtol=rtol):
                 rets.append(gs[0])
-                g0, i0= gs[1], 1
+                g0, i0 = gs[1], 1
             for i in range(len(rets), len(gs)):
                 if g0 * gs[i] < 0:
                     rets.append(refine(dqs[i0], dqs[i], dqs[i0]))
@@ -176,7 +183,7 @@ class FFStateFinder():
                 rets.append(None)
             if bExcept and raiseExcpetion:
                 raise ValueError('No solution found.')
-            
+
         for _ in range(2-len(rets)):
             rets.append(None)
         return rets
@@ -189,13 +196,13 @@ class FFStateFinder():
         qu: upper dq limit
         dn: delta divisions
         """
-        lg, ug=None, None
+        lg, ug = None, None
         ds = np.linspace(dl, du, dn)
         rets = []
 
         dx0 = 0.001
         dx = dx0
-        trails=[1, 2, 5, 0.01, 0.2, 0.5, 10, 20, 0]
+        trails = [1, 2, 5, 0.01, 0.2, 0.5, 10, 20, 0]
 
         def do_search(delta):
             nonlocal lg
@@ -210,7 +217,7 @@ class FFStateFinder():
         for d in ds:
             retry = True
             print(dx)
-            if dx != dx0 and dx !=0:
+            if dx != dx0 and dx != 0:
                 try:
                     do_search(delta=d)
                     retry = False
@@ -246,13 +253,13 @@ class FFStateFinder():
             if len(rets) > 0:
                 q1, q2, d_ = rets[-1]
                 if q1 is None and q2 is None:
-                    print(f"Delta={d} has no solution, trying with other deltas")
+                    print(f"Delta={d} has no solution, trying next...")
                     del rets[-1]
-                    lg, ug=None, None
+                    lg, ug = None, None
                     if list(ds).index(d) > 10:  # this is arbitrary
                         break
                     continue
-            
+
             self.SaveToFile(rets)
         rets = ff_state_sort_data(rets)
         self.SaveToFile(rets)

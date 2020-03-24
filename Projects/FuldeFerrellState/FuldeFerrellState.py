@@ -14,7 +14,7 @@ MAX_ITERATION = 100
 
 
 class FFState(object):
-    def __init__(self, mu, dmu, delta=1, q=0, dq=0, m=1, T=0, hbar=1, g=None, 
+    def __init__(self, mu, dmu, delta=1, q=0, dq=0, m=1, T=0, hbar=1, g=None,
                  k_c=None, dim=1, fix_g=True, bStateSentinel=False):
         """
         Arguments
@@ -43,16 +43,17 @@ class FFState(object):
         self.m = m
         self.delta = delta
         self.hbar = hbar
-        if dim==1:
-            k_c=np.inf
+        if dim == 1:
+            k_c = np.inf
         self.k_c = k_c
         self.bStateSentinel = bStateSentinel
         self._tf_args = dict(m_a=1, m_b=1, dim=dim, hbar=hbar, T=T, k_c=k_c)
         if fix_g:
-            self._g = self.get_g(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq) if g is None else g
+            self._g = self.get_g(
+                mu=mu, dmu=dmu, delta=delta, q=q, dq=dq) if g is None else g
             self.lock_g = False if g is None else True
         else:
-            self._C = tf.compute_C(mu_a=mu, mu_b=mu, 
+            self._C = tf.compute_C(mu_a=mu, mu_b=mu,
                                    delta=delta, q=q, dq=dq, **self._tf_args).n
         self.bSuperfluidity = delta > 0
 
@@ -69,10 +70,11 @@ class FFState(object):
         args = dict(self._tf_args)
         args.update(kw)
         if self.fix_g:
-            return self._g - self.get_g(mu=mu, dmu=dmu, q=q, dq=dq, delta=delta, **args)
+            return self._g - self.get_g(
+                mu=mu, dmu=dmu, q=q, dq=dq, delta=delta, **args)
 
         return tf.compute_C(
-            mu_a=mu+dmu, mu_b=mu-dmu, delta=delta, 
+            mu_a=mu+dmu, mu_b=mu-dmu, delta=delta,
             q=q, dq=dq, **args).n - self._C
 
     def get_g(self, delta, mu=None, dmu=None, q=0, dq=0, **kw):
@@ -88,8 +90,9 @@ class FFState(object):
 
     def _get_Lambda(self, k0, k_c, dim=3):
         """return the renormalization condition parameter Lambda"""
-        if dim ==3:
-            Lambda = k_c/self.hbar**2/2/np.pi**2*(1.0 - k0/k_c/2*np.log((k_c+k0)/(k_c-k0)))
+        if dim == 3:
+            Lambda = k_c/self.hbar**2/2/np.pi**2*(
+                1.0 - k0/k_c/2*np.log((k_c+k0)/(k_c-k0)))
         elif dim == 2:
             Lambda = 1/self.hbar**2/4/np.pi*np.log((k_c/k0)**2 - 1)
         elif dim == 1:
@@ -112,7 +115,8 @@ class FFState(object):
         a_inv = (nu_delta + Lambda)*4*np.pi*self.hbar**2
         return a_inv
 
-    def get_current(self, mu=None, dmu=None, q=0, dq=0, delta=None, k_c=None):
+    def get_current(
+            self, mu=None, dmu=None, q=0, dq=0, delta=None, k_c=None):
         """
         return the currents of two the components
         return value: (j_a, j_b, j_p, j_m)
@@ -130,34 +134,39 @@ class FFState(object):
         if k_c is not None:
             args.update(k_c=k_c)
         args.update(q=q, dq=dq)
-        return tf.compute_current(mu_a=mu_a, mu_b=mu_b, delta=delta, **args)
-        
-    def get_densities(self, mu=None, dmu=None, q=0, dq=0, delta=None, k_c=None):
+        return tf.compute_current(
+            mu_a=mu_a, mu_b=mu_b, delta=delta, **args)
+
+    def get_densities(
+            self, mu=None, dmu=None, q=0,
+            dq=0, delta=None, k_c=None):
         """return the densities of two the components"""
         assert (mu is None) == (dmu is None)
         if mu is None:
             mu_a, mu_b = self.mus
             mu, dmu = (mu_a + mu_b)/2.0, (mu_a - mu_b)/2.0
         if delta is None:
-            delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq, 
+            delta = self.solve(mu=mu, dmu=dmu, q=q, dq=dq,
                                a=self.delta * 0.8, b=self.delta * 2)
 
         args = dict(self._tf_args, mu_a=mu + dmu, mu_b=mu - dmu, delta=delta,
                     q=q, dq=dq)
         if k_c is not None:
-            args['k_c'] = k_c       
+            args['k_c'] = k_c
         n_p = tf.integrate_q(tf.n_p_integrand, **args)
         n_m = tf.integrate_q(tf.n_m_integrand, **args)
         n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
         return n_a, n_b
 
-    def _get_effective_delta(self, mu, dmu, g=None, q=0, dq=0, k_c=np.inf, a=0.8, b=1.2):
+    def _get_effective_delta(
+            self, mu, dmu, g=None, q=0, dq=0,
+            k_c=np.inf, a=0.8, b=1.2):
         if g is None:
             g = self._g
 
         def f(delta):
             return self.get_g(delta=delta, mu=mu, dmu=dmu, q=q, dq=dq)
-        return brentq(f, a * self.delta, b * self.delta)
+        return brentq(f, a*self.delta, b*self.delta)
 
     def _get_bare_mus(self, mu_eff, dmu_eff, delta=None, q=0, dq=0):
         if self.dim != 1:
@@ -165,7 +174,9 @@ class FFState(object):
         if delta is None:
             delta = self.delta
         mu_a_eff, mu_b_eff = mu_eff + dmu_eff, mu_eff - dmu_eff
-        args = dict(self._tf_args, mu_a=mu_a_eff, mu_b=mu_b_eff, delta=delta, q=q, dq=dq)
+        args = dict(
+            self._tf_args, mu_a=mu_a_eff, mu_b=mu_b_eff,
+            delta=delta, q=q, dq=dq)
         n_p = tf.integrate_q(tf.n_p_integrand, **args).n
         n_m = tf.integrate_q(tf.n_m_integrand, **args).n
         n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
@@ -191,7 +202,7 @@ class FFState(object):
         if delta is None:
             if mus_eff is not None:
                 delta = self.solve(
-                    mu=mus_eff[0], dmu=mus_eff[1], q=q, dq=dq, 
+                    mu=mus_eff[0], dmu=mus_eff[1], q=q, dq=dq,
                     a=self.delta * 0.8, b=self.delta * 1.2)
                 mu_a, mu_b = mus_eff[0] + mus_eff[1], mus_eff[0] - mus_eff[1]
             else:
@@ -203,7 +214,7 @@ class FFState(object):
                     q=q, dq=dq)
         if k_c is not None:
             args['k_c'] = k_c
-            
+
         n_p = tf.integrate_q(tf.n_p_integrand, **args).n
         n_m = tf.integrate_q(tf.n_m_integrand, **args).n
         n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
@@ -217,7 +228,7 @@ class FFState(object):
             mu_b_eff = mu_b0 - self.g * n_a
             args.update(mu_a=mu_a_eff, mu_b=mu_b_eff, delta=delta)
             if update_g:
-                self.g =delta/tf.integrate_q(tf.nu_integrand, **args).n
+                self.g = delta/tf.integrate_q(tf.nu_integrand, **args).n
             n_p = tf.integrate_q(tf.n_p_integrand, **args).n
             n_m = tf.integrate_q(tf.n_m_integrand, **args).n
             n_a, n_b = (n_p + n_m)/2, (n_p - n_m)/2
@@ -278,20 +289,22 @@ class FFState(object):
         kappa = tf.integrate_q(tf.kappa_integrand, **args).n
         e = kappa + self._g * n_a * n_b
         p = (mu+dmu) * n_a + (mu-dmu) * n_b - e
-        return (n_a, n_b, e, p, ((mu_a_eff + mu_b_eff)/2, (mu_a_eff - mu_b_eff)/2))
+        return (n_a, n_b, e, p, (
+            (mu_a_eff + mu_b_eff)/2,
+            (mu_a_eff - mu_b_eff)/2))
 
     def get_FFG_energy_density(self, mu, dmu, q=0, dq=0):
         """return the Free Fermi Gas(FFG) energy density(delta=0)"""
         mu_a, mu_b = mu + dmu, mu - dmu
         if self.dim == 1:
-            energy_density = np.sqrt(2)/np.pi *(mu_a**1.5 + mu_b**1.5)/3.0
+            energy_density = np.sqrt(2)/np.pi*(mu_a**1.5 + mu_b**1.5)/3.0
             # na, nb=np.sqrt(2 *mu_a)/np.pi, np.sqrt(2 * mu_b)/np.pi
         elif self.dim == 2:
             energy_density = (mu_a**2 + mu_b**2)/4.0/np.pi
             # na, nb =mu_a/np.pi/2.0, mu_b/np.pi/2.0
         elif self.dim == 3:
             energy_density = (mu_a**2.5 + mu_b**2.5)*2.0**1.5/10.0/np.pi**2
-            #  na, nb = ((2.0 *mu_a)**1.5)/6.0/np.pi**2, ((2.0 * mu_b)**1.5)/6.0/np.pi**2
+            #  na=nb = ((2.0*mu_a)**1.5)/6.0/np.pi**2
         return energy_density
 
     def get_energy_density(self, mu=None, dmu=None, q=0, dq=0, delta=None,
@@ -307,8 +320,11 @@ class FFState(object):
             n_a, n_b = self.get_densities(
                 mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, k_c=k_c)
 
-        args = dict(self._tf_args, mu_a=mu + dmu, mu_b=mu - dmu, delta=delta, q=q, dq=dq)
-        if use_kappa:  # kappa only for the situation where the gap equation is satisfied
+        args = dict(
+            self._tf_args, mu_a=mu + dmu,
+            mu_b=mu - dmu, delta=delta, q=q, dq=dq)
+        # kappa only for the situation where the gap equation is satisfied
+        if use_kappa:
             kappa = tf.integrate_q(tf.kappa_integrand, **args)
         else:
             tau_p = tf.integrate_q(tf.tau_p_integrand, **args)
@@ -317,11 +333,11 @@ class FFState(object):
         if self.fix_g:
             g_c = self._g
         else:
-            g_c = 1./self._C         
+            g_c = 1./self._C
         if self.dim == 1:
             return kappa + g_c * n_a * n_b
         return kappa
-    
+
     def get_pressure(
             self, mu=None, dmu=None, mu_eff=None,
             dmu_eff=None, q=0, dq=0, delta=None,
@@ -333,11 +349,14 @@ class FFState(object):
             mu, dmu = self._get_bare_mus(
                 mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta, q=q, dq=dq)
         if mu_eff is None:
-            mu_eff, dmu_eff = self._get_effective_mus(mu=mu, dmu=dmu, q=q, dq=dq)
+            mu_eff, dmu_eff = self._get_effective_mus(
+                mu=mu, dmu=dmu, q=q, dq=dq)
         if delta is None:
-            delta = self.solve(mu=mu_eff, dmu=dmu_eff, q=q, dq=dq, 
-                               a=self.delta*0.8, b=self.delta*1.2)
-        n_a, n_b = self.get_densities(mu=mu_eff, dmu=dmu_eff, delta=delta, q=q, dq=dq)
+            delta = self.solve(
+                mu=mu_eff, dmu=dmu_eff, q=q, dq=dq,
+                a=self.delta*0.8, b=self.delta*1.2)
+        n_a, n_b = self.get_densities(
+            mu=mu_eff, dmu=dmu_eff, delta=delta, q=q, dq=dq)
         energy_density = self.get_energy_density(
             mu=mu_eff, dmu=dmu_eff, delta=delta, q=q, dq=dq,
             n_a=n_a, n_b=n_b, use_kappa=use_kappa)
@@ -349,7 +368,7 @@ class FFState(object):
             self, mu=None, dmu=None, q=0, dq=0,
             a=None, b=None, throwException=False, **args):
         """
-        On problem with brentq is that it requires very smooth function with a 
+        On problem with brentq is that it requires very smooth function with a
         and b having different sign of values, this can fail frequently if our
         integration is not with high accuracy. Should be solved in the future.
         """
@@ -372,14 +391,15 @@ class FFState(object):
         else:
             try:
                 delta = brentq(f, a, b)
-            except ValueError:  # It's important to deal with specific exception.
+            except ValueError:
                 offset = 0
                 if not np.allclose(abs(dmu), 0):
                     offset = min(abs(dq/dmu), 100)
                 ds = np.linspace(
-                    0.000001, max(a, b)*(2 + offset), min(100, int((2 + offset)*10)))
+                    0.000001, max(a, b)*(2 + offset),
+                    min(100, int((2 + offset)*10)))
 
-                assert len(ds) <=100
+                assert len(ds) <= 100
                 f0 = f(ds[-1])
                 index0 = -1
                 delta = 0
@@ -390,13 +410,16 @@ class FFState(object):
                         if f_ * f(ds[0]) < 0:  # another solution
                             delta_ = brentq(f, ds[0], ds[i])
                             self._delta = delta_
-                            print(
-                                f"Another solution {delta_} found,"
-                                + f"{delta}")
+
                             p_ = self.get_pressure(
-                                mu_eff=mu, dmu_eff=dmu, delta=delta_, q=q, dq=dq)
+                                mu_eff=mu, dmu_eff=dmu,
+                                delta=delta_, q=q, dq=dq)
                             p = self.get_pressure(
-                                mu_eff=mu, dmu_eff=dmu, delta=delta, q=q, dq=dq)
+                                mu_eff=mu, dmu_eff=dmu,
+                                delta=delta, q=q, dq=dq)
+                            print(
+                                f"q={dq}: Delta={delta_}/{delta},"
+                                + f",Pressue={p_.n}/{p.n}")
                             if p_ > p:
                                 self._delta = delta
                                 delta = delta_
@@ -404,7 +427,10 @@ class FFState(object):
                     else:
                         f0 = f_
                         index0 = i
-                if delta == 0 and (f(0.999*self.delta) * f(1.001*self.delta) < 0):
+                if (
+                    delta == 0 and (f(
+                        0.999*self.delta)*f(
+                            1.001*self.delta) < 0)):
                     delta = brentq(f, 0.999*self.delta, 1.001*self.delta)
         if self.bStateSentinel:
             assert self.bSuperfluidity == (delta > 0)

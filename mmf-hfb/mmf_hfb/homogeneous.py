@@ -2,7 +2,8 @@ from collections import namedtuple
 import numpy as np
 from mmf_hfb import tf_completion as tf
 from uncertainties import ufloat
-
+from scipy.optimize import brentq
+import warnings
 from .integrate import quad_k, quad_l
 
 
@@ -18,20 +19,31 @@ class Homogeneous(object):
     def __init__(
             self, Nxyz=None, Lxyz=None, dx=None, dim=None,
             k_c=np.inf, E_c=None, **kw):
-        if Nxyz is None and Lxyz is None and dx is None:
-            self._dim = dim
-        elif dx is not None:
+        try:  # check dimensionality
+            self.dim
+        except AttributeError:
+            if dim is None and Nxyz is None and Lxyz is None:
+                raise ValueError("Dimensional information is inadequate")
+            if dim is not None:
+                self._dim = dim
+            if Nxyz is not None:
+                self._dim = len(Nxyz)
+            if Lxyz is not None:
+                self._dim = len(Lxyz)
+          
+        if dx is not None:
             if Lxyz is None:
                 Lxyz = np.multiply(Nxyz, dx)
             elif Nxyz is None:
                 Nxyz = np.ceil(np.divide(Lxyz, dx)).astype(int)
+            assert self._dim == len(Nxyz)
 
+        if Nxyz is not None and Lxyz is not None:
             self.dxyz = np.divide(Lxyz, Nxyz)
-            self._dim = len(Nxyz)
             
         self.Nxyz = Nxyz
         self.Lxyz = Lxyz
-        kcs=[1000, 1000, 50]
+        kcs=[1000, 500, 50]
         if k_c is None:  # or (dim != 1 and k_c==np.inf):
             k_c = kcs[self.dim - 1]
         self.k_c = k_c
@@ -128,6 +140,8 @@ class Homogeneous(object):
                 mus_eff=mus_eff, delta=delta, ns_flag=ns_flag,
                 taus_flag=taus_flag, nu_flag=nu_flag, **args)
         kF = np.sqrt(2*max(0, np.max(mus_eff)))
+        if k_c is not None and self.Nxyz is not None:
+            warnings.warn(f"K_c={k_c} will not be effective as summation will be used")
         k_c = self.k_c if k_c is None else k_c
         if self.Nxyz is None:
             def quad(f):
@@ -282,6 +296,22 @@ class Homogeneous(object):
 
         return namedtuple('BCS_Results', ['v_0', 'ns', 'mus', 'e'])(
             v_0, ns, mus, e)
+
+    def set_kc_with_g(self, mus_eff, delta, g, a=None, b=None):
+        k_F = (np.mean(mus_eff)*2)**0.5
+        if a is None:
+            a = k_F
+        if b is None:
+            b = 100*k_F
+
+        def fun(k_c):
+            res = self.get_densities(
+                mus_eff=mus_eff, delta=delta, k_c=k_c,
+                ns_flag=False, taus_flag=False)
+            return g - delta/res.nu
+        k_c = brentq(fun, a, b)
+        self.k_c = k_c
+        return k_c
 
 
 class Homogeneous1D(Homogeneous):

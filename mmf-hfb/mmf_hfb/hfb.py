@@ -79,11 +79,13 @@ class BCS(object):
         self.Nxyz = Nxyz
         self.Lxyz = Lxyz
         self.T = T
+        #  should E_max has a factor of len(kxyz)?
         self.E_max = np.max([(self.hbar*_k)**2/2/self.m for _k in self.kxyz])
         if E_c is None and Ec_Emax is not None:
             E_c = Ec_Emax*self.E_max
-        # the issue when E_c=None may cause problem. But need to be address very carefully.
-        self.E_c = E_c 
+        # the issue when E_c=None may cause problem.
+        # But need to be address very carefully.
+        self.E_c = E_c
 
     @property
     def dim(self):

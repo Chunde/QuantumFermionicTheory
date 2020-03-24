@@ -19,31 +19,52 @@
 # + {"init_cell": true}
 import mmf_setup;mmf_setup.nbinit()
 # %pylab inline --no-import-all
-from nbimports import *                # Conveniences like clear_output
+from nbimports import *  # Conveniences like clear_output
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+import sys
+import operator
+import inspect
+
+
 # -
+
+# The angle from $\vec{a}=a_x+ia_y$ to $\vec{b}=b_x+ib_y$ is the argument of the conjugate of a times b (rotating b backwards by the angle of a, scale not considered)
+
+def clockwise(r, v):
+    """return the angle between two vectors, which take order into account"""
+    dot = r.conj()*v
+    angs = np.arctan2(dot.imag,dot.real)
+    return np.sign(angs)
+
 
 # Here we generate some vortices.  These are regularized by fixing the coupling constant $g$ so that the homogeneous system in the box and on the lattice gives a fixed value of $\Delta$ at the specified chemical potential.  The self-consistent solution is found by simple iterations.
 
 # +
-from mmf_hfb import FuldeFerrellState; reload(FuldeFerrellState)
-from mmf_hfb import bcs, homogeneous;reload(bcs)
+from mmf_hfb import hfb, homogeneous;reload(hfb)
 from mmfutils.math.special import mstep
 from mmfutils.plot import imcontourf
+from os.path import join
 
-class Vortex(bcs.BCS):
+currentdir = os.path.dirname(
+            os.path.abspath(inspect.getfile(inspect.currentframe())))
+sys.path.insert(0, join(currentdir, '..','Projects','FuldeFerrellState'))
+from FuldeFerrellState import FFState
+from FFStateFinder import FFStateFinder
+
+class Vortex(hfb.BCS):
     barrier_width = 0.2
     barrier_height = 100.0
 
     def __init__(self, Nxyz=(32, 32), Lxyz=(3.2, 3.2), **kw):
         self.R = min(Lxyz)/2
-        bcs.BCS.__init__(self, Nxyz=Nxyz, Lxyz=Lxyz, **kw)
+        hfb.BCS.__init__(self, Nxyz=Nxyz, Lxyz=Lxyz, **kw)
 
     def get_Vext(self):
         r = np.sqrt(sum([_x**2 for _x in self.xyz[:2]]))
-        R0 = self.barrier_width * self.R
-        V = self.barrier_height * mstep(r-self.R+R0, R0)
+        R0 = self.barrier_width*self.R
+        V = self.barrier_height*mstep(r - self.R + R0, R0)
         return (V, V)
 
 
@@ -53,17 +74,19 @@ class VortexState(Vortex):
         self.delta = delta
         self.N_twist = N_twist
         self.mus = (mu+dmu, mu-dmu)
-        print(self.mus)
         self.g = self.get_g(mu=mu, delta=delta) if g is None else g
         x, y = self.xyz[:2]
         self.Delta = delta*(x+1j*y)
 
     def get_g(self, mu=1.0, delta=0.2):
+        mus_eff = (mu, mu)
         E_c = self.E_max if self.E_c is None else self.E_c
-        self.k_c = (2*E_c)**0.5
-        h = homogeneous.Homogeneous(Nxyz=self.Nxyz, Lxyz=self.Lxyz, dim=2, k_c=self.k_c) 
-        res = h.get_densities(mus_eff=(mu, mu), delta=delta)
+        # self.k_c = (2*E_c)**0.5
+        h = homogeneous.Homogeneous(Nxyz=self.Nxyz, Lxyz=self.Lxyz, dim=2)
+        res = h.get_densities(mus_eff=mus_eff, delta=delta)
         g = delta/res.nu
+        h = homogeneous.Homogeneous(dim=2)
+        self.k_c = h.set_kc_with_g(mus_eff=mus_eff, delta=delta, g=g)
         return g
 
     def solve(self, tol=0.05, plot=True):
@@ -135,38 +158,15 @@ class VortexState(Vortex):
 mu = 10
 dmu=4.5
 delta = 7.5
-
-
-# The angle from $\vec{a}=a_x+ia_y$ to $\vec{b}=b_x+ib_y$ is the argument of the conjugate of a times b (rotating b backwards by the angle of a, scale not considered)
-
-def clockwise(r, v):
-    """return the angle between two vectors, which take order into account"""
-    dot = r.conj()*v
-    angs = np.arctan2(dot.imag,dot.real)
-    return np.sign(angs)
-
-
-v0 = VortexState(mu=mu, dmu=dmu, delta=delta, Nxyz=(8, 8, 8), Lxyz=(2,2,2))
-v0.solve(plot=True)
-
- abs(np.sum(v0.Delta, axis=2)).shape
-
-x, y = v0.xyz[:2]
-
-xx=yy=np.sum(x[:,0:1,:],axis=1)
-
-imcontourf(xx,yy,  abs(np.sum(v0.Delta, axis=2)))
-
 v0 = VortexState(mu=mu, dmu=dmu, delta=delta, Nxyz=(32, 32), Lxyz=(8,8))
 v0.solve(plot=True)
 
 # ## Homogeneous
 
-from mmf_hfb import FuldeFerrellState; reload(FuldeFerrellState)
 import warnings
 warnings.filterwarnings("ignore")
 fontsize = 18
-def FFVortex(bcs_vortex, mus=None, delta=None, plot_tf=True):
+def FFVortex(bcs_vortex, mus=None, delta=None, kc=None):
     mu_a, mu_b=bcs_vortex.mus
     if delta is None:
         delta = bcs_vortex.delta
@@ -174,106 +174,117 @@ def FFVortex(bcs_vortex, mus=None, delta=None, plot_tf=True):
     N = bcs_vortex.Nxyz[0]
     L = bcs_vortex.Lxyz[0]
     dx = L/N
-    k_c = bcs_vortex.k_c
+   
+    k_c = bcs_vortex.k_c if kc is None else kc  #  np.sqrt(2)*np.pi*N/L 
+    print(f"k_c={k_c},bcs_kc={v0.k_c}")
     k_F = np.sqrt(2*mu)
     args = dict(mu=mu, dmu=0, delta=delta, dim=2, k_c=k_c)
-    f = FuldeFerrellState.FFState(fix_g=True, g=bcs_vortex.g, **args)
-    rs = np.linspace(0.0001,2, 30)
-    rs = np.append(rs, np.linspace(2.01, bcs_vortex.R, 10))
-    rs_ = rs/dx
-    if plot_tf:
-        ds = [f.solve(mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
-        for i in range(len(ds)):
-            if ds[i]==0:
-                rs[i]=np.inf
-                ds[i]=1e-12
-            ps = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=d, dq=0.5/r, use_kappa=False).n for r, d in zip(rs,ds)]
-            ps0 = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=1e-8,q=0, dq=0, use_kappa=False).n for r, d in zip(rs,ds)]
-
-    
-    r = np.sqrt(sum(_x**2 for _x in bcs_vortex.xyz))
-    plt.figure(figsize(16,8))
-    plt.subplot(321)
-
-    plt.plot(r.ravel()/dx, abs(bcs_vortex.Delta).ravel()/mu, '+', label="BCS")
-    if plot_tf:    
-        plt.plot(rs_, np.array(ds)/mu, label="Homogeneous")
-    plt.legend()
-    plt.ylabel(r'$\Delta/E_F$', fontsize=fontsize)
-    plt.xlim(0, bcs_vortex.R/dx)
-    plt.subplot(322)
-    plt.ylabel(r"Pressure/$E_F$", fontsize=fontsize)
-    if plot_tf:
-        plt.plot(rs_, ps, label="FF State/Superfluid State Pressure")
-        plt.plot(rs_, ps0,'--', label="Normal State pressure")
-        plt.legend()
-        plt.xlim(0,bcs_vortex.R/dx)
+    f = FFState(fix_g=True, **args)
+    rs = np.linspace(0.0001,1, 10)
+    rs = np.append(rs, np.linspace(1.01, bcs_vortex.R, 10))
+    ds = [f.solve(mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
+    for i in range(len(ds)):
+        ps = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=d, dq=0.5/r, use_kappa=False).n for r, d in zip(rs,ds)]
+        ps0 = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=1e-8,q=0, dq=0, use_kappa=False).n for r, d in zip(rs,ds)]
     na = np.array([])
     nb = np.array([])
-     
-    plt.subplot(323)
-    
-    res = bcs_vortex.get_densities(mus_eff=bcs_vortex.mus, delta=bcs_vortex.Delta)
-    
-    plt.plot(r.ravel()/dx, abs(res.n_a + res.n_b).ravel()/k_F, '+', label="BCS")
-    if plot_tf:
-        for i in range(len(rs)):
-            na_, nb_ = f.get_densities(delta=ds[i], dq=0.5/rs[i], mu=mu, dmu=dmu)
-            na = np.append(na, na_.n)
-            nb = np.append(nb, nb_.n)  
-        n_p = na + nb
-        plt.plot(rs_, n_p/k_F, label="Homogeneous")
-    plt.ylabel(r"$n_p/k_F$", fontsize=fontsize)
-    #plt.title("Total Density")
-    plt.legend()
-    plt.xlim(0, bcs_vortex.R/dx)
-    plt.subplot(324)
+    for i in range(len(rs)):
+        na_, nb_ = f.get_densities(delta=ds[i], dq=0.5/rs[i], mu=mu, dmu=dmu)
+        na = np.append(na, na_.n)
+        nb = np.append(nb, nb_.n)  
+    n_p = na + nb  
     n_m = na - nb
-    plt.plot(r.ravel()/dx, abs(res.n_a - res.n_b).ravel()/k_F, '+', label="BCS")
-    if plot_tf:
-        plt.plot(rs_, n_m/k_F, label="Homogeneous")
-    plt.ylabel(r"$n_m/k_F$", fontsize=20)#,plt.title("Density Difference")
-    plt.ylim(0,1)
-    plt.legend()
-    plt.xlim(0, bcs_vortex.R/dx)
-    x, y = bcs_vortex.xyz
-    r_vec = x+1j*y
-    j_a_ = res.j_a[0] + 1j*res.j_a[1]
-    j_a_ = clockwise(r_vec, j_a_)*np.abs(j_a_)
-    j_b_ = res.j_b[0] + 1j*res.j_b[1]
-    j_b_ = clockwise(r_vec, j_b_)*np.abs(j_b_) 
-    j_p_, j_m_ = j_a_ + j_b_, j_a_ - j_b_
     j_a = []
-    j_b = []
-    if plot_tf:
-        js = [f.get_current(mu=mu, dmu=dmu, delta=d,dq=0.5/r) for r, d in zip(rs,ds)]
-        for j in js:
-            j_a.append(j[0].n)
-            j_b.append(j[1].n)
-        j_a, j_b = np.array(j_a), np.array(j_b)
-        j_p, j_m = -(j_a + j_b), j_a - j_b
+    j_b = []   
+    js = [f.get_current(mu=mu, dmu=dmu, delta=d,dq=0.5/r) for r, d in zip(rs,ds)]
+    for j in js:
+        j_a.append(j[0].n)
+        j_b.append(j[1].n)
+    j_a, j_b = np.array(j_a), np.array(j_b)
+    j_p, j_m = -(j_a + j_b), j_a - j_b
+    return (rs/dx, ds, ps, ps0, n_p, n_m, j_a, j_b)
 
-    plt.subplot(325)
-    plt.plot(r.ravel()/dx, j_a_.ravel(), '+', label="BCS")
-    if plot_tf:
-        plt.plot(rs_, j_a, label="Homogeneous")
-    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$j_a$", fontsize=fontsize)
-    plt.axhline(0, linestyle='dashed')
-    plt.legend()
-    plt.xlim(0, bcs_vortex.R/dx)
+
+def plot_all(v, res_h=None, mu=10, dx=1, fontsize=14):
+    if res_h is None:
+        res_h = FFVortex(v)
+    plt.figure(figsize(16,8))
+    if v is not None:
+        mu = sum(v.mus)/2
+        dx = v.dxyz[0]
+        r = np.sqrt(sum(_x**2 for _x in v.xyz))
+        k_F = np.sqrt(2*mu)
+        plt.figure(figsize(16,8))
+        plt.subplot(321)
+        plt.plot(r.ravel()/dx, abs(v.Delta).ravel()/mu, '+', label="BCS")
+        plt.ylabel(r'$\Delta/E_F$', fontsize=fontsize)
+        plt.xlim(0, v.R/dx)
+        plt.subplot(323)  
+        res = v.get_densities(mus_eff=v.mus, delta=v.Delta)
+        plt.plot(r.ravel()/dx, abs(res.n_a + res.n_b).ravel()/k_F, '+', label="BCS")
+        plt.xlim(0, v.R/dx)
+        plt.subplot(324)
+        plt.plot(r.ravel()/dx, abs(res.n_a - res.n_b).ravel()/k_F, '+', label="BCS")
+        plt.xlim(0, v.R/dx)
+        x, y = v.xyz
+        r_vec = x+1j*y
+        j_a_ = res.j_a[0] + 1j*res.j_a[1]
+        j_a_ = clockwise(r_vec, j_a_)*np.abs(j_a_)
+        j_b_ = res.j_b[0] + 1j*res.j_b[1]
+        j_b_ = clockwise(r_vec, j_b_)*np.abs(j_b_) 
+        j_p_, j_m_ = j_a_ + j_b_, j_a_ - j_b_
+        plt.subplot(325)
+        plt.plot(r.ravel()/dx, j_a_.ravel(), '+', label="BCS")
+        plt.subplot(326)
+        plt.plot(r.ravel()/dx, j_b_.ravel(), '+', label="BCS")
+        plt.xlim(0, v.R/dx)
     
-    plt.subplot(326)
-    plt.plot(r.ravel()/dx, j_b_.ravel(), '+', label="BCS")
-    if plot_tf:
-        plt.plot(rs_, -j_b, label="Homogeneous")
-    plt.axhline(0, linestyle='dashed')
-    plt.xlabel(f"r/d(lattice spacing)", fontsize=fontsize), plt.ylabel(r"$j_b$", fontsize=fontsize)
+    # homogeneous part
+    rs_, ds, ps, ps0, n_p, n_m, j_a, j_b = res_h
+    k_F = np.sqrt(2*mu)
+    plt.subplot(321)
+    plt.plot(rs_, np.array(ds)/mu, label="Homogeneous")
     plt.legend()
-    plt.xlim(0, bcs_vortex.R/dx)
+    plt.ylabel(r'$\Delta/E_F$', fontsize=fontsize)
+    plt.subplot(322)
+    plt.ylabel(r"Pressure/$E_F$", fontsize=fontsize)
+    plt.plot(rs_, ps, label="FF State/Superfluid State Pressure")
+    plt.plot(rs_, ps0,'--', label="Normal State pressure")
+    plt.legend()
+    plt.subplot(323)  
+    plt.plot(rs_, n_p/k_F, label="Homogeneous")
+    plt.ylabel(r"$n_p/k_F$", fontsize=fontsize)
+    plt.legend()
+    plt.subplot(324)
+    plt.plot(rs_, n_m/k_F, label="Homogeneous")
+    plt.ylabel(r"$n_m/k_F$", fontsize=fontsize)#,plt.title("Density Difference")
+    plt.legend()
+    plt.subplot(325)
+    plt.plot(rs_, j_a, label="Homogeneous")
+    plt.xlabel(f"r/dx", fontsize=fontsize), plt.ylabel(r"$j_a$", fontsize=fontsize)
+    plt.axhline(0, linestyle='dashed')
+    plt.legend()
+    plt.subplot(326)
+    plt.plot(rs_, -j_b, label="Homogeneous")
+    plt.axhline(0, linestyle='dashed')
+    plt.xlabel(f"r/dx", fontsize=fontsize), plt.ylabel(r"$j_b$", fontsize=fontsize)
+    plt.legend()
 
-FFVortex(v0, plot_tf=False)
 
-FFVortex(v0, plot_tf=True)
+res0=FFVortex(v0, plot_tf=True)
+
+plot_all(None, res0)
+
+res0=FFVortex(v0, plot_tf=True)
+
+v1 = VortexState(mu=10, dmu=4.5, delta=5, Nxyz=(32, 32), Lxyz=(8,8))
+v1.solve(plot=True)
+
+FFVortex(v1)
+
+res1 = FFVortex(v1)
+
+plot_all(v1, res1)
 
 # +
 mu_a, mu_b=v0.mus

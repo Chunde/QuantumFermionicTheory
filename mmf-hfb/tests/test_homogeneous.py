@@ -134,3 +134,18 @@ class TestHomogeneous(object):
         h = homogeneous.Homogeneous3D(m=m, hbar=hbar)
         res = h.get_densities(mus_eff=(mu,)*2, delta=delta, k_c=np.inf)
         assert allclose(res.n_a+res.n_b, nF)
+
+    def test_effective_kc(self, dim):
+        """To find a momentum cutoff for a fixed g and delta(also mus)"""
+        if dim == 1:  # it seems g only for 2D and 3D, need to check
+            return
+        mus_eff= (10, 10)
+        delta = 10*np.random.random()
+        g=-(1 + np.random.random())
+        h = homogeneous.Homogeneous(dim=dim)
+        k_c = h.set_kc_with_g(
+            mus_eff=mus_eff, delta=delta, g=g)
+        res = h.get_densities(mus_eff=mus_eff, delta=delta)
+        g_ = delta / res.nu
+        assert np.allclose(k_c, h.k_c)
+        assert np.allclose(g, g_)
