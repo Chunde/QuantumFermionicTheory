@@ -12,3 +12,8 @@ _ext
 *.egg-info/
 Data/
 mmf-hfb/__Docs/
+docs/.ipynb_checkpoints/
+mmf-hfb/mmf_hfb/data/
+*.orig
+Projects/FFStateData/
+*.pdf

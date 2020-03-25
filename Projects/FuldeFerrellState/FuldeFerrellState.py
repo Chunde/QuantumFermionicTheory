@@ -15,7 +15,7 @@ MAX_ITERATION = 100
 
 class FFState(object):
     def __init__(self, mu, dmu, delta=1, q=0, dq=0, m=1, T=0, hbar=1, g=None,
-                 k_c=None, dim=1, fix_g=True, bStateSentinel=False):
+                 k_c=None, dim=1, fix_g=True):
         """
         Arguments
         ---------
@@ -24,13 +24,6 @@ class FFState(object):
            performing the non-linear iterations, otherwise the
            coupling constant g_c will be fixed.  Note: this g_c will
            depend on the cutoff k_c.
-        bStateSentinel: bool
-           if bStateSentinel is True, the solve function will check
-           if the resulted delta is zero or not, if it's different
-           from the initial delta, assert will be failed. It's used
-           to make sure the state is always in superfluid state or
-           normal state when using the instance to compute densities,
-           pressures etc.
         """
         if g is not None:
             fix_g = True
@@ -46,7 +39,6 @@ class FFState(object):
         if dim == 1:
             k_c = np.inf
         self.k_c = k_c
-        self.bStateSentinel = bStateSentinel
         self._tf_args = dict(m_a=1, m_b=1, dim=dim, hbar=hbar, T=T, k_c=k_c)
         if fix_g:
             self._g = self.get_g(
@@ -407,7 +399,7 @@ class FFState(object):
                     f_ = f(ds[i])
                     if f0*f_ < 0:
                         delta = brentq(f, ds[index0], ds[i])
-                        if f_ * f(ds[0]) < 0:  # another solution
+                        if f_*f(ds[0]) < 0:  # another solution
                             delta_ = brentq(f, ds[0], ds[i])
                             self._delta = delta_
 
@@ -432,6 +424,4 @@ class FFState(object):
                         0.999*self.delta)*f(
                             1.001*self.delta) < 0)):
                     delta = brentq(f, 0.999*self.delta, 1.001*self.delta)
-        if self.bStateSentinel:
-            assert self.bSuperfluidity == (delta > 0)
         return delta

@@ -39,7 +39,7 @@ class FFStateFinder():
         self.k_c = k_c
         self.ff = FFState(
             mu=mu, dmu=0, delta=delta, g=g, dim=dim,
-            k_c=k_c, fix_g=True, bStateSentinel=True)
+            k_c=k_c, fix_g=True)
         print(
             f"dim={dim}\tdelta={delta}\tmu={mu}"
             + "\tdmu={dmu}\tg={self.ff.g}\tk_c={k_c}")
@@ -65,7 +65,8 @@ class FFStateFinder():
             mu_eff, dmu_eff = self.mu_eff, self.dmu_eff
         else:
             mu_eff, dmu_eff = mus_eff
-        return self.ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=delta, q=q, dq=dq)
+        return self.ff.get_densities(
+            mu=mu_eff, dmu=dmu_eff, delta=delta, q=q, dq=dq)
 
     def get_pressure(self, mus_eff=None, delta=None, q=0, dq=0):
         """return the pressure"""
@@ -79,14 +80,13 @@ class FFStateFinder():
         return self.ff.get_pressure(
             mu_eff=mu_eff, dmu_eff=dmu_eff,
             delta=delta, q=q, dq=dq, use_kappa=False)
-        
-        n_a, n_b = self.ff.get_densities(mu=mu_eff, dmu=dmu_eff,
-                                         delta=delta, dq=dq)
-        energy_density = self.ff.get_energy_density(mu=mu_eff, dmu=dmu_eff,
-                                                    delta=delta, dq=dq,
-                                                    n_a=n_a, n_b=n_b)
-        mu, dmu = self.ff._get_bare_mus(mu_eff=mu_eff, dmu_eff=dmu_eff,
-                                        q=q, dq=dq, delta=delta)
+
+        n_a, n_b = self.ff.get_densities(
+            mu=mu_eff, dmu=dmu_eff, delta=delta, dq=dq)
+        energy_density = self.ff.get_energy_density(
+            mu=mu_eff, dmu=dmu_eff, delta=delta, dq=dq, n_a=n_a, n_b=n_b)
+        mu, dmu = self.ff._get_bare_mus(
+            mu_eff=mu_eff, dmu_eff=dmu_eff, q=q, dq=dq, delta=delta)
         mu_a, mu_b = mu + dmu, mu - dmu
         pressure = mu_a * n_a + mu_b * n_b - energy_density
         if False:
@@ -109,7 +109,8 @@ class FFStateFinder():
                 delta=delta, q=q, dq=dq, update_g=False)
         else:
             mu_eff, dmu_eff = mus_eff
-        return self.ff.get_current(mu=mu_eff, dmu=dmu_eff, delta=delta, q=q, dq=dq)
+        return self.ff.get_current(
+            mu=mu_eff, dmu=dmu_eff, delta=delta, q=q, dq=dq)
 
     def _get_fileName(self):
         currentdir = os.path.dirname(
@@ -144,7 +145,7 @@ class FFStateFinder():
         """
         def g(dq):
             return self._gc(delta=delta, dq=dq)
-    
+
         def refine(a, b, v):
             return brentq(g, a, b)
 
@@ -167,7 +168,7 @@ class FFStateFinder():
                 try:
                     ret1 = brentq(g, lg - dx, lg + dx)
                     rets.append(ret1)
-                except:
+                except ValueError:
                     bExcept = True
                     rets.append(None)
             else:
@@ -176,7 +177,7 @@ class FFStateFinder():
                 try:
                     ret2 = brentq(g, ug - dx, ug + dx)
                     rets.append(ret2)
-                except:
+                except ValueError:
                     bExcept = True
                     rets.append(None)
             else:
@@ -236,7 +237,7 @@ class FFStateFinder():
 
                 if t == trails[-1]:
                     print("Retry without exception...")
-                    ret =[None, None]
+                    ret = [None, None]
                     for t in trails:
                         dx = dx0 * t
                         ret0 = self.SearchFFStates(

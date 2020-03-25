@@ -52,7 +52,7 @@ currentdir = os.path.dirname(
 sys.path.insert(0, join(currentdir, '..','Projects','FuldeFerrellState'))
 from FuldeFerrellState import FFState
 from FFStateFinder import FFStateFinder
-
+from FFStateSolveThread import fulde_ferrell_state_solve_thread
 class Vortex(hfb.BCS):
     barrier_width = 0.2
     barrier_height = 100.0
@@ -155,17 +155,20 @@ class VortexState(Vortex):
 
 # -
 
-mu = 10
-dmu=4.5
-delta = 7.5
-v0 = VortexState(mu=mu, dmu=dmu, delta=delta, Nxyz=(32, 32), Lxyz=(8,8))
-v0.solve(plot=True)
-
 # ## Homogeneous
 
+# +
 import warnings
 warnings.filterwarnings("ignore")
 fontsize = 18
+from mmf_hfb.parallel_helper import PoolHelper
+
+
+# def fulde_ferrell_state_solve_thread(obj_mu_dmu_delta_r):
+#     f, mu, dmu, delta, r = obj_mu_dmu_delta_r
+#     return f.solve(mu=mu, dmu=dmu, dq=0.5/r, a=0.001, b=2*delta)
+
+
 def FFVortex(bcs_vortex, mus=None, delta=None, kc=None):
     mu_a, mu_b=bcs_vortex.mus
     if delta is None:
@@ -182,7 +185,9 @@ def FFVortex(bcs_vortex, mus=None, delta=None, kc=None):
     f = FFState(fix_g=True, **args)
     rs = np.linspace(0.0001,1, 10)
     rs = np.append(rs, np.linspace(1.01, bcs_vortex.R, 10))
-    ds = [f.solve(mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
+    paras = [(f, mu, dmu, delta, r) for r in rs]
+    ds = PoolHelper.run(fulde_ferrell_state_solve_thread, paras=paras)        
+    #ds = [f.solve(mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
     for i in range(len(ds)):
         ps = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=d, dq=0.5/r, use_kappa=False).n for r, d in zip(rs,ds)]
         ps0 = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=1e-8,q=0, dq=0, use_kappa=False).n for r, d in zip(rs,ds)]
@@ -204,6 +209,8 @@ def FFVortex(bcs_vortex, mus=None, delta=None, kc=None):
     j_p, j_m = -(j_a + j_b), j_a - j_b
     return (rs/dx, ds, ps, ps0, n_p, n_m, j_a, j_b)
 
+
+# -
 
 def plot_all(v, res_h=None, mu=10, dx=1, fontsize=14):
     if res_h is None:
@@ -243,13 +250,13 @@ def plot_all(v, res_h=None, mu=10, dx=1, fontsize=14):
     rs_, ds, ps, ps0, n_p, n_m, j_a, j_b = res_h
     k_F = np.sqrt(2*mu)
     plt.subplot(321)
-    plt.plot(rs_, np.array(ds)/mu, label="Homogeneous")
+    plt.plot(rs_, np.array(ds)/mu, 'o', label="Homogeneous")
     plt.legend()
     plt.ylabel(r'$\Delta/E_F$', fontsize=fontsize)
     plt.subplot(322)
     plt.ylabel(r"Pressure/$E_F$", fontsize=fontsize)
     plt.plot(rs_, ps, label="FF State/Superfluid State Pressure")
-    plt.plot(rs_, ps0,'--', label="Normal State pressure")
+    plt.plot(rs_, ps0,'o', label="Normal State pressure")
     plt.legend()
     plt.subplot(323)  
     plt.plot(rs_, n_p/k_F, label="Homogeneous")
@@ -271,20 +278,33 @@ def plot_all(v, res_h=None, mu=10, dx=1, fontsize=14):
     plt.legend()
 
 
-res0=FFVortex(v0, plot_tf=True)
+mu = 10
+dmu=4.5
+delta = 7.5
+v0 = VortexState(mu=mu, dmu=dmu, delta=delta, Nxyz=(32, 32), Lxyz=(8,8))
+v0.solve(plot=True)
 
-plot_all(None, res0)
+if __name__ == "__main__":
+    res0=FFVortex(v0)
 
-res0=FFVortex(v0, plot_tf=True)
+plot_all(v0, res0)
 
-v1 = VortexState(mu=10, dmu=4.5, delta=5, Nxyz=(32, 32), Lxyz=(8,8))
+v1 = VortexState(mu=10, dmu=3.5, delta=7.5, Nxyz=(32, 32), Lxyz=(8,8))
 v1.solve(plot=True)
-
-FFVortex(v1)
 
 res1 = FFVortex(v1)
 
 plot_all(v1, res1)
+
+v2 = VortexState(mu=10, dmu=0, delta=7.5, Nxyz=(32, 32), Lxyz=(8,8))
+v2.solve(plot=True)
+
+res2 = FFVortex(v2)
+
+plot_all(v2, res2)
+
+v3 = VortexState(mu=10, dmu=2, delta=7.5, Nxyz=(32, 32), Lxyz=(8,8))
+v3.solve(plot=True)
 
 # +
 mu_a, mu_b=v0.mus

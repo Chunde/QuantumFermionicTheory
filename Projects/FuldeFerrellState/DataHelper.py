@@ -9,7 +9,7 @@ def ff_state_sort_data(rets):
         sort data to make lines as long and smooth as possible
     """
     rets_ = []
-    
+
     def p(ret):
         v1, v2, _ = ret
         if v1 is None and v2 is None:
@@ -48,8 +48,8 @@ def ff_state_sort_data(rets):
                     bflip = True
                     print("flipping data")
         elif p1 == p2:
-            if (v1 is None) !=(v1_ is None) or (v2 is None) != (v2_ is None):
-                bflip=True
+            if (v1 is None) != (v1_ is None) or (v2 is None) != (v2_ is None):
+                bflip = True
                 print("flipping data")
         if bflip:
             rets[i] = [rets[i][1], rets[i][0], rets[i][2]]
