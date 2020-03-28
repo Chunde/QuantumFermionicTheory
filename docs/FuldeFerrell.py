@@ -458,7 +458,6 @@ dq = 1.0
 (f.get_pressure(mu=mu, dmu=dmu, q=q, dq=0), 
  f.get_pressure(mu=mu, dmu=dmu, q=q, dq=dq))
 
-# +
 P1 = (1, -1)
 P2 = np.polymul(P1, P1)
 P4 = np.polymul(P2, P2)
@@ -467,9 +466,6 @@ P16 = np.polymul(P8, P8)
 P32 = np.polymul(P16, P16)
 x = np.linspace(1-0.001,1+0.001,100)
 plt.plot(x, (np.polyval(P8, x)- (x-1)**8))
-
-
-# -
 
 deltas = np.linspace(0.001, delta, 40)
 deltas = np.linspace(0, 8.2, 20)

@@ -169,7 +169,7 @@ from mmf_hfb.parallel_helper import PoolHelper
 #     return f.solve(mu=mu, dmu=dmu, dq=0.5/r, a=0.001, b=2*delta)
 
 
-def FFVortex(bcs_vortex, mus=None, delta=None, kc=None):
+def FFVortex(bcs_vortex, mus=None, delta=None, kc=None, N1=10):
     mu_a, mu_b=bcs_vortex.mus
     if delta is None:
         delta = bcs_vortex.delta
@@ -183,7 +183,7 @@ def FFVortex(bcs_vortex, mus=None, delta=None, kc=None):
     k_F = np.sqrt(2*mu)
     args = dict(mu=mu, dmu=0, delta=delta, dim=2, k_c=k_c)
     f = FFState(fix_g=True, **args)
-    rs = np.linspace(0.0001,1, 10)
+    rs = np.linspace(0.0001,1, N1)
     rs = np.append(rs, np.linspace(1.01, bcs_vortex.R, 10))
     paras = [(f, mu, dmu, delta, r) for r in rs]
     ds = PoolHelper.run(fulde_ferrell_state_solve_thread, paras=paras)        
@@ -212,9 +212,48 @@ def FFVortex(bcs_vortex, mus=None, delta=None, kc=None):
 
 # -
 
+def FFVortex_debug():
+    mu_a, mu_b,delta = 10, 10, 7.5
+   
+    mu, dmu = (mu_a + mu_b)/2, (mu_a - mu_b)/2
+    N = 32
+    L = 8
+    dx = L/N
+   
+    k_c = 14.005098526530725
+    k_F = np.sqrt(2*mu)
+    args = dict(mu=mu, dmu=0, delta=delta, dim=2, k_c=k_c)
+    f = FFState(fix_g=True, **args)
+    rs = np.linspace(0.0001,1, 25)
+    rs=[rs[1]]
+    paras = [(f, mu, dmu, delta, r) for r in rs]
+    ds = [f.solve(mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
+    for i in range(len(ds)):
+        ps = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=d, dq=0.5/r, use_kappa=False).n for r, d in zip(rs,ds)]
+        ps0 = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=1e-8,q=0, dq=0, use_kappa=False).n for r, d in zip(rs,ds)]
+    na = np.array([])
+    nb = np.array([])
+    for i in range(len(rs)):
+        na_, nb_ = f.get_densities(delta=ds[i], dq=0.5/rs[i], mu=mu, dmu=dmu)
+        na = np.append(na, na_.n)
+        nb = np.append(nb, nb_.n)  
+    n_p = na + nb  
+    n_m = na - nb
+    j_a = []
+    j_b = []   
+    js = [f.get_current(mu=mu, dmu=dmu, delta=d,dq=0.5/r) for r, d in zip(rs,ds)]
+    for j in js:
+        j_a.append(j[0].n)
+        j_b.append(j[1].n)
+    j_a, j_b = np.array(j_a), np.array(j_b)
+    j_p, j_m = -(j_a + j_b), j_a - j_b
+    return (rs/dx, ds, ps, ps0, n_p, n_m, j_a, j_b)
+
+
+FFVortex_debug()
+
+
 def plot_all(v, res_h=None, mu=10, dx=1, fontsize=14):
-    if res_h is None:
-        res_h = FFVortex(v)
     plt.figure(figsize(16,8))
     if v is not None:
         mu = sum(v.mus)/2
@@ -229,10 +268,13 @@ def plot_all(v, res_h=None, mu=10, dx=1, fontsize=14):
         plt.subplot(323)  
         res = v.get_densities(mus_eff=v.mus, delta=v.Delta)
         plt.plot(r.ravel()/dx, abs(res.n_a + res.n_b).ravel()/k_F, '+', label="BCS")
+        plt.ylabel(r"$n_p/k_F$", fontsize=fontsize)
         plt.xlim(0, v.R/dx)
         plt.subplot(324)
         plt.plot(r.ravel()/dx, abs(res.n_a - res.n_b).ravel()/k_F, '+', label="BCS")
+        plt.ylabel(r"$n_m/k_F$", fontsize=fontsize)
         plt.xlim(0, v.R/dx)
+        #plt.ylim(-1, 1)
         x, y = v.xyz
         r_vec = x+1j*y
         j_a_ = res.j_a[0] + 1j*res.j_a[1]
@@ -241,23 +283,25 @@ def plot_all(v, res_h=None, mu=10, dx=1, fontsize=14):
         j_b_ = clockwise(r_vec, j_b_)*np.abs(j_b_) 
         j_p_, j_m_ = j_a_ + j_b_, j_a_ - j_b_
         plt.subplot(325)
-        plt.plot(r.ravel()/dx, j_a_.ravel(), '+', label="BCS")
+        plt.plot(r.ravel()/dx, j_a_.ravel(), '+', label="BCS"),plt.ylabel(r"$j_a$", fontsize=fontsize)
         plt.subplot(326)
-        plt.plot(r.ravel()/dx, j_b_.ravel(), '+', label="BCS")
+        plt.plot(r.ravel()/dx, j_b_.ravel(), '+', label="BCS"), plt.ylabel(r"$j_b$", fontsize=fontsize)
         plt.xlim(0, v.R/dx)
     
     # homogeneous part
+    if res_h is None:
+        return
     rs_, ds, ps, ps0, n_p, n_m, j_a, j_b = res_h
     k_F = np.sqrt(2*mu)
     plt.subplot(321)
-    plt.plot(rs_, np.array(ds)/mu, 'o', label="Homogeneous")
+    plt.plot(rs_, np.array(ds)/mu, '-', label="Homogeneous")
     plt.legend()
     plt.ylabel(r'$\Delta/E_F$', fontsize=fontsize)
-    plt.subplot(322)
-    plt.ylabel(r"Pressure/$E_F$", fontsize=fontsize)
-    plt.plot(rs_, ps, label="FF State/Superfluid State Pressure")
-    plt.plot(rs_, ps0,'o', label="Normal State pressure")
-    plt.legend()
+#     plt.subplot(322)
+#     plt.ylabel(r"Pressure/$E_F$", fontsize=fontsize)
+#     plt.plot(rs_, ps, label="FF State/Superfluid State Pressure")
+#     plt.plot(rs_, ps0, '-', label="Normal State pressure")
+#     plt.legend()
     plt.subplot(323)  
     plt.plot(rs_, n_p/k_F, label="Homogeneous")
     plt.ylabel(r"$n_p/k_F$", fontsize=fontsize)
@@ -267,7 +311,7 @@ def plot_all(v, res_h=None, mu=10, dx=1, fontsize=14):
     plt.ylabel(r"$n_m/k_F$", fontsize=fontsize)#,plt.title("Density Difference")
     plt.legend()
     plt.subplot(325)
-    plt.plot(rs_, j_a, label="Homogeneous")
+    plt.plot(rs_, j_a, '-', label="Homogeneous")
     plt.xlabel(f"r/dx", fontsize=fontsize), plt.ylabel(r"$j_a$", fontsize=fontsize)
     plt.axhline(0, linestyle='dashed')
     plt.legend()
@@ -283,9 +327,12 @@ dmu=4.5
 delta = 7.5
 v0 = VortexState(mu=mu, dmu=dmu, delta=delta, Nxyz=(32, 32), Lxyz=(8,8))
 v0.solve(plot=True)
+plt.savefig("strongly_polarized_vortx_2d_bcs_plot.pdf", bbox_inches='tight')
 
-if __name__ == "__main__":
-    res0=FFVortex(v0)
+res0=FFVortex(v0)
+
+plot_all(v0, res0)
+plt.savefig("strongly_polarized_vortx_2d_bcs_hom_plot.pdf", bbox_inches='tight')
 
 plot_all(v0, res0)
 
@@ -296,15 +343,25 @@ res1 = FFVortex(v1)
 
 plot_all(v1, res1)
 
+v2.g
+
 v2 = VortexState(mu=10, dmu=0, delta=7.5, Nxyz=(32, 32), Lxyz=(8,8))
 v2.solve(plot=True)
+plt.savefig("balanced_vortx_2d_bcs_plot.pdf", bbox_inches='tight')
 
-res2 = FFVortex(v2)
+res2 = FFVortex(v2, N1=10)
 
 plot_all(v2, res2)
+plt.savefig("balanced_vortx_radial_plot_bcs_hom.pdf", bbox_inches='tight')
 
-v3 = VortexState(mu=10, dmu=2, delta=7.5, Nxyz=(32, 32), Lxyz=(8,8))
+v3 = VortexState(mu=10, dmu=2.5, delta=7.5, Nxyz=(32, 32), Lxyz=(8,8))
 v3.solve(plot=True)
+plt.savefig("balanced_vortx_2d_bcs_weakly_polarized_plot.pdf", bbox_inches='tight')
+
+res3 = FFVortex(v3, N1=10)
+
+plot_all(v3, res3)
+plt.savefig("balanced_vortx_radial_weakly_polarized_plot_bcs_hom.pdf", bbox_inches='tight')
 
 # +
 mu_a, mu_b=v0.mus

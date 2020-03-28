@@ -5,8 +5,8 @@
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.3'
-#       jupytext_version: 1.0.3
+#       format_version: '1.5'
+#       jupytext_version: 1.3.2
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -16,10 +16,22 @@
 import mmf_setup;mmf_setup.nbinit()
 # %pylab inline --no-import-all
 from nbimports import * 
+
+# +
 from mmf_hfb import tf_completion as tf
-from mmf_hfb.FuldeFerrellState import FFState
+import os
+import inspect
+import sys
+from os.path import join
+
+currentdir = os.path.dirname(
+            os.path.abspath(inspect.getfile(inspect.currentframe())))
+sys.path.insert(0, join(currentdir, '..','Projects','FuldeFerrellState'))
 from scipy.optimize import brentq
 from mmfutils.plot import imcontourf
+from FuldeFerrellState import FFState
+
+# -
 
 # # Conditions for vortex
 # * $\Delta$ should be continuous in a close loop, in rotation frame, the gap should satisfy:
@@ -36,7 +48,7 @@ delta=0.2
 g=-2.8
 dq=0
 q=0
-ff = FFState(mu=mu_eff, dmu=dmu_eff, delta=delta, dim=dim, fix_g=True, g=g, bStateSentinel=False)
+ff = FFState(mu=mu_eff, dmu=dmu_eff, delta=delta, dim=dim, fix_g=True, g=g)
 print(ff._get_effective_mus(mu=mu_eff, dmu=dmu_eff, dq=dq, delta=delta, update_g=False))
 
 ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=0, dq=1)

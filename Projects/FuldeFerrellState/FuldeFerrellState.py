@@ -47,7 +47,6 @@ class FFState(object):
         else:
             self._C = tf.compute_C(mu_a=mu, mu_b=mu,
                                    delta=delta, q=q, dq=dq, **self._tf_args).n
-        self.bSuperfluidity = delta > 0
 
     @property
     def g(self):

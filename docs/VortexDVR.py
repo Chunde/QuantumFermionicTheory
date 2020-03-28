@@ -22,12 +22,12 @@ import sys
 import matplotlib.pyplot as plt
 from scipy.integrate import quad
 from mmfutils.math import bessel
-from mmf_hfb.bcs import BCS
+from mmf_hfb.hfb import BCS
 from mmf_hfb import homogeneous
 from mmfutils.plot import imcontourf
 from collections import namedtuple
 from mmfutils.math.special import mstep
-from mmf_hfb.DVRBasis import CylindricalBasis
+from mmf_hfb.dvr_basis import cylindrical_basis
 from mmf_hfb.dvr_vortex import bdg_dvr, bdg_dvr_ho,dvr_full_set
 from mmf_hfb.utils import block
 
@@ -1067,12 +1067,6 @@ for nu in range(1, dvr.l_max):  # sum over angular momentum
     H = dvr.get_H(mus=mus, delta=delta, nu=nu)
     dens = dens + 2*_get_den(self=dvr,H=H, nu=nu)  # double-degenerate
 Es = np.sort(Es)
-
-np.sort(abs(d))[0:40]
-
-np.sort(abs(Es))[:40]
-
-
 
 # ## To-Do
 # * Compute $\tau$ and $j_{\pm a/b}$ terms: The derivative term from the bessel package seems to have bug.

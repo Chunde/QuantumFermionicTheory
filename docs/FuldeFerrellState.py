@@ -19,10 +19,20 @@ from nbimports import *                # Conveniences like clear_output
 from scipy.optimize import brentq
 import math
 from mmf_hfb import tf_completion as tf
-reload(tf)
-import mmf_hfb.FuldeFerrellState
-reload(mmf_hfb.FuldeFerrellState)
-from mmf_hfb.FuldeFerrellState import FFState as FF
+
+# +
+import os
+import inspect
+import sys
+from os.path import join
+
+currentdir = os.path.dirname(
+            os.path.abspath(inspect.getfile(inspect.currentframe())))
+sys.path.insert(0, join(currentdir, '..','Projects','FuldeFerrellState'))
+from scipy.optimize import brentq
+from mmfutils.plot import imcontourf
+from FuldeFerrellState import FFState as FF
+# -
 
 # # Polarized Vortex
 
@@ -32,11 +42,11 @@ from mmf_hfb.FuldeFerrellState import FFState as FF
 
 mu=10
 dmu=2
-ff = FF(dmu=dmu, mu=mu,delta=5, d=2, fix_g=True)
+ff = FF(dmu=dmu, mu=mu,delta=5, dim=2, fix_g=True)
 deltas = np.linspace(0.001, 7,20)
 rs = [3,3.6,4,5,6]
 for r in rs:
-    fs = [ff.f(delta=delta, r=r, mu_a=mu+dmu, mu_b=mu-dmu) for delta in deltas]
+    fs = [ff.f(delta=delta, r=r, mu=mu, dmu=dmu) for delta in deltas]
     plt.plot(deltas, fs, label=f'r={r}')
 plt.legend()
 plt.axhline(0);plt.axvline(1)
