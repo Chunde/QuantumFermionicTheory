@@ -6,8 +6,8 @@
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.4'
-#       jupytext_version: 1.2.3
+#       format_version: '1.5'
+#       jupytext_version: 1.3.0
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -21,7 +21,7 @@ import mmf_setup;mmf_setup.nbinit()
 from nbimports import *
 import numpy as np
 
-from mmf_hfb.class_factory import class_factory, FunctionalType, KernelType, Solvers
+from mmf_hfb.class_factory import ClassFactory, FunctionalType, KernelType, Solvers
 
 
 # * The latest code unifies the old code, which supports both Homogeneous and BCS, different functionals can be chosen. The factory function is defnied in file 'class_factory.py'
@@ -31,7 +31,7 @@ def create_lda(mu, dmu, delta):
     Functional Type: BDG/SLDA/ASLDA
     Kernel Type:HOM/BCS
     """    
-    LDA = class_factory(className="LDA", functionalType=FunctionalType.ASLDA, kernelType=KernelType.HOM)
+    LDA = ClassFactory(className="LDA", functionalType=FunctionalType.ASLDA, kernelType=KernelType.HOM)
     lda = LDA(mu_eff=mu, dmu_eff=dmu, delta=delta, T=0, dim=3)
     lda.C = 0 #lda._get_C(mus_eff=(mu+dmu, mu-dmu), delta=delta)  # unitary case
     return lda
@@ -228,6 +228,40 @@ def plot_regions(q=0, dq=0, dmu=0.4, delta=0.2):
     plt.plot(p_x, w_p)
     plt.plot(p_x, w_m)
     plt.axhline(0, linestyle='dashed')
+# +
+# %pylab inline --no-import-all
+from ipywidgets import interact
+m = mu = eF = 1.0
+pF = np.sqrt(2*m*eF)
+delta = 0.5*mu
+p_max = 2*pF
+p_x = np.linspace(-p_max, p_max, 250)
+p_perp = 0
+
+def plot_regions(q=0, dq=0, dmu=0.4, delta=0.2):
+    delta = np.abs(delta)
+    mu_a = mu + dmu
+    mu_b = mu - dmu
+    e_a = ((p_x + q + dq)**2 + p_perp**2)/2/m - mu_a
+    e_b = ((p_x + q - dq)**2 + p_perp**2)/2/m - mu_b
+    e_p, e_m = (e_a + e_b)/2.0, (e_a-e_b)/2.0
+    E = np.sqrt(e_p**2 + delta**2)
+    w_p, w_m = e_m + E, e_m - E
+    plt.plot(p_x/pF, w_p/eF)
+    plt.plot(p_x/pF, w_m/eF)
+    plt.axhline(0, linestyle='dashed')
+    plt.xlabel(r'$k/k_F$', fontsize=16)
+    plt.ylabel(r'$E/\mathcal{E}_F$', fontsize=16)
+    plt.title(f'$\delta\mu=${dmu}, $\Delta={delta}$')
+
+
 # -
+
+
+plt.figure(figsize(8, 6))
+dmu=0.5
+delta=0.5
+plot_regions(dmu=dmu, delta=delta)
+plt.savefig(f"bcs_dispersion_dmu_{dmu}_delta_{delta}.pdf", bbox_inches='tight')
 
 
