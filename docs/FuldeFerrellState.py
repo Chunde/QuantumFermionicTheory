@@ -73,10 +73,10 @@ def min_index(fs):
 def compute_delta_ns(rs, d=1):
     deltas=[]
     densities=[]
-    ff = FF(dmu=1.4, mu=10, d=d)
+    ff = FF(dmu=1.4, mu=10, dim=d)
     ds = np.linspace(0,1.5,10)
     for r in rs:
-        fs = [ff.f(delta=delta, r=r, mu_a=mu+dmu, mu_b=mu-dmu) for delta in ds]
+        fs = [ff.f(delta=delta, r=r, mu=mu, dmu=dmu) for delta in ds]
         index, value = min_index(fs)
         delta = 0
         if value < 0:
@@ -89,7 +89,7 @@ def compute_delta_ns(rs, d=1):
                     delta = smaller_delta
 
         deltas.append(delta)
-        ns = ff.get_densities(delta=delta, r=r, mu_a=mu + dmu, mu_b=mu - dmu)
+        ns = ff.get_densities(delta=delta, dq=0.5/r, mu=mu, dmu=dmu)
         densities.append(ns)
     return (deltas,densities)
 

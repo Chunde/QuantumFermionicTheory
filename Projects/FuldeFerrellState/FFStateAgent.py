@@ -322,7 +322,7 @@ def compute_pressure_current_worker(jsonData_file):
         prefix=f"{output_fileName}", timeStamp=False)
     lda = ClassFactory(
         "LDA", (FFStateAgent,),
-        functionalType=ClassFactory()(functionalIndex=functional_index),
+        functionalType=ClassFactory(functionalIndex=functional_index),
         kernelType=KernelType.HOM, args=args)
     C_ = lda._get_C(mus_eff=mus_eff, delta=delta)
     assert np.allclose(C, C_, rtol=1e-16)  # verify the C value
@@ -393,7 +393,7 @@ def search_states_worker(mus_delta):
     args = dict(
         mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
         T=0, dim=2, k_c=100, verbosity=False)
-    lda = ClassFactory()(
+    lda = ClassFactory(
         "LDA", (FFStateAgent,),
         functionalType=FunctionalType.BDG,
         kernelType=KernelType.HOM, args=args)

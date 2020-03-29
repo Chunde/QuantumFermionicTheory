@@ -19,22 +19,27 @@ from nbimports import *
 from scipy.optimize import brentq
 import mmf_hfb.class_factory as cf
 reload(cf)
-from mmf_hfb.class_factory import class_factory, FunctionalType, KernelType, Solvers
+from mmf_hfb.class_factory import ClassFactory, FunctionalType, KernelType, Solvers
 import warnings
 warnings.filterwarnings("ignore")
 import os
+import sys
 import inspect
 from os.path import join
 import json
 import glob
 from json import dumps
 import operator
-import mmf_hfb.FFStateAgent as ffa
-reload(ffa)
-import mmf_hfb.FFStatePlot as ffp
-reload(ffp)
 import numpy as np
-currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","mmf_hfb","data")
+
+currentdir = os.path.dirname(
+            os.path.abspath(inspect.getfile(inspect.currentframe())))
+sys.path.insert(0, join(currentdir, '..','Projects','FuldeFerrellState'))
+currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","Projects","FuldeFerrellState","data")
+import FFStateAgent as ffa
+reload(ffa)
+import FFStatePlot as ffp
+reload(ffp)
 
 # # Solution Check
 
@@ -42,7 +47,7 @@ mu_eff=5
 dmu_eff=0.5
 delta=1.5
 dim=2
-LDA = class_factory(
+LDA = ClassFactory(
             className="LDA",
             functionalType=FunctionalType.SLDA,
             kernelType=KernelType.HOM)
@@ -143,21 +148,23 @@ def filter_state(mu, dmu, delta, C, dim):
     #return False
     #if g != -3.2:
     #    return True
-    if delta != 1.5:
-        return True
-#     if dmu > 0.1:  
-#         return True
+    #if delta != 1.5:
+    #    return True
+    if dmu > 2.49:  
+         return True
     #if not np.allclose(dmu, 0.35, rtol=0.01):
     #    return True
     #print(dmu)
     return False
 
 
-plt.figure(figsize(8,8))
-ffp.PlotStates(two_plot=False, filter_fun=filter_state, plot_legend=True, print_file_name=False)
+plt.figure(figsize(16,16))
+ffp.PlotStates(current_dir=currentdir, two_plot=False,
+               filter_fun=filter_state, plot_legend=True, ls='+',print_file_name=False)
 
 plt.figure(figsize(16,10))
-ffp.PlotCurrentPressure(filter_fun=filter_state, showLegend=True, FFState_only=False, print_file_name=False)
+ffp.PlotCurrentPressure(current_dir=currentdir, filter_fun=filter_state,
+                        showLegend=True, FFState_only=False, print_file_name=False)
 
 # # Plot the Diagram
 # * Check the particle density, pressure, and $d\mu$ etc to see if a configuration is a FF state $\Delta$

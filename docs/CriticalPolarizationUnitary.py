@@ -7,7 +7,7 @@
 #       extension: .py
 #       format_name: light
 #       format_version: '1.5'
-#       jupytext_version: 1.3.0
+#       jupytext_version: 1.3.2
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -247,21 +247,33 @@ def plot_regions(q=0, dq=0, dmu=0.4, delta=0.2):
     e_p, e_m = (e_a + e_b)/2.0, (e_a-e_b)/2.0
     E = np.sqrt(e_p**2 + delta**2)
     w_p, w_m = e_m + E, e_m - E
-    plt.plot(p_x/pF, w_p/eF)
-    plt.plot(p_x/pF, w_m/eF)
+    plt.plot(p_x/pF, w_p/eF, label=r"$\mathcal{E}_+}$")
+    plt.plot(p_x/pF, w_m/eF, label=r"$\mathcal{E}_-}$")
     plt.axhline(0, linestyle='dashed')
+    plt.legend()
     plt.xlabel(r'$k/k_F$', fontsize=16)
-    plt.ylabel(r'$E/\mathcal{E}_F$', fontsize=16)
+    plt.ylabel(r'$\mathcal{E}_{\pm}/\mathcal{E}_F$', fontsize=16)
     plt.title(f'$\delta\mu=${dmu}, $\Delta={delta}$')
 
 
 # -
 
 
-plt.figure(figsize(8, 6))
-dmu=0.5
-delta=0.5
+plt.figure(figsize(16, 16))
+dmu=0
+delta=0
+plt.subplot(221)
 plot_regions(dmu=dmu, delta=delta)
-plt.savefig(f"bcs_dispersion_dmu_{dmu}_delta_{delta}.pdf", bbox_inches='tight')
+plt.subplot(222)
+dmu=0.5
+plot_regions(dmu=dmu, delta=delta)
+plt.subplot(223)
+delta=0.5
+dmu=0
+plot_regions(dmu=dmu, delta=delta)
+plt.subplot(224)
+dmu=0.5
+plot_regions(dmu=dmu, delta=delta)
+plt.savefig(f"bcs_dispersions.pdf", bbox_inches='tight')
 
 
