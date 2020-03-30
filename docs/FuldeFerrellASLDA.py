@@ -35,112 +35,108 @@ import numpy as np
 currentdir = os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0, join(currentdir, '..','Projects','FuldeFerrellState'))
-currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","Projects","FuldeFerrellState","data")
+currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","Data","data")
 import FFStateAgent as ffa
 reload(ffa)
 import FFStatePlot as ffp
 reload(ffp)
 
+
 # # Solution Check
 
-mu_eff=5
-dmu_eff=0.5
-delta=1.5
-dim=2
-LDA = ClassFactory(
-            className="LDA",
-            functionalType=FunctionalType.SLDA,
-            kernelType=KernelType.HOM)
-lda = LDA(mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta, T=0, dim=dim)
-lda.C = lda._get_C(mus_eff=(mu_eff,mu_eff), delta=delta)
+# mu_eff=5
+# dmu_eff=0.5
+# delta=1.5
+# dim=2
+# LDA = ClassFactory(
+#             className="LDA",
+#             functionalType=FunctionalType.SLDA,
+#             kernelType=KernelType.HOM)
+# lda = LDA(mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta, T=0, dim=dim)
+# lda.C = lda._get_C(mus_eff=(mu_eff,mu_eff), delta=delta)
 
+# def f(dq):
+#     return (lda._get_C(
+#         mus_eff=(mu_eff + dmu_eff, mu_eff - dmu_eff), delta=delta, dq=dq) - lda.C)
+# def get_C(dmu_eff, delta, dq=0):
+#     return lda._get_C(mus_eff=(mu_eff + dmu_eff,mu_eff-dmu_eff), delta=delta, dq=dq)
 
-def f(dq):
-    return (lda._get_C(
-        mus_eff=(mu_eff + dmu_eff, mu_eff - dmu_eff), delta=delta, dq=dq) - lda.C)
-def get_C(dmu_eff, delta, dq=0):
-    return lda._get_C(mus_eff=(mu_eff + dmu_eff,mu_eff-dmu_eff), delta=delta, dq=dq)
+# dmu_effs = np.linspace(0, delta, 5)
+# ds = np.linspace(0.001, 1.2*delta, 25)
 
+# rets = []
+# for dmu_eff in dmu_effs:
+#     Cs = [get_C(dmu_eff=dmu_eff, delta=d) for d in ds]
+#     rets.append(Cs)
 
-dmu_effs = np.linspace(0, delta, 5)
-ds = np.linspace(0.001, 1.2*delta, 25)
-
-rets = []
-for dmu_eff in dmu_effs:
-    Cs = [get_C(dmu_eff=dmu_eff, delta=d) for d in ds]
-    rets.append(Cs)
-
-plt.figure(figsize(16,8))
-for i in range(len(dmu_effs)):
-    plt.plot(ds, rets[i], label=f"d$\mu$={dmu_effs[i]}")
-plt.axvline(dmu_effs[i],linestyle='dashed')
-plt.legend()
-plt.xlabel(f"$\Delta$")
-plt.ylabel("C")
+# plt.figure(figsize(16,8))
+# for i in range(len(dmu_effs)):
+#     plt.plot(ds, rets[i], label=f"d$\mu$={dmu_effs[i]}")
+# plt.axvline(dmu_effs[i],linestyle='dashed')
+# plt.legend()
+# plt.xlabel(f"$\Delta$")
+# plt.ylabel("C")
 
 # [0.4684362992740691, None, 0.9697323232323233]
 
-dmu0=0.51
-dq0, delta0=0.4684362992740691, 0.9697323232323233
+# dmu0=0.51
+# dq0, delta0=0.4684362992740691, 0.9697323232323233
 
+# def get_f(dmu=0, dq=0, delta=0):
+#     return get_C(dmu_eff=dmu, dq=dq, delta=delta) - lda.C
 
-def get_f(dmu=0, dq=0, delta=0):
-    return get_C(dmu_eff=dmu, dq=dq, delta=delta) - lda.C
+# ds = np.linspace(0.0001, delta, 10)
+# fs = [get_f(dmu=dmu0, dq=dq0, delta=d) for d in ds]
 
-
-ds = np.linspace(0.0001, delta, 10)
-fs = [get_f(dmu=dmu0, dq=dq0, delta=d) for d in ds]
-
-plt.plot(ds, fs)
-plt.axhline(0, ls='dashed')
-plt.axvline(delta, ls='dashed')
-plt.axvline(delta0, ls='dashed', c='red')
+# plt.plot(ds, fs)
+# plt.axhline(0, ls='dashed')
+# plt.axvline(delta, ls='dashed')
+# plt.axvline(delta0, ls='dashed', c='red')
 
 # ## Check dq effect
 
-ret2=[]
-dqs=np.linspace(0, 0.2, 3)
-for dq in dqs:
-    Cs = [get_C(dmu_eff=0, delta=d, dq=dq) for d in ds]
-    ret2.append(Cs)
+# ret2=[]
+# dqs=np.linspace(0, 0.2, 3)
+# for dq in dqs:
+#     Cs = [get_C(dmu_eff=0, delta=d, dq=dq) for d in ds]
+#     ret2.append(Cs)
 
-for i in range(len(ret2)):
-    plt.plot(ds, ret2[i], label=f"q={dqs[i]}")
-plt.legend()
+# for i in range(len(ret2)):
+#     plt.plot(ds, ret2[i], label=f"q={dqs[i]}")
+# plt.legend()
 
 # # Solver
 # Here we need to solve the dq for given $\Delta$ with fixed $\tilde{C}$
 
-get_C(dmu_eff=0, delta=1), lda.C
+# get_C(dmu_eff=0, delta=1), lda.C
 
-delta = 1
-lda.C= get_C(dmu_eff=0, delta=delta)
-def f_q(dq):
-    return get_C(dmu_eff=0.1, delta=delta, dq=dq) - lda.C
-dqs=np.linspace(offset, 1+offset, 20)
-fs = [f_q(dq) for dq in dqs]
-plt.plot(dqs, fs)
-plt.axhline(0, linestyle='dashed')
+# delta = 1
+# lda.C= get_C(dmu_eff=0, delta=delta)
+# def f_q(dq):
+#     return get_C(dmu_eff=0.1, delta=delta, dq=dq) - lda.C
+# dqs=np.linspace(offset, 1+offset, 20)
+# fs = [f_q(dq) for dq in dqs]
+# plt.plot(dqs, fs)
+# plt.axhline(0, linestyle='dashed')
 
-delta=1
-lda.C= get_C(dmu_eff=0, delta=delta)
-dmu_effs = np.linspace(0, 0.5, 3)
-for dmu_eff in dmu_effs:
-    def f_d(d):
-        return get_C(dmu_eff=dmu_eff, delta=d) - lda.C
-    ds=np.linspace(0.1, 1.2, 20)
-    fs = [f_d(d) for d in ds]
-    plt.plot(ds, fs)
-plt.axhline(0, linestyle='dashed')
-plt.axvline(delta, linestyle='dashed')
+# delta=1
+# lda.C= get_C(dmu_eff=0, delta=delta)
+# dmu_effs = np.linspace(0, 0.5, 3)
+# for dmu_eff in dmu_effs:
+#     def f_d(d):
+#         return get_C(dmu_eff=dmu_eff, delta=d) - lda.C
+#     ds=np.linspace(0.1, 1.2, 20)
+#     fs = [f_d(d) for d in ds]
+#     plt.plot(ds, fs)
+# plt.axhline(0, linestyle='dashed')
+# plt.axvline(delta, linestyle='dashed')
 
-get_C(dmu_eff=0.3, delta=1), get_C(dmu_eff=1.5, delta=1)
-
+# get_C(dmu_eff=0.3, delta=1), get_C(dmu_eff=1.5, delta=1)
 
 # # Visualize Data
 
 def filter_state(mu, dmu, delta, C, dim):
-    if dim != 2:
+    if dim != 3:
         return True
     #return False
     #if g != -2.8:
@@ -148,9 +144,9 @@ def filter_state(mu, dmu, delta, C, dim):
     #return False
     #if g != -3.2:
     #    return True
-    #if delta != 1.5:
-    #    return True
-    if dmu > 2.49:  
+    if delta != .25:
+        return True
+    if dmu < 0.175:  
          return True
     #if not np.allclose(dmu, 0.35, rtol=0.01):
     #    return True
@@ -158,24 +154,26 @@ def filter_state(mu, dmu, delta, C, dim):
     return False
 
 
-plt.figure(figsize(16,16))
+# plt.figure(figsize(16,16))
 ffp.PlotStates(current_dir=currentdir, two_plot=False,
-               filter_fun=filter_state, plot_legend=True, ls='+',print_file_name=False)
+               filter_fun=filter_state, plot_legend=True, ls='+',print_file_name=True)
 
-plt.figure(figsize(16,10))
+# plt.figure(figsize(16,10))
 ffp.PlotCurrentPressure(current_dir=currentdir, filter_fun=filter_state,
-                        showLegend=True, FFState_only=False, print_file_name=False)
+                        showLegend=True, FFState_only=False, print_file_name=True)
 
 # # Plot the Diagram
 # * Check the particle density, pressure, and $d\mu$ etc to see if a configuration is a FF state $\Delta$
 
-output = ffa.label_states(raw_data=True, verbosity=False)
+output = ffa.label_states(current_dir=currentdir, raw_data=True, verbosity=False)
 
 plt.figure(figsize(16,8))
 ffp.PlotPhaseDiagram(output=output)
 
 # # Check a FF State
 # * Find the first configeration that yields a FF State
+
+np.linspace(1, 2, 2)
 
 for dic in output:
     if dic['state']:

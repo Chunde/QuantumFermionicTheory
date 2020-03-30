@@ -17,3 +17,4 @@ mmf-hfb/mmf_hfb/data/
 *.orig
 Projects/FFStateData/
 *.pdf
+*.json

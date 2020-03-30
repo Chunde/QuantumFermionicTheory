@@ -453,7 +453,8 @@ def label_states(current_dir=None, raw_data=False, verbosity=False):
                 dim, mu_eff, dmu_eff, delta, C = (
                     ret['dim'], ret['mu_eff'], ret['dmu_eff'],
                     ret['delta'], ret['C'])
-                functional_index = ret['functional']
+                functional_index = ret['functional'] if ('functional' in ret) else 0
+
                 p0 = ret['p0']
                 a_inv = 4.0*np.pi*C  # inverse scattering length
 
