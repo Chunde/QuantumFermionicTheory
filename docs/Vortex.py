@@ -14,7 +14,7 @@
 #     name: python3
 # ---
 
-# # Simple Vortex in 2D
+# # Vortex in 2D
 
 # + {"init_cell": true}
 import mmf_setup;mmf_setup.nbinit()
@@ -98,6 +98,8 @@ class PlotBase(object):
         return fig
 
 
+# ## BCS Vortex
+
 # +
 class Vortex(hfb.BCS):
     barrier_width = 0.2
@@ -157,6 +159,10 @@ class VortexState(Vortex, PlotBase):
 
 
 
+# -
+
+# ## ASLDA Vortex
+
 # +
 from mmf_hfb.class_factory import ClassFactory, FunctionalType, KernelType, Solvers
 
@@ -199,25 +205,45 @@ class VortexFunctional(PlotBase):
         x, y = self.xyz[:2]
         self.Delta = delta*(x+1j*y)
 
-    def solve(self, tol=0.05, plot=True):
+    def solve(self, rtol=0.05, plot=True):
         err = 1.0
         fig = None
-        args = dict(
-            mus=self.mus_eff, delta=self.Delta, dim=self.lda.dim,
-            k_c=self.lda.k_c, E_c=self.lda.E_c, fix_delta=False,
-            verbosity=False, rtol=0.5, solver=Solvers.BROYDEN1)
-        delta, mu_a_eff, mu_b_eff = self.lda.solve(**args)
-        mus_eff = (mu_a_eff, mu_b_eff)
-        args.update(delta=delta)
-        res = self.lda.get_densities(mus_eff=mus_eff, **args)
-        self.res = res
-        self.Delta = delta
-        if display:
-            plt.clf()
-            fig = self.plot(fig=fig, res=res)
-            plt.suptitle(f"err={err}")
-            display(fig)
-            clear_output(wait=True)
+        
+        if False:
+            args = dict(
+                mus=self.mus_eff, delta=self.Delta, dim=self.lda.dim,
+                k_c=self.lda.k_c, E_c=self.lda.E_c, fix_delta=False,
+                verbosity=False, rtol=rtol, solver=Solvers.BROYDEN1)
+            delta, mu_a_eff, mu_b_eff = self.lda.solve(**args)
+        else:
+            mu_a, mu_b = self.mus_eff
+            Vs = self.lda.get_Vs()
+            V_a, V_b  = Vs
+            mu_a_eff, mu_b_eff = mu_a + V_a, mu_b + V_b
+            args = dict(E_c=self.lda.E_c)
+                
+            delta = self.Delta
+            with NoInterrupt() as interrupted:
+                display(self.plot())
+                clear_output(wait=True)
+                while(not interrupted and err > rtol):  # use simple iteration if no solver is specified
+                    res = self.lda.get_densities(mus_eff=self.mus_eff, delta=delta,Vs=Vs, **args)
+                    ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
+                    args.update(ns=ns)
+                    V_a, V_b = self.lda.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
+                    mu_a_eff_, mu_b_eff_ = mu_a - V_a, mu_b - V_b
+                    g_eff = -2.952061258164514  # self.lda.get_effective_g(mus_eff=(mu_a_eff_, mu_b_eff_), **args)
+                    delta_ =  g_eff*nu
+                    self.res = res
+                    err = abs(delta_ - self.Delta).max()
+                    self.Delta = delta_
+                    if display:
+                        plt.clf()
+                        fig = self.plot(fig=fig, res=res)
+                        plt.suptitle(f"err={err}")
+                        display(fig)
+                        clear_output(wait=True)
+                    delta, mu_a_eff, mu_b_eff = delta_, mu_a_eff_, mu_b_eff_
 
 
 # -
@@ -225,13 +251,19 @@ class VortexFunctional(PlotBase):
 mu = 10
 dmu=4.5
 delta = 7.5
-k_c = 50
+k_c = 14
 E_c = k_c**2/2
 v = VortexFunctional(
     functionalType=FunctionalType.BDG,
     mu_eff=mu, dmu_eff=dmu, delta=delta,
     Nxyz=(32, 32), Lxyz=(8,8), E_c=E_c)
 v.solve(plot=True)
+
+v1 = VortexFunctional(
+    functionalType=FunctionalType.ASLDA,
+    mu_eff=mu, dmu_eff=dmu, delta=delta,
+    Nxyz=(32, 32), Lxyz=(8,8), E_c=E_c)
+v1.solve(plot=True)
 
 # ## Homogeneous
 
@@ -284,47 +316,6 @@ def FFVortex(bcs_vortex, mus=None, delta=None, kc=None, N1=10):
 
 
 # -
-
-def FFVortex_debug():
-    mu_a, mu_b,delta = 10, 10, 7.5
-   
-    mu, dmu = (mu_a + mu_b)/2, (mu_a - mu_b)/2
-    N = 32
-    L = 8
-    dx = L/N
-   
-    k_c = 14.005098526530725
-    k_F = np.sqrt(2*mu)
-    args = dict(mu=mu, dmu=0, delta=delta, dim=2, k_c=k_c)
-    f = FFState(fix_g=True, **args)
-    rs = np.linspace(0.0001,1, 25)
-    rs=[rs[1]]
-    paras = [(f, mu, dmu, delta, r) for r in rs]
-    ds = [f.solve(mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
-    for i in range(len(ds)):
-        ps = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=d, dq=0.5/r, use_kappa=False).n for r, d in zip(rs,ds)]
-        ps0 = [f.get_pressure(mu_eff=mu, dmu_eff=dmu, delta=1e-8,q=0, dq=0, use_kappa=False).n for r, d in zip(rs,ds)]
-    na = np.array([])
-    nb = np.array([])
-    for i in range(len(rs)):
-        na_, nb_ = f.get_densities(delta=ds[i], dq=0.5/rs[i], mu=mu, dmu=dmu)
-        na = np.append(na, na_.n)
-        nb = np.append(nb, nb_.n)  
-    n_p = na + nb  
-    n_m = na - nb
-    j_a = []
-    j_b = []   
-    js = [f.get_current(mu=mu, dmu=dmu, delta=d,dq=0.5/r) for r, d in zip(rs,ds)]
-    for j in js:
-        j_a.append(j[0].n)
-        j_b.append(j[1].n)
-    j_a, j_b = np.array(j_a), np.array(j_b)
-    j_p, j_m = -(j_a + j_b), j_a - j_b
-    return (rs/dx, ds, ps, ps0, n_p, n_m, j_a, j_b)
-
-
-FFVortex_debug()
-
 
 def plot_all(v, res_h=None, mu=10, dx=1, fontsize=14):
     plt.figure(figsize(16,8))
