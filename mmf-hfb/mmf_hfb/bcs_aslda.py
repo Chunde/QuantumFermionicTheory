@@ -28,7 +28,7 @@ class BDG(FunctionalBdG, bcs_kernel):
             args.update(ns=ns)
             V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
             mu_a_eff_, mu_b_eff_ = mu_a - V_a, mu_b - V_b
-            g_eff = self._g_eff(mus_eff=(mu_a_eff_, mu_b_eff_), **args)
+            g_eff = self.get_effective_g(mus_eff=(mu_a_eff_, mu_b_eff_), **args)
             delta_ = g_eff*nu
             print(
                 f"mu_a_eff={mu_a_eff_.flat[0].real},\tmu_b_eff={mu_b_eff_.flat[0].real},\tdelta={delta_.flat[0].real}"
@@ -54,7 +54,7 @@ class BDG(FunctionalBdG, bcs_kernel):
         res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta, **args)
         ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
         args.update(ns=ns)
-        g_eff = self._g_eff(mus_eff=(mu_a_eff, mu_b_eff), **args)
+        g_eff = self.get_effective_g(mus_eff=(mu_a_eff, mu_b_eff), **args)
         return (ns, taus, nu, g_eff, delta, mu_a_eff, mu_b_eff)
 
 

@@ -26,7 +26,6 @@ from mmf_hfb.bcs_kernel import bcs_kernel
 from mmf_hfb import tf_completion as tf
 
 
-
 class FunctionalType(Enum):
     """
     Functional type
@@ -195,7 +194,7 @@ class DefaultFunctionalAdapter(object):
             args.update(ns=ns)
             V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
             mu_a_eff_, mu_b_eff_ = mu_a - V_a, mu_b - V_b
-            g_eff = self._g_eff(mus_eff=(mu_a_eff_, mu_b_eff_), **args)
+            g_eff = self.get_effective_g(mus_eff=(mu_a_eff_, mu_b_eff_), **args)
             delta_ = delta if fix_delta else g_eff*nu
             if verbosity:
                 self.output_res(mu_a_eff_, mu_b_eff_, delta_, g_eff, ns, taus, nu)
@@ -215,7 +214,7 @@ class DefaultFunctionalAdapter(object):
         else:
             def fun(x):
                 return _fun(x) - x
-            mu_a_eff, mu_b_eff, delta = solver(fun, x0)
+            mu_a_eff, mu_b_eff, delta = solver(fun, x0, f_rtol=rtol)
 
         return (delta, mu_a_eff, mu_b_eff)
 
@@ -233,7 +232,7 @@ class DefaultFunctionalAdapter(object):
         delta = brentq(f, a=0.8*self.delta, b=2*self.delta)
         return delta
 
-    def _get_e_p(self, mus, mus_eff, delta, ns, taus, nu, g_eff):
+    def get_energy_density_pressure(self, mus, mus_eff, delta, ns, taus, nu, g_eff):
         """return energy  density and pressure"""
         alpha_a, alpha_b = self.get_alphas(ns=ns)
         energy_density = alpha_a*taus[0]/2.0 + alpha_b*taus[1]/2.0 + g_eff*abs(nu)**2
@@ -262,10 +261,10 @@ class DefaultFunctionalAdapter(object):
         res = self.get_densities(mus_eff=mus_eff, delta=delta, **args)
         ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
         args.update(ns=ns)
-        g_eff = self._g_eff(mus_eff=mus_eff, **args)
+        g_eff = self.get_effective_g(mus_eff=mus_eff, **args)
         if update_C:
             self.C = self._get_C(mus_eff=mus_eff, delta=delta, ns=ns, taus=taus, nu=nu)
-        e_p = self._get_e_p(
+        e_p = self.get_energy_density_pressure(
             mus=(mu_a, mu_b), mus_eff=mus_eff, delta=delta,
             ns=ns, taus=taus, nu=nu, g_eff=g_eff)
        
@@ -291,8 +290,8 @@ class DefaultFunctionalAdapter(object):
         V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
         mu_a, mu_b = mus_eff[0] + V_a, mus_eff[1] + V_b
         args.update(ns=ns, taus=taus, nu=nu)
-        g_eff = self._g_eff(mus_eff=mus_eff, **args)
-        e_p = self._get_e_p(
+        g_eff = self.get_effective_g(mus_eff=mus_eff, **args)
+        e_p = self.get_energy_density_pressure(
             mus=(mu_a, mu_b), mus_eff=mus_eff, delta=delta,
             ns=ns, taus=taus, nu=nu, g_eff=g_eff)
         return (ns, (mu_a, mu_b), ) + e_p
@@ -328,6 +327,20 @@ def ClassFactory(
     -----------
     Note: if args is used to create an instance, it should include all
         parameters fed to all base classes.
+    -----------
+    # Example
+    if __name__ == "__main__":
+        mu_eff = 10
+        dmu_eff = 0
+        delta = 1
+        args = dict(
+            mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
+            T=0, dim=3, k_c=50, verbosity=False)
+        lda = ClassFactory(
+            "LDA", functionalType=FunctionalType.BDG,
+            kernelType=KernelType.HOM, args=args)
+        lda.C = lda._get_C(mus_eff=(mu_eff, 0), delta=1)
+        lda.fix_C_BdG(mu=mu_eff, dmu=0, delta=1)
     """
     Functionals = [FunctionalBdG, FunctionalSLDA, FunctionalASLDA]
     Kernels = [bcs_kernel, homogeneous_kernel]
@@ -345,7 +358,6 @@ def ClassFactory(
         self.functional=functionalType.value
         self.kernel = kernelType.value
         for base_class in base_classes:
-            # sig = inspect.signature(base_class.__init__)
             if len(inspect.getargspec(base_class.__init__)[0]) > 1:
                 base_class.__init__(self, **args)
             else:
@@ -354,17 +366,3 @@ def ClassFactory(
     if args is None:
         return new_class
     return new_class(**args)
-
-
-if __name__ == "__main__":
-    mu_eff = 10
-    dmu_eff = 0
-    delta = 1
-    args = dict(
-        mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
-        T=0, dim=3, k_c=50, verbosity=False)
-    lda = ClassFactory(
-        "LDA", functionalType=FunctionalType.BDG,
-        kernelType=KernelType.HOM, args=args)
-    lda._get_C(mus_eff=(mu_eff, 0), delta=1)
-    lda.fix_C_BdG(mu=mu_eff, dmu=0, delta=1)

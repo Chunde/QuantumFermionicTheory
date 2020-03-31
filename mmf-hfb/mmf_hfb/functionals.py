@@ -131,7 +131,7 @@ class FunctionalBdG(object):
             Lambda = self.m/self.hbar**2/2/np.pi*np.log((k_c - k0)/(k_c + k0))/k0
         return Lambda/alpha  # do not forget effective mess inverse factor
 
-    def _g_eff(self, mus_eff, ns, E_c, k_c=None, dim=3, **args):
+    def get_effective_g(self, mus_eff, ns, E_c, k_c=None, dim=3, **args):
         """1
             get the effective g
             equation (87c) in page 42

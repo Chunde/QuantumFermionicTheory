@@ -111,7 +111,7 @@ class BesselDVR(object):
         kc = np.sqrt(2*(self.E_c + mu - r2/2 - V)/self.alpha + 0*1j)
         return (k0, kc)
 
-    def get_g_eff(self, mu, r2, V, n, k0=None, kc=None):
+    def getget_effective_g(self, mu, r2, V, n, k0=None, kc=None):
         """compute the effective g"""
         if k0 is None or kc is None:
             k0, kc = self._get_k0_kc(mu=mu, r2=r2, V=V)
@@ -254,7 +254,7 @@ class AurelBesselDVR(BesselDVR):
 
         def _update_DV(D, V_mean, r2, mu, n, kappa):
             k0, kc = self._get_k0_kc(mu=mu, r2=r2, V=V_mean)
-            g_eff = self.get_g_eff(mu=mu, r2=r2, V=V_mean, n=n, k0=k0, kc=kc)
+            g_eff = self.getget_effective_g(mu=mu, r2=r2, V=V_mean, n=n, k0=k0, kc=kc)
             last_corr = self.get_last_correction(D=D, n=n, V=V_mean, k0=k0, kc=kc)
             D = -g_eff*kappa
             V_mean = (

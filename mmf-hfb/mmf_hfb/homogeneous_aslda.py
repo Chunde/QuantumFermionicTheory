@@ -61,7 +61,7 @@ class BDG(Homogeneous, FunctionalBdG):
                 mu_a_eff_, mu_b_eff_ = (
                     np.array([mu_a, mu_b] - self.get_Vs(
                         delta=delta, ns=ns, taus=taus, nu=nu)))
-                g_eff = self._g_eff(
+                g_eff = self.get_effective_g(
                     mus_eff=(mu_a_eff_, mu_b_eff_), ns=ns,
                     dim=self.dim, E_c=self.k_c**2/2/self.m)
                 delta_ = g_eff*nu
@@ -76,7 +76,7 @@ class BDG(Homogeneous, FunctionalBdG):
             mu_a_eff, mu_b_eff, delta = x
             res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta)
             ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
-            g_eff = self._g_eff(
+            g_eff = self.get_effective_g(
                 mus_eff=(mu_a_eff, mu_b_eff), ns=ns,
                 dim=self.dim, k_c=self.k_c, E_c=self.k_c**2/2/self.m)
         else:
@@ -86,7 +86,7 @@ class BDG(Homogeneous, FunctionalBdG):
                 mu_a_eff_, mu_b_eff_ = (
                     np.array([mu_a, mu_b])
                     - self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu))
-                g_eff = self._g_eff(
+                g_eff = self.get_effective_g(
                     mus_eff=(mu_a_eff_, mu_b_eff_), ns=ns,
                                 dim=self.dim, E_c=self.k_c**2/2/self.m)
                 delta_ = g_eff*nu

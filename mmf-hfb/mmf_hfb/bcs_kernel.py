@@ -19,8 +19,6 @@ class bcs_kernel(BCS):
         self._D2 = BCS._get_K(self)
         self._D1 = BCS._get_Del(self)
         self.ones = np.ones_like(sum(self.xyz))
-        if bool(args):
-            print(f"Unused args: {args}")
         
     def _get_modified_K(self, D2, alpha, twists=0, Laplacian_only=True, **args):
         """"

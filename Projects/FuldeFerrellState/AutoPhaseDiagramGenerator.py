@@ -190,11 +190,6 @@ class FFStateAgent(object):
         # if abs(delta_upper - delta) < abs(delta - delta_lower):
         #     deltas = deltas[::-1]  #
         lg, ug = None, None
-        print(
-            f"Search: delta={delta},mu={mu_eff},dmu={dmu_eff},C={self.C},"
-            + f"lower q={q_lower}, upper q={q_upper},"
-            + f"lower delta={delta_lower}, upper delta={delta_upper},"
-            + f"auto_incremental={auto_incremental}")
 
         def do_search(delta):
             nonlocal lg
@@ -495,5 +490,6 @@ if __name__ == "__main__":
         functionalType=FunctionalType.BDG,
         kernelType=KernelType.HOM, k_c=50, dim=3)
     # pdg.run(seed_delta=0.25, seed_dmu=0.135)
+     
     dmu, delta = 0.175, 0.35  # 0.175, 0.25
     pdg.run(seed_delta=delta, seed_dmu=dmu)
