@@ -343,9 +343,9 @@ class AutoPDG(object):
                 + f"_{self.mu_eff:.2f}_{dmu:.2f})" + ts)
         return fileName
 
-    def offset_para(self, p, dx=0.01):
+    def offset_para(self, p, dx=0.1, factor=1):
         offset = np.array([-1, 0, 1])
-        return dx*p*offset + p
+        return dx*p*offset*factor + p
 
     def mix_para2(self, p1, p2):
         return list(itertools.product(p1, p2))
@@ -363,11 +363,11 @@ class AutoPDG(object):
         paras = [(
             self, self.mu_eff, dmu,
             delta, self.dim, self.k_c) for (dmu, delta) in dmu_delta_ls]
-        # paras = [(self, self.mu_eff, 0.175, 0.25, self.dim, self.k_c)]
+        paras = [(self, self.mu_eff, seed_dmu, seed_delta, self.dim, self.k_c)]
         res = PoolHelper.run(
             search_states_worker, paras, poolsize=self.poolSize)
         return (dmu_delta_ls, res)
-    
+
     def compute_press(self, dmu, delta, delta_q):
         mu_eff, dmu_eff = self.mu_eff, dmu
         mus_eff = (self.mu_eff + dmu, self.mu_eff - dmu)
@@ -410,43 +410,79 @@ class AutoPDG(object):
                 dmu=dmu, delta=delta, delta_q=delta_q)
 
     def search_valid_conditate(self, seed_delta, seed_dmu):
-        dmus = self.offset_para(seed_dmu)
-        deltas = self.offset_para(seed_delta)
-        dmu_delta_ls = self.mix_para2(dmus, deltas)
-        paras = [(
-            self, self.mu_eff, dmu,
-            delta, self.dim, self.k_c) for (dmu, delta) in dmu_delta_ls]
-        # paras = [(self, self.mu_eff, 0.175, 0.25, self.dim, self.k_c)]
-        res = PoolHelper.run(
-            search_condidate_worker, paras, poolsize=self.poolSize)
+        trail = 1
+        trail_max = 10
+        while(trail < trail_max):
+            print(f"#{trail} Delta={seed_delta}, dmu={seed_dmu}")
+            dmus = self.offset_para(seed_dmu, factor=trail)
+            deltas = self.offset_para(seed_delta, factor=trail)
+            dmu_delta_ls = self.mix_para2(dmus, deltas)
+            paras = [(
+                self, self.mu_eff, dmu,
+                delta, self.dim, self.k_c) for (dmu, delta) in dmu_delta_ls]
+            res = PoolHelper.run(
+                search_condidate_worker, paras, poolsize=self.poolSize)
 
-        direction_flags = []
-        for re in res:
-            n = np.size(re) 
-            if n == 0:
-                direction_flags.append(False)
-                continue
-            r = re[0]
-            flag = ((r[0] is not None) and (r[1] is not None))
-            if not flag:
-                direction_flags.append(False)
-                continue
-            if n == 2:
-                r1, r2 = re
-                len1 = abs(r1[0] - r1[1])
-                len2 = abs(r2[0] - r2[1])
-                if len2 < len1:
-                    direction_flags.append(True)
+            direction_flags = []
+            for re in res:
+                n = len(re)
+                if n == 0:
+                    direction_flags.append(False)
                     continue
-            direction_flags.append(False)
-        
-        if np.all(np.array(direction_flags), Flase)
-        return (dmu_delta_ls, res)
+                r = re[0]
+                flag = ((r[0] is not None) and (r[1] is not None))
+                if not flag:
+                    direction_flags.append(False)
+                    continue
+                if n == 2:
+                    r1, r2 = re
+                    if min(r1[:2]) < min(r2[:2]):
+                        direction_flags.append(True)
+                        continue
+                direction_flags.append(False)
+            if not any(np.array(direction_flags)):  # when not state is found
+                # find the one with minimum change
+                index = -1
+                min_dq = np.inf
+                for id, re in enumerate(res):
+                    n = len(re)
+                    if n == 0:
+                        continue
+                    r = re[0]
+                    if not ((r[0] is not None) and (r[1] is not None)):
+                        continue
+                    if n == 2:
+                        r1, r2 = re
+                        dq = min(r1[:2]) - min(r2[:2])
+                        if dq < min_dq:
+                            min_dq = dq
+                            index = id
+                if index == -1:  # the seed delta and dmu are not good
+                    raise ValueError(
+                        f"The seed delta {seed_delta} and dmu {seed_dmu} are not good")
+                # the current point is the best, that need more check
+                if index == len(dmu_delta_ls)//2:
+                    trail = trail + 1
+                    continue  # try next trail
+
+                seed_dmu, seed_delta = dmu_delta_ls[index]
+                trail = 1  # reset the trail number for next step
+                continue
+            # return all candidate with flags indcating
+            # if they are good start states
+            print(dmu_delta_ls, direction_flags)
+            return (dmu_delta_ls, direction_flags)
+        raise ValueError(
+            f"The seed delta {seed_delta} and dmu {seed_dmu} are not good")
 
     def run(self, seed_delta, seed_dmu):
         # First step: Find the delta-q diagram
-        delta_q_res = self.search_valid_conditate(
-            seed_delta=seed_delta, seed_dmu=seed_dmu)
+        if False:
+            delta_q_res = self.search_delta_q_diagram(
+                seed_delta=seed_delta, seed_dmu=seed_dmu)
+        else:
+            delta_q_res = self.search_valid_conditate(
+                seed_delta=seed_delta, seed_dmu=seed_dmu)
         dmu_deltas, delta_qs = delta_q_res
         # self.search_next_step(dmu_deltas, delta_qs)
         # with open('debug.json', 'w') as wf:
@@ -458,4 +494,6 @@ if __name__ == "__main__":
     pdg = AutoPDG(
         functionalType=FunctionalType.BDG,
         kernelType=KernelType.HOM, k_c=50, dim=3)
-    pdg.run(seed_delta=0.25, seed_dmu=0.175)
+    # pdg.run(seed_delta=0.25, seed_dmu=0.135)
+    dmu, delta = 0.175, 0.35  # 0.175, 0.25
+    pdg.run(seed_delta=delta, seed_dmu=dmu)
