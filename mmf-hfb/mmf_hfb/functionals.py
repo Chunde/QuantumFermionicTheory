@@ -121,6 +121,7 @@ class FunctionalBdG(object):
         return the renormalization condition parameter Lambda
         # [check] be careful the alpha may be different for a and b
         """
+        assert np.all(k_c > k0)
         if dim ==3:
             Lambda = self.m*k_c/self.hbar**2/2/np.pi**2*(
                 1.0 - k0/k_c/2.0*np.log((k_c + k0)/(k_c - k0)))

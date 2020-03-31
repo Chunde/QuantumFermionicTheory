@@ -53,10 +53,10 @@ class Solvers(Enum):
     DIAGBROYDEN=scipy.optimize.diagbroyden
 
 
-class FuldeFurrellAdapter(object):
+class DefaultFunctionalAdapter(object):
     """
     the adapter used to connect functional and HFB kernel
-    In the factory method, a new class inherit from 
+    In the factory method, a new class inherit from
     this class will be able to change the behavior
     of both functional and kernel as any method defined in
     this class can override method in other classes.
@@ -230,7 +230,6 @@ class FuldeFurrellAdapter(object):
             return (self._get_C(
                 mus_eff=mus_eff, delta=delta, dq=dq, ns=ns,
                 taus=taus, nu=nu, **args) - self.C)
-           
         delta = brentq(f, a=0.8*self.delta, b=2*self.delta)
         return delta
 
@@ -254,9 +253,8 @@ class FuldeFurrellAdapter(object):
         mus = (mu_a, mu_b)
         """
         # fix_delta = (delta is not None)
-        args.update(dim=self.dim, k_c=self.k_c, E_c=self.E_c)
         mu_a, mu_b = mus
-
+        args.update(dim=self.dim, k_c=self.k_c, E_c=self.E_c)
         delta, mu_a_eff, mu_b_eff = self.solve(
             mus=mus, delta=delta, solver=solver, fix_delta=fix_delta, **args)
         mus_eff = (mu_a_eff, mu_b_eff)
@@ -294,7 +292,6 @@ class FuldeFurrellAdapter(object):
         mu_a, mu_b = mus_eff[0] + V_a, mus_eff[1] + V_b
         args.update(ns=ns, taus=taus, nu=nu)
         g_eff = self._g_eff(mus_eff=mus_eff, **args)
-        #g_eff = 0 if nu==0 else delta/nu
         e_p = self._get_e_p(
             mus=(mu_a, mu_b), mus_eff=mus_eff, delta=delta,
             ns=ns, taus=taus, nu=nu, g_eff=g_eff)
@@ -339,17 +336,17 @@ def ClassFactory(
     if functionalIndex is not None:
         return FunctionalType(functionalIndex)
     if adapter is None:
-        adapter = FuldeFurrellAdapter
+        adapter = DefaultFunctionalAdapter
     base_classes = AgentClass + (
         adapter, Kernels[kernelType.value],
         Functionals[functionalType.value])
 
     def __init__(self, **args):
+        self.functional=functionalType.value
+        self.kernel = kernelType.value
         for base_class in base_classes:
-            sig = inspect.signature(base_class.__init__)
-            self.functional=functionalType.value
-            self.kernel = kernelType.value
-            if len(sig.parameters) > 3:
+            # sig = inspect.signature(base_class.__init__)
+            if len(inspect.getargspec(base_class.__init__)[0]) > 1:
                 base_class.__init__(self, **args)
             else:
                 base_class.__init__(self)
