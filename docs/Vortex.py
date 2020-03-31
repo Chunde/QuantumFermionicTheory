@@ -26,9 +26,19 @@ import os
 import sys
 import operator
 import inspect
-
-
 # -
+
+from mmf_hfb import hfb, homogeneous;reload(hfb)
+from mmfutils.math.special import mstep
+from mmfutils.plot import imcontourf
+from os.path import join
+currentdir = os.path.dirname(
+            os.path.abspath(inspect.getfile(inspect.currentframe())))
+sys.path.insert(0, join(currentdir, '..','Projects','FuldeFerrellState'))
+from FuldeFerrellState import FFState
+from FFStateFinder import FFStateFinder
+from FFStateSolveThread import fulde_ferrell_state_solve_thread
+
 
 # The angle from $\vec{a}=a_x+ia_y$ to $\vec{b}=b_x+ib_y$ is the argument of the conjugate of a times b (rotating b backwards by the angle of a, scale not considered)
 
@@ -42,17 +52,6 @@ def clockwise(r, v):
 # Here we generate some vortices.  These are regularized by fixing the coupling constant $g$ so that the homogeneous system in the box and on the lattice gives a fixed value of $\Delta$ at the specified chemical potential.  The self-consistent solution is found by simple iterations.
 
 # +
-from mmf_hfb import hfb, homogeneous;reload(hfb)
-from mmfutils.math.special import mstep
-from mmfutils.plot import imcontourf
-from os.path import join
-
-currentdir = os.path.dirname(
-            os.path.abspath(inspect.getfile(inspect.currentframe())))
-sys.path.insert(0, join(currentdir, '..','Projects','FuldeFerrellState'))
-from FuldeFerrellState import FFState
-from FFStateFinder import FFStateFinder
-from FFStateSolveThread import fulde_ferrell_state_solve_thread
 class Vortex(hfb.BCS):
     barrier_width = 0.2
     barrier_height = 100.0
@@ -153,7 +152,128 @@ class VortexState(Vortex):
         return fig
 
 
+# +
+from mmf_hfb.class_factory import ClassFactory, FunctionalType, KernelType, Solvers
+
+class ExteralPotentailAgent(object):
+    barrier_width = 0.2
+    barrier_height = 100.0
+
+    def __init__(self, R, **args):
+        self.R = R
+
+    def get_Vext(self, **args):
+        r = np.sqrt(sum([_x**2 for _x in self.xyz[:2]]))
+        R0 = self.barrier_width*self.R
+        V = self.barrier_height*mstep(r - self.R + R0, R0)
+        return (V, V)
+
+
+class VortexFunctional():
+    
+    def __init__(
+            self, mu_eff, dmu_eff, delta,
+            functionalType=FunctionalType.BDG,
+            kernelType=KernelType.BCS,
+            Nxyz=(32, 32), Lxyz=(3.2, 3.2),
+            N_twist=1, k_c=None, **kw):
+        self.delta = delta
+        self.N_twist = N_twist
+        self.mus_eff = (mu_eff + dmu_eff, mu_eff - dmu_eff)
+
+        args = dict(
+            mu_eff=mu, dmu_eff=dmu, delta=delta, Nxyz=Nxyz, Lxyz=Lxyz,
+            T=0, dim=len(Nxyz), k_c=k_c, R=min(Lxyz)/2, verbosity=False, **kw)
+        lda = ClassFactory(
+            "LDA", functionalType=functionalType, kernelType=kernelType,
+            AgentClass=(ExteralPotentailAgent,), args=args)
+        lda.C = lda._get_C(mus_eff=(mu_eff, mu_eff), delta=delta)
+        self.lda = lda
+
+    
+
+    def get_g(self, mu=1.0, delta=0.2):
+        mus_eff = (mu, mu)
+        E_c = self.E_max if self.E_c is None else self.E_c
+        # self.k_c = (2*E_c)**0.5
+        h = homogeneous.Homogeneous(Nxyz=self.Nxyz, Lxyz=self.Lxyz, dim=2)
+        res = h.get_densities(mus_eff=mus_eff, delta=delta)
+        g = delta/res.nu
+        h = homogeneous.Homogeneous(dim=2)
+        self.k_c = h.set_kc_with_g(mus_eff=mus_eff, delta=delta, g=g)
+        return g
+
+    def solve(self, tol=0.05, plot=True):
+        err = 1.0
+        fig = None
+        args = dict(
+            mus=self.mus_eff, delta=self.delta, dim=self.lda.dim,
+            k_c=self.lda.k_c, E_c=self.lda.E_c, fix_delta=False,
+            verbosity=False, solver=Solvers.BROYDEN1)
+        delta, mu_a_eff, mu_b_eff = self.lda.solve(**args)
+        mus_eff = (mu_a_eff, mu_b_eff)
+        args.update(delta=delta)
+        res = self.lda.get_densities(mus_eff=mus_eff, **args)
+        self.res = res
+        self.Delta = delta
+        if display:
+            plt.clf()
+            fig = self.plot(fig=fig, res=res)
+            plt.suptitle(f"err={err}")
+            display(fig)
+            clear_output(wait=True)
+
+    def plot(self, fig=None, res=None):
+        x, y = self.lda.xyz[:2]
+        if fig is None:
+            fig = plt.figure(figsize=(20, 10))
+        plt.subplot(233)
+        if self.dim == 2:
+            imcontourf(x, y, abs(self.Delta), aspect=1)
+        elif self.dim == 3:
+            imcontourf(x, y,  np.sum(abs(self.Delta), axis=2))
+        plt.title(r'$|\Delta|$'); plt.colorbar()
+
+        if res is not None:
+            plt.subplot(231)
+            imcontourf(x, y, (res.n_a+res.n_b).real, aspect=1)
+            plt.title(r'$n_+$'); plt.colorbar()
+
+            plt.subplot(232)
+            imcontourf(x, y, (res.n_a-res.n_b).real, aspect=1)
+            plt.title(r'$n_-$'); plt.colorbar()
+
+            plt.subplot(234)
+
+            j_a = res.j_a[0] + 1j*res.j_a[1]
+            j_b = res.j_b[0] + 1j*res.j_b[1]
+            j_p = j_a + j_b
+            j_m = j_a - j_b
+            utheta = np.exp(1j*np.angle(x + 1j*y))
+            imcontourf(x, y, abs(j_a), aspect=1)
+            plt.title(r'$j_a$'); plt.colorbar()
+            plt.quiver(x.ravel(), y.ravel(), j_a.real, j_a.imag)
+
+            plt.subplot(235)
+            imcontourf(x, y, abs(j_b), aspect=1)
+            plt.title(r'$J_b$'); plt.colorbar()
+            plt.quiver(x.ravel(), y.ravel(), j_b.real, j_b.imag)
+
+            plt.subplot(236)
+            imcontourf(x, y, abs(j_p), aspect=1)
+            plt.title(r'$J_+$'); plt.colorbar()
+            plt.quiver(x.ravel(), y.ravel(), j_p.real, j_p.imag)
+        return fig
 # -
+
+mu = 10
+dmu=4.5
+delta = 7.5
+k_c = 100
+E_c = k_c**2/2
+v = VortexFunctional(
+    mu_eff=mu, dmu_eff=dmu, delta=delta, Nxyz=(32, 32), Lxyz=(8,8), E_c=E_c)
+v.solve(plot=True)
 
 # ## Homogeneous
 

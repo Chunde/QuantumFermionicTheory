@@ -146,8 +146,10 @@ def filter_state(mu, dmu, delta, C, dim):
     #    return True
     if delta != .25:
         return True
-    if dmu < 0.175:  
+    if dmu < 0.16:  
          return True
+    if dmu > 0.165:
+        return True
     #if not np.allclose(dmu, 0.35, rtol=0.01):
     #    return True
     #print(dmu)
@@ -156,7 +158,7 @@ def filter_state(mu, dmu, delta, C, dim):
 
 # plt.figure(figsize(16,16))
 ffp.PlotStates(current_dir=currentdir, two_plot=False,
-               filter_fun=filter_state, plot_legend=True, ls='+',print_file_name=True)
+               filter_fun=filter_state, plot_legend=True, ls='-',print_file_name=True)
 
 # plt.figure(figsize(16,10))
 ffp.PlotCurrentPressure(current_dir=currentdir, filter_fun=filter_state,

@@ -5,15 +5,15 @@
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.4'
-#       jupytext_version: 1.2.3
+#       format_version: '1.5'
+#       jupytext_version: 1.3.2
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
 #     name: python3
 # ---
 
-# # BdG in Ratating Frame Transform
+# # BdG in Rotating Frame Transform
 
 # * In theoretical calculation, some quantities may gain space-dependence phase that would make calculation hard or more expensive. To transform a rotating phase away one can transform the Hamiltonian to a rotating frame.In theoretical calculation, some quantities may gain space-dependence phase that would make calculation hard or more expensive. To transform a rotating phase away one can transform the Hamiltonian to a rotating frame. A typical application of the rotating frame is in the GPE simulation, where the time dependent driving potential from laser beam to couple different pseudo-spin states can be absorbed into kinetics terms by transforming to the rotating frame from a lab frame. In BCS theories, similar application can be found in literature too.
 #
@@ -46,10 +46,7 @@
 # &=\begin{pmatrix}\left[-(\nabla+iq_a)^2-\mu_a\right]U(x)e^{iq_a x}+ \Delta V*(x)e^{iq_ax}\\
 # \Delta^* U(x)e^{-iq_b x} + \left[(\nabla-iq_b)^2 + \mu_b)\right]V^*(x)e^{-iq_bx}\\
 # \end{pmatrix}
-# =\begin{pmatrix}
-# E & 0\\
-# 0&-E
-# \end{pmatrix}\begin{pmatrix}
+# =E\begin{pmatrix}
 # U(x)e^{iq_a x}\\
 # V(x)^*e^{-iq_bx}
 # \end{pmatrix}
@@ -64,10 +61,7 @@
 # \begin{pmatrix}
 # U(x)\\
 # V^*(x)\\
-# \end{pmatrix}=\begin{pmatrix}
-# E & 0\\
-# 0&-E
-# \end{pmatrix}
+# \end{pmatrix}=E
 # \begin{pmatrix}
 # U(x)\\
 # V^*(x)
@@ -88,10 +82,7 @@
 # \begin{pmatrix}
 # U(x)\\
 # V^*(x)\\
-# \end{pmatrix}=\begin{pmatrix}
-# E & 0\\
-# 0&-E
-# \end{pmatrix}
+# \end{pmatrix}=E
 # \begin{pmatrix}
 # U(x)\\
 # V^*(x)
