@@ -7,7 +7,7 @@ import multiprocessing
 import threading
 from os.path import join
 from multiprocessing import Process,Queue,Array,RLock,Lock
-from mmf_hfb import FuldeFerrellState as FF
+from mmf_hfb import fulde_ferrell_state as FF
 
 
 current_path = "d:\\"

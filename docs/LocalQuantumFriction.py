@@ -67,7 +67,7 @@
 #   \op{H}[\psi] = \frac{-\hbar^2\nabla^2}{2m} + gn(\vect{x}) + V(\vect{x}).
 # $$
 
-# ### Imaginary Time Cooling
+# ### Imaginary Time cooling
 
 # The most straight-forward approach to the minimization problem is the method of steepest descent - going downhill:
 #
@@ -111,7 +111,7 @@
 #
 # This immediately gives the condition $\mu = \braket{\op{H}}$ given above, which will preserve the normalization of the state no-matter what the cooling phase.  *Incidentally, even if one performs real-time evolution, using such a chemical potential can be numerically advantageous as it minimizes the phase evolution of the state.  This has not physical significance, but reduces numerical errors and allows one to use larger time-steps.*
 
-# ### Example 1: Cooling
+# ### Example 1: cooling
 
 # Run the following simulation of a highly-excited superfluid and explore the effect of the cooling phase.  The simulation starts with a BEC in a cylindrical trap rotating with a high angular velocity.  You can addjust the cooling parameter $\epsilon$ with the first slider.  For large amounts of cooling, you should see the system rapidly lose energy to form a set of orbiting vortices.
 
@@ -844,7 +844,7 @@ plt.xlabel("t")
 plt.ylabel("E-E0")
 plt.legend()
 #plt.ylim(6, 7)
-plt.savefig("Cooling.pdf")
+plt.savefig("cooling.pdf")
 
 np.diag(eg.get_H(psi0)).round(2), eg.get_Vc(psi0)
 
@@ -869,7 +869,7 @@ plt.xlabel("t")
 plt.ylabel("E-E0")
 plt.legend()
 #plt.ylim(6, 7)
-plt.savefig("Cooling.pdf")
+plt.savefig("cooling.pdf")
 
 # +
 # Animation, but does not work on CoLab yet.

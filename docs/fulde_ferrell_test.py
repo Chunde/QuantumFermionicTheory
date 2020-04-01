@@ -17,15 +17,15 @@ import mmf_setup;mmf_setup.nbinit()
 # %pylab inline --no-import-all
 from nbimports import *
 from mmf_hfb import tf_completion as tf
-from mmf_hfb.FuldeFerrellState import FFState
-from mmf_hfb.FFStateFinder import FFStateFinder
-import mmf_hfb.FFStateHelper as ffh
+from mmf_hfb.fulde_ferrell_state import FFState
+from mmf_hfb.fulde_ferrell_state_finder import FFStateFinder
+import mmf_hfb.fulde_ferrell_state_helper as ffh
 reload(ffh)
-from mmf_hfb.FFStateHelper import FFStateHelper
+from mmf_hfb.fulde_ferrell_state_helper import FFStateHelper
 from scipy.optimize import brentq
 import operator
 from mmfutils.plot import imcontourf
-import mmf_hfb.BdGPlot as bp
+import mmf_hfb.bdg_plot as bp
 import numpy as np
 reload(bp)
 clear_output()

@@ -323,7 +323,7 @@ assert np.allclose(tf.compute_C(**args).n, -C1_unit)
 
 # +
 from mmf_hfb import tf_completion as tf;reload(tf)
-from mmf_hfb.FuldeFerrellState import FFState
+from mmf_hfb.fulde_ferrell_state import FFState
 
 
 m = hbar = kF = 1.0

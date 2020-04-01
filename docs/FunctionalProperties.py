@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 from nbimports import *
 import numpy as np
 from mmf_hfb.class_factory import class_factory, FunctionalType, KernelType, Solvers
-import mmf_hfb.FFStateAgent as ffa
+import mmf_hfb.fulde_ferrell_state_agent as ffa
 
 # # Test $g(x)$
 #
@@ -42,13 +42,13 @@ import mmf_hfb.FFStateAgent as ffa
 delta=0
 args = dict(mu_eff=10, dmu_eff=0, delta=1, T=0, dim=3, k_c=100, verbosity=False)
 bdg = class_factory(
-    "BDG", (ffa.FFStateAgent,), functionalType=FunctionalType.BDG,
+    "BDG", (ffa.fulde_ferrell_state_agent,), functionalType=FunctionalType.BDG,
     kernelType=KernelType.HOM, args=args)
 slda = class_factory(
-    "SLDA", (ffa.FFStateAgent,), functionalType=FunctionalType.ASLDA,
+    "SLDA", (ffa.fulde_ferrell_state_agent,), functionalType=FunctionalType.ASLDA,
     kernelType=KernelType.HOM, args=args)
 aslda = class_factory(
-    "ASLDA", (ffa.FFStateAgent,), functionalType=FunctionalType.ASLDA,
+    "ASLDA", (ffa.fulde_ferrell_state_agent,), functionalType=FunctionalType.ASLDA,
     kernelType=KernelType.HOM, args=args)
 def g(e, ns):
     g = (e/0.6/0.5/(6*np.pi**2)**(2.0/3))/(ns[0]**(5.0/3))

@@ -32,7 +32,7 @@
 # Here we demonstrate and compare a couple of forms of quantum friction.  We do this with free fermions in an external Harmonic oscillator potential.  We demonstrate the following:
 #
 # * Both $\op{V}_c$ and $\op{K}_c$ need evolution with the Hamiltonian or else they stall.  ($\op{H}$ is needed to generate the currents that will be cooled.)
-# * Cooling with the kinetic term $\op{K}_K$ does improve cooling, but only in conjunction with $\op{V}_c$.
+# * cooling with the kinetic term $\op{K}_K$ does improve cooling, but only in conjunction with $\op{V}_c$.
 # * Derivative cooling is still undergoing test.
 # * In answer to Aurel's question: the Fermi surface is properly filled, even if the initial state does not have the same symmetry as the ground state.  (This does not work for a single state...)
 # * We check the basis and box size by looking at semilog plots of the various states in both $x$ and $k$ space to make sure they decay by a factor of $\epsilon \sim 10^{-16}$.
@@ -44,8 +44,8 @@ import matplotlib.pyplot as plt
 # %matplotlib inline
 from IPython.display import display, clear_output
 from mmf_hfb.bcs import BCS
-from mmf_hfb.BCSCooling import BCSCooling
-from mmf_hfb.Cooling import Cooling, check_uv_ir_error
+from mmf_hfb.bcs_cooling import BCSCooling
+from mmf_hfb.cooling import cooling, check_uv_ir_error
 import numpy as np
 import scipy as sp
 
@@ -63,7 +63,7 @@ N_step = 100
 #
 # ## Start with 20 initial plane-wave states
 #
-# ### Cooling Function parameters:
+# ### cooling Function parameters:
 #
 # * N_State: integer, specify number of gound states to be observed(check occupancy)
 # * Nx: integer,  number of lattice points
@@ -78,22 +78,22 @@ N_step = 100
 # * V0: 0 or 1, toggle the harmonic potential, V0=0 will turn off the potential
 
 # + {"id": "JNYtqSURH67W", "colab_type": "code", "outputId": "3243f8b2-5c8b-4720-9ebf-3fabc1d70a22", "colab": {"base_uri": "https://localhost:8080/", "height": 392}}
-Cooling(N_state=20, Nx=128, N_data=25, V0=1,
+cooling(N_state=20, Nx=128, N_data=25, V0=1,
         init_state_ids=list(range(5,25)),
         N_step=N_step*10, beta_V=1, beta_K=1, divs=(1,1), beta_D=0, plot_n=True, plot_k=True);
 
 # + {"id": "OZF4gADgKYks", "colab_type": "code", "outputId": "c3d79647-6663-4baa-9c81-afcd844ffc72", "colab": {"base_uri": "https://localhost:8080/", "height": 392}}
-Cooling(N_state=6, Nx=128, N_data=25,
+cooling(N_state=6, Nx=128, N_data=25,
         init_state_ids=list(range(4,8)),
         N_step=N_step, beta_V=1, beta_K=1, divs=(1,1), beta_D=0, plot_n=True, plot_k=True);
 
 # + {"id": "vdPU-DSiO54k", "colab_type": "code", "outputId": "8da89236-f4ad-44ad-e7c1-37d2bcdbcf4b", "colab": {"base_uri": "https://localhost:8080/", "height": 392}}
-Cooling(N_state=5, Nx=128, N_data=20, 
+cooling(N_state=5, Nx=128, N_data=20, 
         init_state_ids=list(range(3,6)),
         N_step=N_step, beta_V=1, beta_K=1, divs=(1,1), beta_D=0, plot_n=True, plot_k=True);
 
 # + {"id": "9gXHZKlLI7Ar", "colab_type": "code", "outputId": "d8074c7e-759e-4f52-eba8-bcf3f1848b57", "colab": {"base_uri": "https://localhost:8080/", "height": 405}}
-Cooling(N_state=3, Nx=128, N_data=20, 
+cooling(N_state=3, Nx=128, N_data=20, 
         init_state_ids=(1, 3, 5),
         N_step=N_step, beta_V=2, beta_K=2, divs=(1,1), beta_D=0, plot_n=True, plot_k=False);
 
@@ -275,33 +275,33 @@ ImaginaryCooling()
 
 # + [markdown] {"id": "Eo0kxBxAVMhZ", "colab_type": "text"}
 # ## single wave
-# * In the follow demo, we will show the efficiency of the Cooling algorithm in different condition. Start with the simplest case where the inital state is a uniform wavefunction, then we turn on the hamonic potential, and monitor how the wave function evolve and the true ground state of the harmonic system is pupulated as the cooling proceeds. In the plot, the left panel plot the true ground state probability distribution $\psi^\dagger\psi$ in '+', and the evolving wavefunction probability distribution in solid line. 
+# * In the follow demo, we will show the efficiency of the cooling algorithm in different condition. Start with the simplest case where the inital state is a uniform wavefunction, then we turn on the hamonic potential, and monitor how the wave function evolve and the true ground state of the harmonic system is pupulated as the cooling proceeds. In the plot, the left panel plot the true ground state probability distribution $\psi^\dagger\psi$ in '+', and the evolving wavefunction probability distribution in solid line. 
 
 # + [markdown] {"id": "3g1oa3n8WRqx", "colab_type": "text"}
 # ### Start with and Even Single State
 # If we pick the initial state with even nodes(state id is even), then such state have some overlap with the ground state in a harmonic trap. It's expected to cooling down to the ground state as above case.
 
 # + {"id": "vLvdhzU4WYFS", "colab_type": "code", "outputId": "a06373d9-f8df-4c59-fae3-7237025fe264", "colab": {"base_uri": "https://localhost:8080/", "height": 392}}
-rets = Cooling(N_state=1, Nx=64, init_state_ids=(2,), N_data=25, N_step=100, beta_V=1, beta_K=1, beta_D=0., divs=(1,1))
+rets = cooling(N_state=1, Nx=64, init_state_ids=(2,), N_data=25, N_step=100, beta_V=1, beta_K=1, beta_D=0., divs=(1,1))
 
 # + [markdown] {"id": "c7vQCjWHVsaW", "colab_type": "text"}
 # ### Start with an odd single state
 # * if the initial state has no overlap with the true ground state, in single state case, we will see the cooling does not works.
 
 # + {"id": "BXaJWUplV13u", "colab_type": "code", "outputId": "484ada2f-5cc4-433e-c691-01e811d074fa", "colab": {"base_uri": "https://localhost:8080/", "height": 392}}
-rets = Cooling(N_state=1, Nx=64, init_state_ids=(3,), N_data=20, N_step=100, beta_V=1, beta_K=1, beta_D=0., divs=(1,1), use_sp=True)
+rets = cooling(N_state=1, Nx=64, init_state_ids=(3,), N_data=20, N_step=100, beta_V=1, beta_K=1, beta_D=0., divs=(1,1), use_sp=True)
 
 # + [markdown] {"id": "he1QRomv6Ip8", "colab_type": "text"}
 # ## Triple-States
 # * if set Nx=128, the environment of Google colaberator will yield different result than than I run locally. Where it not converge properly, but will give desired result on my local environment.
 
 # + {"id": "ZBaymdxh3zaN", "colab_type": "code", "outputId": "a187a942-69da-41c8-a7bb-ae9a4664621d", "colab": {"base_uri": "https://localhost:8080/", "height": 392}}
-Cooling(N_state=3, Nx=256, N_data=25, 
+cooling(N_state=3, Nx=256, N_data=25, 
         init_state_ids=(0,2,4),
         N_step=N_step*10, beta_V=1, beta_K=1, divs=(1,1), beta_D=0);
 
 # + {"id": "1ZqR94_A2P8h", "colab_type": "code", "outputId": "838f1f43-8e36-49c2-d2cf-345f3b04c999", "colab": {"base_uri": "https://localhost:8080/", "height": 392}}
-Cooling(N_state=6, Nx=128, N_data=25, 
+cooling(N_state=6, Nx=128, N_data=25, 
         init_state_ids=(2,3,6,7),
         N_step=N_step*10, beta_V=2, beta_K=2, divs=(1,1), beta_D=0, plot_k=True);
 
@@ -310,17 +310,17 @@ Cooling(N_state=6, Nx=128, N_data=25,
 # * Here we demostrate initally highly exicted states can be cooled down to the fermi surface.
 
 # + {"id": "kg6LrrzLdPNa", "colab_type": "code", "outputId": "e2457e12-fcc1-40b2-fa3f-3456558ec69a", "colab": {"base_uri": "https://localhost:8080/", "height": 392}}
-Cooling(N_state=5, Nx=128, N_data=25, 
+cooling(N_state=5, Nx=128, N_data=25, 
         init_state_ids=list(range(2,5)), V0=1,
         N_step=N_step*10, beta_V=1, beta_K=1, divs=(1,1),  beta_D=0, plot_n=True, plot_k=True);
 
 # + {"id": "LogUah-CNIu3", "colab_type": "code", "outputId": "ce0e047e-e7e0-4738-b505-d46d8e720572", "colab": {"base_uri": "https://localhost:8080/", "height": 392}}
-Cooling(N_state=20, Nx=128, N_data=15, 
+cooling(N_state=20, Nx=128, N_data=15, 
         init_state_ids=list(range(5,25)),
         N_step=N_step*10, beta_V=5, beta_K=10, divs=(1,1), beta_D=0, plot_n=True, plot_k=True);
 
 # + [markdown] {"id": "DtyhhJd5vM94", "colab_type": "text"}
-# ## Cooling With Derivatives
+# ## cooling With Derivatives
 #
 
 # + [markdown] {"id": "lyFRMrlPdgVO", "colab_type": "text"}
@@ -366,7 +366,7 @@ Cooling(N_state=20, Nx=128, N_data=15,
 # </font>
 
 # + {"id": "O0gXrx5UL8Nb", "colab_type": "code", "outputId": "01812047-37ae-400d-fab1-3e37d68b1f71", "colab": {"base_uri": "https://localhost:8080/", "height": 392}}
-Cooling(N_data=N_data, N_step=N_step, beta_0=1, beta_V=1, beta_K=0, beta_D=1, divs=(1, 1));
+cooling(N_data=N_data, N_step=N_step, beta_0=1, beta_V=1, beta_K=0, beta_D=1, divs=(1, 1));
 
 # + [markdown] {"id": "QETrGFXTGhcb", "colab_type": "text"}
 # # Epxeriment with another wavefunction
@@ -424,7 +424,7 @@ plt.legend()
 # * to-do: update the code to support BCS with pairing field.
 
 # + {"id": "2H01mNmwqzZl", "colab_type": "code", "outputId": "d9f50b93-8083-425a-c31b-2caf842cfd5b", "colab": {"base_uri": "https://localhost:8080/", "height": 34}}
-# %%file Cooling.py
+# %%file cooling.py
 
 
 

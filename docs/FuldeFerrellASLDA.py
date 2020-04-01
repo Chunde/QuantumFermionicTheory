@@ -34,11 +34,11 @@ import numpy as np
 
 currentdir = os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe())))
-sys.path.insert(0, join(currentdir, '..','Projects','FuldeFerrellState'))
+sys.path.insert(0, join(currentdir, '..','Projects','fulde_ferrell_state'))
 currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","Data","data")
-import FFStateAgent as ffa
+import fulde_ferrell_state_agent as ffa
 reload(ffa)
-import FFStatePlot as ffp
+import fulde_ferrell_state_plot as ffp
 reload(ffp)
 
 
@@ -242,9 +242,9 @@ mu_eff, dmu_eff, mu, dmu, C, delta, dq
 
 # ## Compare pressure for different states
 
-from mmf_hfb.FFStateAgent import FFStateAgent
+from mmf_hfb.fulde_ferrell_state_agent import fulde_ferrell_state_agent
 args = dict(mu_eff=mu_eff, dmu_eff=dmu_eff, delta=1, T=0, dim=3, k_c=50, verbosity=False, C=C)
-lda = class_factory("LDA", (ffa.FFStateAgent,),  functionalType=FunctionalType.ASLDA, kernelType=KernelType.HOM, args=args)
+lda = class_factory("LDA", (ffa.fulde_ferrell_state_agent,),  functionalType=FunctionalType.ASLDA, kernelType=KernelType.HOM, args=args)
 
 mu_a_eff_, mu_b_eff_ = lda.get_mus_eff(mus=mus, delta=delta, dq=dq, verbosity=False)
 mu_eff_=(mu_a_eff_ + mu_b_eff_)/2

@@ -22,7 +22,7 @@ from nbimports import *
 import numpy as np
 
 # + [markdown] {"id": "ptb73kVS8ceS", "colab_type": "text"}
-# # BCS Cooling Class Test
+# # BCS cooling Class Test
 # * To properly display equations, we define some command to make life easier, this commands are invisible
 # $$
 #   \newcommand{\I}{\mathrm{i}}
@@ -55,9 +55,9 @@ currentdir = os.path.dirname(
 sys.path.insert(0, join(currentdir, '..','Projects', 'QuantumFriction'))
 
 from mmf_hfb.potentials import HarmonicOscillator
-from SolverABM import ABMEvolverAdapter
-from BCSCooling import BCSCooling
-from Cooling import Cooling
+from abm_solver import ABMEvolverAdapter
+from bcs_cooling import BCSCooling
+from cooling import cooling
 
 
 def Normalize(psi):
@@ -82,7 +82,7 @@ def check_uv_ir_error(psi, plot=False):
 
 # -
 
-# ## Test Derivative Cooling
+# ## Test Derivative cooling
 # * As the derivative cooling potential Vd is not diagonilzed in either postion space nor momenutum space, it can't be used in split-operator method. 
 # * It's found that discarding the highest momentum $k_{max}$ can cool down the energy using $V_{d}$ to some energy and may stall there.
 # ### Analytical Check
@@ -221,17 +221,17 @@ def test_der_cooling(plot=True, plot_dE=True, T=0.5, log=False, **args):
     return (wall_time, nfev)
 
 
-# ## A Fast Cooling Due to Bug
+# ## A Fast cooling Due to Bug
 
 args = dict(N=128, dx=.1, divs=(1, 1), beta_Y=0, beta_S=5, T=0.05, check_dE=False)
 psi = test_der_cooling(plot_dE=True, **args)
 
-# ## Imaginary Cooling
+# ## Imaginary cooling
 
 args = dict(N=128, dx=.1, divs=(1, 1), beta_0=-1j,T=.05, log=False,check_dE=False)
 psi = test_der_cooling(plot_dE=True, **args)
 
-# ## Unitary Cooling
+# ## Unitary cooling
 
 args = dict(N=128, dx=0.2, divs=(1, 1), beta_K=0, beta_V=5, beta_D=0, T=3, check_dE=True)
 res = test_der_cooling(plot_dE=True, **args)
@@ -242,7 +242,7 @@ res = test_der_cooling(plot_dE=True, **args)
 args = dict(N=128, dx=0.1, divs=(1, 1), beta_K=0, beta_V=0, beta_D=5, T=3, check_dE=False)
 psi = test_der_cooling(plot_dE=True, **args)
 
-# ## Dyadic Cooling
+# ## Dyadic cooling
 # To minimize the communication costs, we consider approximating $\op{H}_c$ by a set of dyads:
 #
 # $$
@@ -395,36 +395,36 @@ ImaginaryCooling()
 #
 # -
 
-Cooling(N_state=6, Nx=128, N_data=25, start_state=4,  N_step=500, beta_V=5, beta_K=0, beta_D=0, plot_K=False);
+cooling(N_state=6, Nx=128, N_data=25, start_state=4,  N_step=500, beta_V=5, beta_K=0, beta_D=0, plot_K=False);
 
-Cooling(N_state=3, Nx=256, N_data=25, start_state=2,  N_step=100, beta_V=1, beta_K=1, beta_D=0);
+cooling(N_state=3, Nx=256, N_data=25, start_state=2,  N_step=100, beta_V=1, beta_K=1, beta_D=0);
 
 N_data = 20
 N_step = 100
-Cooling(N_state=4, Nx=128, N_data=10, 
+cooling(N_state=4, Nx=128, N_data=10, 
         init_state_ids=list(range(2, 4)), V0=1,
         N_step=N_step*10, beta_V=1, beta_K=1, divs=(1, 1), beta_D=0, plot_k=False);
 
 # + [markdown] {"id": "Eo0kxBxAVMhZ", "colab_type": "text"}
 # ## The simplest single wave function.
-# * In the follow demo, we will show the efficiency of  the Cooling algorithm in different condition. Start with the simplest case where the inital state is a uniform wavefunction, then we turn on the hamonic potential, and monitor how the wave function evolve and the true ground state of the harmonic system is pupulated as the cooling proceeds. In the plot, the left panel plot the true ground state probability distribution $\psi^\dagger\psi$ in '+', and the evolving wavefunction probability distribution in solid line. 
+# * In the follow demo, we will show the efficiency of  the cooling algorithm in different condition. Start with the simplest case where the inital state is a uniform wavefunction, then we turn on the hamonic potential, and monitor how the wave function evolve and the true ground state of the harmonic system is pupulated as the cooling proceeds. In the plot, the left panel plot the true ground state probability distribution $\psi^\dagger\psi$ in '+', and the evolving wavefunction probability distribution in solid line. 
 
 # + {"id": "BXaJWUplV13u", "colab_type": "code", "colab": {}}
-rets = Cooling(N_state=1, Nx=64, init_state_ids=(3,), N_data=25, N_step=100, beta_0=-1j, beta_V=0, beta_K=1, beta_D=0., divs=(1, 1), plot_k=False)
+rets = cooling(N_state=1, Nx=64, init_state_ids=(3,), N_data=25, N_step=100, beta_0=-1j, beta_V=0, beta_K=1, beta_D=0., divs=(1, 1), plot_k=False)
 
 # + [markdown] {"id": "Tr365cInZDqJ", "colab_type": "text"}
 # ### Double States
 # However, in multiple state situation, if we state of state 1 and 3, it may cool down to the ground states
 
 # + {"id": "ceTa7P2bZQax", "colab_type": "code", "colab": {}}
-x, rets = Cooling(N_state=2, Nx=128, Lx=23, init_state_ids=(1,3), N_data=20, N_step=1000, beta_V=1, beta_K=0, beta_D=0., divs=(1, 1))
+x, rets = cooling(N_state=2, Nx=128, Lx=23, init_state_ids=(1,3), N_data=20, N_step=1000, beta_V=1, beta_K=0, beta_D=0., divs=(1, 1))
 
 # + [markdown] {"id": "P14489lt3y5X", "colab_type": "text"}
 # ### Triple States
 # * if set Nx=128, the environment of Google collaboratory will yield different result than than I run locally. Where it not converge properly, but will give desired result on my local environment.
 
 # + {"id": "ZBaymdxh3zaN", "colab_type": "code", "colab": {}}
-Cooling(N_state=3, Nx=256, N_data=25, start_state=2, N_step=1000, beta_V=1, beta_K=1, beta_D=0);
+cooling(N_state=3, Nx=256, N_data=25, start_state=2, N_step=1000, beta_V=1, beta_K=1, beta_D=0);
 
 # + [markdown] {"id": "QETrGFXTGhcb", "colab_type": "text"}
 # # Experiment with another wavefunction

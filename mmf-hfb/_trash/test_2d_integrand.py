@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 from mmfutils.testing import allclose
-from mmf_hfb.FuldeFerrellState import FFState
+from mmf_hfb.fulde_ferrell_state import FFState
 import mmf_hfb.tf_completion as tf
 from mmf_hfb.Integrates import dquad_kF, dquad_q
 

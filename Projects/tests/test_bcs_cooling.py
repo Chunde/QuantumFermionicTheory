@@ -9,7 +9,7 @@ from mmf_hfb.potentials import HarmonicOscillator
 currentdir = os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0, join(currentdir, '..', 'QuantumFriction'))
-from BCSCooling import BCSCooling
+from bcs_cooling import BCSCooling
 
 
 def Prob(psi):

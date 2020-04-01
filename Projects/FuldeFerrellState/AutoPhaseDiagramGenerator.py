@@ -17,7 +17,7 @@ from mmf_hfb.parallel_helper import PoolHelper
 currentdir = os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0, currentdir)
-from DataHelper import ff_state_sort_data
+from data_helper import ff_state_sort_data
 
 
 class FFStateAgent(object):

@@ -234,15 +234,15 @@ plt.plot(ss*delta, res);plt.xlabel('delta');plt.ylabel('C')
 
 # * Check speed of `dblquad` vs nested calls to `quad`.
 
-# # Playing with FuldeFerrellState class.
+# # Playing with fulde_ferrell_state class.
 
 # %pylab inline --no-import-all
 plt.rcParams['figure.figsize'] = (10, 5)
 from uncertainties import unumpy as unp
 from mmfutils.plot import imcontourf
-from mmf_hfb import tf_completion, FuldeFerrellState;
+from mmf_hfb import tf_completion, fulde_ferrell_state;
 from scipy.integrate import IntegrationWarning
-reload(tf_completion);reload(FuldeFerrellState)
+reload(tf_completion);reload(fulde_ferrell_state)
 import warnings
 warnings.simplefilter('error', IntegrationWarning)
 
@@ -258,7 +258,7 @@ mu = 10.0
 dmu = 0.11
 
 args = dict(mu=mu, dmu=dmu, delta=delta, k_c=k_c, dim=dim)
-f = FuldeFerrellState.FFState(fix_g=True, **args)
+f = fulde_ferrell_state.FFState(fix_g=True, **args)
 f.get_g(delta=delta)
 # -
 
@@ -305,7 +305,7 @@ dmu = 6.5
 delta = 5.0
 delta = 8.0
 args = dict(mu=mu, dmu=dmu, delta=delta, k_c=k_c)
-f = FuldeFerrellState.FFState(fix_g=True, **args)
+f = fulde_ferrell_state.FFState(fix_g=True, **args)
 deltas = np.linspace(0.001, delta, 40)
 deltas = np.linspace(0, 8.2, 20)
 z = [f.get_g(r=3.04, delta=_d) - f._g for _d in deltas]
@@ -422,9 +422,9 @@ plt.plot(rs, ds)
 
 # ## Homogeneous
 
-from mmf_hfb import tf_completion, FuldeFerrellState;
+from mmf_hfb import tf_completion, fulde_ferrell_state;
 from scipy.integrate import IntegrationWarning
-reload(tf_completion);reload(FuldeFerrellState)
+reload(tf_completion);reload(fulde_ferrell_state)
 import warnings
 warnings.simplefilter('error', IntegrationWarning)
 
@@ -439,7 +439,7 @@ dmu = 6.5
 delta = 5.0
 delta = 8.0
 args = dict(mu=mu, dmu=dmu, delta=delta, k_c=k_c)
-f = FuldeFerrellState.FFState(fix_g=True, **args)
+f = fulde_ferrell_state.FFState(fix_g=True, **args)
 # -
 
 f.get_g(delta=0.1, mu=mu, dmu=dmu, q=q, dq=dq)

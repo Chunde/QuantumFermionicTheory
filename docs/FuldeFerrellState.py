@@ -28,10 +28,10 @@ from os.path import join
 
 currentdir = os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe())))
-sys.path.insert(0, join(currentdir, '..','Projects','FuldeFerrellState'))
+sys.path.insert(0, join(currentdir, '..','Projects','fulde_ferrell_state'))
 from scipy.optimize import brentq
 from mmfutils.plot import imcontourf
-from FuldeFerrellState import FFState as FF
+from fulde_ferrell_state import FFState as FF
 # -
 
 # # Polarized Vortex
@@ -181,10 +181,10 @@ fig.legend()
 # -
 
 # ## 2D Case
-# The 2d data is genereated by the temporarily test code in ['FuldeFerrellState.py'](FuldeFerrellState.py), then output file is a json text file ['delta_ns.txt'](delta_ns.txt) in the same folder as  ['FuldeFerrellState.py'](FuldeFerrellState.py), that take very long time to do. Once that is done, you may copy the ['delta_ns.txt'](delta_ns.txt) file to the Doc foler, and run code in this section to get the plots.
+# The 2d data is genereated by the temporarily test code in ['fulde_ferrell_state.py'](fulde_ferrell_state.py), then output file is a json text file ['delta_ns.txt'](delta_ns.txt) in the same folder as  ['fulde_ferrell_state.py'](fulde_ferrell_state.py), that take very long time to do. Once that is done, you may copy the ['delta_ns.txt'](delta_ns.txt) file to the Doc foler, and run code in this section to get the plots.
 # ### Parallelization
 # * To compute the 2d FF state is slow slow, we need to go multi-processing
-# * Will be done in['FuldeFerrellState.py'](FuldeFerrellState.py) to generate the output
+# * Will be done in['fulde_ferrell_state.py'](fulde_ferrell_state.py) to generate the output
 # * Load the output file ['delta_ns.txt'](delta_ns.txt), and plot here
 
 # #### Load Data

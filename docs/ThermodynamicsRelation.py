@@ -24,7 +24,7 @@
 import mmf_setup;mmf_setup.nbinit()
 # %pylab inline --no-import-all
 from nbimports import *
-from mmf_hfb.BCSCooling import BCSCooling
+from mmf_hfb.bcs_cooling import BCSCooling
 import matplotlib.pyplot as plt
 from mmfutils import plot as mmfplt            
 import numpy as np
@@ -92,7 +92,7 @@ plt.ylim(-1.5,1)
 
 
 # + [markdown] {"id": "F8ViDMXNkz3R", "colab_type": "code", "colab": {}}
-# # 2D BCS Cooling
+# # 2D BCS cooling
 # -
 def plot_occupancy_k(b, psis):
     n_k = 0
@@ -114,7 +114,7 @@ class FissionCooling(BCSCooling):
 #         return (ns**2 - 1)**2
 
 
-def Cooling(plot=True, N_state=2, plot_dE=True, T=0.5, log=False, **args):  
+def cooling(plot=True, N_state=2, plot_dE=True, T=0.5, log=False, **args):  
     b = FissionCooling(**args)
     x, y = b.xyz   
     x0 = 0.5
@@ -146,7 +146,7 @@ def Cooling(plot=True, N_state=2, plot_dE=True, T=0.5, log=False, **args):
 
 
 args = dict(N=16, dx=0.45, dim=2, N_state=10,  beta_0=1, beta_V=0.2, T=10, log=False, check_dE=False)
-wall_time, nfev, b, psis=Cooling(**args)
+wall_time, nfev, b, psis=cooling(**args)
 
 
 def plot_occupancy_k(b, psis):
@@ -174,7 +174,7 @@ plt.subplot(122)
 plot_occupancy_k(b, psis[-1])
 
 
-# # Cooling with Pairing
+# # cooling with Pairing
 # * Now only V_C works, K_c has some issue. But V_c may also has some issue as the enery may oscillate sometime.
 
 def plot_psis(psis, s='--'):

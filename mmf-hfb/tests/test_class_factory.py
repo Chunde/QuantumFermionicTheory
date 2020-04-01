@@ -1,4 +1,4 @@
-from mmf_hfb.class_factory import class_factory, FunctionalType, KernelType, Solvers
+from mmf_hfb.class_factory import ClassFactory, FunctionalType, KernelType, Solvers
 from mmf_hfb import homogeneous
 import numpy as np
 import pytest
@@ -32,7 +32,7 @@ def dq(request):
 
 
 def create_LDA(mu, dmu, delta):
-    LDA = class_factory(
+    LDA = ClassFactory(
         className="LDA",
         functionalType=FunctionalType.SLDA,
         kernelType=KernelType.HOM)
@@ -46,7 +46,7 @@ def test_BDG(mu, dmu):
     h = homogeneous.Homogeneous3D()
     _, ns, _, _ = h.get_BCS_v_n_e(mus_eff=(mu + dmu, mu - dmu), delta=delta)
 
-    LDA = class_factory(
+    LDA = ClassFactory(
         className="LDA",
         functionalType=FunctionalType.BDG,
         kernelType=KernelType.HOM)
@@ -81,7 +81,7 @@ def test_effective_mus(mu, dmu, dq=0):
 def test_effective_mus_BdG(mu, dmu, dq=0):
     """For BDG, effective mus should be the same as bare mus"""
     delta = 1
-    LDA = class_factory(
+    LDA = ClassFactory(
         className="LDA",
         functionalType=FunctionalType.BDG,
         kernelType=KernelType.HOM)
@@ -146,7 +146,7 @@ def test_class_factory(functional, kernel, mu, dmu=1, dim=3):
     delta = 1.0
     mu=mu
     dmu = 0
-    LDA = class_factory(
+    LDA = ClassFactory(
         className="LDA",
         functionalType=functional,
         kernelType=kernel)
@@ -188,7 +188,7 @@ def test_C():
     args = dict(
         mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
         T=0, dim=3, k_c=50, verbosity=False)
-    lda = class_factory(
+    lda = ClassFactory(
         "LDA",
         functionalType=FunctionalType.BDG,
         kernelType=KernelType.HOM, args=args)

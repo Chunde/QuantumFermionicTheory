@@ -14,7 +14,7 @@ from mmf_hfb import homogeneous
 currentdir = os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0, join(currentdir, '..', 'FuldeFerrellState'))
-from FuldeFerrellState import FFState as FF
+from fulde_ferrell_state import FFState as FF
 
 tf.MAX_DIVISION = 200
 

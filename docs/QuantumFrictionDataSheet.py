@@ -33,15 +33,15 @@ currentdir = os.path.dirname(
 sys.path.insert(0, join(currentdir, '..','Projects', 'QuantumFriction'))
 
 from mmf_hfb.potentials import HarmonicOscillator
-from SolverABM import ABMEvolverAdapter
-from BCSCooling import BCSCooling
+from abm_solver import ABMEvolverAdapter
+from bcs_cooling import BCSCooling
 
 from CoolingCaseTests import TestCase, Prob, Normalize, random_gaussian_mixing
 
 
 # -
 
-# # 1D Cooling
+# # 1D cooling
 
 # +
 def get_init_states(N=128, dx=0.1):
@@ -141,7 +141,7 @@ def Test_Beta_H():
     clear_output()
 
 
-# # 2D Cooling
+# # 2D cooling
 # * not that slow
 
 def test_2d_Cooling():
@@ -192,7 +192,7 @@ def post_process(df0, index,  columns):
     del df0['beta_Y']
     if 'gState' in df0:
         del df0['gState']
-    del df0['Cooling']
+    del df0['cooling']
     del df0['Evolver']
     return df0
         

@@ -26,10 +26,10 @@ from os.path import join
 
 currentdir = os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe())))
-sys.path.insert(0, join(currentdir, '..','Projects','FuldeFerrellState'))
+sys.path.insert(0, join(currentdir, '..','Projects','fulde_ferrell_state'))
 from scipy.optimize import brentq
 from mmfutils.plot import imcontourf
-from FuldeFerrellState import FFState
+from fulde_ferrell_state import FFState
 
 # -
 
