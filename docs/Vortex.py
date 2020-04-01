@@ -55,6 +55,7 @@ class PlotBase(object):
     dim = None
     xyz = None
     Delta = None
+    
     def plot(self, fig=None, res=None):
         x, y = self.xyz[:2]
         if fig is None:
@@ -98,7 +99,7 @@ class PlotBase(object):
         return fig
 
 
-# ## BCS Vortex
+# ## Simple BCS Vortex
 
 # +
 class Vortex(hfb.BCS):
@@ -162,11 +163,18 @@ class VortexState(Vortex, PlotBase):
 # -
 
 # ## ASLDA Vortex
+# * a functional vortex class
 
 # +
 from mmf_hfb.class_factory import ClassFactory, FunctionalType, KernelType, Solvers
 
 class ExteralPotentailAgent(object):
+    """
+    To embed the get_Vext function to the new class
+    created by the ClassFactory function, we need to
+    add an new class that provides the function, such
+    a class is called agent class.
+    """
     barrier_width = 0.2
     barrier_height = 100.0
 
@@ -176,7 +184,9 @@ class ExteralPotentailAgent(object):
     def get_Vext(self, **args):
         r = np.sqrt(sum([_x**2 for _x in self.xyz[:2]]))
         R0 = self.barrier_width*self.R
-        V = self.barrier_height*mstep(r - self.R + R0, R0)
+        # the smooth step function mstep will cause artifact for functional vortices
+        # V = self.barrier_height*mstep(r - self.R + R0, R0)
+        V = self.barrier_height*np.where( (r - self.R) >0, 1, 0)
         return (V, V)
 
 
@@ -204,7 +214,7 @@ class VortexFunctional(PlotBase):
         self.dim = lda.dim
         x, y = self.xyz[:2]
         self.Delta = delta*(x+1j*y)
-
+    
     def solve(self, rtol=0.05, plot=True):
         err = 1.0
         fig = None
@@ -232,7 +242,7 @@ class VortexFunctional(PlotBase):
                     args.update(ns=ns)
                     V_a, V_b = self.lda.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
                     mu_a_eff_, mu_b_eff_ = mu_a - V_a, mu_b - V_b
-                    g_eff = -2.952061258164514  # self.lda.get_effective_g(mus_eff=(mu_a_eff_, mu_b_eff_), **args)
+                    g_eff = self.lda.get_effective_g(mus_eff=(mu_a_eff_, mu_b_eff_), dim=self.dim, **args)
                     delta_ =  g_eff*nu
                     self.res = res
                     err = abs(delta_ - self.Delta).max()
@@ -248,6 +258,8 @@ class VortexFunctional(PlotBase):
 
 # -
 
+# ### A Vortex with BDG Functional
+
 mu = 10
 dmu=4.5
 delta = 7.5
@@ -256,13 +268,15 @@ E_c = k_c**2/2
 v = VortexFunctional(
     functionalType=FunctionalType.BDG,
     mu_eff=mu, dmu_eff=dmu, delta=delta,
-    Nxyz=(32, 32), Lxyz=(8,8), E_c=E_c)
+    Nxyz=(32, 32), Lxyz=(4,4), E_c=E_c)
 v.solve(plot=True)
+
+# ### A Vortex With ASLDA Functional
 
 v1 = VortexFunctional(
     functionalType=FunctionalType.ASLDA,
     mu_eff=mu, dmu_eff=dmu, delta=delta,
-    Nxyz=(32, 32), Lxyz=(8,8), E_c=E_c)
+    Nxyz=(32, 32), Lxyz=(4,4), E_c=E_c)
 v1.solve(plot=True)
 
 # ## Homogeneous
@@ -380,7 +394,7 @@ def plot_all(v, res_h=None, mu=10, dx=1, fontsize=14):
     plt.axhline(0, linestyle='dashed')
     plt.legend()
     plt.subplot(326)
-    plt.plot(rs_, -j_b, label="Homogeneous")
+    plt.plot(rs_, -j_b, label="Homogeneous") # seems we have different sign
     plt.axhline(0, linestyle='dashed')
     plt.xlabel(f"r/dx", fontsize=fontsize), plt.ylabel(r"$j_b$", fontsize=fontsize)
     plt.legend()
