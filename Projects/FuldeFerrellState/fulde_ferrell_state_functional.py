@@ -87,8 +87,8 @@ class FFStateAgent(object):
                                 mu_eff=mu, dmu_eff=dmu,
                                 delta=delta, q=q, dq=dq)
                             print(
-                                f"q={dq}: Delta={delta_}/{delta},"
-                                + f",Pressue={p_.n}/{p.n}")
+                                f"q={dq}: Delta={delta_}/{delta}"
+                                + f",Pressue={p_}/{p}")
                             if p_ > p:
                                 self._delta = delta
                                 delta = delta_
@@ -130,6 +130,7 @@ def FFVortex(mus=None, delta=None, k_c=None, N=None, L=None, N1=10):
     # paras = [(f, mu, dmu, delta, r) for r in rs]
     # ds = PoolHelper.run(fulde_ferrell_state_solve_thread, paras=paras)        
     ds = [f.solve(mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
+    print(ds)
     for i in range(len(ds)):
         ps = [f.get_pressure(
             mu_eff=mu, dmu_eff=dmu, delta=d, dq=0.5/r,
