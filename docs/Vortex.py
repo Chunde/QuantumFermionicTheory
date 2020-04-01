@@ -35,15 +35,18 @@ from os.path import join
 currentdir = os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0, join(currentdir, '..','Projects','FuldeFerrellState'))
-from FuldeFerrellState import FFState
-from FFStateFinder import FFStateFinder
-from FFStateSolveThread import fulde_ferrell_state_solve_thread
+from fulde_ferrell_state import FFState
+from fulde_ferrell_state_finder import FFStateFinder
+from fulde_ferrell_state_worker_thread import fulde_ferrell_state_solve_thread
 
 
 # The angle from $\vec{a}=a_x+ia_y$ to $\vec{b}=b_x+ib_y$ is the argument of the conjugate of a times b (rotating b backwards by the angle of a, scale not considered)
 
 def clockwise(r, v):
-    """return the angle between two vectors, which take order into account"""
+    """
+    return the sign of angle between two vectors
+    it takes order into account
+    """
     dot = r.conj()*v
     angs = np.arctan2(dot.imag,dot.real)
     return np.sign(angs)
@@ -200,7 +203,7 @@ class VortexFunctional(PlotBase):
             N_twist=1, k_c=None, **kw):
         self.delta = delta
         self.N_twist = N_twist
-        self.mus_eff = (mu_eff + dmu_eff, mu_eff - dmu_eff)
+        self.mus = (mu_eff + dmu_eff, mu_eff - dmu_eff)
 
         args = dict(
             mu_eff=mu, dmu_eff=dmu, delta=delta, Nxyz=Nxyz, Lxyz=Lxyz,
@@ -211,7 +214,9 @@ class VortexFunctional(PlotBase):
         lda.C = lda._get_C(mus_eff=(mu_eff, mu_eff), delta=delta)
         self.lda = lda
         self.xyz = lda.xyz
+        self.dxyz =lda.dxyz
         self.dim = lda.dim
+        self.R = lda.R
         x, y = self.xyz[:2]
         self.Delta = delta*(x+1j*y)
     
@@ -221,12 +226,12 @@ class VortexFunctional(PlotBase):
         
         if False:
             args = dict(
-                mus=self.mus_eff, delta=self.Delta, dim=self.lda.dim,
+                mus=self.mus, delta=self.Delta, dim=self.lda.dim,
                 k_c=self.lda.k_c, E_c=self.lda.E_c, fix_delta=False,
                 verbosity=False, rtol=rtol, solver=Solvers.BROYDEN1)
             delta, mu_a_eff, mu_b_eff = self.lda.solve(**args)
         else:
-            mu_a, mu_b = self.mus_eff
+            mu_a, mu_b = self.mus
             Vs = self.lda.get_Vs()
             V_a, V_b  = Vs
             mu_a_eff, mu_b_eff = mu_a + V_a, mu_b + V_b
@@ -237,7 +242,7 @@ class VortexFunctional(PlotBase):
                 display(self.plot())
                 clear_output(wait=True)
                 while(not interrupted and err > rtol):  # use simple iteration if no solver is specified
-                    res = self.lda.get_densities(mus_eff=self.mus_eff, delta=delta,Vs=Vs, **args)
+                    res = self.lda.get_densities(mus_eff=self.mus, delta=delta,Vs=Vs, **args)
                     ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
                     args.update(ns=ns)
                     V_a, V_b = self.lda.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
@@ -258,27 +263,6 @@ class VortexFunctional(PlotBase):
 
 # -
 
-# ### A Vortex with BDG Functional
-
-mu = 10
-dmu=4.5
-delta = 7.5
-k_c = 14
-E_c = k_c**2/2
-v = VortexFunctional(
-    functionalType=FunctionalType.BDG,
-    mu_eff=mu, dmu_eff=dmu, delta=delta,
-    Nxyz=(32, 32), Lxyz=(4,4), E_c=E_c)
-v.solve(plot=True)
-
-# ### A Vortex With ASLDA Functional
-
-v1 = VortexFunctional(
-    functionalType=FunctionalType.ASLDA,
-    mu_eff=mu, dmu_eff=dmu, delta=delta,
-    Nxyz=(32, 32), Lxyz=(4,4), E_c=E_c)
-v1.solve(plot=True)
-
 # ## Homogeneous
 
 # +
@@ -298,7 +282,7 @@ def FFVortex(bcs_vortex, mus=None, delta=None, kc=None, N1=10):
     dx = L/N
    
     k_c = bcs_vortex.k_c if kc is None else kc  #  np.sqrt(2)*np.pi*N/L 
-    print(f"k_c={k_c},bcs_kc={v0.k_c}")
+    print(f"k_c={k_c},bcs_kc={bcs_vortex.k_c}")
     k_F = np.sqrt(2*mu)
     args = dict(mu=mu, dmu=0, delta=delta, dim=2, k_c=k_c)
     f = FFState(fix_g=True, **args)
@@ -331,20 +315,106 @@ def FFVortex(bcs_vortex, mus=None, delta=None, kc=None, N1=10):
 
 # -
 
-def plot_all(v, res_h=None, mu=10, dx=1, fontsize=14):
-    plt.figure(figsize(16,8))
-    if v is not None:
+class FFStateAgent(object):
+    """
+    An agent class used for searching FF states
+    """
+
+    def __init__(
+            self, mu_eff, dmu_eff, delta, dim **args):
+        self.delta = delta
+        self.mu_eff = mu_eff
+        self.dmu_eff = dmu_eff
+
+          
+    def f(self, mu, dmu, delta, q=0, dq=0, **kw):
+        return self._get_C(
+                mus_eff=(mu + dmu, mu - dmu),
+                delta=delta, dq=dq) - self.C
+
+    def solve(
+            self, mu=None, dmu=None, q=0, dq=0,
+            a=None, b=None, throwException=False, **args):
+        """
+        On problem with brentq is that it requires very smooth function with a
+        and b having different sign of values, this can fail frequently if our
+        integration is not with high accuracy. Should be solved in the future.
+        """
+        assert (mu is None) == (dmu is None)
+        if mu is None:
+            mu_a, mu_b = self.mus
+            mu, dmu = (mu_a + mu_b)/2.0, (mu_a - mu_b)/2.0
+
+        if a is None:
+            a = self.delta*0.1
+        if b is None:
+            b = self.delta*2
+
+        def f(delta):
+            return self.f(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
+
+        self._delta = None  # a another possible solution
+        if throwException:
+            delta = brentq(f, a, b)
+        else:
+            try:
+                delta = brentq(f, a, b)
+            except ValueError:
+                offset = 0
+                if not np.allclose(abs(dmu), 0):
+                    offset = min(abs(dq/dmu), 100)
+                ds = np.linspace(
+                    0.000001, max(a, b)*(2 + offset),
+                    min(100, int((2 + offset)*10)))
+
+                assert len(ds) <= 100
+                f0 = f(ds[-1])
+                index0 = -1
+                delta = 0
+                for i in reversed(range(0, len(ds)-1)):
+                    f_ = f(ds[i])
+                    if f0*f_ < 0:
+                        delta = brentq(f, ds[index0], ds[i])
+                        if f_*f(ds[0]) < 0:  # another solution
+                            delta_ = brentq(f, ds[0], ds[i])
+                            self._delta = delta_
+
+                            p_ = self.get_pressure(
+                                mu_eff=mu, dmu_eff=dmu,
+                                delta=delta_, q=q, dq=dq)
+                            p = self.get_pressure(
+                                mu_eff=mu, dmu_eff=dmu,
+                                delta=delta, q=q, dq=dq)
+                            print(
+                                f"q={dq}: Delta={delta_}/{delta},"
+                                + f",Pressue={p_.n}/{p.n}")
+                            if p_ > p:
+                                self._delta = delta
+                                delta = delta_
+                        break
+                    else:
+                        f0 = f_
+                        index0 = i
+                if (
+                    delta == 0 and (f(
+                        0.999*self.delta)*f(
+                            1.001*self.delta) < 0)):
+                    delta = brentq(f, 0.999*self.delta, 1.001*self.delta)
+        return delta
+
+
+def plot_all(vs=[], hs=[], mu=10, dx=1, fontsize=14):
+    for v in vs:
         mu = sum(v.mus)/2
         dx = v.dxyz[0]
         r = np.sqrt(sum(_x**2 for _x in v.xyz))
         k_F = np.sqrt(2*mu)
-        plt.figure(figsize(16,8))
         plt.subplot(321)
         plt.plot(r.ravel()/dx, abs(v.Delta).ravel()/mu, '+', label="BCS")
         plt.ylabel(r'$\Delta/E_F$', fontsize=fontsize)
         plt.xlim(0, v.R/dx)
         plt.subplot(323)  
-        res = v.get_densities(mus_eff=v.mus, delta=v.Delta)
+        res = v.res
         plt.plot(r.ravel()/dx, abs(res.n_a + res.n_b).ravel()/k_F, '+', label="BCS")
         plt.ylabel(r"$n_p/k_F$", fontsize=fontsize)
         plt.xlim(0, v.R/dx)
@@ -367,50 +437,66 @@ def plot_all(v, res_h=None, mu=10, dx=1, fontsize=14):
         plt.xlim(0, v.R/dx)
     
     # homogeneous part
-    if res_h is None:
-        return
-    rs_, ds, ps, ps0, n_p, n_m, j_a, j_b = res_h
-    k_F = np.sqrt(2*mu)
-    plt.subplot(321)
-    plt.plot(rs_, np.array(ds)/mu, '-', label="Homogeneous")
-    plt.legend()
-    plt.ylabel(r'$\Delta/E_F$', fontsize=fontsize)
-#     plt.subplot(322)
-#     plt.ylabel(r"Pressure/$E_F$", fontsize=fontsize)
-#     plt.plot(rs_, ps, label="FF State/Superfluid State Pressure")
-#     plt.plot(rs_, ps0, '-', label="Normal State pressure")
-#     plt.legend()
-    plt.subplot(323)  
-    plt.plot(rs_, n_p/k_F, label="Homogeneous")
-    plt.ylabel(r"$n_p/k_F$", fontsize=fontsize)
-    plt.legend()
-    plt.subplot(324)
-    plt.plot(rs_, n_m/k_F, label="Homogeneous")
-    plt.ylabel(r"$n_m/k_F$", fontsize=fontsize)#,plt.title("Density Difference")
-    plt.legend()
-    plt.subplot(325)
-    plt.plot(rs_, j_a, '-', label="Homogeneous")
-    plt.xlabel(f"r/dx", fontsize=fontsize), plt.ylabel(r"$j_a$", fontsize=fontsize)
-    plt.axhline(0, linestyle='dashed')
-    plt.legend()
-    plt.subplot(326)
-    plt.plot(rs_, -j_b, label="Homogeneous") # seems we have different sign
-    plt.axhline(0, linestyle='dashed')
-    plt.xlabel(f"r/dx", fontsize=fontsize), plt.ylabel(r"$j_b$", fontsize=fontsize)
-    plt.legend()
+    for res_h in hs:
+        rs_, ds, ps, ps0, n_p, n_m, j_a, j_b = res_h
+        k_F = np.sqrt(2*mu)
+        plt.subplot(321)
+        plt.plot(rs_, np.array(ds)/mu, '-', label="Homogeneous")
+        plt.legend()
+        plt.ylabel(r'$\Delta/E_F$', fontsize=fontsize)
+    #     plt.subplot(322)
+    #     plt.ylabel(r"Pressure/$E_F$", fontsize=fontsize)
+    #     plt.plot(rs_, ps, label="FF State/Superfluid State Pressure")
+    #     plt.plot(rs_, ps0, '-', label="Normal State pressure")
+    #     plt.legend()
+        plt.subplot(323)  
+        plt.plot(rs_, n_p/k_F, label="Homogeneous")
+        plt.ylabel(r"$n_p/k_F$", fontsize=fontsize)
+        plt.legend()
+        plt.subplot(324)
+        plt.plot(rs_, n_m/k_F, label="Homogeneous")
+        plt.ylabel(r"$n_m/k_F$", fontsize=fontsize)#,plt.title("Density Difference")
+        plt.legend()
+        plt.subplot(325)
+        plt.plot(rs_, j_a, '-', label="Homogeneous")
+        plt.xlabel(f"r/dx", fontsize=fontsize), plt.ylabel(r"$j_a$", fontsize=fontsize)
+        plt.axhline(0, linestyle='dashed')
+        plt.legend()
+        plt.subplot(326)
+        plt.plot(rs_, -j_b, label="Homogeneous") # seems we have different sign
+        plt.axhline(0, linestyle='dashed')
+        plt.xlabel(f"r/dx", fontsize=fontsize), plt.ylabel(r"$j_b$", fontsize=fontsize)
+        plt.legend()
 
+
+# ### A Simple BCS Vortex
 
 mu = 10
 dmu=4.5
 delta = 7.5
-v0 = VortexState(mu=mu, dmu=dmu, delta=delta, Nxyz=(32, 32), Lxyz=(8,8))
-v0.solve(plot=True)
-plt.savefig("strongly_polarized_vortx_2d_bcs_plot.pdf", bbox_inches='tight')
+v_bcs = VortexState(mu=mu, dmu=dmu, delta=delta, Nxyz=(32, 32), Lxyz=(8,8))
+v_bcs.solve(plot=True)
+#plt.savefig("strongly_polarized_vortx_2d_bcs_plot.pdf", bbox_inches='tight')
+
+# ### A Vortex with BDG Functional
+
+k_c = v0.k_c
+E_c = k_c**2/2
+v_bdg = VortexFunctional(
+    functionalType=FunctionalType.BDG,
+    mu_eff=mu, dmu_eff=dmu, delta=delta,
+    Nxyz=(32, 32), Lxyz=(8,8), E_c=E_c)
+v_bdg.solve(plot=True)
+
+# ### A Vortex With ASLDA Functional
+
+v_aslda = VortexFunctional(
+    functionalType=FunctionalType.ASLDA,
+    mu_eff=mu, dmu_eff=dmu, delta=delta,
+    Nxyz=(32, 32), Lxyz=(8,8), E_c=E_c)
+v_aslda.solve(plot=True)
 
 res0=FFVortex(v0)
-
-plot_all(v0, res0)
-plt.savefig("strongly_polarized_vortx_2d_bcs_hom_plot.pdf", bbox_inches='tight')
 
 plot_all(v0, res0)
 

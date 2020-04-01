@@ -107,7 +107,7 @@ def get_analytic_e_n(mu, dmu, q=0, dq=0, dim=1):
 
         def g(e_F):
             return ((2.0*e_F)**1.5)/6.0/np.pi**2
-        
+
     kF_a, kF_b = np.sqrt(2.0*(mu+dmu)), np.sqrt(2.0*(mu-dmu))
     mu_a1, mu_b1, mu_a2, mu_b2 = (q+dq)**2/2.0, (q-dq)**2/2.0, (kF_a)**2/2.0, (kF_b)**2/2.0
     E_a, E_b = f(mu_a2) - f(mu_a1), f(mu_b2) - f(mu_b1)
@@ -146,11 +146,10 @@ def Thermodynamic(
 
     def get_ns(mu, dmu):
         return ff.get_densities(mu=mu, dmu=dmu, q=q, dq=dq)
-    
     na, nb = ff.get_densities(mu=mu, dmu=dmu, q=q, dq=dq)
     dn = (na - nb).n
     np0 = (na + nb).n
-    
+
     def f_ns_dmu(dx, n):
         def f(dmu_):
             na_, nb_ = ff.get_densities(mu=mu+dx, dmu=dmu_, q=q, dq=dq)
@@ -162,7 +161,7 @@ def Thermodynamic(
             elif n == 2:  # fix na
                 return (na - na_).n
             elif n == 3:  # fix n_+
-                np_=(na_ + nb_).n
+                np_ = (na_ + nb_).n
                 return np0 - np_
         try:
             return brentq(f, a*dmu, b*dmu)
@@ -182,7 +181,7 @@ def Thermodynamic(
                     continue
             warnings.warn(f"Can't find a solution in that region, use the default value={dmu}")
             return dmu  # when no solution is found
-    
+
     # Check the mu=dE/dn
     dmu1 = f_ns_dmu(dx, 0)
     dmu2 = f_ns_dmu(-dx, 0)
@@ -202,7 +201,7 @@ def Thermodynamic(
     assert np.allclose(n_a.n, n_a_.n)
     assert np.allclose(n_b.n, n_b_.n)
 
-   
+
 # @pytest.mark.skip(reason="pass")
 def test_efftive_mus():
     """Test a few values from Table I of Quick:1993."""
@@ -227,7 +226,6 @@ def test_efftive_mus():
 
         args = dict(mu_a=mu_eff, mu_b=mu_eff, delta=delta, m_a=m, m_b=m,
                     hbar=hbar, T=0.0)
-    
         n_p = tf.integrate(tf.n_p_integrand, dim=1, **args)
         nu = tf.integrate(tf.nu_integrand, dim=1, **args)
         v_0 = -delta/nu.n
@@ -391,8 +389,7 @@ def test_Thermodynamic_1d_fast(
     dmu = dmu_delta*delta
     q = q_dmu*mu
     dq = dq_dmu*mu
-    ff = FF(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, dim=1, fix_g=True,
-            bStateSentinel=True)
+    ff = FF(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, dim=1, fix_g=True)
     n_a, n_b, e, p, mus_eff = ff.get_ns_p_e_mus_1d(
         mu=mu, dmu=dmu, q=q, dq=dq, update_g=True)
 
