@@ -5,18 +5,56 @@ import glob
 import json
 import os
 import sys
-import operator
-import itertools
-from os.path import join
 import numpy as np
 from scipy.optimize import brentq
 from mmf_hfb.class_factory import FunctionalType, KernelType
-from mmf_hfb.class_factory import ClassFactory, Solvers
+from mmf_hfb.class_factory import ClassFactory
 from mmf_hfb.parallel_helper import PoolHelper
-
 currentdir = os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0, currentdir)
+from fulde_ferrell_state import FFState
+from fulde_ferrell_state_worker_thread import fulde_ferrell_state_solve_thread
+
+
+def FFVortex(mus=None, delta=None, L=8, N=32, R=None, k_c=None, N1=10, N2=10):
+    mu_a, mu_b = mus
+    mu, dmu = (mu_a + mu_b)/2, (mu_a - mu_b)/2
+    dx = L/N
+    if R is None:
+        R = L/2
+    k_F = np.sqrt(2*mu)
+    args = dict(mu=mu, dmu=0, delta=delta, dim=2, k_c=k_c)
+    f = FFState(fix_g=True, **args)
+    rs = np.linspace(0.0001, 1, N1)
+    rs = np.append(rs, np.linspace(1.01, R, N2))
+    paras = [(f, mu, dmu, delta, r) for r in rs]
+    ds = PoolHelper.run(fulde_ferrell_state_solve_thread, paras=paras)        
+    #ds = [f.solve(mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
+    for i in range(len(ds)):
+        ps = [f.get_pressure(
+            mu_eff=mu, dmu_eff=dmu, delta=d, dq=0.5/r,
+            use_kappa=False).n for r, d in zip(rs, ds)]
+        ps0 = [f.get_pressure(
+            mu_eff=mu, dmu_eff=dmu, delta=1e-8, q=0, dq=0,
+            use_kappa=False).n for r, d in zip(rs, ds)]
+    na = np.array([])
+    nb = np.array([])
+    for i in range(len(rs)):
+        na_, nb_ = f.get_densities(delta=ds[i], dq=0.5/rs[i], mu=mu, dmu=dmu)
+        na = np.append(na, na_.n)
+        nb = np.append(nb, nb_.n)  
+    n_p = na + nb  
+    n_m = na - nb
+    j_a = []
+    j_b = []   
+    js = [f.get_current(mu=mu, dmu=dmu, delta=d, dq=0.5/r) for r, d in zip(rs, ds)]
+    for j in js:
+        j_a.append(j[0].n)
+        j_b.append(j[1].n)
+    j_a, j_b = np.array(j_a), np.array(j_b)
+    j_p, j_m = -(j_a + j_b), j_a - j_b
+    return (rs/dx, ds, ps, ps0, n_p, n_m, j_a, j_b)
 
 
 class FFStateAgent(object):
@@ -65,7 +103,7 @@ class FFStateAgent(object):
                 if not np.allclose(abs(dmu), 0):
                     offset = min(abs(dq/dmu), 100)
                 ds = np.linspace(
-                    0.000001, max(a, b)*(2 + offset),
+                    0.01, max(a, b)*(2 + offset),
                     min(100, int((2 + offset)*10)))
 
                 assert len(ds) <= 100
@@ -104,12 +142,11 @@ class FFStateAgent(object):
         return delta
 
 
-def create_ff_vortex(
+def create_ffs_lda(
         mu, dmu, delta, k_c, dim=2,
         functionalType=FunctionalType.BDG, **args):
-    args = dict(
-        mu_eff=mu, dmu_eff=dmu, delta=delta,
-        T=0, dim=dim, k_c=k_c)
+    """return a FF state object"""
+    args = dict(mu_eff=mu, dmu_eff=dmu, delta=delta, T=0, dim=dim, k_c=k_c)
     lda = ClassFactory(
         "LDA", (FFStateAgent,),
         functionalType=functionalType,
@@ -118,15 +155,22 @@ def create_ff_vortex(
     return lda
 
 
-def FFVortex(mus=None, delta=None, k_c=None, N=None, L=None, N1=10):
+def FFVortexFunctional(
+        mus=None, delta=None, k_c=None, N=None, L=None, dim=2,
+        functionalType=FunctionalType.BDG, N1=10, N2=10):
+    """
+        A function to compute parameter for a vortex structure
+        NOTE: when dq( or 1/r) larger than k_c, that would be
+        problematic.
+    """
     mu_a, mu_b = mus
     mu, dmu = (mu_a + mu_b)/2, (mu_a - mu_b)/2
     dx = L/N
     R = L/2
-    args = dict(mu=mu, dmu=0, delta=delta, dim=2, k_c=k_c)
-    f = create_ff_vortex(**args)
-    rs = np.linspace(0.0001, 1, N1)
-    rs = np.append(rs, np.linspace(1.01, R, 10))
+    args = dict(mu=mu, dmu=0, delta=delta, dim=dim, k_c=k_c)
+    f = create_ffs_lda(functionalType=functionalType, **args)
+    rs = np.linspace(0.01, 1, N1)
+    rs = np.append(rs, np.linspace(1.01, R, N2))
     # paras = [(f, mu, dmu, delta, r) for r in rs]
     # ds = PoolHelper.run(fulde_ferrell_state_solve_thread, paras=paras)        
     ds = [f.solve(mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
@@ -134,22 +178,24 @@ def FFVortex(mus=None, delta=None, k_c=None, N=None, L=None, N1=10):
     for i in range(len(ds)):
         ps = [f.get_pressure(
             mu_eff=mu, dmu_eff=dmu, delta=d, dq=0.5/r,
-            use_kappa=False).n for r, d in zip(rs,ds)]
+            use_kappa=False) for r, d in zip(rs, ds)]
         ps0 = [f.get_pressure(
             mu_eff=mu, dmu_eff=dmu, delta=1e-8, q=0, dq=0,
-            use_kappa=False).n for r, d in zip(rs,ds)]
+            use_kappa=False) for r, d in zip(rs, ds)]
     na = np.array([])
     nb = np.array([])
     for i in range(len(rs)):
-        na_, nb_ = f.get_densities(delta=ds[i], dq=0.5/rs[i], mu=mu, dmu=dmu)
-        na = np.append(na, na_.n)
-        nb = np.append(nb, nb_.n)  
-    n_p = na + nb  
+        res = f.get_densities(
+            delta=ds[i], dq=0.5/rs[i], mus_eff=(mu + dmu, mu - dmu))
+        na = np.append(na, res.n_a)
+        nb = np.append(nb, res.n_b)
+    n_p = na + nb
     n_m = na - nb
     j_a = []
     j_b = []   
     js = [f.get_current(
-        mu=mu, dmu=dmu, delta=d, dq=0.5/r) for r, d in zip(rs, ds)]
+        mus_eff=(
+            mu + dmu, mu - dmu), delta=d, dq=0.5/r) for r, d in zip(rs, ds)]
     for j in js:
         j_a.append(j[0].n)
         j_b.append(j[1].n)
@@ -162,4 +208,4 @@ if __name__ == "__main__":
     dmu = 4.5
     delta = 7.5
     mus = (mu + dmu, mu - dmu)
-    FFVortex(mus=mus, delta=delta, k_c=14, L=8, N=32)
+    FFVortexFunctional(mus=mus, delta=delta, k_c=14, L=8, N=32)

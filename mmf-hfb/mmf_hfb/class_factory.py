@@ -82,8 +82,10 @@ class DefaultFunctionalAdapter(object):
         fix the C value using BDG integrand
         """
         mu_a, mu_b = mu + dmu, mu -dmu
-        args.update(m_a=self.m, m_b=self.m, T=self.T, dim=self.dim, k_c=self.k_c)
-        self.C = tf.compute_C(mu_a=mu_a, mu_b=mu_b, delta=delta, q=q, dq=dq, **args).n
+        args.update(
+            m_a=self.m, m_b=self.m, T=self.T, dim=self.dim, k_c=self.k_c)
+        self.C = tf.compute_C(
+            mu_a=mu_a, mu_b=mu_b, delta=delta, q=q, dq=dq, **args).n
     
     def get_mus_bare(self, mus_eff, delta, **args):
         """
@@ -98,7 +100,8 @@ class DefaultFunctionalAdapter(object):
         mu_a, mu_b = mu_a_eff + V_a, mu_b_eff + V_b
         return (mu_a, mu_b)
 
-    def get_mus_eff(self, mus, delta, dq=0, ns=None, taus=None, nu=None, verbosity=True):
+    def get_mus_eff(
+        self, mus, delta, dq=0, ns=None, taus=None, nu=None, verbosity=True):
         """
         return the effective mus
         ----------------
@@ -152,7 +155,8 @@ class DefaultFunctionalAdapter(object):
         """
         if mus_eff is None:
             mus_eff = self.get_mus_eff(
-                mus=mus, delta=delta, dq=dq, ns=ns, taus=taus, nu=nu, verbosity=verbosity)
+                mus=mus, delta=delta, dq=dq, ns=ns,
+                taus=taus, nu=nu, verbosity=verbosity)
         g = self._get_g(mus_eff=mus_eff, delta=delta, dq=dq)
         alpha_p = sum(self.get_alphas(ns))/2.0
         Lambda = self.get_Lambda(
@@ -192,12 +196,14 @@ class DefaultFunctionalAdapter(object):
 
         def _fun(x):
             mu_a_eff, mu_b_eff, delta=x
-            res = self.get_densities(mus_eff=(mu_a_eff, mu_b_eff), delta=delta, **args)
+            res = self.get_densities(
+                mus_eff=(mu_a_eff, mu_b_eff), delta=delta, **args)
             ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
             args.update(ns=ns)
             V_a, V_b = self.get_Vs(delta=delta, ns=ns, taus=taus, nu=nu)
             mu_a_eff_, mu_b_eff_ = mu_a - V_a, mu_b - V_b
-            g_eff = self.get_effective_g(mus_eff=(mu_a_eff_, mu_b_eff_), **args)
+            g_eff = self.get_effective_g(
+                mus_eff=(mu_a_eff_, mu_b_eff_), **args)
             delta_ = delta if fix_delta else g_eff*nu
             if verbosity:
                 self.output_res(mu_a_eff_, mu_b_eff_, delta_, g_eff, ns, taus, nu)
@@ -304,8 +310,10 @@ class DefaultFunctionalAdapter(object):
             solver=Solvers.BROYDEN1, **args):
         """return the pressure only"""
         if mus is None:
-            return self.get_ns_mus_e_p(mus_eff, delta, q=q, dq=dq, solver=solver, **args)[3]
-        return self.get_ns_e_p(mus=mus, delta=delta, q=q, dq=dq, solver=solver, **args)[2]
+            return self.get_ns_mus_e_p(
+                mus_eff, delta, q=q, dq=dq, solver=solver, **args)[3]
+        return self.get_ns_e_p(
+            mus=mus, delta=delta, q=q, dq=dq, solver=solver, **args)[2]
 
 
 def ClassFactory(

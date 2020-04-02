@@ -19,8 +19,10 @@ class FunctionalBdG(object):
             return 0
         n_a, n_b = ns
         n_p, n_m = n_a + n_b, n_a - n_b
-        p = n_m /n_p
-        return p
+        if np.size(n_p) == 1:
+            return n_m/n_p if n_p !=0 else 1
+        res = n_m/n_p
+        return np.where(res is np.nan, 1, res)
 
     def _dp_dn(self, ns):
         na, nb = ns

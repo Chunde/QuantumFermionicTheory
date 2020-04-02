@@ -283,6 +283,13 @@ class BCS(object):
            Pairing field (gap).
         twist : float
            Bloch phase.
+        ---------
+        NOTE: 
+            For ASLDA, the Vs term shouod not be None
+            and the mus_eff should be the bare mus
+            because Vs here is treated as potential term
+            that will be added to the bare mus to get
+            the effective mus.
         """
         zero = np.zeros_like(sum(self.xyz))
         Delta = np.diag((delta + zero).ravel())
