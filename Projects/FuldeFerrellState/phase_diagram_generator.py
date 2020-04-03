@@ -297,6 +297,8 @@ def search_states_worker(obj_mus_delta_dim_kc):
 
 def search_condidate_worker(obj_mus_delta_dim_kc):
     obj, mu_eff, dmu_eff, delta, dim, k_c = obj_mus_delta_dim_kc
+    if dmu_eff < 0 or mu_eff < 0 or delta < 0:
+        return []
     args = dict(
         mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
         T=0, dim=dim, k_c=k_c, verbosity=False)
@@ -332,6 +334,28 @@ class AutoPDG(object):
     def get_time_stamp(self):
         return time.strftime("%Y_%m_%d_%H_%M_%S")
 
+    def is_candidate(self, res):
+        n = len(res)
+        if n == 0:
+            return False
+        r = res[0]
+        flag = ((r[0] is not None) and (r[1] is not None))
+        if not flag:
+            return False
+        if n == 2:
+            r = res[1]
+            flag = ((r[0] is not None) and (r[1] is not None))
+            if not flag:
+                return False
+            r1, r2 = res
+            if min(r1[:2]) < min(r2[:2]):
+                return True
+        return False
+
+    def save_to_file(self, output, file):
+        with open(file, 'w') as wf:
+            json.dump(output, wf)
+
     def get_delta_q_file(self, delta, dmu):
         #  pid = os.getpid()
         ts = self.get_time_stamp()
@@ -349,8 +373,6 @@ class AutoPDG(object):
         return list(itertools.product(p1, p2))
 
     def search_delta_q_diagram(self, seed_delta, seed_dmu):
-
-        #  obj, mu_eff, dmu_eff, delta, dim, k_c
         dmus = self.offset_para(seed_dmu)
         deltas = self.offset_para(seed_delta)
         dmu_delta_ls = self.mix_para2(dmus, deltas)
@@ -399,14 +421,6 @@ class AutoPDG(object):
                 max_item = item
         print(normal_pressure, superfluid_pressure, max_item)
 
-    def search_next_step(self, dmu_deltas, delta_qs):
-        # press_ls = []
-        for id, dmu_delta in enumerate(dmu_deltas):
-            delta_q = delta_qs[id]
-            dmu, delta = dmu_delta
-            ps = self.compute_press(
-                dmu=dmu, delta=delta, delta_q=delta_q)
-
     def search_valid_conditate(self, seed_delta, seed_dmu):
         trail = 1
         trail_max = 10
@@ -422,7 +436,7 @@ class AutoPDG(object):
                 search_condidate_worker, paras, poolsize=self.poolSize)
 
             direction_flags = [self.is_candidate(re) for re in res]
-            if not any(np.array(direction_flags)):  # when not state is found
+            if not any(np.array(direction_flags)):  # when no state is found
                 # find the one with minimum change
                 index = -1
                 min_dq = np.inf
@@ -440,7 +454,7 @@ class AutoPDG(object):
                             min_dq = dq
                             index = id
                 if index == -1:  # the seed delta and dmu are not good
-                    return (False,)*len(res)
+                    return (dmu_delta_ls, direction_flags)
                 # the current point is the best, that need more check
                 if index == len(dmu_delta_ls)//2:
                     trail = trail + 1
@@ -449,29 +463,10 @@ class AutoPDG(object):
                 seed_dmu, seed_delta = dmu_delta_ls[index]
                 trail = 1  # reset the trail number for next step
                 continue
-            # return all candidate with flags indcating
             # if they are good start states
             print(dmu_delta_ls, direction_flags)
             return (dmu_delta_ls, direction_flags)
-        return (False,)*len(res)
-
-    def is_candidate(self, res):
-        n = len(res)
-        if n == 0:
-            return False
-        r = res[0]
-        flag = ((r[0] is not None) and (r[1] is not None))
-        if not flag:
-            return False
-        if n == 2:
-            r1, r2 = res
-            if min(r1[:2]) < min(r2[:2]):
-                return True
-        return False
-
-    def save_to_file(self, output, file):
-        with open(file, 'w') as wf:
-            json.dump(output, wf)
+        return (dmu_delta_ls, direction_flags)
 
     def scan_valid_parameter_space(self, dmu_delta_flags):
         """"
@@ -505,18 +500,13 @@ class AutoPDG(object):
                 seed_delta=seed_delta, seed_dmu=seed_dmu)
 
     def run(self, seed_delta, seed_dmu):
-        if False:
-            res = self.search_delta_q_diagram(
-                seed_delta=seed_delta, seed_dmu=seed_dmu)
-        else:
-            res = self.search_valid_conditate(
-                seed_delta=seed_delta, seed_dmu=seed_dmu)
-            self.scan_valid_parameter_space(res)
-
+        res = self.search_valid_conditate(
+            seed_delta=seed_delta, seed_dmu=seed_dmu)
+        self.scan_valid_parameter_space(res)
 
 if __name__ == "__main__":
     pdg = AutoPDG(
         functionalType=FunctionalType.BDG,
-        kernelType=KernelType.HOM, k_c=50, dim=3)
-    dmu, delta = 0.175, 0.25  # 0.175, 0.25
+        kernelType=KernelType.HOM, k_c=150, dim=2)
+    dmu, delta = 0.15, 0.25  # 0.175, 0.25
     pdg.run(seed_delta=delta, seed_dmu=dmu)
