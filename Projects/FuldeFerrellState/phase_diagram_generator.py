@@ -7,6 +7,7 @@ import os
 import sys
 import operator
 import itertools
+from collections import deque
 from os.path import join
 import numpy as np
 from scipy.optimize import brentq
@@ -314,10 +315,12 @@ class AutoPDG(object):
 
     def __init__(
             self, functionalType, kernelType, dim=2,
-            mu0=10, k_c=200, data_dir=None, poolSize=9):
+            mu0=10, k_c=200, data_dir=None, dx=0.005,
+            poolSize=9):
         self.mu_eff = mu0
         self.k_c = k_c
         self.dim = dim
+        self.dx = dx
         self.functionalType = functionalType
         self.kernelType = kernelType
         self.poolSize = poolSize
@@ -327,7 +330,7 @@ class AutoPDG(object):
                 os.path.abspath(inspect.getfile(inspect.currentframe())))
 
     def get_time_stamp(self):
-        return time.strftime("%Y_%m_%d_%H_%M_%S.json")
+        return time.strftime("%Y_%m_%d_%H_%M_%S")
 
     def get_delta_q_file(self, delta, dmu):
         #  pid = os.getpid()
@@ -338,9 +341,9 @@ class AutoPDG(object):
                 + f"_{self.mu_eff:.2f}_{dmu:.2f})" + ts)
         return fileName
 
-    def offset_para(self, p, dx=0.1, factor=1):
+    def offset_para(self, p, factor=1):
         offset = np.array([-1, 0, 1])
-        return dx*p*offset*factor + p
+        return self.dx*offset*factor + p
 
     def mix_para2(self, p1, p2):
         return list(itertools.product(p1, p2))
@@ -418,23 +421,7 @@ class AutoPDG(object):
             res = PoolHelper.run(
                 search_condidate_worker, paras, poolsize=self.poolSize)
 
-            direction_flags = []
-            for re in res:
-                n = len(re)
-                if n == 0:
-                    direction_flags.append(False)
-                    continue
-                r = re[0]
-                flag = ((r[0] is not None) and (r[1] is not None))
-                if not flag:
-                    direction_flags.append(False)
-                    continue
-                if n == 2:
-                    r1, r2 = re
-                    if min(r1[:2]) < min(r2[:2]):
-                        direction_flags.append(True)
-                        continue
-                direction_flags.append(False)
+            direction_flags = [self.is_candidate(re) for re in res]
             if not any(np.array(direction_flags)):  # when not state is found
                 # find the one with minimum change
                 index = -1
@@ -453,8 +440,7 @@ class AutoPDG(object):
                             min_dq = dq
                             index = id
                 if index == -1:  # the seed delta and dmu are not good
-                    raise ValueError(
-                        f"The seed delta {seed_delta} and dmu {seed_dmu} are not good")
+                    return (False,)*len(res)
                 # the current point is the best, that need more check
                 if index == len(dmu_delta_ls)//2:
                     trail = trail + 1
@@ -467,29 +453,70 @@ class AutoPDG(object):
             # if they are good start states
             print(dmu_delta_ls, direction_flags)
             return (dmu_delta_ls, direction_flags)
-        raise ValueError(
-            f"The seed delta {seed_delta} and dmu {seed_dmu} are not good")
+        return (False,)*len(res)
+
+    def is_candidate(self, res):
+        n = len(res)
+        if n == 0:
+            return False
+        r = res[0]
+        flag = ((r[0] is not None) and (r[1] is not None))
+        if not flag:
+            return False
+        if n == 2:
+            r1, r2 = res
+            if min(r1[:2]) < min(r2[:2]):
+                return True
+        return False
+
+    def save_to_file(self, output, file):
+        with open(file, 'w') as wf:
+            json.dump(output, wf)
+
+    def scan_valid_parameter_space(self, dmu_delta_flags):
+        """"
+        start with a valid candidate point, search the entire region
+        """
+        output_file = f"valid_region_{self.get_time_stamp()}.json"
+        dmu_deltas, flags = dmu_delta_flags
+        output = []
+        valid_point_queue = deque()
+
+        def good_point(dmu_delta):
+            for (dmu_, delta_) in valid_point_queue:
+                dis = ((dmu - dmu_)**2 + (delta - delta_)**2)**0.5
+                if dis < self.dx:
+                    return False
+            return True
+
+        while(True):  # first go to left
+            for index, flag in enumerate(flags):
+                if flag:
+                    output.append(dmu_deltas[index])
+            flags[len(flags)//2] = False
+            for index, flag in enumerate(flags):
+                if flag and good_point(dmu_deltas[index]):
+                    valid_point_queue.append(dmu_deltas[index])
+            self.save_to_file(output=output, file=output_file)
+            if len(valid_point_queue) == 0:
+                break
+            seed_dmu, seed_delta = valid_point_queue.popleft()
+            dmu_delta_flags = self.search_valid_conditate(
+                seed_delta=seed_delta, seed_dmu=seed_dmu)
 
     def run(self, seed_delta, seed_dmu):
-        # First step: Find the delta-q diagram
         if False:
-            delta_q_res = self.search_delta_q_diagram(
+            res = self.search_delta_q_diagram(
                 seed_delta=seed_delta, seed_dmu=seed_dmu)
         else:
-            delta_q_res = self.search_valid_conditate(
+            res = self.search_valid_conditate(
                 seed_delta=seed_delta, seed_dmu=seed_dmu)
-        dmu_deltas, delta_qs = delta_q_res
-        # self.search_next_step(dmu_deltas, delta_qs)
-        # with open('debug.json', 'w') as wf:
-        #     json.dump(delta_q_res, wf)
-        # print(delta_q_res)
+            self.scan_valid_parameter_space(res)
 
 
 if __name__ == "__main__":
     pdg = AutoPDG(
         functionalType=FunctionalType.BDG,
         kernelType=KernelType.HOM, k_c=50, dim=3)
-    # pdg.run(seed_delta=0.25, seed_dmu=0.135)
-     
-    dmu, delta = 0.175, 0.35  # 0.175, 0.25
+    dmu, delta = 0.175, 0.25  # 0.175, 0.25
     pdg.run(seed_delta=delta, seed_dmu=dmu)
