@@ -36,7 +36,7 @@ currentdir = os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0, join(currentdir, '..','Projects','FuldeFerrellState'))
 from fulde_ferrell_state_finder import FFStateFinder
-from fulde_ferrell_state_functional import FFVortex, FFVortexFunctional
+from fulde_ferrell_state_vortex import FFVortex, FFVortexFunctional
 import warnings
 warnings.filterwarnings("ignore")
 fontsize = 18
@@ -361,22 +361,23 @@ v_aslda.solve(plot=True)
 mu, dmu = 10, 4.5
 mus, delta, L, N, R, k_c =(mu + dmu, mu - dmu), 7.5, 8, 32, 4, 50
 
-# mus=v.mus
-# delta=v.delta
-# L=v.Lxyz[0]
-# N=v.Nxyz[0]
-# R=v.R
-# k_c=v.k_c
+v = v_bcs
+mus=v.mus
+delta=v.delta
+L=v.Lxyz[0]
+N=v.Nxyz[0]
+R=v.R
+k_c=v.k_c
 res_bcs=FFVortex(mus=mus, delta=delta, L=L, N=N, R=R, k_c=k_c, N1=5, N2=2)
 
 plt.figure(figsize=(16,8))
 plot_all([v_bcs, v_bdg, v_aslda], [res_bcs])
 
 v = v_bcs
-res_bdg=FFVortexFunctional(mus=v.mus, delta=v.delta, L=v.Lxyz[0], N=v.Nxyz[0])
+res_bdg=FFVortexFunctional(mus=v.mus, delta=v.delta, L=v.Lxyz[0], N=v.Nxyz[0], N1=5, N2=5)
 
 # v = v_bcs
-res_aslda=FFVortexFunctional(mus=mus, delta=delta, L=L, N=N, functionalType=FunctionalType.ASLDA, N1=5, N2=5, dim=3)
+res_aslda=FFVortexFunctional(mus=mus, delta=delta, L=L, N=N, functionalType=FunctionalType.ASLDA, N1=5, N2=5, dim=2)
 
 plt.figure(figsize=(16,8))
 plot_all(vs=[v_bcs],hs=[res_bcs, res_aslda])
@@ -512,6 +513,5 @@ mu=5
 delta = 1.16220056179 * mu
 dmu=0.25 * delta
 HomogeneousVortx(mu=mu, dmu=dmu, delta=delta)
-
 
 

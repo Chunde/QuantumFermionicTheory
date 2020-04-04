@@ -11,7 +11,8 @@ import scipy as sp
 from uncertainties import ufloat
 
 __all__ = ['quad', 'dquad', 'quad_k', 'quad_l']
-
+# from scipy.integrate import IntegrationWarning
+# warnings.simplefilter('error', IntegrationWarning)
 
 _QUAD_ARGS = dict(
     epsabs=1.49e-08,

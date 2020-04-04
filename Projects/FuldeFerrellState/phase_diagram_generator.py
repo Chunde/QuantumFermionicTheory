@@ -1,24 +1,23 @@
 
 import inspect
 import time
-import glob
 import json
 import os
 import sys
-import operator
-import itertools
 from collections import deque
 from os.path import join
 import numpy as np
+import itertools
 from scipy.optimize import brentq
 from mmf_hfb.class_factory import FunctionalType, KernelType
 from mmf_hfb.class_factory import ClassFactory, Solvers
 from mmf_hfb.parallel_helper import PoolHelper
-
+from mmf_hfb import tf_completion as tf
 currentdir = os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0, currentdir)
 from data_helper import ff_state_sort_data
+tf.MAX_DIVISION = 150
 
 
 class FFStateAgent(object):
@@ -29,7 +28,6 @@ class FFStateAgent(object):
     def __init__(
             self, mu_eff, dmu_eff, delta, dim, verbosity=True,
             prefix="FFState_", timeStamp=True, **args):
-        # assert dmu_eff < delta
         self.delta = delta
         self.mu_eff = mu_eff
         self.dmu_eff = dmu_eff
@@ -59,7 +57,7 @@ class FFStateAgent(object):
             mus=mus, delta=0, verbosity=False, solver=Solvers.BROYDEN1)
         return (P_ss[2], P_ns[2])
 
-    def SaveToFile(self, data, extra_items=None):
+    def save_to_file(self, data, extra_items=None):
         """
         Save states to persistent storage
         Note: extra_item should be a dict object
@@ -82,7 +80,7 @@ class FFStateAgent(object):
         with open(file, 'w') as wf:
             json.dump(output, wf)
 
-    def SearchFFStates(
+    def search_fulde_ferrel_states(
             self, delta, mu_eff, dmu_eff,
             guess_lower=None, guess_upper=None, q_lower=0, q_upper=0.04,
             q_N=10, dx=0.0005, rtol=1e-8, raiseExcpetion=True):
@@ -153,7 +151,7 @@ class FFStateAgent(object):
         if self.verbosity:
             print(str)
 
-    def Search(
+    def search(
             self, delta_N, mu_eff=None, dmu_eff=None, delta=None,
             delta_lower=0.001, delta_upper=1, q_lower=0, q_upper=0.2,
             q_N=40, auto_incremental=False, auto_save=True):
@@ -195,7 +193,7 @@ class FFStateAgent(object):
         def do_search(delta):
             nonlocal lg
             nonlocal ug
-            ret = self.SearchFFStates(
+            ret = self.search_fulde_ferrel_states(
                 mu_eff=mu_eff, dmu_eff=dmu_eff,
                 delta=delta, guess_lower=lg, guess_upper=ug,
                 q_lower=q_lower, q_upper=q_upper, q_N=q_N, dx=dx)
@@ -231,7 +229,7 @@ class FFStateAgent(object):
                         for t in trails:
                             dx = dx0*t
                             print(f"dx={dx}")
-                            ret0 = self.SearchFFStates(
+                            ret0 = self.search_fulde_ferrel_states(
                                 mu_eff=mu_eff, dmu_eff=dmu_eff,
                                 delta=delta_, guess_lower=lg, guess_upper=ug,
                                 q_lower=q_lower, q_upper=q_upper,
@@ -264,7 +262,7 @@ class FFStateAgent(object):
                         continue
                 # add a pending flag indicating state searching is going on
                 if auto_save:
-                    self.SaveToFile(rets, extra_items={"pending": 0})
+                    self.save_to_file(rets, extra_items={"pending": 0})
             if auto_incremental:
                 print("Append 20 more search points")
                 deltas = np.linspace(1, 20, 20)*incremental_step + deltas[-1]
@@ -273,7 +271,7 @@ class FFStateAgent(object):
         self.print("Search Done")
         rets = ff_state_sort_data(rets)
         if auto_save:
-            self.SaveToFile(rets)
+            self.save_to_file(rets)
         return rets
 
 
@@ -286,11 +284,11 @@ def search_states_worker(obj_mus_delta_dim_kc):
         "LDA", (FFStateAgent,),
         functionalType=obj.functionalType,
         kernelType=obj.kernelType, args=args)
-    # return lda.Search(
+    # return lda.search(
     #     delta_N=50, delta_lower=0.01, delta_upper=0.062,
     #     q_lower=0, q_upper=dmu_eff, q_N=10, auto_incremental=False)
 
-    return lda.Search(
+    return lda.search(
         delta_N=50, delta_lower=0.0001, delta_upper=delta,
         q_lower=0, q_upper=dmu_eff, q_N=10, auto_incremental=False)
 
@@ -307,7 +305,7 @@ def search_condidate_worker(obj_mus_delta_dim_kc):
         functionalType=obj.functionalType,
         kernelType=obj.kernelType, args=args)
 
-    return lda.Search(
+    return lda.search(
         delta_N=2, delta_lower=0.0001, delta_upper=0.01,
         q_lower=0, q_upper=dmu_eff, q_N=10,
         auto_incremental=False, auto_save=False)
@@ -317,7 +315,7 @@ class AutoPDG(object):
 
     def __init__(
             self, functionalType, kernelType, dim=2,
-            mu0=10, k_c=200, data_dir=None, dx=0.005,
+            mu0=10, k_c=200, data_dir=None, dx=0.05,
             poolSize=9):
         self.mu_eff = mu0
         self.k_c = k_c
@@ -327,14 +325,20 @@ class AutoPDG(object):
         self.kernelType = kernelType
         self.poolSize = poolSize
         self.timeStamp = self.get_time_stamp()
+        self.condidate_trace = []
         if data_dir is None:
             data_dir = os.path.dirname(
-                os.path.abspath(inspect.getfile(inspect.currentframe())))
+                os.path.abspath(inspect.getfile(
+                    inspect.currentframe())))
 
     def get_time_stamp(self):
+        """return a time stamp in file naming format"""
         return time.strftime("%Y_%m_%d_%H_%M_%S")
 
     def is_candidate(self, res):
+        """
+        check if a pair of (dmu, and delta) is good candidate
+        """
         n = len(res)
         if n == 0:
             return False
@@ -356,6 +360,38 @@ class AutoPDG(object):
         with open(file, 'w') as wf:
             json.dump(output, wf)
 
+    def compute_press(self, dmu, delta, delta_q):
+        mu_eff, dmu_eff = self.mu_eff, dmu
+        mus_eff = (self.mu_eff + dmu, self.mu_eff - dmu)
+        args = dict(
+                mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
+                T=0, dim=self.dim, k_c=self.k_c, verbosity=False)
+        lda = ClassFactory(
+                "LDA", (FFStateAgent,),
+                functionalType=self.functionalType,
+                kernelType=self.kernelType, args=args)
+        lda.C = lda._get_C(mus_eff=mus_eff, delta=delta)
+        normal_pressure = lda.get_ns_mus_e_p(
+            mus_eff=mus_eff, delta=0)[3]
+        superfluid_pressure = lda.get_ns_mus_e_p(
+            mus_eff=mus_eff, delta=delta)[3]
+        temp_data = []
+        for (dq1, dq2, delta) in delta_q:
+            if dq1 is not None:
+                p1 = lda.get_ns_mus_e_p(
+                    mus_eff=mus_eff, delta=delta, dq=dq1)[3]
+                temp_data.append((delta, dq1, p1))
+            if dq2 is not None:
+                p2 = lda.get_ns_mus_e_p(
+                    mus_eff=mus_eff, delta=delta, dq=dq2)[3]
+                temp_data.append((delta, dq2, p2))
+        max_item = (0, 0, 0)
+        for item in temp_data:
+            delta, dq, pressure = item
+            if pressure > max_item[2]:
+                max_item = item
+        print(normal_pressure, superfluid_pressure, max_item)
+
     def get_delta_q_file(self, delta, dmu):
         #  pid = os.getpid()
         ts = self.get_time_stamp()
@@ -365,8 +401,13 @@ class AutoPDG(object):
                 + f"_{self.mu_eff:.2f}_{dmu:.2f})" + ts)
         return fileName
 
-    def offset_para(self, p, factor=1):
+    def offset_para(self, p, factor=1, prop=False):
+        """
+        prop: specify if the offset is in proportion to p
+        """
         offset = np.array([-1, 0, 1])
+        if prop:
+            return self.dx*p*offset*factor + p
         return self.dx*offset*factor + p
 
     def mix_para2(self, p1, p2):
@@ -388,46 +429,27 @@ class AutoPDG(object):
             search_states_worker, paras, poolsize=self.poolSize)
         return (dmu_delta_ls, res)
 
-    def compute_press(self, dmu, delta, delta_q):
-        mu_eff, dmu_eff = self.mu_eff, dmu
-        mus_eff = (self.mu_eff + dmu, self.mu_eff - dmu)
-        args = dict(
-                mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
-                T=0, dim=self.dim, k_c=self.k_c, verbosity=False)
-        lda = ClassFactory(
-                "LDA", (FFStateAgent,),
-                functionalType=self.functionalType,
-                kernelType=self.kernelType, args=args)
-        lda.C = lda._get_C(mus_eff=mus_eff, delta=delta)
-        normal_pressure = lda.get_ns_mus_e_p(
-            mus_eff=mus_eff, delta=0)[3]
-        superfluid_pressure = lda.get_ns_mus_e_p(
-            mus_eff=mus_eff, delta=delta)[3]
-        temp_data = []
-        ffs_pressures = []
-        for (dq1, dq2, delta) in delta_q:
-            if dq1 is not None:
-                p1 = lda.get_ns_mus_e_p(
-                    mus_eff=mus_eff, delta=delta, dq=dq1)[3]
-                temp_data.append((delta, dq1, p1))
-            if dq2 is not None:
-                p2 = lda.get_ns_mus_e_p(
-                    mus_eff=mus_eff, delta=delta, dq=dq2)[3]
-                temp_data.append((delta, dq2, p2))
-        max_item = (0, 0, 0)
-        for item in temp_data:
-            delta, dq, pressure = item
-            if pressure > max_item[2]:
-                max_item = item
-        print(normal_pressure, superfluid_pressure, max_item)
+    def is_good_candidate(self, dmu_delta, trace_list,  dx=None):
+        dmu, delta = dmu_delta
+        if dmu <= 0 or delta <= 0:
+            return False
+        if dx is None:
+            dx = self.dx
+        if trace_list is None:
+            trace_list = self.condidate_trace
+        for (dmu_, delta_) in trace_list:
+            dis = ((dmu - dmu_)**2 + (delta - delta_)**2)**0.5
+            if dis < dx:
+                return False
+            return True
 
     def search_valid_conditate(self, seed_delta, seed_dmu):
         trail = 1
         trail_max = 10
         while(trail < trail_max):
             print(f"#{trail} Delta={seed_delta}, dmu={seed_dmu}")
-            dmus = self.offset_para(seed_dmu, factor=trail)
-            deltas = self.offset_para(seed_delta, factor=trail)
+            dmus = self.offset_para(seed_dmu, factor=trail, prop=True)
+            deltas = self.offset_para(seed_delta, factor=trail, prop=True)
             dmu_delta_ls = self.mix_para2(dmus, deltas)
             paras = [(
                 self, self.mu_eff, dmu,
@@ -436,6 +458,15 @@ class AutoPDG(object):
                 search_condidate_worker, paras, poolsize=self.poolSize)
 
             direction_flags = [self.is_candidate(re) for re in res]
+            # filter out points inside the region being searched
+            for (index, dmu_delta) in enumerate(dmu_delta_ls):
+                if not direction_flags[index]:
+                    continue
+                if self.is_good_candidate(
+                        dmu_delta=dmu_delta, trace_list=self.condidate_trace):
+                    continue
+                direction_flags[index] = False
+
             if not any(np.array(direction_flags)):  # when no state is found
                 # find the one with minimum change
                 index = -1
@@ -477,20 +508,15 @@ class AutoPDG(object):
         output = []
         valid_point_queue = deque()
 
-        def good_point(dmu_delta):
-            for (dmu_, delta_) in valid_point_queue:
-                dis = ((dmu - dmu_)**2 + (delta - delta_)**2)**0.5
-                if dis < self.dx:
-                    return False
-            return True
-
-        while(True):  # first go to left
+        while(True):
             for index, flag in enumerate(flags):
                 if flag:
                     output.append(dmu_deltas[index])
             flags[len(flags)//2] = False
             for index, flag in enumerate(flags):
-                if flag and good_point(dmu_deltas[index]):
+                if flag and self.is_good_candidate(
+                        dmu_delta=dmu_deltas[index],
+                        trace_list=valid_point_queue):
                     valid_point_queue.append(dmu_deltas[index])
             self.save_to_file(output=output, file=output_file)
             if len(valid_point_queue) == 0:
@@ -500,9 +526,11 @@ class AutoPDG(object):
                 seed_delta=seed_delta, seed_dmu=seed_dmu)
 
     def run(self, seed_delta, seed_dmu):
+        self.condidate_trace = []
         res = self.search_valid_conditate(
             seed_delta=seed_delta, seed_dmu=seed_dmu)
         self.scan_valid_parameter_space(res)
+
 
 if __name__ == "__main__":
     pdg = AutoPDG(
