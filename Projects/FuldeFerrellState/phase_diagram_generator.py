@@ -81,7 +81,7 @@ class FFStateAgent(object):
         with open(file, 'w') as wf:
             json.dump(output, wf)
 
-    def search_fulde_ferrel_states(
+    def search_states(
             self, delta, mu_eff, dmu_eff,
             guess_lower=None, guess_upper=None, q_lower=0, q_upper=0.04,
             q_N=10, dx=0.0005, rtol=1e-8, raiseExcpetion=True):
@@ -277,14 +277,14 @@ class FFStateAgent(object):
             dmu_eff = self.dmu_eff
         self.C = self._get_C(mus_eff=(mu_eff, mu_eff), delta=delta)
         if flip_order and (abs(delta_upper - delta) < abs(delta - delta_lower)):
-            print("search order flipped...")
+            self.print("search order flipped...")
             deltas = deltas[::-1]  #
         lg, ug = None, None
 
         def do_search(delta):
             nonlocal lg
             nonlocal ug
-            ret = self.search_fulde_ferrel_states(
+            ret = self.search_states(
                 mu_eff=mu_eff, dmu_eff=dmu_eff,
                 delta=delta, guess_lower=lg, guess_upper=ug,
                 q_lower=q_lower, q_upper=q_upper, q_N=q_N, dx=dx)
@@ -319,8 +319,8 @@ class FFStateAgent(object):
                         ret = [None, None]
                         for t in trails:
                             dx = dx0*t
-                            print(f"dx={dx}")
-                            ret0 = self.search_fulde_ferrel_states(
+                            self.print(f"dx={dx}")
+                            ret0 = self.search_states(
                                 mu_eff=mu_eff, dmu_eff=dmu_eff,
                                 delta=delta_, guess_lower=lg, guess_upper=ug,
                                 q_lower=q_lower, q_upper=q_upper,
@@ -377,67 +377,103 @@ class FFStateAgent(object):
         M = np.array([[d1**2, d1, 1], [d2**2, d2, 1], [d3**2, d3, 1]])
         y1 = np.array([q1, q2, q3])
         y2 = np.array([q1_, q2_, q3_])
-        x1 = np.linalg.solve(M, y1)
-        x2 = np.linalg.solve(M, y2)
-        a, b, c = x2 - x1
-        delta_p = (-b + (b**2 - 4*a*c)**0.5)/2.0/a
-        delta_m = (-b - (b**2 - 4*a*c)**0.5)/2.0/a
-        return (delta_p, delta_m)
+        try:
+            x1 = np.linalg.solve(M, y1)
+            x2 = np.linalg.solve(M, y2)
+            a, b, c = x2 - x1
+            delta_p = (-b + (b**2 - 4*a*c)**0.5)/2.0/a
+            delta_m = (-b - (b**2 - 4*a*c)**0.5)/2.0/a
+        except ValueError:
+            return None
+        d4 = max(delta_p, delta_m)
+        q4 = x1.dot([d4**2, d4, 1])
+        return (d4, q4)  # common point
 
     def smart_search(
             self, mu_eff=None, dmu_eff=None, delta=None,
-            q_lower=0, q_upper=0.2, q_N=40,
+            q_lower=0, q_upper=0.2, q_N=40, max_points=100,
             auto_save=True, **args):
         delta = self.delta if delta is None else delta
         mu_eff = self.mu_eff if mu_eff is None else mu_eff
         dmu_eff = self.dmu_eff if dmu_eff is None else dmu_eff
         self.C = self._get_C(mus_eff=(mu_eff, mu_eff), delta=delta)
 
-        def do_search(delta, qa=None, qb=None):
+        def do_search(delta, qa=None, qb=None, qu=None, ql=None):
+            if qu is None:
+                qu = q_upper
+            if qb is None:
+                ql = q_lower
             try:
                 ret = self.smart_search_states(
                     mu_eff=mu_eff, dmu_eff=dmu_eff,
                     delta=delta, guess_lower=qa, guess_upper=qb,
-                    q_lower=q_lower, q_upper=q_upper, q_N=q_N)
+                    q_lower=ql, q_upper=qu, q_N=q_N)
                 return ret
             except ValueError:
                 return [None, None]
 
+        def zoom_search(depth=5):
+            pass 
+
         delta0, N_delta = 0.001, 5
-        left_delta, right_delta = delta0, delta
-        deltas = np.linspace(left_delta, right_delta, N_delta)
+        deltas = np.linspace(delta0, delta, N_delta)
         rets = []
         last_good_delta = delta0
         last_bad_delta = delta
-        qa, qb = None, None
-        tol = 0.01
-        while(True):
+        qa, qb, qu, ql, last_common_q = None, None, None, None, None
+        tol_y = 0.01
+        tol_x = 1e-6
+        done = False
+        while(not done):
             for delta in deltas:
-                ret = do_search(delta=delta, qa=qa, qb=qb)
+                ret = do_search(delta=delta, qa=qa, qb=qb, qu=qu, ql=ql)
                 qa, qb = ret
                 if not (qa is None or qb is None):
                     rets.append((qa, qb, delta))
+                    if len(rets) > max_points:
+                        done = True
+                        break
+                    if len(rets) > 2:
+                        _, _, d1 = rets[-1]
+                        _, _, d2 = rets[-2]
+                        if abs((d1 - d2)/(d1 + d2)) < tol_x:
+                            print("Reach delta limit")
+                            done = True
+                            break
                     last_good_delta = delta
                     if auto_save:
-                        print(rets[-1])
+                        print(f"Added {len(rets)} :{rets[-1]}")
                         self.save_to_file(rets)
                 else:
                     deltas = [(last_good_delta + delta)/2]
-                    last_bad_delta = delta
+                    last_bad_delta, last_common_q = delta, None
                     qa, qb, _ = rets[-1]
                     break
+
                 if delta == deltas[-1]:
                     qa_, qb_, _ = rets[0]
-                    if (abs(qa - qb) > abs(qa_ - qb_)*tol):
-                        print(abs(qa - qb),  abs(qa_ - qb_)*tol)
-                        if (delta - last_bad_delta)/last_bad_delta < tol:
-                            print(f"Check bad delta:{last_bad_delta}")
-                            deltas = [last_bad_delta]
-                            delta_pm = self.predict_final_delta(rets)
-                            if delta_pm is None:
-                                last_bad_delta = last_bad_delta*(1 + 5*tol)
+                    if (abs(qa - qb) > abs(qa_ - qb_)*tol_y):
+                        print(f"Acc:{abs(qa - qb)},{abs(qa_ - qb_)*tol_y}")
+                        if abs(delta - last_bad_delta)/last_bad_delta < tol_y:
+                            if last_common_q is not None:
+                                print(f"Test predicted delta:{last_bad_delta}")
+                                q1, q2, last_good_dalta = rets[-1]
+                                # slightly shift the predicted value to the
+                                # good delta to increase the chance to find new
+                                # solutions
+                                deltas = [(
+                                    0.1*last_good_dalta + 0.9*last_bad_delta)]
+                                qu, ql = max(q1, q2), min(q1, q2)
+                                qa, qb = None, None  # because we want to scan
                             else:
-                                last_bad_delta = max(delta_pm)
+                                print(f"Test bad delta:{last_bad_delta}")
+                                deltas = [last_bad_delta]
+                            delta_qs = self.predict_final_delta(rets)
+                            if delta_qs is None:
+                                last_bad_delta = last_bad_delta*(1 + 5*tol_y)
+                            else:
+                                last_bad_delta, last_common_q = delta_qs
+                                print(f"Predicted final point{delta_qs}")
                         else:
                             deltas = [(last_bad_delta + delta)/2]
                     else:
@@ -466,7 +502,7 @@ def search_delta_q_worker(para):
         auto_incremental=False, flip_order=True)
 
 
-def search_states_worker(obj_mus_delta_dim_kc):
+def smart_search_states_worker(obj_mus_delta_dim_kc):
     obj, mu_eff, dmu_eff, delta, dim, k_c = obj_mus_delta_dim_kc
     args = dict(
         mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
@@ -616,7 +652,7 @@ class AutoPDG(object):
             delta, self.dim, self.k_c) for (dmu, delta) in dmu_delta_ls]
         paras = [(self, self.mu_eff, seed_dmu, seed_delta, self.dim, self.k_c)]
         res = PoolHelper.run(
-            search_states_worker, paras, poolsize=self.poolSize)
+            smart_search_states_worker, paras, poolsize=self.poolSize)
         return (dmu_delta_ls, res)
 
     def is_good_candidate(self, dmu_delta, trace_list,  dx=None):
@@ -735,6 +771,6 @@ if __name__ == "__main__":
     pdg = AutoPDG(
         functionalType=FunctionalType.BDG,
         kernelType=KernelType.HOM, k_c=150, dim=2)
-    dmu, delta = 0.446, 0.5  # 0.175, 0.25
+    dmu, delta = 0.446, 0.5  # 0.175, 0.25 # for 3D
     pdg.search_delta_q_diagram(seed_delta=delta, seed_dmu=dmu)
     # pdg.run(seed_delta=delta, seed_dmu=dmu)
