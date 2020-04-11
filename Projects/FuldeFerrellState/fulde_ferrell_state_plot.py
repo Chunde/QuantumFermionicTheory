@@ -30,7 +30,7 @@ currentdir = os.path.dirname(
                 inspect.getfile(inspect.currentframe())))
 sys.path.insert(0, join(
     currentdir, '..','Projects', 'fulde_ferrell_state'))
-from FFStateAgent import label_states
+from fulde_ferrell_state_agent import label_states
 
 warnings.filterwarnings("ignore")
 

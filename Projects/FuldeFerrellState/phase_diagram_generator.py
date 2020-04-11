@@ -7,6 +7,7 @@ import sys
 from collections import deque
 from os.path import join
 import numpy as np
+
 import itertools
 from scipy.optimize import brentq
 from mmf_hfb.class_factory import FunctionalType, KernelType
@@ -117,6 +118,8 @@ class FFStateAgent(object):
                 if g0*gs[i] < 0:
                     rets.append(refine(dqs[i0], dqs[i], dqs[i0]))
                 g0, i0 = gs[i], i
+                if len(rets) == 2:  # two solutions at max
+                    break
         else:
             bExcept = False
             if guess_lower is not None:
@@ -146,6 +149,93 @@ class FFStateAgent(object):
             rets.append(None)
         return rets
 
+    def smart_search_states(
+            self, delta, mu_eff, dmu_eff, dxs=None,
+            guess_lower=None, guess_upper=None, q_lower=0, q_upper=0.04,
+            q_N=10, rtol=1e-8, raiseExcpetion=True):
+        """
+        Paras:
+        -------------
+        delta: a fixed delta value for which one or two q values
+            will be found to satisfy the gap equation.
+        guess_lower{upper}  : the lower{upper} boundary guess for
+            the solution to q.
+        q_lower{upper}  : the lower{upper} boundary to redo search
+            if not solution is found for given guessed boundary.
+        """
+
+        def f(dq):
+            return self._get_C(
+                mus_eff=(mu_eff + dmu_eff, mu_eff - dmu_eff),
+                delta=delta, dq=dq) - self.C
+
+        def refine(a, b, v):
+            return brentq(f, a, b)
+
+        def check_sign_flip(ls):
+            sign_flip_num = 0
+            if len(ls) > 2:
+                for i in range(1, len(ls)):
+                    if ls[i]*ls[i-1] < 0:
+                        sign_flip_num = sign_flip_num + 1
+                        if sign_flip_num == 2:
+                            return True
+            return False
+
+        rets = []
+        if guess_lower is None and guess_upper is None:
+            dqs = np.linspace(q_lower, q_upper, q_N)
+            gs = []
+            for dq in dqs:
+                gs.append(f(dq))
+                if check_sign_flip(gs):
+                    break
+            g0, i0 = gs[0], 0
+            if np.allclose(gs[0], 0, rtol=rtol):
+                rets.append(gs[0])
+                g0, i0 = gs[1], 1
+            for i in range(len(rets), len(gs)):
+                if g0*gs[i] < 0:
+                    rets.append(refine(dqs[i0], dqs[i], dqs[i0]))
+                g0, i0 = gs[i], i
+                if len(rets) == 2:  # two solutions at max
+                    break
+        else:
+            bExcept = False
+            if dxs is None:
+                dxs = np.array(
+                    [1, 2, 4, 0.01, 0.25, 0.5, 8, 16, 0])*0.001
+            if guess_lower is not None:
+                try:
+                    for dx in dxs:
+                        ret1 = brentq(
+                            f, max(0, guess_lower - dx), guess_lower + dx)
+                        rets.append(ret1)
+                        break
+                except ValueError:
+                    bExcept = True
+                    rets.append(None)
+            else:
+                rets.append(None)
+            if guess_upper is not None:
+                try:
+                    for dx in dxs:
+                        ret2 = brentq(
+                            f, max(0, guess_upper - dx), guess_upper + dx)
+                        rets.append(ret2)
+                        break
+                except ValueError:
+                    bExcept = True
+                    rets.append(None)
+            else:
+                rets.append(None)
+            if bExcept and raiseExcpetion:
+                raise ValueError('No solution found.')
+
+        for _ in range(2-len(rets)):
+            rets.append(None)
+        return rets
+
     def print(self, str):
         """to support verbosity control level"""
         if self.verbosity:
@@ -154,7 +244,7 @@ class FFStateAgent(object):
     def search(
             self, delta_N, mu_eff=None, dmu_eff=None, delta=None,
             delta_lower=0.001, delta_upper=1, q_lower=0, q_upper=0.2,
-            q_N=40, auto_incremental=False, auto_save=True):
+            q_N=40, auto_incremental=False, auto_save=True, flip_order=False):
         """
         Search possible states in ranges of delta and q
         Paras:
@@ -186,8 +276,9 @@ class FFStateAgent(object):
         if dmu_eff is None:
             dmu_eff = self.dmu_eff
         self.C = self._get_C(mus_eff=(mu_eff, mu_eff), delta=delta)
-        # if abs(delta_upper - delta) < abs(delta - delta_lower):
-        #     deltas = deltas[::-1]  #
+        if flip_order and (abs(delta_upper - delta) < abs(delta - delta_lower)):
+            print("search order flipped...")
+            deltas = deltas[::-1]  #
         lg, ug = None, None
 
         def do_search(delta):
@@ -274,6 +365,106 @@ class FFStateAgent(object):
             self.save_to_file(rets)
         return rets
 
+    def predict_final_delta(self, res):
+        """
+        predict the joint point for the two q-delta curves
+        """
+        if res is None or len(res) < 3:
+            return None
+        q1, q1_, d1 = res[-3]
+        q2, q2_, d2 = res[-2]
+        q3, q3_, d3 = res[-1]
+        M = np.array([[d1**2, d1, 1], [d2**2, d2, 1], [d3**2, d3, 1]])
+        y1 = np.array([q1, q2, q3])
+        y2 = np.array([q1_, q2_, q3_])
+        x1 = np.linalg.solve(M, y1)
+        x2 = np.linalg.solve(M, y2)
+        a, b, c = x2 - x1
+        delta_p = (-b + (b**2 - 4*a*c)**0.5)/2.0/a
+        delta_m = (-b - (b**2 - 4*a*c)**0.5)/2.0/a
+        return (delta_p, delta_m)
+
+    def smart_search(
+            self, mu_eff=None, dmu_eff=None, delta=None,
+            q_lower=0, q_upper=0.2, q_N=40,
+            auto_save=True, **args):
+        delta = self.delta if delta is None else delta
+        mu_eff = self.mu_eff if mu_eff is None else mu_eff
+        dmu_eff = self.dmu_eff if dmu_eff is None else dmu_eff
+        self.C = self._get_C(mus_eff=(mu_eff, mu_eff), delta=delta)
+
+        def do_search(delta, qa=None, qb=None):
+            try:
+                ret = self.smart_search_states(
+                    mu_eff=mu_eff, dmu_eff=dmu_eff,
+                    delta=delta, guess_lower=qa, guess_upper=qb,
+                    q_lower=q_lower, q_upper=q_upper, q_N=q_N)
+                return ret
+            except ValueError:
+                return [None, None]
+
+        delta0, N_delta = 0.001, 5
+        left_delta, right_delta = delta0, delta
+        deltas = np.linspace(left_delta, right_delta, N_delta)
+        rets = []
+        last_good_delta = delta0
+        last_bad_delta = delta
+        qa, qb = None, None
+        tol = 0.01
+        while(True):
+            for delta in deltas:
+                ret = do_search(delta=delta, qa=qa, qb=qb)
+                qa, qb = ret
+                if not (qa is None or qb is None):
+                    rets.append((qa, qb, delta))
+                    last_good_delta = delta
+                    if auto_save:
+                        print(rets[-1])
+                        self.save_to_file(rets)
+                else:
+                    deltas = [(last_good_delta + delta)/2]
+                    last_bad_delta = delta
+                    qa, qb, _ = rets[-1]
+                    break
+                if delta == deltas[-1]:
+                    qa_, qb_, _ = rets[0]
+                    if (abs(qa - qb) > abs(qa_ - qb_)*tol):
+                        print(abs(qa - qb),  abs(qa_ - qb_)*tol)
+                        if (delta - last_bad_delta)/last_bad_delta < tol:
+                            print(f"Check bad delta:{last_bad_delta}")
+                            deltas = [last_bad_delta]
+                            delta_pm = self.predict_final_delta(rets)
+                            if delta_pm is None:
+                                last_bad_delta = last_bad_delta*(1 + 5*tol)
+                            else:
+                                last_bad_delta = max(delta_pm)
+                        else:
+                            deltas = [(last_bad_delta + delta)/2]
+                    else:
+                        deltas = []
+                    break
+        rets = ff_state_sort_data(rets)
+        if auto_save:
+            self.save_to_file(rets)
+        return rets
+
+
+def search_delta_q_worker(para):
+    mu_eff, dmu_eff, delta, dim, k_c = para
+    functionalType = FunctionalType.BDG
+    kernelType = KernelType.HOM
+    args = dict(
+        mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
+        T=0, dim=dim, k_c=k_c, verbosity=False)
+    lda = ClassFactory(
+        "LDA", (FFStateAgent,),
+        functionalType=functionalType,
+        kernelType=kernelType, args=args)
+    return lda.search(
+        delta_N=50, delta_lower=0.0001, delta_upper=delta,
+        q_lower=0, q_upper=dmu_eff, q_N=10,
+        auto_incremental=False, flip_order=True)
+
 
 def search_states_worker(obj_mus_delta_dim_kc):
     obj, mu_eff, dmu_eff, delta, dim, k_c = obj_mus_delta_dim_kc
@@ -287,9 +478,8 @@ def search_states_worker(obj_mus_delta_dim_kc):
     # return lda.search(
     #     delta_N=50, delta_lower=0.01, delta_upper=0.062,
     #     q_lower=0, q_upper=dmu_eff, q_N=10, auto_incremental=False)
-
-    return lda.search(
-        delta_N=50, delta_lower=0.0001, delta_upper=delta,
+    return lda.smart_search(
+        delta_N=100, delta_lower=0.001, delta_upper=delta,
         q_lower=0, q_upper=dmu_eff, q_N=10, auto_incremental=False)
 
 
@@ -532,9 +722,19 @@ class AutoPDG(object):
         self.scan_valid_parameter_space(res)
 
 
+def search_delta_qs(delta):
+    mu = 10
+    dmus = np.linspace(0.01, delta, 10)
+    paras = [(mu, dmu, delta, 2, 150) for dmu in dmus]
+    PoolHelper.run(
+        search_delta_q_worker, paras, poolsize=10)
+
+
 if __name__ == "__main__":
+    # search_delta_qs(delta=.5)
     pdg = AutoPDG(
         functionalType=FunctionalType.BDG,
         kernelType=KernelType.HOM, k_c=150, dim=2)
-    dmu, delta = 0.15, 0.25  # 0.175, 0.25
-    pdg.run(seed_delta=delta, seed_dmu=dmu)
+    dmu, delta = 0.446, 0.5  # 0.175, 0.25
+    pdg.search_delta_q_diagram(seed_delta=delta, seed_dmu=dmu)
+    # pdg.run(seed_delta=delta, seed_dmu=dmu)
