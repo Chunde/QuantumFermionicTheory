@@ -7,7 +7,7 @@ import sys
 from collections import deque
 from os.path import join
 import numpy as np
-
+import operator
 import itertools
 from scipy.optimize import brentq
 from mmf_hfb.class_factory import FunctionalType, KernelType
@@ -388,6 +388,65 @@ class FFStateAgent(object):
         d4 = max(delta_p, delta_m)
         q4 = x1.dot([d4**2, d4, 1])
         return (d4, q4)  # common point
+    
+    def zoom_in_search(
+            self, delta, mu_eff, dmu_eff, dq,
+            max_iter=5, N_q=10, g=None):
+        dq1, dq2 = dq*0.9, dq*1.1
+        p1, p2, v1,v2 = None, None, None, None
+
+        if g is None:
+            def g(dq):
+                return self._get_C(
+                    mus_eff=(mu_eff + dmu_eff, mu_eff - dmu_eff),
+                    delta=delta, dq=dq) - self.C
+
+        for _ in range(max_iter):
+            dqs = np.linspace(dq1, dq2, N_q)
+            gs = np.array([g(dq) for dq in dqs])
+
+            if np.all(gs > 0):  # this is not compete
+                index, value = min(enumerate(gs), key=operator.itemgetter(1))
+                if index == 0:  # range expanded more to the left
+                    dq1 = dq1*0.9
+                    if p2 is None:
+                        p2 = dqs[0]
+                    continue
+                if index == len(dqs) - 1:
+                    dq2 = dq2*1.1
+                    if p1 is None:
+                        p1 = dqs[-1]
+                    continue
+                dq1, dq2 = dqs[index - 1], dqs[index + 1]
+                p1, p2 = dq1, dq2
+                continue
+
+            if np.all(gs < 0):  # this is not compete
+                index, value = max(enumerate(gs), key=operator.itemgetter(1))
+                if index == 0:  # range expanded more to the left
+                    dq1 = dq1*0.9
+                    if p2 is None:
+                        p2 = dqs[0]
+                    continue
+                if index == len(dqs) - 1:
+                    dq2 = dq2*1.1
+                    if p1 is None:
+                        p1 = dqs[-1]
+                    continue
+                dq1, dq2 = dqs[index - 1], dqs[index + 1]
+                p1, p2 = dq1, dq2
+                continue
+            if p1 is not None:
+                v1 = brentq(g, p1, dqs[index])
+            else:
+                v2 = brentq(g, 0, dqs[index])
+            if p2 is not None:
+                v1 = brentq(g, dqs[index], p2)
+            else:
+                v2 = brentq(g, dqs[index], max(dq, delta))
+            break
+        print(f"zoomIn: {v1},{v2}")
+        return (v1, v2)
 
     def smart_search(
             self, mu_eff=None, dmu_eff=None, delta=None,
@@ -412,9 +471,6 @@ class FFStateAgent(object):
             except ValueError:
                 return [None, None]
 
-        def zoom_search(depth=5):
-            pass 
-
         delta0, N_delta = 0.001, 5
         deltas = np.linspace(delta0, delta, N_delta)
         rets = []
@@ -426,8 +482,12 @@ class FFStateAgent(object):
         done = False
         while(not done):
             for delta in deltas:
-                ret = do_search(delta=delta, qa=qa, qb=qb, qu=qu, ql=ql)
-                qa, qb = ret
+                if  last_common_q is None:
+                    qa, qb = do_search(delta=delta, qa=qa, qb=qb, qu=qu, ql=ql)
+                else:
+                    qa, qb = self.zoom_in_search(
+                        delta=delta, dq=last_common_q,
+                        mu_eff=mu_eff, dmu_eff=dmu_eff, max_iter=10)
                 if not (qa is None or qb is None):
                     rets.append((qa, qb, delta))
                     if len(rets) > max_points:
@@ -455,25 +515,20 @@ class FFStateAgent(object):
                     if (abs(qa - qb) > abs(qa_ - qb_)*tol_y):
                         print(f"Acc:{abs(qa - qb)},{abs(qa_ - qb_)*tol_y}")
                         if abs(delta - last_bad_delta)/last_bad_delta < tol_y:
-                            if last_common_q is not None:
+                            delta_qs = self.predict_final_delta(rets)
+                            if delta_qs is None:
+                                last_bad_delta = last_bad_delta*(1 + 5*tol_y)
+                                print(f"Test bad delta:{last_bad_delta}")
+                                deltas = [last_bad_delta]
+                            else:
+                                last_bad_delta, last_common_q = delta_qs
+                                print(f"Predicted final point{delta_qs}")
                                 print(f"Test predicted delta:{last_bad_delta}")
                                 q1, q2, last_good_dalta = rets[-1]
-                                # slightly shift the predicted value to the
-                                # good delta to increase the chance to find new
-                                # solutions
                                 deltas = [(
                                     0.1*last_good_dalta + 0.9*last_bad_delta)]
                                 qu, ql = max(q1, q2), min(q1, q2)
                                 qa, qb = None, None  # because we want to scan
-                            else:
-                                print(f"Test bad delta:{last_bad_delta}")
-                                deltas = [last_bad_delta]
-                            delta_qs = self.predict_final_delta(rets)
-                            if delta_qs is None:
-                                last_bad_delta = last_bad_delta*(1 + 5*tol_y)
-                            else:
-                                last_bad_delta, last_common_q = delta_qs
-                                print(f"Predicted final point{delta_qs}")
                         else:
                             deltas = [(last_bad_delta + delta)/2]
                     else:
@@ -484,6 +539,7 @@ class FFStateAgent(object):
             self.save_to_file(rets)
         return rets
 
+    
 
 def search_delta_q_worker(para):
     mu_eff, dmu_eff, delta, dim, k_c = para

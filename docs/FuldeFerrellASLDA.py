@@ -32,15 +32,20 @@ from json import dumps
 import operator
 import numpy as np
 
+# +
 currentdir = os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe())))
-sys.path.insert(0, join(currentdir, '..','Projects','fulde_ferrell_state'))
-currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","Data","data")
+sys.path.insert(0, join(currentdir, '..','Projects','FuldeFerrellState'))
+currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","Projects","FuldeFerrellState","data")
+# currentdir = join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),"..","mmf-hfb","mmf_hfb","data")
+
 import fulde_ferrell_state_agent as ffa
 reload(ffa)
 import fulde_ferrell_state_plot as ffp
 reload(ffp)
 
+
+# -
 
 # # Solution Check
 
@@ -136,7 +141,7 @@ reload(ffp)
 # # Visualize Data
 
 def filter_state(mu, dmu, delta, C, dim):
-    if dim != 3:
+    if dim != 2:
         return True
     #return False
     #if g != -2.8:
@@ -144,11 +149,11 @@ def filter_state(mu, dmu, delta, C, dim):
     #return False
     #if g != -3.2:
     #    return True
-    if delta != .25:
+    if delta > 0.5:
         return True
-    if dmu < 0.16:  
+    if dmu < 0.4:  
          return True
-    if dmu > 0.165:
+    if dmu > 0.446:
         return True
     #if not np.allclose(dmu, 0.35, rtol=0.01):
     #    return True
@@ -156,7 +161,9 @@ def filter_state(mu, dmu, delta, C, dim):
     return False
 
 
-# plt.figure(figsize(16,16))
+plt.figure(figsize(16,16))
+plt.ylim(0.11,0.112)
+plt.xlim(0.05, 0.054)
 ffp.PlotStates(current_dir=currentdir, two_plot=False,
                filter_fun=filter_state, plot_legend=True, ls='-',print_file_name=True)
 
@@ -271,5 +278,79 @@ lda.get_ns_mus_e_p(mus_eff=(mu_a_eff, mu_b_eff), delta=None)[3]
 
 lda.get_ns_mus_e_p(mus_eff=(mu_a_eff, mu_b_eff), delta=0)[3]
 
+# # Playground
+
+
+# +
+from phase_diagram_generator import FFStateAgent
+
+mu_eff = 10
+dmu_eff = 0.446
+delta = 0.5
+dim = 2
+k_c = 150
+args = dict(
+        mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
+        T=0, dim=dim, k_c=k_c, verbosity=False)
+lda = ClassFactory(
+    "LDA", (FFStateAgent,),
+    functionalType=FunctionalType.BDG,
+    kernelType=KernelType.HOM, args=args)
+lda.C = lda._get_C(mus_eff=(mu_eff, mu_eff),delta=delta)
+
+
+# -
+
+def f(delta, dq):
+    return lda._get_C(
+        mus_eff=(mu_eff + dmu_eff, mu_eff - dmu_eff),
+        delta=delta, dq=dq) - lda.C
+
+
+dq0, delta0= 0.11076732169336657, 0.053112308454693515
+def g(dq):
+    return f(delta=delta0, dq=dq)
+
+
+g(dq=dq0)
+
+import operator
+def zoom_in_search(delta, dq):
+    dq1, dq2 = dq0*0.9, dq0*1.1
+    p1, p2 = None, None
+    for i in range(10):
+        dqs = np.linspace(dq1, dq2, 10)
+        gs = np.array([g(dq) for dq in dqs])
+        index, value = min(enumerate(gs), key=operator.itemgetter(1))
+        
+        plt.figure(figsize=(16,8))
+
+        plt.plot(dqs, gs)
+        plt.title(f"{i}:p1={p1}, p2={p2}")
+        plt.show()
+        clear_output(wait=True)
+        
+        if np.all(gs > 0):
+            if index == 0:  # range expaned more to the left
+                dq1 = dq1*0.9
+                if p2 is None:
+                    p2 = dqs[0]
+                continue
+            if index == len(dqs) - 1:
+                dq2 = dq2*1.1
+                if p1 is None:
+                    p1 = dqs[-1]
+                continue
+            dq1, dq2 = dqs[index - 1], dqs[index + 1]
+            p1, p2 = dq1, dq2
+            continue
+
+        delta1 = brentq(g, p1, dqs[index])
+        delta2 = brentq(g, dqs[index], p2)
+        print(delta1, delta2)
+        break   
+
+
+zoom_in_search(delta=delta0, dq=dq0)
 
 
