@@ -131,12 +131,14 @@ def Thermodynamic(
     if dim == 1:  # Because 1d case does not pass yet
         print("This method does nothing for 1d case")
         return
-    ff = FF(mu=mu, dmu=dmu, delta=delta0, q=q, dq=dq, dim=dim, k_c=k_c, T=T, 
-            fix_g=True, bStateSentinel=True)
+    ff = FF(
+        mu=mu, dmu=dmu, delta=delta0, q=q, dq=dq,
+        dim=dim, k_c=k_c, T=T, fix_g=True, bStateSentinel=True)
     print(ff.get_densities(mu=mu, dmu=dmu, delta=delta0))
 
     def get_P(mu, dmu):
-        delta = ff.solve(mu=mu, dmu=dmu, q=q, dq=dq, a=0.8*delta0, b=1.2*delta0)
+        delta = ff.solve(
+            mu=mu, dmu=dmu, q=q, dq=dq, a=0.8*delta0, b=1.2*delta0)
         return ff.get_pressure(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
 
     def get_E_n(mu, dmu):
@@ -165,7 +167,7 @@ def Thermodynamic(
                 return np0 - np_
         try:
             return brentq(f, a*dmu, b*dmu)
-        except:
+        except ValueError:
             irs = np.linspace(a, b, N) * dmu
             for i in reversed(range(N)):
                 try:
@@ -175,11 +177,12 @@ def Thermodynamic(
                             endPos = f(irs[j])
                             if startPos*endPos < 0:  # has solution
                                 return brentq(f, irs[i], irs[j])
-                        except:
+                        except ValueError:
                             continue
-                except:
+                except ValueError:
                     continue
-            warnings.warn(f"Can't find a solution in that region, use the default value={dmu}")
+            warnings.warn(
+                f"Can't find a solution in that region, use the default value={dmu}")
             return dmu  # when no solution is found
 
     # Check the mu=dE/dn
@@ -244,12 +247,13 @@ def test_efftive_mus():
 
 
 #@pytest.mark.skip(reason="pass")
-def test_density_with_qs(delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dim, k_c=200):
+def test_density_with_qs(
+    delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dim, k_c=200):
     """The density should not depend on q"""
     if dim == 3:
         k_c = 50
-    mu = mu_delta * delta
-    dmu = dmu_delta * delta
+    mu = mu_delta*delta
+    dmu = dmu_delta*delta
     q = q_dmu * mu
     ff = FF(mu=mu, dmu=dmu, delta=delta, dim=1, k_c=100, fix_g=True)
     ns = ff.get_densities(mu=mu, dmu=dmu)
@@ -263,14 +267,16 @@ def test_density_with_qs(delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dim, k_c=200
 
 
 @pytest.mark.skip(reason="Too Slow")
-def test_Thermodynamic(delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dim, k_c=200):
+def test_Thermodynamic(
+    delta, mu_delta, dmu_delta, q_dmu, dq_dmu, dim, k_c=200):
     if dim == 3:
         k_c = 50
     mu = mu_delta * delta
     dmu = dmu_delta * delta
     q = q_dmu * mu
     dq = dq_dmu * mu
-    Thermodynamic(mu=mu, dmu=dmu, k_c=k_c, q=q, dq=dq, dim=dim, delta0=delta)
+    Thermodynamic(
+        mu=mu, dmu=dmu, k_c=k_c, q=q, dq=dq, dim=dim, delta0=delta)
 
 
 @pytest.mark.skip(reason="Too Slow")
@@ -282,8 +288,9 @@ def test_Thermodynamic_1d(
     dmu = dmu_delta*delta
     q = q_dmu*mu
     dq = dq_dmu*mu
-    ff = FF(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq, dim=1, fix_g=True,
-            bStateSentinel=True)
+    ff = FF(
+        mu=mu, dmu=dmu, delta=delta, q=q, dq=dq,
+        dim=1, fix_g=True, bStateSentinel=True)
     n_a, n_b, e, p, mus_eff = ff.get_ns_p_e_mus_1d(
         mu=mu, dmu=dmu, q=q,
         dq=dq, update_g=True)
@@ -299,7 +306,8 @@ def test_Thermodynamic_1d(
     assert np.allclose(n_a + n_b, n_p_, rtol=1e-2)
 
     if False:  # skip for speed
-        # Fixed mu_b by changing mu and dmu with same value , as mu_b = mu - dmu
+        # Fixed mu_b by changing mu and dmu
+        # with same value , as mu_b = mu - dmu
         # Then dP / dx = n_a
         n_a_1, n_b_1, e1, p1, mus1 = ff.get_ns_p_e_mus_1d(
             mu=mu+dx/2, dmu=dmu+dx/2,
@@ -310,7 +318,8 @@ def test_Thermodynamic_1d(
         n_a_ = (p1 - p2)/2/dx
         print(f"Expected n_a={n_a}\tNumerical n_a={n_a_}")
         assert np.allclose(n_a, n_a_)
-        # Fixed mu_a by changing mu and dmu with opposite values , as mu_a = mu + dmu
+        # Fixed mu_a by changing mu and dmu with opposite
+        # values , as mu_a = mu + dmu
         # Then dP / dx = n_b
         n_a_3, n_b_3, e3, p3, mus3 = ff.get_ns_p_e_mus_1d(
             mu=mu+dx/2, dmu=dmu-dx/2, 
@@ -325,14 +334,14 @@ def test_Thermodynamic_1d(
     na, nb = n_a, n_b
     dn = (na - nb)
     np0 = (na + nb)
-    a=0.8
-    b=1.2
+    a = 0.8
+    b = 1.2
 
     def f_ns_dmu(dx, n):
         def f(dmu_):
             na_, nb_, e1, p1, mus1 = ff.get_ns_p_e_mus_1d(
-                mu=mu+dx, dmu=dmu_, 
-                mus_eff=mus_eff, q=q, dq=dq, update_g=False)
+                mu=mu+dx, dmu=dmu_, mus_eff=mus_eff,
+                q=q, dq=dq, update_g=False)
             if n == 0:  # fix n_-
                 dn_ = (na_ - nb_)
                 return dn - dn_
@@ -341,11 +350,11 @@ def test_Thermodynamic_1d(
             elif n == 2:  # fix na
                 return (na - na_)
             elif n == 3:  # fix n_+
-                np_=(na_ + nb_)
+                np_ = (na_ + nb_)
                 return np0 - np_
         try:
             return brentq(f, a*dmu, b*dmu)
-        except:
+        except ValueError:
             irs = np.linspace(a, b, N) * dmu
             for i in reversed(range(N)):
                 try:
@@ -353,14 +362,14 @@ def test_Thermodynamic_1d(
                     for j in reversed(range(i + 1, N)):
                         try:
                             endPos = f(irs[j])
-                            if startPos * endPos < 0: # has solution
+                            if startPos*endPos < 0:  # has solution
                                 return brentq(f, irs[i], irs[j])
-                        except:
+                        except ValueError:
                             continue
-                except:
+                except ValueError:
                     continue
             warnings.warn(
-                f"Can't find a solution in that region, use the default value={dmu}")
+                f"Can't find a solution, use the default value={dmu}")
             return dmu  # when no solution is found
 
     # return # The follow part test is too slow, skip it at this point!
@@ -400,7 +409,7 @@ def test_Thermodynamic_1d_fast(
     n_a_2, n_b_2, e2, p2, mus2 = ff.get_ns_p_e_mus_1d(
         mu=mu-dx, dmu=dmu, mus_eff=mus_eff, q=q, dq=dq, update_g=False)
     print(f"na={n_a_2}, nb={n_b_2}, e={e2}, p={p2}, mus={mus2}")
-    n_p_1=n_a_1 + n_b_1
+    n_p_1 = n_a_1 + n_b_1
     n_p_2 = n_b_2 + n_a_2
 
     n_p_ = (p1 - p2)/2/dx

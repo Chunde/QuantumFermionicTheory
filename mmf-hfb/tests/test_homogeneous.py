@@ -106,7 +106,7 @@ class TestHomogeneous(object):
         assert allclose(E_N_E_2, -0.3037, atol=0.0005)
         
     def test_2D_T0(self):
-        """Test the Homogeneous1D class for a known solution."""
+        """Test the Homogeneous2D class for a known solution."""
         np.random.seed(2)
         hbar, m, kF = 1.0 + np.random.random(3)
         nF = kF**2/2/np.pi
@@ -121,7 +121,7 @@ class TestHomogeneous(object):
         assert allclose(res.n_a+res.n_b, nF)
 
     def test_3D_T0(self):
-        """Test the Homogeneous1D class for a known solution."""
+        """Test the Homogeneous3D class for a known solution."""
         np.random.seed(2)
         hbar, m, kF = 1.0 + np.random.random(3)
         xi = 0.59060550703283853378393810185221521748413488992993

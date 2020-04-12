@@ -273,7 +273,7 @@ class FFStateAgent(object):
         return rets
 
     def search(
-            self, delta_N, mu_eff=None, dmu_eff=None, delta=None,
+            self, N_delta, mu_eff=None, dmu_eff=None, delta=None,
             delta_lower=0.001, delta_upper=1, q_lower=0, q_upper=0.2,
             N_q=40, auto_incremental=False, auto_save=True, flip_order=False):
         """
@@ -300,8 +300,8 @@ class FFStateAgent(object):
         rets = []
         dx = dx0 = 0.001
         trails = [1, 2, 4, 0.01, 0.25, 0.5, 8, 16, 0]
-        deltas = np.linspace(delta_lower, delta_upper, delta_N)
-        incremental_step = (delta_upper - delta_lower) / (delta_N + 1)
+        deltas = np.linspace(delta_lower, delta_upper, N_delta)
+        incremental_step = (delta_upper - delta_lower) / (N_delta + 1)
         if delta is None:
             delta = self.delta
         if mu_eff is None:
@@ -476,8 +476,8 @@ class FFStateAgent(object):
     def smart_search(
             self, mu_eff=None, dmu_eff=None, delta=None,
             q_lower=0, q_upper=0.2, N_q=40, max_points=100,
-            delta0=0.0001, N_delta=5, tol_y=0.01, tol_x=1e-6,
-            auto_save=True, **args):
+            delta0=0.0001, delta1=None, N_delta=5, tol_y=0.01,
+            tol_x=1e-6, auto_save=True, **args):
         """
         A solution search algorithm that will use adaptive
         method and a smarter zoom-in algorithm to find the
@@ -494,6 +494,7 @@ class FFStateAgent(object):
             number, such as 100.
         """
         delta = self.delta if delta is None else delta
+        delta1 = delta if delta1 is None else delta1
         mu_eff = self.mu_eff if mu_eff is None else mu_eff
         dmu_eff = self.dmu_eff if dmu_eff is None else dmu_eff
         # before searching, the C should be fixed, it's
@@ -519,7 +520,7 @@ class FFStateAgent(object):
             except ValueError:
                 return [None, None]
 
-        deltas = np.linspace(delta0, delta, N_delta)
+        deltas = np.linspace(delta0, delta1, N_delta)
         output, rets, = [], []
         # turn off right to left sweep as this code
         # is designed for two-solution side.
@@ -669,7 +670,7 @@ def search_delta_q_worker(para):
         functionalType=functionalType,
         kernelType=kernelType, args=args)
     return lda.search(
-        delta_N=50, delta_lower=0.0001, delta_upper=delta,
+        N_delta=50, delta_lower=0.0001, delta_upper=delta,
         q_lower=0, q_upper=dmu_eff, N_q=10,
         auto_incremental=False, flip_order=True)
 
@@ -690,9 +691,9 @@ def smart_search_delta_q_worker(obj_mus_delta_dim_kc):
         functionalType=obj.functionalType,
         kernelType=obj.kernelType, args=args)
     return lda.smart_search(
-        delta_N=100, delta_lower=0.001, delta_upper=delta,
-        q_lower=0, q_upper=dmu_eff, N_q=40, N_delta=obj.N_delta,
-        auto_incremental=False)
+        delta_lower=0.001, delta_upper=delta,
+        q_lower=0, q_upper=dmu_eff, N_q=40, delta1=obj.delta1,
+        N_delta=obj.N_delta)
 
 
 def search_condidate_worker(obj_mus_delta_dim_kc):
@@ -708,7 +709,7 @@ def search_condidate_worker(obj_mus_delta_dim_kc):
         kernelType=obj.kernelType, args=args)
 
     return lda.search(
-        delta_N=2, delta_lower=0.0001, delta_upper=0.01,
+        N_delta=2, delta_lower=0.0001, delta_upper=0.01,
         q_lower=0, q_upper=dmu_eff, N_q=10,
         auto_incremental=False, auto_save=False)
 
@@ -821,6 +822,7 @@ class AutoPDG(object):
         deltas = self.offset_para(seed_delta)
         dmu_delta_ls = self.mix_para2(dmus, deltas)
         self.N_delta = 50
+        self.delta1 = 0.04
         paras = [(
             self, self.mu_eff, dmu,
             delta, self.dim, self.k_c) for (dmu, delta) in dmu_delta_ls]
