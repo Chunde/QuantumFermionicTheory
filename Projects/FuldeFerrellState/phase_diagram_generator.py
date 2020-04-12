@@ -149,6 +149,16 @@ class FFStateAgent(object):
             rets.append(None)
         return rets
 
+    def check_sign_flip(self, ls):
+        sign_flip_num = 0
+        if len(ls) > 2:
+            for i in range(1, len(ls)):
+                if ls[i]*ls[i-1] < 0:
+                    sign_flip_num = sign_flip_num + 1
+                    if sign_flip_num == 2:
+                        return sign_flip_num
+        return sign_flip_num
+
     def smart_search_states(
             self, delta, mu_eff, dmu_eff, dxs=None,
             guess_lower=None, guess_upper=None, q_lower=0, q_upper=0.04,
@@ -172,15 +182,7 @@ class FFStateAgent(object):
         def refine(a, b, v):
             return brentq(f, a, b)
 
-        def check_sign_flip(ls):
-            sign_flip_num = 0
-            if len(ls) > 2:
-                for i in range(1, len(ls)):
-                    if ls[i]*ls[i-1] < 0:
-                        sign_flip_num = sign_flip_num + 1
-                        if sign_flip_num == 2:
-                            return True
-            return False
+        
 
         rets = []
         if guess_lower is None and guess_upper is None:
@@ -188,7 +190,7 @@ class FFStateAgent(object):
             gs = []
             for dq in dqs:
                 gs.append(f(dq))
-                if check_sign_flip(gs):
+                if self.check_sign_flip(gs) == 2:
                     break
             g0, i0 = gs[0], 0
             if np.allclose(gs[0], 0, rtol=rtol):
@@ -401,12 +403,12 @@ class FFStateAgent(object):
                     mus_eff=(mu_eff + dmu_eff, mu_eff - dmu_eff),
                     delta=delta, dq=dq) - self.C
 
-        for _ in range(max_iter):
+        for i in range(max_iter):
             dqs = np.linspace(dq1, dq2, N_q)
             gs = np.array([g(dq) for dq in dqs])
-
+            self.print(f"{i+1}/{max_iter}:gs={gs}")
             if np.all(gs > 0):  # this is not compete
-                index, value = min(enumerate(gs), key=operator.itemgetter(1))
+                index, _ = min(enumerate(gs), key=operator.itemgetter(1))
                 if index == 0:  # range expanded more to the left
                     dq1 = dq1*0.9
                     if p2 is None:
@@ -422,7 +424,7 @@ class FFStateAgent(object):
                 continue
 
             if np.all(gs < 0):  # this is not compete
-                index, value = max(enumerate(gs), key=operator.itemgetter(1))
+                index, _ = max(enumerate(gs), key=operator.itemgetter(1))
                 if index == 0:  # range expanded more to the left
                     dq1 = dq1*0.9
                     if p2 is None:
@@ -436,16 +438,21 @@ class FFStateAgent(object):
                 dq1, dq2 = dqs[index - 1], dqs[index + 1]
                 p1, p2 = dq1, dq2
                 continue
-            if p1 is not None:
-                v1 = brentq(g, p1, dqs[index])
-            else:
-                v2 = brentq(g, 0, dqs[index])
-            if p2 is not None:
-                v1 = brentq(g, dqs[index], p2)
-            else:
-                v2 = brentq(g, dqs[index], max(dq, delta))
+
+            if self.check_sign_flip(gs) == 2:
+                rets = []
+                g0, i0 = gs[0], 0
+                for i in range(1, len(gs)):
+                    if g0*gs[i] < 0:
+                        rets.append(brentq(g, dqs[i], dqs[i0]))
+                    g0, i0 = gs[i], i
+                    if len(rets) == 2:  # two solutions at max
+                        break
+                v1, v2= rets[:2]
+            else:  # only one solution?
+                raise NotImplementedError("To-Do")
             break
-        print(f"zoomIn: {v1},{v2}")
+        self.print(f"ZoomIn: {v1},{v2}")
         return (v1, v2)
 
     def smart_search(
@@ -488,6 +495,7 @@ class FFStateAgent(object):
                     qa, qb = self.zoom_in_search(
                         delta=delta, dq=last_common_q,
                         mu_eff=mu_eff, dmu_eff=dmu_eff, max_iter=10)
+                    # last_common_q = None  # reset the common q
                 if not (qa is None or qb is None):
                     rets.append((qa, qb, delta))
                     if len(rets) > max_points:
@@ -497,7 +505,7 @@ class FFStateAgent(object):
                         _, _, d1 = rets[-1]
                         _, _, d2 = rets[-2]
                         if abs((d1 - d2)/(d1 + d2)) < tol_x:
-                            print("Reach delta limit")
+                            self.print("Reach delta limit")
                             done = True
                             break
                     last_good_delta = delta
@@ -506,33 +514,37 @@ class FFStateAgent(object):
                         self.save_to_file(rets)
                 else:
                     deltas = [(last_good_delta + delta)/2]
-                    last_bad_delta, last_common_q = delta, None
+                    last_bad_delta = delta
                     qa, qb, _ = rets[-1]
+                    if last_common_q is not None:
+                        qu, ql = max(qa, qb), min(qa, qb)
+                        qa, qb = None, None  # because we want to scan
                     break
 
                 if delta == deltas[-1]:
                     qa_, qb_, _ = rets[0]
                     if (abs(qa - qb) > abs(qa_ - qb_)*tol_y):
-                        print(f"Acc:{abs(qa - qb)},{abs(qa_ - qb_)*tol_y}")
+                        self.print(f"Acc:{abs(qa - qb)},{abs(qa_ - qb_)*tol_y}")
                         if abs(delta - last_bad_delta)/last_bad_delta < tol_y:
                             delta_qs = self.predict_final_delta(rets)
                             if delta_qs is None:
                                 last_bad_delta = last_bad_delta*(1 + 5*tol_y)
-                                print(f"Test bad delta:{last_bad_delta}")
+                                self.print(f"Test bad delta:{last_bad_delta}")
                                 deltas = [last_bad_delta]
                             else:
                                 last_bad_delta, last_common_q = delta_qs
-                                print(f"Predicted final point{delta_qs}")
-                                print(f"Test predicted delta:{last_bad_delta}")
+                                self.print(f"Predicted final point{delta_qs}")
                                 q1, q2, last_good_dalta = rets[-1]
                                 deltas = [(
                                     0.1*last_good_dalta + 0.9*last_bad_delta)]
                                 qu, ql = max(q1, q2), min(q1, q2)
                                 qa, qb = None, None  # because we want to scan
                         else:
+                            self.print("Mission completed")
                             deltas = [(last_bad_delta + delta)/2]
                     else:
                         deltas = []
+                        done = True
                     break
         rets = ff_state_sort_data(rets)
         if auto_save:
