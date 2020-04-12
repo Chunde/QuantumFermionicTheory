@@ -1,4 +1,3 @@
-
 import inspect
 import time
 import json
@@ -21,19 +20,55 @@ from data_helper import ff_state_sort_data
 tf.MAX_DIVISION = 150
 
 
+def predict_joint_point(res):
+    """
+    predict the joint point for the two curves
+    """
+    if res is None or len(res) < 3:
+        return None
+    q1, q1_, d1 = res[-3]
+    q2, q2_, d2 = res[-2]
+    q3, q3_, d3 = res[-1]
+    M = np.array([[d1**2, d1, 1], [d2**2, d2, 1], [d3**2, d3, 1]])
+    y1 = np.array([q1, q2, q3])
+    y2 = np.array([q1_, q2_, q3_])
+    try:
+        x1 = np.linalg.solve(M, y1)
+        x2 = np.linalg.solve(M, y2)
+        a, b, c = x2 - x1
+        delta_p = (-b + (b**2 - 4*a*c)**0.5)/2.0/a
+        delta_m = (-b - (b**2 - 4*a*c)**0.5)/2.0/a
+    except ValueError:
+        return None
+    d4 = max(delta_p, delta_m)
+    q4 = x1.dot([d4**2, d4, 1])
+    return (d4, q4)  # common point
+
+
 class FFStateAgent(object):
     """
-    An agent class used for searching FF states
+        An agent class used to construct a new class that will
+        have the functions related to Fulde Ferrell state search
+        and pressure calculation, etc.
     """
 
     def __init__(
             self, mu_eff, dmu_eff, delta, dim, verbosity=True,
-            prefix="FFState_", timeStamp=True, **args):
+            prefix="FFState_", time_stamp=True, **args):
+        """
+        mu_eff: the effective mu=(mu_a + mu_b)/2, will be used to
+            fix the C.
+        verbosity: bool, to indicate if messages should be print to
+            stdin. (To-Do:This should be upgraded to integer for message
+            level control)
+        prefix: is used for file name for saving the output
+        time_stamp: used to make unique filename
+        """
         self.delta = delta
         self.mu_eff = mu_eff
         self.dmu_eff = dmu_eff
         self.verbosity = verbosity
-        if timeStamp:
+        if time_stamp:
             ts = time.strftime("%Y_%m_%d_%H_%M_%S.json")
             self.fileName = (
                 prefix
@@ -41,22 +76,16 @@ class FFStateAgent(object):
         else:
             self.fileName = prefix
 
-    def _get_fileName(self):
+    def get_file_name(self):
         currentdir = join(os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe()))), "data")
         os.makedirs(currentdir, exist_ok=True)
         return join(currentdir, self.fileName)
 
-    def get_other_pressures(self, mus, delta, dq, C, mus_eff):
-        self.C = C
-        # P_ff = self.get_ns_e_p(
-        #     mus=mus, delta=delta, dq=dq, verbosity=False,
-        #     x0=mus_eff +(delta,), solver=Solvers.BROYDEN1)
-        P_ss = self.get_ns_e_p(  # superfluid pressure
-            mus=mus, delta=None, verbosity=False, solver=Solvers.BROYDEN1)
-        P_ns = self.get_ns_e_p(  # normal state pressure
-            mus=mus, delta=0, verbosity=False, solver=Solvers.BROYDEN1)
-        return (P_ss[2], P_ns[2])
+    def print(self, str, level=0):
+        """to support verbosity control level"""
+        if self.verbosity:
+            print(str)
 
     def save_to_file(self, data, extra_items=None):
         """
@@ -65,7 +94,7 @@ class FFStateAgent(object):
         """
         if len(data) == 0:
             return
-        file = self._get_fileName()
+        file = self.get_file_name()
         output = {}
         output["dim"] = self.dim
         output["delta"] = self.delta
@@ -81,10 +110,27 @@ class FFStateAgent(object):
         with open(file, 'w') as wf:
             json.dump(output, wf)
 
+    def check_sign_flip(self, ls):
+        """
+        Check the sign flipping number,
+        each flipping indicate a zero solution.
+        This function will return max of 2 flipping
+        as in this application two solution of q
+        is the maximum number we can have.
+        """
+        sign_flip_num = 0
+        if len(ls) > 2:
+            for i in range(1, len(ls)):
+                if ls[i]*ls[i-1] < 0:
+                    sign_flip_num = sign_flip_num + 1
+                    if sign_flip_num == 2:
+                        return sign_flip_num
+        return sign_flip_num
+
     def search_states(
             self, delta, mu_eff, dmu_eff,
             guess_lower=None, guess_upper=None, q_lower=0, q_upper=0.04,
-            q_N=10, dx=0.0005, rtol=1e-8, raiseExcpetion=True):
+            N_q=10, dx=0.0005, rtol=1e-8, raiseExcpetion=True):
         """
         Paras:
         -------------
@@ -108,7 +154,7 @@ class FFStateAgent(object):
 
         rets = []
         if guess_lower is None and guess_upper is None:
-            dqs = np.linspace(q_lower, q_upper, q_N)
+            dqs = np.linspace(q_lower, q_upper, N_q)
             gs = [f(dq) for dq in dqs]
             g0, i0 = gs[0], 0
             if np.allclose(gs[0], 0, rtol=rtol):
@@ -149,20 +195,10 @@ class FFStateAgent(object):
             rets.append(None)
         return rets
 
-    def check_sign_flip(self, ls):
-        sign_flip_num = 0
-        if len(ls) > 2:
-            for i in range(1, len(ls)):
-                if ls[i]*ls[i-1] < 0:
-                    sign_flip_num = sign_flip_num + 1
-                    if sign_flip_num == 2:
-                        return sign_flip_num
-        return sign_flip_num
-
     def smart_search_states(
             self, delta, mu_eff, dmu_eff, dxs=None,
             guess_lower=None, guess_upper=None, q_lower=0, q_upper=0.04,
-            q_N=10, rtol=1e-8, raiseExcpetion=True):
+            N_q=10, rtol=1e-8, raiseExcpetion=True):
         """
         Paras:
         -------------
@@ -182,11 +218,9 @@ class FFStateAgent(object):
         def refine(a, b, v):
             return brentq(f, a, b)
 
-        
-
         rets = []
         if guess_lower is None and guess_upper is None:
-            dqs = np.linspace(q_lower, q_upper, q_N)
+            dqs = np.linspace(q_lower, q_upper, N_q)
             gs = []
             for dq in dqs:
                 gs.append(f(dq))
@@ -238,17 +272,14 @@ class FFStateAgent(object):
             rets.append(None)
         return rets
 
-    def print(self, str):
-        """to support verbosity control level"""
-        if self.verbosity:
-            print(str)
-
     def search(
             self, delta_N, mu_eff=None, dmu_eff=None, delta=None,
             delta_lower=0.001, delta_upper=1, q_lower=0, q_upper=0.2,
-            q_N=40, auto_incremental=False, auto_save=True, flip_order=False):
+            N_q=40, auto_incremental=False, auto_save=True, flip_order=False):
         """
-        Search possible states in ranges of delta and q
+        search the delta-q curves in a point to point
+        method, can be used to search single solution
+        curve. Search possible states in ranges of delta and q
         Paras:
         -------------
         mu_eff     : effective mu used to fix C
@@ -278,9 +309,10 @@ class FFStateAgent(object):
         if dmu_eff is None:
             dmu_eff = self.dmu_eff
         self.C = self._get_C(mus_eff=(mu_eff, mu_eff), delta=delta)
-        if flip_order and (abs(delta_upper - delta) < abs(delta - delta_lower)):
+        if flip_order and (abs(
+            delta_upper - delta) < abs(delta - delta_lower)):
             self.print("search order flipped...")
-            deltas = deltas[::-1]  #
+            deltas = deltas[::-1]
         lg, ug = None, None
 
         def do_search(delta):
@@ -289,7 +321,7 @@ class FFStateAgent(object):
             ret = self.search_states(
                 mu_eff=mu_eff, dmu_eff=dmu_eff,
                 delta=delta, guess_lower=lg, guess_upper=ug,
-                q_lower=q_lower, q_upper=q_upper, q_N=q_N, dx=dx)
+                q_lower=q_lower, q_upper=q_upper, N_q=N_q, dx=dx)
             lg, ug = ret
             ret.append(delta)
             rets.append(ret)
@@ -326,7 +358,7 @@ class FFStateAgent(object):
                                 mu_eff=mu_eff, dmu_eff=dmu_eff,
                                 delta=delta_, guess_lower=lg, guess_upper=ug,
                                 q_lower=q_lower, q_upper=q_upper,
-                                q_N=q_N, dx=dx,
+                                N_q=N_q, dx=dx,
                                 raiseExcpetion=False)
                             lg, ug = ret0
                             print(ret0)
@@ -367,41 +399,27 @@ class FFStateAgent(object):
             self.save_to_file(rets)
         return rets
 
-    def predict_final_delta(self, res):
-        """
-        predict the joint point for the two q-delta curves
-        """
-        if res is None or len(res) < 3:
-            return None
-        q1, q1_, d1 = res[-3]
-        q2, q2_, d2 = res[-2]
-        q3, q3_, d3 = res[-1]
-        M = np.array([[d1**2, d1, 1], [d2**2, d2, 1], [d3**2, d3, 1]])
-        y1 = np.array([q1, q2, q3])
-        y2 = np.array([q1_, q2_, q3_])
-        try:
-            x1 = np.linalg.solve(M, y1)
-            x2 = np.linalg.solve(M, y2)
-            a, b, c = x2 - x1
-            delta_p = (-b + (b**2 - 4*a*c)**0.5)/2.0/a
-            delta_m = (-b - (b**2 - 4*a*c)**0.5)/2.0/a
-        except ValueError:
-            return None
-        d4 = max(delta_p, delta_m)
-        q4 = x1.dot([d4**2, d4, 1])
-        return (d4, q4)  # common point
-    
     def zoom_in_search(
             self, delta, mu_eff, dmu_eff, dq,
-            max_iter=5, N_q=10, g=None):
+            max_iter=5, N_q=10, fun=None):
+        """
+        The zoom-in search algorithm
+        -----------------------------
+        It will keep to find a region with an extremum
+        and keep zooming to that region unless solutions
+        are found.
+        TODO: implement the case with just one soluton
+            and do some tests.
+        """
         dq1, dq2 = dq*0.9, dq*1.1
-        p1, p2, v1,v2 = None, None, None, None
-
-        if g is None:
+        p1, p2, v1, v2 = None, None, None, None
+        if fun is None:
             def g(dq):
                 return self._get_C(
                     mus_eff=(mu_eff + dmu_eff, mu_eff - dmu_eff),
                     delta=delta, dq=dq) - self.C
+        else:
+            g = fun
 
         for i in range(max_iter):
             dqs = np.linspace(dq1, dq2, N_q)
@@ -448,7 +466,7 @@ class FFStateAgent(object):
                     g0, i0 = gs[i], i
                     if len(rets) == 2:  # two solutions at max
                         break
-                v1, v2= rets[:2]
+                v1, v2 = rets[:2]
             else:  # only one solution?
                 raise NotImplementedError("To-Do")
             break
@@ -457,14 +475,37 @@ class FFStateAgent(object):
 
     def smart_search(
             self, mu_eff=None, dmu_eff=None, delta=None,
-            q_lower=0, q_upper=0.2, q_N=40, max_points=100,
+            q_lower=0, q_upper=0.2, N_q=40, max_points=100,
+            delta0=0.0001, N_delta=5, tol_y=0.01, tol_x=1e-6,
             auto_save=True, **args):
+        """
+        A solution search algorithm that will use adaptive
+        method and a smarter zoom-in algorithm to find the
+        delta-q curves that represent valid states.
+        Argument
+        --------
+        delta0: the minimum value of delta to search with
+        N_delta: the initial number of deltas, the actual num
+            will change but no more that the value defined
+            by 'max_points'
+        tol_y: define the desired spacing in y direction(q)
+        tol_x: define the desired spacing in x direction(delta)
+        NOTE: To have smooth curves, set N_delta to a large
+            number, such as 100.
+        """
         delta = self.delta if delta is None else delta
         mu_eff = self.mu_eff if mu_eff is None else mu_eff
         dmu_eff = self.dmu_eff if dmu_eff is None else dmu_eff
+        # before searching, the C should be fixed, it's
+        # equivalent to fix g in other code.
         self.C = self._get_C(mus_eff=(mu_eff, mu_eff), delta=delta)
 
         def do_search(delta, qa=None, qb=None, qu=None, ql=None):
+            # A search function the call wrap the search state.
+            # It's a regular point to point search, no smartness,
+            # the results of this method will be used to predict
+            # the end points and as the zoom-in algorithm kicks in,
+            # the rest of search will only use zoom-in search.
             if qu is None:
                 qu = q_upper
             if qb is None:
@@ -473,66 +514,116 @@ class FFStateAgent(object):
                 ret = self.smart_search_states(
                     mu_eff=mu_eff, dmu_eff=dmu_eff,
                     delta=delta, guess_lower=qa, guess_upper=qb,
-                    q_lower=ql, q_upper=qu, q_N=q_N)
+                    q_lower=ql, q_upper=qu, N_q=N_q)
                 return ret
             except ValueError:
                 return [None, None]
 
-        delta0, N_delta = 0.001, 5
         deltas = np.linspace(delta0, delta, N_delta)
-        rets = []
+        output, rets, = [], []
+        # turn off right to left sweep as this code
+        # is designed for two-solution side.
+        right_to_left_swept = True
         last_good_delta = delta0
         last_bad_delta = delta
-        qa, qb, qu, ql, last_common_q = None, None, None, None, None
-        tol_y = 0.01
-        tol_x = 1e-6
+        delta_ref = delta
+        # if qa, qb are None, this will force the function
+        # lda.smart_search_states to scan through the range
+        # defined by (ql, qu), so qa, qb, ql, qu can not be
+        # None at the same time. see the smart_search_states
+        # for more information. If the predicted_q is not None
+        # that means the zoom-in search algorithm kicks in
+        qa, qb, qu, ql, predicted_q = None, None, None, None, None
         done = False
         while(not done):
             for delta in deltas:
-                if  last_common_q is None:
+                if predicted_q is None:
+                    # if predicted_q is None, no prediction has been made,
+                    # then we just use the dumb method to search
                     qa, qb = do_search(delta=delta, qa=qa, qb=qb, qu=qu, ql=ql)
                 else:
+                    # else use the zoom-in algorithm to search
                     qa, qb = self.zoom_in_search(
-                        delta=delta, dq=last_common_q,
+                        delta=delta, dq=predicted_q,
                         mu_eff=mu_eff, dmu_eff=dmu_eff, max_iter=10)
-                    # last_common_q = None  # reset the common q
+                    # predicted_q = None  # reset the common q
                 if not (qa is None or qb is None):
+                    # if we have two solution
                     rets.append((qa, qb, delta))
+                    # check if reach max points
                     if len(rets) > max_points:
                         done = True
                         break
+                    # check if reach x limit, i.e., two set of solutions
+                    # are too close, which may indicate end of search.
+                    # This is not very strict, can be modified.
                     if len(rets) > 2:
                         _, _, d1 = rets[-1]
                         _, _, d2 = rets[-2]
                         if abs((d1 - d2)/(d1 + d2)) < tol_x:
-                            self.print("Reach delta limit")
+                            print("Reach delta limit")
                             done = True
                             break
+                    # store the valid delta
                     last_good_delta = delta
+                    # check if to save to persist media
                     if auto_save:
                         print(f"Added {len(rets)} :{rets[-1]}")
                         self.save_to_file(rets)
                 else:
+                    # if have no of only one solution, not good
+                    # then we need to go a step back to a better
+                    # candidate delta that may sit in between the
+                    # current failing delta and the last good one
                     deltas = [(last_good_delta + delta)/2]
+                    # set the last bad delta to current one
                     last_bad_delta = delta
+                    # used the last solutions as start point
+                    # for the next search.
                     qa, qb, _ = rets[-1]
-                    if last_common_q is not None:
+                    if predicted_q is not None:
+                        # if predicted_q is valid, that may mean
+                        # we are getting close the final joint point
+                        # where the do_search method probably will be
+                        # fail to work as solutions near the joint point
+                        # are extremely close to each other, we have to
+                        # zoom in to check the actual solutions.
                         qu, ql = max(qa, qb), min(qa, qb)
                         qa, qb = None, None  # because we want to scan
                     break
-
+                # check if we are at the last item of deltas list
                 if delta == deltas[-1]:
+                    # if so, we need to check if the last pair of solution
+                    # satisfies the dessired resolution defined by tol_y as
+                    # we want to the final two point to as close as it can.
+                    # the closeness is defined by tol_y x the spacing of the
+                    # two solution in the first pair, by default it one out
+                    # of one hundred of that spacing.
                     qa_, qb_, _ = rets[0]
                     if (abs(qa - qb) > abs(qa_ - qb_)*tol_y):
-                        self.print(f"Acc:{abs(qa - qb)},{abs(qa_ - qb_)*tol_y}")
+                        # if still too far away, we may need more deltas
+                        self.print(
+                            f"Acc:{abs(qa - qb)},{abs(qa_ - qb_)*tol_y}")
                         if abs(delta - last_bad_delta)/last_bad_delta < tol_y:
-                            delta_qs = self.predict_final_delta(rets)
+                            # if current delta is very close to the last bad
+                            # delta, we will try to predict the final delta
+                            # which will replace current last bad delta.
+                            delta_qs = predict_joint_point(rets)
+                            # sign define sweeping direction of delta
+                            sign = -1.0 if right_to_left_swept else 1.0
                             if delta_qs is None:
-                                last_bad_delta = last_bad_delta*(1 + 5*tol_y)
+                                # if prediction fails, due to not enough
+                                # data points or bad data points. we simply
+                                # change the last bad delta a bit larger or
+                                # smaller depends on the direction of sweeping
+                                last_bad_delta = last_bad_delta*(
+                                    1 + 5.0*sign*tol_y)
                                 self.print(f"Test bad delta:{last_bad_delta}")
                                 deltas = [last_bad_delta]
                             else:
-                                last_bad_delta, last_common_q = delta_qs
+                                # we a prediction is made, we can try to search
+                                # around the predicted region.
+                                last_bad_delta, predicted_q = delta_qs
                                 self.print(f"Predicted final point{delta_qs}")
                                 q1, q2, last_good_dalta = rets[-1]
                                 deltas = [(
@@ -540,20 +631,33 @@ class FFStateAgent(object):
                                 qu, ql = max(q1, q2), min(q1, q2)
                                 qa, qb = None, None  # because we want to scan
                         else:
-                            self.print("Mission completed")
+                            # a valid delta may in the middle of the
+                            # last bad delta and current delta
                             deltas = [(last_bad_delta + delta)/2]
                     else:
+                        self.print("Searching completed")
                         deltas = []
-                        done = True
+                        done = True  # search end
                     break
-        rets = ff_state_sort_data(rets)
+            if done:
+                output.extend(rets)
+                rets = []
+                # if we need to sweep delta from right to left
+                # by default not. To-Do: update the code to support
+                # single solution search to unify the code in the file
+                if not right_to_left_swept:
+                    done = False
+                    right_to_left_swept = True
+                    deltas = delta_ref - np.linspace(delta0, delta, N_delta)
+                    qa, qb, qu, ql, predicted_q = None, None, None, None, None
+        output = ff_state_sort_data(output)
         if auto_save:
-            self.save_to_file(rets)
-        return rets
+            self.save_to_file(output)
+        return output
 
-    
 
 def search_delta_q_worker(para):
+
     mu_eff, dmu_eff, delta, dim, k_c = para
     functionalType = FunctionalType.BDG
     kernelType = KernelType.HOM
@@ -566,25 +670,29 @@ def search_delta_q_worker(para):
         kernelType=kernelType, args=args)
     return lda.search(
         delta_N=50, delta_lower=0.0001, delta_upper=delta,
-        q_lower=0, q_upper=dmu_eff, q_N=10,
+        q_lower=0, q_upper=dmu_eff, N_q=10,
         auto_incremental=False, flip_order=True)
 
 
-def smart_search_states_worker(obj_mus_delta_dim_kc):
+def smart_search_delta_q_worker(obj_mus_delta_dim_kc):
+    """
+    a worker method used to call the lda object with
+    FF agent methods to search the delta-q curves.
+    Only for two-solution curves, the one solution curve
+    is not a potential Fulde Ferrell state.
+    """
     obj, mu_eff, dmu_eff, delta, dim, k_c = obj_mus_delta_dim_kc
     args = dict(
         mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
-        T=0, dim=dim, k_c=k_c, verbosity=False)
+        T=0, dim=dim, k_c=k_c, verbosity=True)
     lda = ClassFactory(
         "LDA", (FFStateAgent,),
         functionalType=obj.functionalType,
         kernelType=obj.kernelType, args=args)
-    # return lda.search(
-    #     delta_N=50, delta_lower=0.01, delta_upper=0.062,
-    #     q_lower=0, q_upper=dmu_eff, q_N=10, auto_incremental=False)
     return lda.smart_search(
         delta_N=100, delta_lower=0.001, delta_upper=delta,
-        q_lower=0, q_upper=dmu_eff, q_N=10, auto_incremental=False)
+        q_lower=0, q_upper=dmu_eff, N_q=40, N_delta=obj.N_delta,
+        auto_incremental=False)
 
 
 def search_condidate_worker(obj_mus_delta_dim_kc):
@@ -601,7 +709,7 @@ def search_condidate_worker(obj_mus_delta_dim_kc):
 
     return lda.search(
         delta_N=2, delta_lower=0.0001, delta_upper=0.01,
-        q_lower=0, q_upper=dmu_eff, q_N=10,
+        q_lower=0, q_upper=dmu_eff, N_q=10,
         auto_incremental=False, auto_save=False)
 
 
@@ -618,7 +726,7 @@ class AutoPDG(object):
         self.functionalType = functionalType
         self.kernelType = kernelType
         self.poolSize = poolSize
-        self.timeStamp = self.get_time_stamp()
+        self.time_stamp = self.get_time_stamp()
         self.condidate_trace = []
         if data_dir is None:
             data_dir = os.path.dirname(
@@ -707,20 +815,21 @@ class AutoPDG(object):
     def mix_para2(self, p1, p2):
         return list(itertools.product(p1, p2))
 
-    def search_delta_q_diagram(self, seed_delta, seed_dmu):
+    def search_delta_q_diagram(self, seed_delta, seed_dmu, only_one=True):
+        """"""
         dmus = self.offset_para(seed_dmu)
         deltas = self.offset_para(seed_delta)
         dmu_delta_ls = self.mix_para2(dmus, deltas)
-        # if os.path.exists("debug.json"):
-        #     with open("debug.json", 'r') as rf:
-        #         res = json.load(rf)
-        #         return ([(0.175, 0.25)], res[1])
+        self.N_delta = 50
         paras = [(
             self, self.mu_eff, dmu,
             delta, self.dim, self.k_c) for (dmu, delta) in dmu_delta_ls]
-        paras = [(self, self.mu_eff, seed_dmu, seed_delta, self.dim, self.k_c)]
+        if only_one:
+            paras = [(
+                self, self.mu_eff, seed_dmu,
+                seed_delta, self.dim, self.k_c)]
         res = PoolHelper.run(
-            smart_search_states_worker, paras, poolsize=self.poolSize)
+            smart_search_delta_q_worker, paras, poolsize=self.poolSize)
         return (dmu_delta_ls, res)
 
     def is_good_candidate(self, dmu_delta, trace_list,  dx=None):
@@ -827,6 +936,11 @@ class AutoPDG(object):
 
 
 def search_delta_qs(delta):
+    """"
+    search the delta-q curves in a point to point
+    method, can be used to search single solution
+    curve
+    """
     mu = 10
     dmus = np.linspace(0.01, delta, 10)
     paras = [(mu, dmu, delta, 2, 150) for dmu in dmus]
