@@ -68,13 +68,16 @@ class FFStateAgent(object):
 
     def get_other_pressures(self, mus, delta, dq, C, mus_eff):
         self.C = C
+        solver = None
+        if self.functional != FunctionalType.BDG:
+            solver = Solvers.BROYDEN1
         # P_ff = self.get_ns_e_p(
         #     mus=mus, delta=delta, dq=dq, verbosity=False,
         #     x0=mus_eff +(delta,), solver=Solvers.BROYDEN1)
         P_ss = self.get_ns_e_p(  # superfluid pressure
-            mus=mus, delta=None, verbosity=False, solver=Solvers.BROYDEN1)
+            mus=mus, delta=None, verbosity=False, solver=solver)
         P_ns = self.get_ns_e_p(  # normal state pressure
-            mus=mus, delta=0, verbosity=False, solver=Solvers.BROYDEN1)
+            mus=mus, delta=0, verbosity=False, solver=solver)
         return (P_ss[2], P_ns[2])
 
     def SaveToFile(self, data, extra_items=None):
@@ -92,8 +95,8 @@ class FFStateAgent(object):
         output["dmu_eff"] = self.dmu_eff
         output["C"] = self.C
         output["k_c"] = self.k_c
-        output['functional'] = self.functional
-        output['kernel'] = self.kernel
+        output['functional'] = self.functional_index
+        output['kernel'] = self.kernel_index
         if extra_items is not None:
             output.update(extra_items)
         output["data"] = data

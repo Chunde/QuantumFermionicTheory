@@ -366,8 +366,10 @@ def ClassFactory(
         Functionals[functionalType.value])
 
     def __init__(self, **args):
-        self.functional=functionalType.value
-        self.kernel = kernelType.value
+        self.functional_index=functionalType.value
+        self.kernel_index = kernelType.value
+        self.functional=functionalType
+        self.kernel = kernelType
         for base_class in base_classes:
             if len(inspect.getargspec(base_class.__init__)[0]) > 1:
                 base_class.__init__(self, **args)

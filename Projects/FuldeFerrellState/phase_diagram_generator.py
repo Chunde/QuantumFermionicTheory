@@ -7,6 +7,7 @@ from collections import deque
 from os.path import join
 import numpy as np
 import operator
+import glob
 import itertools
 from scipy.optimize import brentq
 from mmf_hfb.class_factory import FunctionalType, KernelType
@@ -102,8 +103,8 @@ class FFStateAgent(object):
         output["dmu_eff"] = self.dmu_eff
         output["C"] = self.C
         output["k_c"] = self.k_c
-        output['functional'] = self.functional
-        output['kernel'] = self.kernel
+        output['functional'] = self.functional_index
+        output['kernel'] = self.kernel_index
         if extra_items is not None:
             output.update(extra_items)
         output["data"] = data
@@ -711,7 +712,98 @@ def search_condidate_worker(obj_mus_delta_dim_kc):
     return lda.search(
         N_delta=2, delta_lower=0.0001, delta_upper=0.01,
         q_lower=0, q_upper=dmu_eff, N_q=10,
-        auto_incremental=False, auto_save=False)
+        auto_save=False)
+
+
+def compute_pressure_current_worker(jsonData_file):
+    """
+    Use the FF State file to compute their current and pressure
+    """
+    jsonData, fileName = jsonData_file
+    filetokens = fileName.split("_")
+    output_fileName = "FFState_J_P_" + "_".join(filetokens[1:]) + ".json"
+    dim = jsonData['dim']
+    delta = jsonData['delta']
+    mu_eff = jsonData['mu_eff']
+    dmu_eff = jsonData['dmu_eff']
+    data = jsonData['data']
+    k_c = jsonData['k_c']
+    C = jsonData['C']
+    functional_index = jsonData['functional']
+    if 'pending' in jsonData:
+        print(f"Skip a unfinished file: {fileName}")
+        return
+    mus_eff = (mu_eff + dmu_eff, mu_eff - dmu_eff)
+
+    args = dict(
+        mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
+        T=0, dim=dim, k_c=k_c, verbosity=False,
+        prefix=f"{output_fileName}", timeStamp=False)
+    lda = ClassFactory(
+        "LDA", (FFStateAgent,),
+        functionalType=ClassFactory(functionalIndex=functional_index),
+        kernelType=KernelType.HOM, args=args)
+    C_ = lda._get_C(mus_eff=mus_eff, delta=delta)
+    assert np.allclose(C, C_, rtol=1e-16)  # verify the C value
+    lda.C = C
+    if os.path.exists(lda.get_file_name()):
+        return None
+    normal_pressure = lda.get_ns_mus_e_p(mus_eff=mus_eff, delta=0)[3]
+
+    print(f"Processing {lda.get_file_name()}")
+    output1 = []
+    output2 = []
+
+    def append_item(delta, dq, output):
+        if dq is not None:
+            dic = {}
+            ns, mus, e, p = lda.get_ns_mus_e_p(mus_eff=mus_eff, delta=d, dq=dq)
+            ja, jb, jp, _ = lda.get_current(mus_eff=mus_eff, delta=d, dq=dq)
+            dic['na'] = ns[0]  # particle density a
+            dic['nb'] = ns[1]  # particle density b
+            dic['d'] = d  # delta satisfies the gap equation
+            dic['q'] = dq  # the q value
+            dic['e'] = e  # energy density
+            dic['p'] = p  # pressure
+            dic['j'] = jp.n  # current sum
+            dic['ja'] = ja.n  # current a
+            dic['jb'] = jb.n  # current b
+            dic['mu_a'] = mus[0]  # bare mu_a
+            dic['mu_b'] = mus[1]  # bare mu_b
+            output.append(dic)
+            print(dic)
+    try:
+        for item in data:
+            dq1, dq2, d = item
+            append_item(delta=d, dq=dq1, output=output1)
+            append_item(delta=d, dq=dq2, output=output2)
+        output = [output1, output2]
+        lda.save_to_file(output, extra_items={"p0": normal_pressure})
+    except ValueError as e:
+        print(f"Parsing file: {fileName}. Error:{e}")
+
+
+def compute_pressure_current(root=None):
+    """compute current and pressure"""
+    currentdir = root
+    if currentdir is None:
+        currentdir = os.path.dirname(
+            os.path.abspath(inspect.getfile(inspect.currentframe())))
+    pattern = join(currentdir, "data", "FFState_[()_0-9]*.json")
+    files = glob.glob(pattern)
+    jsonObjects = []
+    for file in files:
+        if os.path.exists(file):
+            with open(file, 'r') as rf:
+                jsonObjects.append(
+                    (json.load(rf), os.path.splitext(
+                        os.path.basename(file))[0]))
+
+    if False:  # Debugging
+        for item in jsonObjects:
+            compute_pressure_current_worker(item)
+    else:
+        PoolHelper.run(compute_pressure_current_worker, jsonObjects)
 
 
 class AutoPDG(object):
@@ -762,6 +854,9 @@ class AutoPDG(object):
     def save_to_file(self, output, file):
         with open(file, 'w') as wf:
             json.dump(output, wf)
+
+    def compute_pressure_current_from_files(self, root=None):
+        compute_pressure_current(root=root)
 
     def compute_press(self, dmu, delta, delta_q):
         mu_eff, dmu_eff = self.mu_eff, dmu
@@ -821,7 +916,7 @@ class AutoPDG(object):
         dmus = self.offset_para(seed_dmu)
         deltas = self.offset_para(seed_delta)
         dmu_delta_ls = self.mix_para2(dmus, deltas)
-        self.N_delta = 50
+        self.N_delta = 20
         self.delta1 = 0.04
         paras = [(
             self, self.mu_eff, dmu,
@@ -955,6 +1050,7 @@ if __name__ == "__main__":
     pdg = AutoPDG(
         functionalType=FunctionalType.BDG,
         kernelType=KernelType.HOM, k_c=150, dim=2)
-    dmu, delta = 0.446, 0.5  # 0.175, 0.25 # for 3D
-    pdg.search_delta_q_diagram(seed_delta=delta, seed_dmu=dmu)
+    dmu, delta = 0.38, 0.5  # 0.175, 0.25 # for 3D
+    #pdg.search_delta_q_diagram(seed_delta=delta, seed_dmu=dmu)
+    pdg.compute_pressure_current_from_files()
     # pdg.run(seed_delta=delta, seed_dmu=dmu)
