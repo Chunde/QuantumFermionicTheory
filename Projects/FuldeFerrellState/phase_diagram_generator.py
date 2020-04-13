@@ -738,7 +738,7 @@ def compute_pressure_current_worker(jsonData_file):
     args = dict(
         mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
         T=0, dim=dim, k_c=k_c, verbosity=False,
-        prefix=f"{output_fileName}", timeStamp=False)
+        prefix=f"{output_fileName}", time_stamp=False)
     lda = ClassFactory(
         "LDA", (FFStateAgent,),
         functionalType=ClassFactory(functionalIndex=functional_index),
@@ -799,7 +799,7 @@ def compute_pressure_current(root=None):
                     (json.load(rf), os.path.splitext(
                         os.path.basename(file))[0]))
 
-    if False:  # Debugging
+    if True:  # Debugging
         for item in jsonObjects:
             compute_pressure_current_worker(item)
     else:
@@ -1047,10 +1047,11 @@ def search_delta_qs(delta):
 
 if __name__ == "__main__":
     # search_delta_qs(delta=.5)
-    pdg = AutoPDG(
-        functionalType=FunctionalType.BDG,
-        kernelType=KernelType.HOM, k_c=150, dim=2)
-    dmu, delta = 0.38, 0.5  # 0.175, 0.25 # for 3D
-    #pdg.search_delta_q_diagram(seed_delta=delta, seed_dmu=dmu)
-    pdg.compute_pressure_current_from_files()
+    # pdg = AutoPDG(
+    #     functionalType=FunctionalType.BDG,
+    #     kernelType=KernelType.HOM, k_c=150, dim=2)
+    # dmu, delta = 0.38, 0.5  # 0.175, 0.25 # for 3D
+    # pdg.search_delta_q_diagram(seed_delta=delta, seed_dmu=dmu)
+    # pdg.compute_pressure_current_from_files()
     # pdg.run(seed_delta=delta, seed_dmu=dmu)
+    compute_pressure_current()
