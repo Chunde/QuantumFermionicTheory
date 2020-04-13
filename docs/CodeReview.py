@@ -200,7 +200,7 @@ def test_thermodynamics_ns_functionals(
 
 
 # ## Thermodynamic
-# * The reason why we can not simply use (E_1-E_2)/(n_1 - n_2) to get $\mu$ is because the following relations
+# * The reason why we can not simply use $\frac{E_1-E_2}{n_1 - n_2}$ to get $\mu$ is because the following relations
 # \begin{align}
 # \frac{d E}{d n}
 # &=\frac{d E(n_a, n_b)}{d n}\\
