@@ -37,6 +37,8 @@ def predict_joint_point(res):
         x1 = np.linalg.solve(M, y1)
         x2 = np.linalg.solve(M, y2)
         a, b, c = x2 - x1
+        if (b**2 - 4*a*c) < 0:
+            return None
         delta_p = (-b + (b**2 - 4*a*c)**0.5)/2.0/a
         delta_m = (-b - (b**2 - 4*a*c)**0.5)/2.0/a
     except ValueError:
@@ -582,7 +584,7 @@ class FFStateAgent(object):
                     last_bad_delta = delta
                     # used the last solutions as start point
                     # for the next search.
-                    qa, qb, _ = rets[-1]
+                    qa, qb, _ = rets[-1] if len(rets) > 0 else (None,)*3
                     if predicted_q is not None:
                         # if predicted_q is valid, that may mean
                         # we are getting close the final joint point
@@ -659,7 +661,7 @@ class FFStateAgent(object):
 
 
 def search_delta_q_worker(para):
-
+    smart_search = True
     mu_eff, dmu_eff, delta, dim, k_c = para
     functionalType = FunctionalType.BDG
     kernelType = KernelType.HOM
@@ -670,6 +672,11 @@ def search_delta_q_worker(para):
         "LDA", (FFStateAgent,),
         functionalType=functionalType,
         kernelType=kernelType, args=args)
+    if smart_search:
+        return lda.smart_search(
+            delta_lower=0.001, delta_upper=delta,
+            q_lower=0, q_upper=dmu_eff, N_q=40, delta1=delta,
+            N_delta=100)
     return lda.search(
         N_delta=50, delta_lower=0.0001, delta_upper=delta,
         q_lower=0, q_upper=dmu_eff, N_q=10,
@@ -799,7 +806,7 @@ def compute_pressure_current(root=None):
                     (json.load(rf), os.path.splitext(
                         os.path.basename(file))[0]))
 
-    if True:  # Debugging
+    if False:  # Debugging
         for item in jsonObjects:
             compute_pressure_current_worker(item)
     else:
@@ -913,11 +920,12 @@ class AutoPDG(object):
 
     def search_delta_q_diagram(self, seed_delta, seed_dmu, only_one=True):
         """"""
+        print(f"delta={seed_delta},dmu={seed_dmu}")
         dmus = self.offset_para(seed_dmu)
         deltas = self.offset_para(seed_delta)
         dmu_delta_ls = self.mix_para2(dmus, deltas)
-        self.N_delta = 20
-        self.delta1 = 0.04
+        self.N_delta = 100
+        self.delta1 = seed_delta
         paras = [(
             self, self.mu_eff, dmu,
             delta, self.dim, self.k_c) for (dmu, delta) in dmu_delta_ls]
@@ -1032,26 +1040,33 @@ class AutoPDG(object):
         self.scan_valid_parameter_space(res)
 
 
-def search_delta_qs(delta):
+def search_delta_q_manager(delta):
     """"
     search the delta-q curves in a point to point
     method, can be used to search single solution
     curve
     """
     mu = 10
-    dmus = np.linspace(0.01, delta, 10)
+    step = 0.1
+    N = int(delta/0.1)
+    dmus = np.array(list(range(N)))*step + step
+    # dmus = np.linspace(0.01, delta, 10)
     paras = [(mu, dmu, delta, 2, 150) for dmu in dmus]
     PoolHelper.run(
-        search_delta_q_worker, paras, poolsize=10)
+        search_delta_q_worker, paras, poolsize=5)
+
+
+def PDG():
+    pdg = AutoPDG(
+        functionalType=FunctionalType.BDG,
+        kernelType=KernelType.HOM, k_c=150, dim=2)
+    dmu, delta = .3, .7  # 0.175, 0.25 # for 3D
+    pdg.search_delta_q_diagram(seed_delta=delta, seed_dmu=dmu)
+    # pdg.compute_pressure_current_from_files()
+    # pdg.run(seed_delta=delta, seed_dmu=dmu)
 
 
 if __name__ == "__main__":
-    # search_delta_qs(delta=.5)
-    # pdg = AutoPDG(
-    #     functionalType=FunctionalType.BDG,
-    #     kernelType=KernelType.HOM, k_c=150, dim=2)
-    # dmu, delta = 0.38, 0.5  # 0.175, 0.25 # for 3D
-    # pdg.search_delta_q_diagram(seed_delta=delta, seed_dmu=dmu)
-    # pdg.compute_pressure_current_from_files()
-    # pdg.run(seed_delta=delta, seed_dmu=dmu)
-    compute_pressure_current()
+    # search_delta_q_manager(delta=1.5)
+    PDG()
+    # compute_pressure_current()
