@@ -1,4 +1,3 @@
-from mmf_hfb.fulde_ferrell_state import FFState
 import matplotlib.pyplot as plt
 from os.path import join
 import numpy as np
@@ -8,6 +7,12 @@ import inspect
 import json
 import glob
 import os
+import sys
+currentdir = os.path.dirname(
+            os.path.abspath(inspect.getfile(inspect.currentframe())))
+sys.path.insert(0, currentdir)
+from fulde_ferrell_state import FFState
+from fulde_ferrell_state import FFState
 
 warnings.filterwarnings("ignore")
 

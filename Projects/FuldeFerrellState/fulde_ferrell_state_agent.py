@@ -502,7 +502,7 @@ def label_states(current_dir=None, raw_data=False, verbosity=False):
                     if (
                         not np.allclose(
                             n_a, n_b, rtol=1e-9) and (
-                                data["q"] > 0.0001 and data["d"] > 0.001)):
+                                data["q"] > 0.0001 and data["d"] > 0.0001)):
                         pressures = lda.get_other_pressures(
                             mus_eff=(mu_eff + dmu_eff, mu_eff - dmu_eff),
                             mus=(mu+dmu, mu-dmu), delta=data["d"],

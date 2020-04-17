@@ -58,7 +58,7 @@ def PlotStates(
     pattern = join(current_dir, "FFState_[()d_0-9]*.json")
     files = glob.glob(pattern)
     style = ['o', '+', '+']
-    
+    ds1, ds2 = [], []
     Cs = set()
     for file in files:
         if os.path.exists(file):
@@ -317,16 +317,30 @@ def PlotPhaseDiagram(output=None, raw_data=False):
 
 if __name__ == "__main__":
     def filter_state(mu, dmu, delta, C, dim):
-        if dim != 3:
+        if dim != 2:
             return True
-
-        if delta != .5:
+        #return False
+        #if g != -2.8:
+        #    return True
+        #return False
+        #if g != -3.2:
+        #    return True
+        if delta > 0.5:
             return True
-
-        if not np.allclose(dmu, 0.33, rtol=0.01):
+        if dmu < 0.4:  
             return True
-        print(dmu)
+        if dmu > 0.446:
+            return True
+        #if not np.allclose(dmu, 0.35, rtol=0.01):
+        #    return True
+        #print(dmu)
         return False
+    currentdir = os.path.dirname(
+            os.path.abspath(
+                inspect.getfile(inspect.currentframe())))
+    currentdir = join(currentdir, "data")
+    label_states(current_dir=currentdir, raw_data=True, verbosity=False)
     PlotCurrentPressure(
+        current_dir=currentdir,
         filter_fun=filter_state, showLegend=True,
         FFState_only=False, print_file_name=True)

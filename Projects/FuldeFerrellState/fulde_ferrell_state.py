@@ -333,7 +333,12 @@ class FFState(object):
             self, mu=None, dmu=None, mu_eff=None,
             dmu_eff=None, q=0, dq=0, delta=None,
             use_kappa=True):
-        """return the pressure"""
+        """
+        return the pressure
+        -------------------
+        NOTE: the mus and effective mus only differ for 1D
+            because the Hartree term is non zero
+        """
         assert (mu is None) == (dmu is None)
         assert (mu_eff is None) == (dmu_eff is None)
         if mu is None:
