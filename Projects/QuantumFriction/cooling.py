@@ -3,9 +3,18 @@ Methods that will be called from notebook to play
 Animation for cooling procedure. Put this method
 in a file to make a notebook cleaner.
 """
-from mmf_hfb.bcs_cooling import BCSCooling
+import os
+import sys
+import inspect
 import numpy as np
 import matplotlib.pyplot as plt
+
+current_dir = os.path.dirname(
+            os.path.abspath(inspect.getfile(inspect.currentframe())))
+sys.path.insert(0, current_dir)
+
+from bcs_cooling import BCSCooling
+
 from IPython.display import clear_output
 
 eps = 7./3 - 4./3 -1  # machine precision
