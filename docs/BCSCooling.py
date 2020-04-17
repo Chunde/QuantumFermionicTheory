@@ -121,7 +121,7 @@ psi_err_real = [-0.00218921, -0.00226835, -0.00282437, -0.00360555, -0.00501059,
 
 psi_err = [-0.00218921+4.50738870e-05j, -0.00226835+3.27814682e-04j, -0.00282437+5.97283274e-04j, -0.00360555+1.39230139e-03j,    -0.00501059+2.07960895e-03j, -0.00685029+3.09336714e-03j, -0.00951956+3.68280893e-03j, -0.0127734 +4.12272628e-03j,    -0.01684204+3.54005357e-03j, -0.02124532+2.11877210e-03j,    -0.02588368-9.62888633e-04j, -0.02995909-5.33343049e-03j,    -0.03310807-1.14164114e-02j, -0.03448526-1.83242920e-02j,    -0.03393179-2.59022377e-02j, -0.03113281-3.28407813e-02j,    -0.02663775-3.88468295e-02j, -0.02086866-4.29065158e-02j,    -0.01482283-4.53694929e-02j, -0.0089401 -4.60280349e-02j,    -0.00373432-4.58378021e-02j,  0.00104928-4.47449411e-02j,     0.00547406-4.33346633e-02j,  0.0098595 -4.09341245e-02j,     0.01384601-3.76976409e-02j,  0.01710405-3.30584247e-02j,     0.01897185-2.77803042e-02j,  0.01938578-2.19596106e-02j,     0.01841146-1.65698780e-02j,  0.01652955-1.12854342e-02j,     0.01381004-6.45290020e-03j,  0.01019765-1.48229183e-03j,     0.00539174+2.91830327e-03j, -0.00051897+6.83454930e-03j,    -0.00721161+9.48325482e-03j, -0.01431977+1.14661610e-02j,    -0.02175712+1.24614862e-02j, -0.02969925+1.29921508e-02j,    -0.03800296+1.22802124e-02j, -0.04647457+1.07622808e-02j,    -0.05466709+8.09754723e-03j, -0.06283147+5.04299703e-03j,    -0.07077758+1.04844071e-03j, -0.07868313-3.50850290e-03j,    -0.08590425-8.93007232e-03j, -0.09288341-1.45492125e-02j,    -0.09926526-2.06476776e-02j, -0.10549211-2.70484057e-02j,    -0.11085466-3.37529097e-02j, -0.11593967-4.04560507e-02j,    -0.12040231-4.71200358e-02j, -0.12456927-5.38792982e-02j,    -0.12803744-6.03759482e-02j, -0.13119387-6.66371139e-02j,    -0.13395077-7.25906880e-02j, -0.13628036-7.82334154e-02j,    -0.13820641-8.33861957e-02j, -0.1399491 -8.80135257e-02j,    -0.14125757-9.22296061e-02j, -0.142399  -9.57805140e-02j,    -0.14322768-9.87048205e-02j, -0.14393405-1.01118355e-01j,    -0.14432862-1.02752808e-01j, -0.14463055-1.03759408e-01j,    -0.14470525-1.04155158e-01j, -0.14463055-1.03759408e-01j,    -0.14432862-1.02752808e-01j, -0.14393405-1.01118355e-01j,    -0.14322768-9.87048205e-02j, -0.142399  -9.57805140e-02j,    -0.14125757-9.22296061e-02j, -0.1399491 -8.80135257e-02j,    -0.13820641-8.33861957e-02j, -0.13628036-7.82334154e-02j,    -0.13395077-7.25906880e-02j, -0.13119387-6.66371139e-02j,    -0.12803744-6.03759482e-02j, -0.12456927-5.38792982e-02j,    -0.12040231-4.71200358e-02j, -0.11593967-4.04560507e-02j,    -0.11085466-3.37529097e-02j, -0.10549211-2.70484057e-02j,    -0.09926526-2.06476776e-02j, -0.09288341-1.45492125e-02j,    -0.08590425-8.93007232e-03j, -0.07868313-3.50850290e-03j,    -0.07077758+1.04844071e-03j, -0.06283147+5.04299703e-03j,    -0.05466709+8.09754724e-03j, -0.04647457+1.07622808e-02j,    -0.03800296+1.22802124e-02j, -0.02969925+1.29921508e-02j,    -0.02175712+1.24614862e-02j, -0.01431977+1.14661610e-02j,    -0.00721161+9.48325482e-03j, -0.00051897+6.83454930e-03j,     0.00539174+2.91830327e-03j,  0.01019765-1.48229183e-03j,     0.01381004-6.45290021e-03j,  0.01652955-1.12854342e-02j,     0.01841146-1.65698780e-02j,  0.01938578-2.19596107e-02j,     0.01897185-2.77803042e-02j,  0.01710405-3.30584247e-02j,     0.01384601-3.76976409e-02j,  0.0098595 -4.09341245e-02j,     0.00547406-4.33346633e-02j,  0.00104928-4.47449411e-02j,    -0.00373432-4.58378021e-02j, -0.0089401 -4.60280349e-02j,    -0.01482283-4.53694929e-02j, -0.02086866-4.29065158e-02j,    -0.02663775-3.88468295e-02j, -0.03113281-3.28407813e-02j,    -0.03393179-2.59022377e-02j, -0.03448526-1.83242920e-02j,    -0.03310807-1.14164114e-02j, -0.02995909-5.33343049e-03j,    -0.02588368-9.62888632e-04j, -0.02124532+2.11877210e-03j,    -0.01684204+3.54005357e-03j, -0.0127734 +4.12272628e-03j,    -0.00951956+3.68280893e-03j, -0.00685029+3.09336714e-03j,    -0.00501059+2.07960895e-03j, -0.00360555+1.39230139e-03j,    -0.00282437+5.97283275e-04j, -0.00226835+3.27814682e-04j]
 
-plt.figure(figsize(10,5))
+# plt.figure(figsize(10,5))
 args = dict(beta_K=1, beta_V=1, beta_D=1, beta_Y=1, divs=(1, 1))
 s = BCSCooling(N=128, dx=0.1, g=-1,**args)
 s.erase_max_ks()
@@ -135,10 +135,10 @@ Vc = s.get_Dyadic(s.apply_H([psi0]))
 plt.plot(x, Vc)
 
 
-def Check_UV_IR():
+def Check_UV_IR(fontsize=22):
     dx = 0.1
-    plt.figure(figsize=(15,5))
-    args = dict(beta_K=10000, beta_V=1, beta_D=1, beta_Y=1, divs=(1, 1))
+    plt.figure(figsize=(18,5))
+    args = dict(beta_K=1, beta_V=1, beta_D=1, beta_Y=1, divs=(1, 1))
     for Nx in [128, 256, 512]:
         offset = np.log(Nx)*0.1 # add a small offset in y direction
         uv = BCSCooling(N=256, dx=dx*256/Nx,**args)
@@ -149,21 +149,35 @@ def Check_UV_IR():
             s.V = x**2/2
             psi0 = np.exp(-x**2/2.0)*np.exp(1j*x)
             plt.subplot(1,3,1)
-            plt.plot(x, psi0 + offset)
+            plt.plot(x, abs(psi0)**2 + offset, label=f"dx={s.dx},N={s.N}")
             plt.subplot(1,3,i)
             psis_k = s.get_psis_k([psi0])
-            Vc = s.get_Vd(psis=[psi0], psis_k=psis_k)
-            l, = plt.plot(x, Vc + offset)  # add some offset in y direction to separate plots
+            Vc = s.get_Vc(psis=[psi0], psis_k=psis_k)  # get_Dyadic
+            l, = plt.plot(x, Vc + offset, label=f"dx={s.dx}, N={s.N}")  # add some offset in y direction to separate plots
     plt.subplot(131)
     plt.xlim(-10, 10)
+    plt.xlabel("x", fontsize=fontsize)
+    plt.title(r"$|\psi|^2$", fontsize=fontsize)
+    plt.legend()
     plt.subplot(132)
     plt.xlim(-4, 4)
+    plt.xlabel("x", fontsize=fontsize)
+    plt.title(r"$V_c$(UV)", fontsize=fontsize)
+    plt.legend()
     plt.subplot(133)
     plt.xlim(-4,4)
-Check_UV_IR()
+    plt.xlabel("x", fontsize=fontsize)
+    plt.title(r"$V_c$(IR)", fontsize=fontsize)
+    plt.legend()
+
+
+# Check_UV_IR()
+# plt.savefig("cooling_potential_uv_ir.pdf", bbox_inches='tight') #balanced_vortx_2d_bcs_plot
 
 import time
-def test_der_cooling(plot=True, plot_dE=True, T=0.5, log=False, **args):   
+def test_cooling(
+        plot=True, plot_dE=True, T=0.5, log=False, fontsize=18, legendfont=18, E_E0=1.1, col=1,  col_offset=0, image_name=None,
+        show_plot=True, show_title=True, show_x=True, **args):   
     b = BCSCooling(**args)
     h0 = HarmonicOscillator(w=1)
     h = HarmonicOscillator()
@@ -179,9 +193,11 @@ def test_der_cooling(plot=True, plot_dE=True, T=0.5, log=False, **args):
     psi0 = b.Normalize(h.get_wf(x))
     psi0 = b.Normalize(U1[0])
     psi = b.Normalize(h0.get_wf(x, n=2))
-    psi = b.Normalize(U0[1])
+    psi = b.Normalize(U0[1]) #b.Normalize(np.ones_like(x)) #
     start_time = time.time()
-    ts, psis, nfev = b.solve([psi], T=T, rtol=1e-5, atol=1e-6,solver=None, method='BDF')
+    E0, _ = b.get_E_Ns([psi0])
+    b.E_stop= E0*E_E0
+    ts, psis, nfev = b.solve([psi], T=T, rtol=1e-5, atol=1e-6, solver=None, method='BDF')
     wall_time = time.time() - start_time
     if plot:
         #b.erase_max_ks()
@@ -189,58 +205,79 @@ def test_der_cooling(plot=True, plot_dE=True, T=0.5, log=False, **args):
             N_plot=3
         else:
             N_plot=2
-        plt.figure(figsize=(5*N_plot, 5))
-        plt.subplot(1, N_plot, 1)
-        E0, _ = b.get_E_Ns([psi0])
+       # plt.figure(figsize=(5*N_plot, 5))
+        plt.subplot(col, N_plot, col_offset*3 + 1)
         Es = [b.get_E_Ns(_psi)[0] for _psi in psis]
         dE_dt= [-1*b.get_dE_dt(_psi) for _psi in psis]
-        plt.plot(x, Prob(psis[0][0]), "+", label='init')
-        plt.plot(x, Prob(psis[-1][0]), '--',label="final")
-        plt.plot(x, Prob(psi0), label='Ground')
-        plt.xlabel("x")
-        plt.ylabel(r"$\psi(x)$")
-        plt.legend()
-        plt.subplot(1,N_plot,2)
+        plt.plot(x, Prob(psis[0][0]), "-", label='init')
+        plt.plot(x, Prob(psis[-1][0]), '+',label="final")
+        plt.plot(x, Prob(psi0), '--',label='Ground')
+        if show_x: plt.xlabel("x", fontsize=fontsize)
+        if show_title: plt.title(r"$|\psi(x)|^2$",fontsize=fontsize)
+        plt.legend(prop={'size': legendfont})
+        plt.subplot(col,N_plot,col_offset*3 + 2)
         if log:
-            plt.semilogy(ts[:-1], (Es[:-1] - E0)/abs(E0), label="E")
+            plt.semilogy(ts[:-1], (Es[:-1] - E0)/abs(E0), label=f"Wall Time={wall_time:2.4}")
         else:
-            plt.plot(ts[:-1], (Es[:-1] - E0)/abs(E0), label="E")
+            plt.plot(ts[:-1], (Es[:-1] - E0)/abs(E0), label=f"Wall Time={wall_time:2.4}")
         if (Es[-1] - E0)/abs(E0) < 2.5:
-            plt.axhline(1, linestyle='dashed')
-        plt.xlabel("Time")
-        plt.ylabel("(E-E0)/E0")
-        if plot_dE:
-            plt.subplot(1, N_plot, 3)
-            plt.plot(ts[:-1], dE_dt[:-1], label='-dE/dt')
             plt.axhline(0, linestyle='dashed')
-            plt.xlabel("Time")
-            plt.ylabel("-dE/dt")
-        plt.legend()
-        plt.show()
+        if show_x: plt.xlabel("Physical Time", fontsize=fontsize)
+        if show_title: plt.title("(E-E0)/E0",fontsize=fontsize)
+        plt.legend(prop={'size': legendfont})
+        if plot_dE:
+            plt.subplot(col, N_plot, col_offset*3 + 3)
+            plt.semilogy(ts[1:-1], dE_dt[1:-1], label='-dE/dt')
+            plt.axhline(0, linestyle='dashed')
+            if show_x: plt.xlabel("Physical Time", fontsize=fontsize)
+            if show_title: plt.title("-dE/dt",fontsize=fontsize)
+        plt.legend(prop={'size': legendfont})
+        
     print(f"Wall Time={wall_time}, nfev={nfev}")
+    if image_name is not None:
+        plt.savefig(image_name, bbox_inches='tight')
+    if show_plot:
+        plt.show()
     return (wall_time, nfev)
 
 
 # ## A Fast cooling Due to Bug
 
-args = dict(N=128, dx=.1, divs=(1, 1), beta_Y=0, beta_S=5, T=0.05, check_dE=False)
-psi = test_der_cooling(plot_dE=True, **args)
+# args = dict(N=128, dx=.1, divs=(1, 1), beta_Y=0, beta_S=5, T=0.05, check_dE=False)
+# psi = test_cooling(plot_dE=True, **args)
 
 # ## Imaginary cooling
 
-args = dict(N=128, dx=.1, divs=(1, 1), beta_0=-1j,T=.05, log=False,check_dE=False)
-psi = test_der_cooling(plot_dE=True, **args)
+args = dict(N=128, dx=.2, divs=(1, 1), beta_0=-1j, T=2.5, log=True, E_E0=1.01, check_dE=False)
+plt.figure(figsize(21, 6))
+psi = test_cooling(plot_dE=True, image_name='imaginary_cooling.pdf', **args)
+
 
 # ## Unitary cooling
 
-args = dict(N=128, dx=0.2, divs=(1, 1), beta_K=0, beta_V=5, beta_D=0, T=3, check_dE=True)
-res = test_der_cooling(plot_dE=True, **args)
+args = dict(N=128, dx=0.2, divs=(1, 1), beta_K=0, beta_V=7.5, beta_D=0, T=7.5,log=True, E_E0=1.01, check_dE=True)
+res = test_cooling(plot_dE=True,  image_name="cooling_with_Vc.pdf", **args)
 
-args = dict(N=128, dx=0.2, divs=(1, 1), beta_K=100, beta_V=0, beta_D=0, T=1, check_dE=True)
-res = test_der_cooling(plot_dE=True, **args)
+args = dict(N=128, dx=0.2, divs=(1, 1), beta_K=40, beta_V=0, beta_D=0, T=20, log=True,E_E0=1.01, check_dE=True)
+res = test_cooling(plot_dE=True, image_name="cooling_with_Kc.pdf", **args)
 
-args = dict(N=128, dx=0.1, divs=(1, 1), beta_K=0, beta_V=0, beta_D=5, T=3, check_dE=False)
-psi = test_der_cooling(plot_dE=True, **args)
+args = dict(N=128, dx=0.2, divs=(1, 1), beta_K=0, beta_V=0, beta_D=2, T=100, log=True,E_E0=1.01, check_dE=True)
+res = test_cooling(plot_dE=True, **args)
+plt.savefig("cooling_with_Vd.pdf", bbox_inches='tight')
+
+E_E0=1.01
+col=3
+col_offset=0
+plt.figure(figsize(20, 20))
+args = dict(N=128, dx=0.2, divs=(1, 1), beta_K=0, beta_V=7.5, beta_D=0, T=7.5,log=True, E_E0=E_E0, check_dE=True)
+res = test_cooling(plot_dE=True, show_plot=False,col=col, col_offset=col_offset, show_title=True, show_x=False, **args)
+col_offset = col_offset + 1
+args = dict(N=128, dx=0.2, divs=(1, 1), beta_K=40, beta_V=0, beta_D=0, T=20, log=True,E_E0=E_E0, check_dE=True)
+res = test_cooling(plot_dE=True, show_plot=False, col=col, col_offset=col_offset, show_title=False, show_x=False,**args)
+col_offset = col_offset + 1
+args = dict(N=128, dx=0.2, divs=(1, 1), beta_K=0, beta_V=0, beta_D=2, T=30, log=True,E_E0=1.01, check_dE=True)
+res = test_cooling(plot_dE=True, show_plot=False,col=col, show_title=False, col_offset=col_offset, **args)
+plt.savefig("all_cooling_potential.pdf", bbox_inches='tight')
 
 # ## Dyadic cooling
 # To minimize the communication costs, we consider approximating $\op{H}_c$ by a set of dyads:

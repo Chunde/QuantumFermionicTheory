@@ -56,53 +56,60 @@ def clockwise(r, v):
 
 # Here we generate some vortices.  These are regularized by fixing the coupling constant $g$ so that the homogeneous system in the box and on the lattice gives a fixed value of $\Delta$ at the specified chemical potential.  The self-consistent solution is found by simple iterations.
 
+# +
+def plot_2D(self, fig=None, res=None, fontsize=36):
+    x, y = self.xyz[:2]
+    # res = self.res if res is None else res
+    if fig is None:
+        fig = plt.figure(figsize=(20, 10))
+    plt.subplot(233)
+    if self.dim == 2:
+        imcontourf(x, y, abs(self.Delta), aspect=1)
+    elif self.dim == 3:
+        imcontourf(x, y,  np.sum(abs(self.Delta), axis=2))
+    plt.title(r'$|\Delta|$',fontsize=fontsize); plt.colorbar()
+
+    if res is not None:
+        plt.subplot(231)
+        imcontourf(x, y, (res.n_a+res.n_b).real, aspect=1)
+        plt.title(r'$n_+$',fontsize=fontsize); plt.colorbar()
+
+        plt.subplot(232)
+        imcontourf(x, y, (res.n_a-res.n_b).real, aspect=1)
+        plt.title(r'$n_-$',fontsize=fontsize); plt.colorbar()
+
+        plt.subplot(234)
+
+        j_a = res.j_a[0] + 1j*res.j_a[1]
+        j_b = res.j_b[0] + 1j*res.j_b[1]
+        j_p = j_a + j_b
+        j_m = j_a - j_b
+        utheta = np.exp(1j*np.angle(x + 1j*y))
+        imcontourf(x, y, abs(j_a), aspect=1)
+        plt.title(r'$j_a$', fontsize=fontsize); plt.colorbar()
+        plt.quiver(x.ravel(), y.ravel(), j_a.real, j_a.imag)
+
+        plt.subplot(235)
+        imcontourf(x, y, abs(j_b), aspect=1)
+        plt.title(r'$j_b$',fontsize=fontsize); plt.colorbar()
+        plt.quiver(x.ravel(), y.ravel(), j_b.real, j_b.imag)
+
+        plt.subplot(236)
+        imcontourf(x, y, abs(j_p), aspect=1)
+        plt.title(r'$j_+$',fontsize=fontsize); plt.colorbar()
+        plt.quiver(x.ravel(), y.ravel(), j_p.real, j_p.imag)
+        
 class PlotBase(object):
     dim = None
     xyz = None
     Delta = None
     
     def plot(self, fig=None, res=None):
-        x, y = self.xyz[:2]
-        if fig is None:
-            fig = plt.figure(figsize=(20, 10))
-        plt.subplot(233)
-        if self.dim == 2:
-            imcontourf(x, y, abs(self.Delta), aspect=1)
-        elif self.dim == 3:
-            imcontourf(x, y,  np.sum(abs(self.Delta), axis=2))
-        plt.title(r'$|\Delta|$'); plt.colorbar()
-
-        if res is not None:
-            plt.subplot(231)
-            imcontourf(x, y, (res.n_a+res.n_b).real, aspect=1)
-            plt.title(r'$n_+$'); plt.colorbar()
-
-            plt.subplot(232)
-            imcontourf(x, y, (res.n_a-res.n_b).real, aspect=1)
-            plt.title(r'$n_-$'); plt.colorbar()
-
-            plt.subplot(234)
-
-            j_a = res.j_a[0] + 1j*res.j_a[1]
-            j_b = res.j_b[0] + 1j*res.j_b[1]
-            j_p = j_a + j_b
-            j_m = j_a - j_b
-            utheta = np.exp(1j*np.angle(x + 1j*y))
-            imcontourf(x, y, abs(j_a), aspect=1)
-            plt.title(r'$j_a$'); plt.colorbar()
-            plt.quiver(x.ravel(), y.ravel(), j_a.real, j_a.imag)
-
-            plt.subplot(235)
-            imcontourf(x, y, abs(j_b), aspect=1)
-            plt.title(r'$J_b$'); plt.colorbar()
-            plt.quiver(x.ravel(), y.ravel(), j_b.real, j_b.imag)
-
-            plt.subplot(236)
-            imcontourf(x, y, abs(j_p), aspect=1)
-            plt.title(r'$J_+$'); plt.colorbar()
-            plt.quiver(x.ravel(), y.ravel(), j_p.real, j_p.imag)
+        plot_2D(self=self, fig=fig, res=res)
         return fig
 
+
+# -
 
 # ## Simple BCS Vortex
 
@@ -118,7 +125,8 @@ class Vortex(hfb.BCS):
     def get_Vext(self):
         r = np.sqrt(sum([_x**2 for _x in self.xyz[:2]]))
         R0 = self.barrier_width*self.R
-        V = self.barrier_height*mstep(r - self.R + R0, R0)
+        # V = self.barrier_height*mstep(r - self.R + R0, R0)
+        V = self.barrier_height*np.where( (r - self.R) >0, 1, 0)
         return (V, V)
 
 
@@ -265,26 +273,28 @@ class VortexFunctional(PlotBase):
 
 # -
 
-def plot_all(vs=[], hs=[], mu=10, dx=1, fontsize=14):
+def plot_all(vs=[], hs=[], mu=10, dx=1, fontsize=14, xlim=12, one_c=False):
+    
     for v in vs:
         mu = sum(v.mus)/2
         dx = v.dxyz[0]
         r = np.sqrt(sum(_x**2 for _x in v.xyz))
         k_F = np.sqrt(2*mu)
-        plt.subplot(321)
+        plt.subplot(511) if one_c else plt.subplot(321) 
         plt.plot(r.ravel()/dx, abs(v.Delta).ravel()/mu, '+', label="BCS")
         plt.ylabel(r'$\Delta/E_F$', fontsize=fontsize)
-        plt.xlim(0, v.R/dx)
-        plt.subplot(323)  
+        plt.xlim(0, xlim)
+        plt.subplot(512) if one_c else plt.subplot(323)  
         res = v.res
         plt.plot(r.ravel()/dx, abs(res.n_a + res.n_b).ravel()/k_F, '+', label="BCS")
         plt.ylabel(r"$n_p/k_F$", fontsize=fontsize)
-        plt.xlim(0, v.R/dx)
-        plt.subplot(324)
+        plt.xlim(0, xlim)
+        plt.subplot(513) if one_c else plt.subplot(324)
         plt.plot(r.ravel()/dx, abs(res.n_a - res.n_b).ravel()/k_F, '+', label="BCS")
         plt.ylabel(r"$n_m/k_F$", fontsize=fontsize)
-        plt.xlim(0, v.R/dx)
-        #plt.ylim(-1, 1)
+        plt.xlim(0, xlim)
+        
+        plt.ylim(-1, 1)
         x, y = v.xyz
         r_vec = x+1j*y
         j_a_ = res.j_a[0] + 1j*res.j_a[1]
@@ -292,17 +302,20 @@ def plot_all(vs=[], hs=[], mu=10, dx=1, fontsize=14):
         j_b_ = res.j_b[0] + 1j*res.j_b[1]
         j_b_ = clockwise(r_vec, j_b_)*np.abs(j_b_) 
         j_p_, j_m_ = j_a_ + j_b_, j_a_ - j_b_
-        plt.subplot(325)
-        plt.plot(r.ravel()/dx, j_a_.ravel(), '+', label="BCS"),plt.ylabel(r"$j_a$", fontsize=fontsize)
-        plt.subplot(326)
-        plt.plot(r.ravel()/dx, j_b_.ravel(), '+', label="BCS"), plt.ylabel(r"$j_b$", fontsize=fontsize)
-        plt.xlim(0, v.R/dx)
+        plt.subplot(514) if one_c else plt.subplot(325)
+        plt.plot(r.ravel()/dx, j_a_.ravel(), '+', label="BCS")
+        plt.ylabel(r"$j_a$", fontsize=fontsize)
+        plt.xlim(0, xlim)
+        plt.subplot(515) if one_c else plt.subplot(326)
+        plt.plot(r.ravel()/dx, j_b_.ravel(), '+', label="BCS")
+        plt.ylabel(r"$j_b$", fontsize=fontsize)
+        plt.xlim(0, xlim)
     
     # homogeneous part
     for res_h in hs:
         rs, ds, ps, ps0, n_p, n_m, j_a, j_b = res_h
         k_F = np.sqrt(2*mu)
-        plt.subplot(321)
+        plt.subplot(511) if one_c else plt.subplot(321)
         plt.plot(rs, np.array(ds)/mu, '-', label="Homogeneous")
         plt.legend()
         plt.ylabel(r'$\Delta/E_F$', fontsize=fontsize)
@@ -311,101 +324,202 @@ def plot_all(vs=[], hs=[], mu=10, dx=1, fontsize=14):
     #     plt.plot(rs, ps, label="FF State/Superfluid State Pressure")
     #     plt.plot(rs, ps0, '-', label="Normal State pressure")
     #     plt.legend()
-        plt.subplot(323)  
+        plt.subplot(512) if one_c else plt.subplot(323)  
         plt.plot(rs, n_p/k_F, label="Homogeneous")
         plt.ylabel(r"$n_p/k_F$", fontsize=fontsize)
         plt.legend()
-        plt.subplot(324)
+        plt.subplot(513) if one_c else plt.subplot(324)
         plt.plot(rs, n_m/k_F, label="Homogeneous")
         plt.ylabel(r"$n_m/k_F$", fontsize=fontsize)#,plt.title("Density Difference")
         plt.legend()
-        plt.subplot(325)
+        plt.subplot(514) if one_c else plt.subplot(325)
         plt.plot(rs, j_a, '-', label="Homogeneous")
-        plt.xlabel(f"r/dx", fontsize=fontsize), plt.ylabel(r"$j_a$", fontsize=fontsize)
+        plt.ylabel(r"$j_a$", fontsize=fontsize)
+        if not one_c:
+            plt.xlabel(r"$r/dx$", fontsize=fontsize)
         plt.axhline(0, linestyle='dashed')
         plt.legend()
-        plt.subplot(326)
+        plt.subplot(515) if one_c else plt.subplot(326)
         plt.plot(rs, -j_b, label="Homogeneous") # seems we have different sign
         plt.axhline(0, linestyle='dashed')
-        plt.xlabel(f"r/dx", fontsize=fontsize), plt.ylabel(r"$j_b$", fontsize=fontsize)
+        plt.xlabel(r"$r/dx$", fontsize=fontsize)
+        plt.ylabel(r"$j_b$", fontsize=fontsize)
         plt.legend()
 
 
 # ### A Simple BCS Vortex
 
-mu = 10
-dmu=4.5
-delta = 7.5
-v_bcs = VortexState(mu=mu, dmu=dmu, delta=delta, Nxyz=(32, 32), Lxyz=(8,8))
-v_bcs.solve(plot=True)
-#plt.savefig("strongly_polarized_vortx_2d_bcs_plot.pdf", bbox_inches='tight')
+# mu = 10
+# dmu=4.5
+# delta = 7.5
+# v_bcs = VortexState(mu=mu, dmu=dmu, delta=delta, Nxyz=(32, 32), Lxyz=(8,8))
+# v_bcs.solve(plot=True)
+# #plt.savefig("strongly_polarized_vortx_2d_bcs_plot.pdf", bbox_inches='tight')
 
 # ### A Vortex with BDG Functional
 
-k_c = v_bcs.k_c
-E_c = k_c**2/2
-v_bdg = VortexFunctional(
-    functionalType=FunctionalType.BDG,
-    mu_eff=mu, dmu_eff=dmu, delta=delta,
-    Nxyz=(32, 32), Lxyz=(8,8), E_c=E_c)
-v_bdg.solve(plot=True)
+# k_c = v_bcs.k_c
+# E_c = k_c**2/2
+# v_bdg = VortexFunctional(
+#     functionalType=FunctionalType.BDG,
+#     mu_eff=mu, dmu_eff=dmu, delta=delta,
+#     Nxyz=(32, 32), Lxyz=(8,8), E_c=E_c)
+# v_bdg.solve(plot=True)
 
 # ### A Vortex With ASLDA Functional
 
-v_aslda = VortexFunctional(
-    functionalType=FunctionalType.ASLDA,
-    mu_eff=mu, dmu_eff=dmu, delta=delta,
-    Nxyz=(32, 32), Lxyz=(8,8), E_c=E_c)
-v_aslda.solve(plot=True)
+# v_aslda = VortexFunctional(
+#     functionalType=FunctionalType.ASLDA,
+#     mu_eff=mu, dmu_eff=dmu, delta=delta,
+#     Nxyz=(32, 32), Lxyz=(8,8), E_c=E_c)
+# v_aslda.solve(plot=True)
 
-mu, dmu = 10, 4.5
-mus, delta, L, N, R, k_c =(mu + dmu, mu - dmu), 7.5, 8, 32, 4, 50
-
-v = v_bcs
-mus=v.mus
-delta=v.delta
-L=v.Lxyz[0]
-N=v.Nxyz[0]
-R=v.R
-k_c=v.k_c
-res_bcs=FFVortex(mus=mus, delta=delta, L=L, N=N, R=R, k_c=k_c, N1=5, N2=2)
-
-plt.figure(figsize=(16,8))
-plot_all([v_bcs, v_bdg, v_aslda], [res_bcs])
-
-v = v_bcs
-res_bdg=FFVortexFunctional(mus=v.mus, delta=v.delta, L=v.Lxyz[0], N=v.Nxyz[0], N1=5, N2=5)
+# mu, dmu = 10, 4.5
+# mus, delta, L, N, R, k_c =(mu + dmu, mu - dmu), 7.5, 8, 32, 4, 50
 
 # v = v_bcs
-res_aslda=FFVortexFunctional(mus=mus, delta=delta, L=L, N=N, functionalType=FunctionalType.ASLDA, N1=5, N2=5, dim=2)
+# mus=v.mus
+# delta=v.delta
+# L=v.Lxyz[0]
+# N=v.Nxyz[0]
+# R=v.R
+# k_c=v.k_c
+# res_bcs=FFVortex(mus=mus, delta=delta, L=L, N=N, R=R, k_c=k_c, N1=5, N2=2)
 
-plt.figure(figsize=(16,8))
-plot_all(vs=[v_bcs],hs=[res_bcs, res_aslda])
+# v = v_bcs
+# res_bdg=FFVortexFunctional(mus=v.mus, delta=v.delta, L=v.Lxyz[0], N=v.Nxyz[0], N1=5, N2=5)
+
+# res_aslda=FFVortexFunctional(mus=mus, delta=delta, L=L, N=N, functionalType=FunctionalType.ASLDA, N1=5, N2=5, dim=2)
+
+# # Plot for the Disseration
 
 v1 = VortexState(mu=10, dmu=3.5, delta=7.5, Nxyz=(32, 32), Lxyz=(8,8))
-v1.solve(plot=True)
-
-res1 = FFVortex(v1)
-
-plot_all(v1, res1)
+v1.solve(plot=False)
 
 v2 = VortexState(mu=10, dmu=0, delta=7.5, Nxyz=(32, 32), Lxyz=(8,8))
-v2.solve(plot=True)
-plt.savefig("balanced_vortx_2d_bcs_plot.pdf", bbox_inches='tight')
+v2.solve(plot=False)
+# plt.savefig("balanced_vortx_2d_bcs_plot.pdf", bbox_inches='tight')
 
-res2 = FFVortex(v2, N1=10)
+v3 = VortexState(mu=10, dmu=4.5, delta=7.5, Nxyz=(32, 32), Lxyz=(8,8))
+v3.solve(plot=False)
+# plt.savefig("balanced_vortx_2d_bcs_weakly_polarized_plot.pdf", bbox_inches='tight')
 
-plot_all(v2, res2)
+v = v1
+res1 = FFVortex(mus=v.mus, delta=v.delta, L=v.Lxyz[0], N=v.Nxyz[0], N1=10, N2=10)
+
+v = v2
+res2 = FFVortex(mus=v.mus, delta=v.delta, L=v.Lxyz[0], N=v.Nxyz[0], N1=10, N2=10)
+
+v = v3
+res3 = FFVortex(mus=v.mus, delta=v.delta, L=v.Lxyz[0], N=v.Nxyz[0], N1=10, N2=10)
+
+v=v2
+plot_2D(v, fig=None, res=v.res, fontsize=22)
+plt.savefig("balanced_vortx_2d_bcs_plot.pdf", bbox_inches='tight') #balanced_vortx_2d_bcs_plot
+
+v=v1
+plot_2D(v, fig=None, res=v.res, fontsize=22)
+plt.savefig("vortx_2d_bcs_weakly_polarized_plot.pdf", bbox_inches='tight') #balanced_vortx_2d_bcs_plot
+
+plot_2D(v3, fig=None, res=v3.res, fontsize=22)
+plt.savefig("strongly_polarized_vortx_2d_bcs_plot.pdf", bbox_inches='tight') #balanced_vortx_2d_bcs_plot
+
+
+
+one_column = False
+plt.figure(figsize=(6,16)) if one_column else plt.figure(figsize=(16, 10))
+plot_all([v3], [res3], one_c=one_column, fontsize=18)
+# plt.savefig("balanced_vortx_radial_plot_bcs_hom.pdf", bbox_inches='tight')
+plt.savefig("strongly_polarized_vortx_2d_bcs_hom_plot.pdf", bbox_inches='tight')
+
+plt.figure(figsize=(6,16)) if one_column else plt.figure(figsize=(16, 10))
+plot_all([v1], [res1], one_c=one_column, fontsize=18)
+# plt.savefig("balanced_vortx_radial_plot_bcs_hom.pdf", bbox_inches='tight')
+plt.savefig("weakly_polarized_vortx_radial_plot_bcs_hom.pdf", bbox_inches='tight')
+
+plt.figure(figsize=(6,16)) if one_column else plt.figure(figsize=(16, 10))
+plot_all([v1], [res1], one_c=one_column, fontsize=18)
+# plt.savefig("balanced_vortx_radial_plot_bcs_hom.pdf", bbox_inches='tight')
 plt.savefig("balanced_vortx_radial_plot_bcs_hom.pdf", bbox_inches='tight')
 
-v3 = VortexState(mu=10, dmu=2.5, delta=7.5, Nxyz=(32, 32), Lxyz=(8,8))
-v3.solve(plot=True)
-plt.savefig("balanced_vortx_2d_bcs_weakly_polarized_plot.pdf", bbox_inches='tight')
 
-res3 = FFVortex(v3, N1=10)
+def plot_col3( hs=[], vs=[], mu=10, dx=1, fontsize=14, xlim=12):
+  
+    # homogeneous part
+    c = len(hs)
+    for (id,v) in enumerate(vs):
+        mu = sum(v.mus)/2
+        dx = v.dxyz[0]
+        r = np.sqrt(sum(_x**2 for _x in v.xyz))
+        k_F = np.sqrt(2*mu)
+        plt.subplot(5, c,id + 1)
+        plt.plot(r.ravel()/dx, abs(v.Delta).ravel()/mu, '+', label="BCS")
+        plt.xlim(0, xlim)
+        plt.subplot(5, c,c + id + 1)
+        res = v.res
+        plt.plot(r.ravel()/dx, abs(res.n_a + res.n_b).ravel()/k_F, '+', label="BCS")
+        plt.xlim(0, xlim)
+        plt.subplot(5, c,2*c + id + 1)
+        plt.plot(r.ravel()/dx, abs(res.n_a - res.n_b).ravel()/k_F, '+', label="BCS")
+        plt.xlim(0, xlim)
+        
+        plt.ylim(-1, 1)
+        x, y = v.xyz
+        r_vec = x+1j*y
+        j_a_ = res.j_a[0] + 1j*res.j_a[1]
+        j_a_ = clockwise(r_vec, j_a_)*np.abs(j_a_)
+        j_b_ = res.j_b[0] + 1j*res.j_b[1]
+        j_b_ = clockwise(r_vec, j_b_)*np.abs(j_b_) 
+        j_p_, j_m_ = j_a_ + j_b_, j_a_ - j_b_
+        plt.subplot(5, c,3*c + id + 1)
+        plt.plot(r.ravel()/dx, j_a_.ravel(), '+', label="BCS")
+        plt.xlim(0, xlim)
+        plt.subplot(5, c,4*c + id + 1)
+        plt.plot(r.ravel()/dx, j_b_.ravel(), '+', label="BCS")
+        plt.xlim(0, xlim)
+        
+    for (id, res_h) in enumerate(hs):
+        rs, ds, ps, ps0, n_p, n_m, j_a, j_b = res_h
+        k_F = np.sqrt(2*mu)
+        plt.subplot(5, c,id + 1)
+        plt.plot(rs, np.array(ds)/mu, '-', label="Homogeneous")
+        plt.legend()
+        if id == 0:
+            plt.ylabel(r'$\Delta/E_F$', fontsize=fontsize)
+    #     plt.subplot(322)
+    #     plt.ylabel(r"Pressure/$E_F$", fontsize=fontsize)
+    #     plt.plot(rs, ps, label="FF State/Superfluid State Pressure")
+    #     plt.plot(rs, ps0, '-', label="Normal State pressure")
+    #     plt.legend()
+        plt.subplot(5,c,c+id + 1)
+        plt.plot(rs, n_p/k_F, label="Homogeneous")
+        if id == 0:
+            plt.ylabel(r"$n_p/k_F$", fontsize=fontsize)
+        plt.legend()
+        plt.subplot(5,c,2*c+id + 1)
+        plt.plot(rs, n_m/k_F, label="Homogeneous")
+        if id == 0:
+            plt.ylabel(r"$n_m/k_F$", fontsize=fontsize)#,plt.title("Density Difference")
+        plt.legend()
+        plt.subplot(5,c,3*c+id + 1)
+        plt.plot(rs, j_a, '-', label="Homogeneous")
+        if id == 0:
+            plt.ylabel(r"$j_a$", fontsize=fontsize)
+        
+        plt.axhline(0, linestyle='dashed')
+        plt.legend()
+        plt.subplot(5,c,4*c+id + 1)
+        plt.plot(rs, -j_b, label="Homogeneous") # seems we have different sign
+        plt.axhline(0, linestyle='dashed')
+        plt.xlabel(r"$r/dx$", fontsize=fontsize)
+        if id == 0:
+            plt.ylabel(r"$j_b$", fontsize=fontsize)
+        plt.legend() #prop={'size': 16}
 
-plot_all(v3, res3)
-plt.savefig("balanced_vortx_radial_weakly_polarized_plot_bcs_hom.pdf", bbox_inches='tight')
+
+plt.figure(figsize=(15,20))
+plot_col3(vs=[v2, v1, v3],hs=[res2, res1, res3], fontsize=18)
+plt.savefig("three_column_bcs_hom_plots.pdf", bbox_inches='tight')
 
 # +
 mu_a, mu_b=v0.mus

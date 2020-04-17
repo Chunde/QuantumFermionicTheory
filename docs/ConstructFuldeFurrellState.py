@@ -18,16 +18,25 @@
 import mmf_setup;mmf_setup.nbinit()
 # %pylab inline --no-import-all
 from nbimports import * 
+import os
+import sys
+import inspect
+from os.path import join
+import json
+import glob
 from mmf_hfb import tf_completion as tf
-from mmf_hfb.fulde_ferrell_state import FFState
-from mmf_hfb.fulde_ferrell_state_finder import FFStateFinder
-import mmf_hfb.fulde_ferrell_state_helper as ffh
+currentdir = os.path.dirname(
+            os.path.abspath(inspect.getfile(inspect.currentframe())))
+sys.path.insert(0, join(currentdir, '..','Projects','FuldeFerrellState'))
+from fulde_ferrell_state import FFState
+from fulde_ferrell_state_finder import FFStateFinder
+import fulde_ferrell_state_helper as ffh
 reload(ffh)
-from mmf_hfb.fulde_ferrell_state_helper import FFStateHelper
+from fulde_ferrell_state_helper import FFStateHelper
 from scipy.optimize import brentq
 import operator
 from mmfutils.plot import imcontourf
-import mmf_hfb.bdg_plot as bp
+import bdg_plot as bp
 reload(bp)
 clear_output()
 

@@ -232,6 +232,7 @@ def plot_regions(q=0, dq=0, dmu=0.4, delta=0.2):
 # %pylab inline --no-import-all
 from ipywidgets import interact
 m = mu = eF = 1.0
+mu = -.1
 pF = np.sqrt(2*m*eF)
 delta = 0.5*mu
 p_max = 2*pF
@@ -272,8 +273,10 @@ delta=0.5
 dmu=0
 plot_regions(dmu=dmu, delta=delta)
 plt.subplot(224)
-dmu=0.5
+dmu=0.75
 plot_regions(dmu=dmu, delta=delta)
 plt.savefig(f"bcs_dispersions.pdf", bbox_inches='tight')
+
+# $<n,l|V(\op{x})|m,l> \propto V(x_n)\delta_{nm} $
 
 

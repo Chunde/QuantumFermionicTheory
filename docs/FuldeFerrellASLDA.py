@@ -32,6 +32,7 @@ from json import dumps
 import operator
 import numpy as np
 
+
 # +
 currentdir = os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -149,12 +150,15 @@ def filter_state(mu, dmu, delta, C, dim):
     #return False
     #if g != -3.2:
     #    return True
-    if delta > 0.5:
-        return True
-    if dmu < 0.4:  
+    if delta != 1.2:
          return True
-    if dmu > 0.446:
-        return True
+#     if delta > 0.6:
+#     if delta != 0.5:
+#         return True
+#     if dmu < 0.4:  
+#          return True
+#     if dmu > 0.446:
+#         return True
     #if not np.allclose(dmu, 0.35, rtol=0.01):
     #    return True
     #print(dmu)
@@ -162,21 +166,20 @@ def filter_state(mu, dmu, delta, C, dim):
 
 
 plt.figure(figsize(16,16))
-plt.ylim(0.11,0.112)
-plt.xlim(0.05, 0.054)
-ffp.PlotStates(current_dir=currentdir, two_plot=False,
-               filter_fun=filter_state, plot_legend=True, ls='-',print_file_name=True)
+ffp.PlotStates(current_dir=currentdir, two_plot=True,
+               filter_fun=filter_state, plot_legend=True, ls='-+',print_file_name=False)
 
 # plt.figure(figsize(16,10))
-ffp.PlotCurrentPressure(current_dir=currentdir, filter_fun=filter_state,
-                        showLegend=True, FFState_only=False, print_file_name=True)
+ffp.PlotCurrentPressure(current_dir=currentdir, filter_fun=filter_state,alignLowerBranches=False,
+                        showLegend=False, FFState_only=False, print_file_name=False)
 
 # # Plot the Diagram
 # * Check the particle density, pressure, and $d\mu$ etc to see if a configuration is a FF state $\Delta$
 
 output = ffa.label_states(current_dir=currentdir, raw_data=True, verbosity=False)
+clear_output()
 
-plt.figure(figsize(16,8))
+plt.figure(figsize(16,16))
 ffp.PlotPhaseDiagram(output=output)
 
 # # Check a FF State
@@ -285,8 +288,8 @@ lda.get_ns_mus_e_p(mus_eff=(mu_a_eff, mu_b_eff), delta=0)[3]
 from phase_diagram_generator import FFStateAgent
 
 mu_eff = 10
-dmu_eff = 0.446
-delta = 0.5
+dmu_eff = 1
+delta = 1.2
 dim = 2
 k_c = 150
 args = dict(
@@ -307,18 +310,27 @@ def f(delta, dq):
         delta=delta, dq=dq) - lda.C
 
 
-dq0, delta0= 0.11076732169336657, 0.053112308454693515
+dqs = np.linspace(0, delta/2, 10)
+fs = [f(delta=0.1, dq=dq) for dq in dqs]
+
+plt.plot(dqs, fs)
+plt.axhline(0, ls='dashed')
+plt.axvline(0, ls='dashed')
+
+dq0, delta0= 0.11076732169336657, 0.0537
 def g(dq):
     return f(delta=delta0, dq=dq)
 
 
 g(dq=dq0)
 
+# # ZoomIn Search Algorithm
+
 import operator
 def zoom_in_search(delta, dq):
     dq1, dq2 = dq0*0.9, dq0*1.1
     p1, p2 = None, None
-    for i in range(10):
+    for i in range(20):
         dqs = np.linspace(dq1, dq2, 10)
         gs = np.array([g(dq) for dq in dqs])
         index, value = min(enumerate(gs), key=operator.itemgetter(1))
@@ -352,5 +364,7 @@ def zoom_in_search(delta, dq):
 
 
 zoom_in_search(delta=delta0, dq=dq0)
+
+
 
 
