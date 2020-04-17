@@ -6,11 +6,11 @@
 #       extension: .py
 #       format_name: light
 #       format_version: '1.5'
-#       jupytext_version: 1.3.2
+#       jupytext_version: 1.4.0
 #   kernelspec:
-#     display_name: Python 3
+#     display_name: Python [conda env:_gpe]
 #     language: python
-#     name: python3
+#     name: conda-env-_gpe-py
 # ---
 
 # # Fulde Ferrell State Playgound
@@ -33,13 +33,22 @@ import glob
 from json import dumps
 import operator
 import numpy as np
+from uncertainties import unumpy as unp
 
-currentdir = os.path.dirname(
-            os.path.abspath(inspect.getfile(inspect.currentframe())))
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0, join(currentdir, '..','Projects','FuldeFerrellState'))
 from phase_diagram_generator import FFStateAgent
 
 # # Use the FF State Class
+
+# 2D Free Fermions:
+#
+# $$
+#   n = \frac{k_F^2}{2\pi}, \qquad
+#   E_F = \frac{\hbar^2 k_F^2}{2m}, \qquad
+#   \mathcal{E}_{FG} = \frac{\hbar^2k_F^4}{8\pi m} 
+#   = \frac{1}{2}E_F n.
+# $$
 
 from fulde_ferrell_state import FFState
 mu_eff = 10
@@ -48,6 +57,57 @@ delta0 = 0.5
 dim = 2
 k_c = 150
 ff = FFState(mu=mu_eff, dmu=dmu_eff, delta=delta0, dim=2, k_c=k_c, fix_g=True)
+
+# Here we look for a FF state at the Clogston limit.  We start by computing the $P_{SF}$ of the superfluid and then find $\mu_{-}$ at which the normal state has the same pressure. 
+
+from scipy.optimize import brentq
+# Get the pressure of the superfluid state
+P0 = ff.get_pressure(mu=mu_eff, dmu=0, delta=delta0).n
+dmu_Ps = []   # Cache for plotting
+def _f(dmu):
+    P_N = ff.get_pressure(mu=mu_eff, dmu=dmu, delta=0).n
+    dmu_Ps.append((dmu, P_N))
+    return P_N - P0
+dmu = brentq(_f, 0, delta0)
+dmu_Ps = np.asarray(_dmu_Ps)
+dmu_Ps.sort(axis=0)
+
+dmus, Ps = dmu_Ps.T
+plt.plot(dmus, Ps, '+-')
+plt.axhline(P0, c='y')
+plt.axvline(dmu, c='y')
+
+# Now we consider FF states at this point.
+
+dqs = np.linspace(0.01, 0.1, 10)
+deltas = [
+    ff.solve(mu=mu_eff, dmu=dmu, dq=dq, a=0.0001, b=0.2, 
+             throwException=False) for dq in dqs]
+
+plt.plot(dqs, deltas)
+P_ffs = [ff.get_pressure(mu=mu_eff, dmu=dmu, delta=delta, dq=dq)
+         for (dq, deltas) in zip(dqs, deltas)]
+
+dmu = 0.35
+P_ff = ff.get_pressure(mu=mu_eff, dmu=dmu, delta=delta0)
+
+ff.get_pressure(mu=mu_eff, dmu=0.1, delta=delta0)
+
+ff0 = FFState(mu=mu_eff, dmu=0.0, delta=delta0, dim=2, k_c=k_c, fix_g=True)
+assert np.allclose(ff0.f(mu=mu_eff, dmu=0, dq=0, delta=delta0), 0)
+
+na, nb = ff0.get_densities()
+
+hbar = ff0.hbar
+m = ff0.m
+n = na+nb
+kF = (2*np.pi*n)**(1./3)
+pF = hbar*kF
+eF = pF**2/2/m
+EFG = eF*n/2.0
+P = ff0.get_pressure(mu=mu_eff, dmu=0)
+
+delta/eF, np.sqrt(2)
 
 # ## check if the found state satisifies the gap equation
 
@@ -76,11 +136,28 @@ ff.get_pressure(mu=mu_eff, dmu=dmu_eff, delta=delta0, use_kappa=False)
 
 ff.get_current(mu=mu_eff, dmu=dmu_eff, delta=delta0)
 
+ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=delta0)
+
 # ### Normal state pressure
 
 ff.get_pressure(mu=mu_eff, dmu=dmu_eff, delta=0)
 
 ff.get_current(mu=mu_eff, dmu=dmu_eff, delta=0)
+
+ff.get_densities(mu=mu_eff, dmu=dmu_eff, delta=0)
+
+ds = np.linspace(0,0.5,10)
+Ps = [ff.get_pressure(mu=mu_eff, dmu=dmu_eff, delta=_d) for _d in ds]
+
+from uncertainties import unumpy as unp
+plt.plot(ds, unp.nominal_values(Ps))
+plt.axvline([delta])
+
+# +
+dmu_eff/delta0
+
+15.947152773822092 - 15.947142502843732
+# -
 
 # ## Dicussion
 # The normal pressure is higher than superfluid pressure, they are just two different solutions. The Fulde Ferrell State has higher pressure than superful
