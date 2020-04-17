@@ -573,18 +573,24 @@ class FFStateAgent(object):
                     # check if to save to persist media
                     if auto_save:
                         print(f"Added {len(rets)} :{rets[-1]}")
-                        self.save_to_file(rets)
+                        self.save_to_file(rets, extra_items={"pending": 0})
                 else:
                     # if have no of only one solution, not good
                     # then we need to go a step back to a better
                     # candidate delta that may sit in between the
                     # current failing delta and the last good one
-                    deltas = [(last_good_delta + delta)/2]
+                    new_delta = (last_good_delta + delta)/2
+                    # make sure the new delta is different from the last
+                    # good delta
+                    if len(rets) == 0:
+                        raise ValueError("Can't find any solution pair")
+
+                    deltas = [new_delta]
                     # set the last bad delta to current one
                     last_bad_delta = delta
                     # used the last solutions as start point
                     # for the next search.
-                    qa, qb, _ = rets[-1] if len(rets) > 0 else (None,)*3
+                    qa, qb, _ = rets[-1]
                     if predicted_q is not None:
                         # if predicted_q is valid, that may mean
                         # we are getting close the final joint point
@@ -668,19 +674,22 @@ def search_delta_q_worker(para):
     args = dict(
         mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
         T=0, dim=dim, k_c=k_c, verbosity=False)
-    lda = ClassFactory(
-        "LDA", (FFStateAgent,),
-        functionalType=functionalType,
-        kernelType=kernelType, args=args)
-    if smart_search:
-        return lda.smart_search(
-            delta_lower=0.001, delta_upper=delta,
-            q_lower=0, q_upper=dmu_eff, N_q=40, delta1=delta,
-            N_delta=100)
-    return lda.search(
-        N_delta=50, delta_lower=0.0001, delta_upper=delta,
-        q_lower=0, q_upper=dmu_eff, N_q=10,
-        auto_incremental=False, flip_order=True)
+    try:
+        lda = ClassFactory(
+            "LDA", (FFStateAgent,),
+            functionalType=functionalType,
+            kernelType=kernelType, args=args)
+        if smart_search:
+            return lda.smart_search(
+                delta_lower=0.001, delta_upper=delta,
+                q_lower=0, q_upper=dmu_eff, N_q=40, delta1=delta,
+                N_delta=100)
+        return lda.search(
+            N_delta=50, delta_lower=0.0001, delta_upper=delta,
+            q_lower=0, q_upper=dmu_eff, N_q=10,
+            auto_incremental=False, flip_order=True)
+    except ValueError:
+        return None
 
 
 def smart_search_delta_q_worker(obj_mus_delta_dim_kc):
@@ -694,14 +703,20 @@ def smart_search_delta_q_worker(obj_mus_delta_dim_kc):
     args = dict(
         mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
         T=0, dim=dim, k_c=k_c, verbosity=True)
-    lda = ClassFactory(
-        "LDA", (FFStateAgent,),
-        functionalType=obj.functionalType,
-        kernelType=obj.kernelType, args=args)
-    return lda.smart_search(
-        delta_lower=0.001, delta_upper=delta,
-        q_lower=0, q_upper=dmu_eff, N_q=40, delta1=obj.delta1,
-        N_delta=obj.N_delta)
+    try:
+        lda = ClassFactory(
+            "LDA", (FFStateAgent,),
+            functionalType=obj.functionalType,
+            kernelType=obj.kernelType, args=args)
+        return lda.smart_search(
+            delta_lower=0.001, delta_upper=delta,
+            q_lower=0, q_upper=dmu_eff, N_q=40, delta1=obj.delta1,
+            N_delta=obj.N_delta)
+    except:
+        # rename the file to be incomplete
+        file_name = lda.get_file_name()
+        os.rename(file_name, file_name + ".error")
+        return None
 
 
 def search_condidate_worker(obj_mus_delta_dim_kc):
@@ -711,15 +726,18 @@ def search_condidate_worker(obj_mus_delta_dim_kc):
     args = dict(
         mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
         T=0, dim=dim, k_c=k_c, verbosity=False)
-    lda = ClassFactory(
-        "LDA", (FFStateAgent,),
-        functionalType=obj.functionalType,
-        kernelType=obj.kernelType, args=args)
+    try:
+        lda = ClassFactory(
+            "LDA", (FFStateAgent,),
+            functionalType=obj.functionalType,
+            kernelType=obj.kernelType, args=args)
 
-    return lda.search(
-        N_delta=2, delta_lower=0.0001, delta_upper=0.01,
-        q_lower=0, q_upper=dmu_eff, N_q=10,
-        auto_save=False)
+        return lda.search(
+            N_delta=2, delta_lower=0.0001, delta_upper=0.01,
+            q_lower=0, q_upper=dmu_eff, N_q=10,
+            auto_save=False)
+    except ValueError:
+        return None
 
 
 def compute_pressure_current_worker(jsonData_file):
@@ -1060,7 +1078,7 @@ def PDG():
     pdg = AutoPDG(
         functionalType=FunctionalType.BDG,
         kernelType=KernelType.HOM, k_c=150, dim=2)
-    dmu, delta = .3, .7  # 0.175, 0.25 # for 3D
+    dmu, delta = .6, .8  # 0.175, 0.25 # for 3D
     pdg.search_delta_q_diagram(seed_delta=delta, seed_dmu=dmu)
     # pdg.compute_pressure_current_from_files()
     # pdg.run(seed_delta=delta, seed_dmu=dmu)
