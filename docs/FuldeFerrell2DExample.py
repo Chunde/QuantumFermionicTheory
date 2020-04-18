@@ -6,16 +6,16 @@
 #       extension: .py
 #       format_name: light
 #       format_version: '1.5'
-#       jupytext_version: 1.4.0
+#       jupytext_version: 1.3.2
 #   kernelspec:
-#     display_name: Python [conda env:_gpe]
+#     display_name: Python 3
 #     language: python
-#     name: conda-env-_gpe-py
+#     name: python3
 # ---
 
 # # Fulde Ferrell State Playgound
 # This notebook contain a solution to the FF State that has higher pressure than the superfluid state. Since we have two methods to implement the FF State class, one is using the ClassFactory method, which can be extented to other functionals, but the code struture is a bit hard to understand. Another method is simply use the old FuldeFerrell Stete Class. I suggest to use the FuldeFerrellState class.
-# The found FF State has fixed $g$ or $C$ using ($\Delta_0$=0.5, and $\mu=10$, $\delta \mu=0.446$, note: when compute $g$ or $C$, I only use $\Delta_0$ and $\mu$), then I found a FF state at ($dq= 0.11176852950565815, delta=0.05368101205886646$)
+# The found FF State has fixed $g$ or $C$ using ($\Delta_0$=0.5, and $\mu=10$, $\delta \mu=0.9$, note: when compute $g$ or $C$, I only use $\Delta_0$ and $\mu$), then I found a FF state at ($dq= 0.185303399358032, \Delta=0.19205999324117845$)
 
 import mmf_setup;mmf_setup.nbinit()
 # %pylab inline --no-import-all
@@ -52,8 +52,8 @@ from phase_diagram_generator import FFStateAgent
 
 from fulde_ferrell_state import FFState
 mu_eff = 10
-dmu_eff = 0.446
-delta0 = 0.5
+dmu_eff = 0.7
+delta0 = 0.9
 dim = 2
 k_c = 150
 ff = FFState(mu=mu_eff, dmu=dmu_eff, delta=delta0, dim=2, k_c=k_c, fix_g=True)
@@ -62,14 +62,14 @@ ff = FFState(mu=mu_eff, dmu=dmu_eff, delta=delta0, dim=2, k_c=k_c, fix_g=True)
 
 from scipy.optimize import brentq
 # Get the pressure of the superfluid state
-P0 = ff.get_pressure(mu=mu_eff, dmu=0, delta=delta0).n
+P0 = ff.get_pressure(mu=mu_eff, dmu=0, delta=0.2).n
 dmu_Ps = []   # Cache for plotting
 def _f(dmu):
     P_N = ff.get_pressure(mu=mu_eff, dmu=dmu, delta=0).n
     dmu_Ps.append((dmu, P_N))
     return P_N - P0
 dmu = brentq(_f, 0, delta0)
-dmu_Ps = np.asarray(_dmu_Ps)
+dmu_Ps = np.asarray(dmu_Ps)
 dmu_Ps.sort(axis=0)
 
 dmus, Ps = dmu_Ps.T
@@ -77,12 +77,9 @@ plt.plot(dmus, Ps, '+-')
 plt.axhline(P0, c='y')
 plt.axvline(dmu, c='y')
 
-# Now we consider FF states at this point.
+dmu
 
-dqs = np.linspace(0.01, 0.1, 10)
-deltas = [
-    ff.solve(mu=mu_eff, dmu=dmu, dq=dq, a=0.0001, b=0.2, 
-             throwException=False) for dq in dqs]
+# Now we consider FF states at this point.
 
 plt.plot(dqs, deltas)
 P_ffs = [ff.get_pressure(mu=mu_eff, dmu=dmu, delta=delta, dq=dq)
@@ -111,8 +108,8 @@ delta/eF, np.sqrt(2)
 
 # ## check if the found state satisifies the gap equation
 
-dq = 0.11176852950565815
-delta = 0.05368101205886646
+dq = 0.185303399358032 #0.11176852950565815
+delta = 0.19205999324117845 # 0.05368101205886646
 ff.f(mu=mu_eff, dmu=dmu_eff,dq=dq, delta=delta)
 
 # ## Check densites
@@ -160,15 +157,15 @@ dmu_eff/delta0
 # -
 
 # ## Dicussion
-# The normal pressure is higher than superfluid pressure, they are just two different solutions. The Fulde Ferrell State has higher pressure than superful
+# The normal pressure is higher than superfluid pressure, they are just two different solutions. The Fulde Ferrell State has higher pressure than superfluid state, and its pressure is almost the same as normal state. 
 
 # # Use the ClassFactory Method
 # * To use the FuldeFerrellState class, see the previous section
 
 mu_eff = 10
-dmu_eff = 0.446
+dmu_eff = 0.7
 mus_eff = (mu_eff + dmu_eff, mu_eff - dmu_eff)
-delta0 = 0.5
+delta0 = 0.9
 dim = 2
 k_c = 150
 args = dict(
@@ -190,8 +187,8 @@ def f(delta, dq):
 # ## A FF Solution
 # * A solution that has higher pressure than the superfluid state
 
-dq = 0.11176852950565815
-delta = 0.05368101205886646
+dq = 0.185303399358032 #0.11176852950565815
+delta = 0.19205999324117845 # 0.05368101205886646
 
 # ## Check the $f$ value
 
