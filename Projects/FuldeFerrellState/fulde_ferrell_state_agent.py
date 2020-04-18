@@ -513,8 +513,9 @@ def label_states(current_dir=None, raw_data=False, verbosity=False):
                     print(f"FFState: {bFFState} |<-------------")
                 dic = dict(
                     mu_eff=mu_eff, dmu_eff=dmu_eff,
-                    mu=mu, dmu=dmu, np=n_a + n_b, na=n_a,
-                    nb=n_b, ai=a_inv, C=C, delta=delta, state=bFFState)
+                    mu=mu, dmu=dmu, np=n_a + n_b, na=n_a, d=data['d'], dq=data['q'],
+                    nb=n_b, ai=a_inv, C=C, delta=delta, pf=data['p'],
+                    ps=pressures[0], pn=pressures[1], state=bFFState)
                 if verbosity:
                     print(dic)
                 if raw_data:
