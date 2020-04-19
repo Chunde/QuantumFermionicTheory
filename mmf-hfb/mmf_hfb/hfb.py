@@ -111,9 +111,11 @@ class BCS(object):
         """Return dot(a.conj(), b) allowing for dim > 1."""
         return np.dot(a.conj().ravel(), b.ravel())
 
-    def Normalize(self, psi):
+    def Normalize(self, psi, dx=None):
         """Normalize a wave function"""
-        psi_new = psi/(self.dotc(psi, psi)*self.dV)**0.5
+        if dx is None:
+            dx = self.dV
+        psi_new = psi/(self.dotc(psi, psi)*dx)**0.5
         return psi_new.reshape(self.Nxyz)
 
     def restore_max_ks(self):
