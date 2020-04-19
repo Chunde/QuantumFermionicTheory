@@ -13,7 +13,6 @@
 #     name: python3
 # ---
 
-# +
 import mmf_setup;mmf_setup.nbinit()
 import matplotlib.pyplot as plt
 # %pylab inline --no-import-all
@@ -26,20 +25,14 @@ import json
 import glob
 import os
 from IPython.display import display, clear_output
-
-
 currentdir = os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0, join(currentdir, '..','Projects', 'QuantumFriction'))
-
 from mmf_hfb.potentials import HarmonicOscillator
 from abm_solver import ABMEvolverAdapter
 from bcs_cooling import BCSCooling
+from cooling_case_tests import TestCase, Prob, Normalize, random_gaussian_mixing
 
-from CoolingCaseTests import TestCase, Prob, Normalize, random_gaussian_mixing
-
-
-# -
 
 # # 1D cooling
 
@@ -68,6 +61,34 @@ def get_potentials(x):
     V_PO = V0 + np.random.random()*V_HO + abs(x**2)*np.random.random()
     return dict(V0=V0, HO=V_HO, PO=V_PO)
 h = HarmonicOscillator()
+
+# +
+fontsize=18
+
+font = {'family' : 'normal',
+        'weight' : 'normal',
+        'size'   : fontsize}
+matplotlib.rc('font', **font)
+matplotlib.rcParams.update({'font.size': fontsize})
+
+plt.figure(figsize=(16,8))
+N = 513
+dx=0.1/2
+L = N*dx
+xs = np.linspace(0,L,N)-L/2
+ys = get_init_states(N=N, dx=dx)
+plt.axhline(0, c='black', ls='dashed')
+plt.axvline(0, c='black', ls='dashed')
+i = 0
+labels = ['-', '--', '-+','-o']
+for key in ys:
+    plt.plot(xs, ys[key].conj()*ys[key], labels[i], label=key)
+    i += 1
+
+plt.xlabel("x", fontsize=fontsize)
+plt.ylabel(r"$|\psi(x)|^2$", fontsize=fontsize)
+plt.legend(prop={"size":fontsize})
+plt.savefig("initial_state_densities.pdf", bbox_inches='tight')
 
 
 # -
@@ -153,11 +174,14 @@ def test_2d_Cooling():
     phase = ((x-x0) + 1j*y)*((x+x0) - 1j*y)
     psi0 = s.Normalize(1.0*np.exp(1j*np.angle(phase)))
     ts, psis, _ = s.solve([psi0], T=5.0, rtol=1e-5, atol=1e-6)
-    s.plot(psis[-1][0])
+    plt.subplot(121)
+    s.plot(psis[-1][0], show_plot=False, show_title=False)
+    plt.subplot(122)
     Es = [s.get_E_Ns(psi)[0] for psi in psis]
     plt.semilogy(ts, Es)
 
 
+plt.figure(figsize=(16, 6))
 test_2d_Cooling()
 
 # # Load CVS file
@@ -350,6 +374,7 @@ def find_best_betas(data, p=1.01):
 # ## Plot $(E-E_0)/E_0$ vs Wall-Time
 
 # +
+fontsize=16
 def get_Es_Ts(beta_K, beta_V, iState, V, g, use_nfev):
     sql = f"beta_K=={beta_K} and beta_V=={beta_V}"
     if g is not None:
@@ -373,15 +398,16 @@ def plot_Es_Ts(beta_K, beta_V, g, V, iState, use_nfev, line='-', style=None, c=N
         return (None, None, None)
     x = Ts
     y = Es
+    state="State"
     if len(y) > 0:
         if style is None:
-            l, = plt.plot(x, y, line, c=c, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, {data_key}={iState}, g={g}")
+            l, = plt.plot(x, y, line, c=c, label=r"$\beta_V$"+f"={beta_V/100},"+r"$\beta_K$"+f"={beta_K/100},  g={g}")
         elif style=='log':
-            l, = plt.loglog(x,y, line, c=c, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, {data_key}={iState}, g={g}")
+            l, = plt.loglog(x,y, line, c=c, label=r"$\beta_V$"+f"={beta_V/100},"+r"$\beta_K$"+f"={beta_K/100},  g={g}")
         elif style == 'semi':
-            l, = plt.semilogy(x, y, line,c=c, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, {data_key}={iState}, g={g}")
+            l, = plt.semilogy(x, y, line,c=c, label=r"$\beta_V$"+f"={beta_V/100},"+r"$\beta_K$"+f"={beta_K/100}, g={g}")
         else:
-            l, =plt.plot(x, y, line,c=c, label=r"$\beta_V$"+f"={beta_V},"+r"$\beta_K$"+f"={beta_K}, {data_key}={iState}, g={g}")
+            l, =plt.plot(x, y, line,c=c, label=r"$\beta_V$"+f"={beta_V/100},"+r"$\beta_K$"+f"={beta_K/100},  g={g}")
         c = l.get_c()
     return (Es, Ts, c)
 
@@ -400,12 +426,12 @@ def BestPlot(dict_kvs, title=None, iState="ST", style="semi", V="HO", use_nfev=F
         v, v1, k1 = kvs[0]
         res = plot_Es_Ts(beta_V=v, beta_K=0, iState=iState, g=None, V=None, style=style, use_nfev=use_nfev)
         plot_Es_Ts(beta_V=v1, beta_K=k1, iState=iState, g=None, V=None,c=res[2], line='--', style=style, use_nfev=use_nfev)
-    plt.ylabel("(E-E0)/E0")
-    plt.xlabel("Wall Time")
+    plt.ylabel("(E-E0)/E0", fontsize=fontsize)
+    plt.xlabel("Wall Time", fontsize=fontsize)
     if title is None:
         title=iState
-    plt.title(title)
-    plt.legend()
+    plt.title(title, fontsize=fontsize)
+    plt.legend(prop={"size":fontsize})
 
 
 # -
@@ -415,10 +441,10 @@ def BestPlot(dict_kvs, title=None, iState="ST", style="semi", V="HO", use_nfev=F
 E_E0=1.01
 use_nfev=False
 output, dict_kvs = find_best_betas(data, p=E_E0)
-plt.figure(figsize=(16,16))
+plt.figure(figsize=(22,16))
 for i, state in enumerate(iStates):
     plt.subplot(2, 2,i+1)
-    BestPlot(dict_kvs, title = f"Panel.{i+1}:{data_key}={state}",iState=state, style="semi", V="HO", use_nfev=use_nfev)
+    BestPlot(dict_kvs, title = f"State:{state}",iState=state, style="semi", V="HO", use_nfev=use_nfev)
 if use_nfev:
     plt.xlabel("nfev")
 #plt.title(r"BCS with final energy $E/E0$<"+f"{E_E0} ")

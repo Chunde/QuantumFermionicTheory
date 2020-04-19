@@ -82,6 +82,30 @@ def check_uv_ir_error(psi, plot=False):
 
 # -
 
+# matplotlib.rcParams.update({'font.size': 18})
+
+matplotlib.rcParams.update({'font.size': 18})
+N_data = 20
+N_step = 100
+
+
+def play(init_states=[], N_state=4, N_step=100, N_data=100, **args):
+    file_name = "initial_states_"
+    for state in init_states:
+        file_name = f"{file_name}_{state}"
+    file_name = file_name + ".pdf"
+    cooling(N_state=N_state, Nx=128, N_data=N_data, 
+            init_state_ids=init_states, save_file_name=file_name,
+            N_step=N_step, beta_V=1, beta_K=1, divs=(1,1), beta_D=0, **args);
+
+
+
+play(list(range(10)), N_state=10, N_data=100, N_step=250, log_E=True)
+
+cooling(N_state=6, Nx=128, N_data=150,
+        init_state_ids=list(range(4,8)),
+        N_step=100, beta_V=1, beta_K=1, divs=(1,1), beta_D=0, plot_n=True, plot_k=True);
+
 # ## Test Derivative cooling
 # * As the derivative cooling potential Vd is not diagonilzed in either postion space nor momenutum space, it can't be used in split-operator method. 
 # * It's found that discarding the highest momentum $k_{max}$ can cool down the energy using $V_{d}$ to some energy and may stall there.
@@ -135,9 +159,34 @@ Vc = s.get_Dyadic(s.apply_H([psi0]))
 plt.plot(x, Vc)
 
 
+def ground_state(T=0.5, ls='--',  **args):   
+    b = BCSCooling(**args)
+    x = b.xyz[0]
+    V = x**2/2
+    b.V = V
+    H0 = b._get_H(mu_eff=0, V=0)
+    U0, E0 = b.get_psis_es(H0, transpose=True)
+    psi = b.Normalize(U0[1]) #b.Normalize(np.ones_like(x)) #
+    ts, psis, nfev = b.solve([psi], T=T, rtol=1e-5, atol=1e-6, solver=None, method='BDF')
+    plt.plot(x, Prob(psis[-1][0]), ls ,label=f'g={b.g}')
+    plt.legend()
+
+
+plt.figure(figsize=(20, 8))
+N=128
+dx=0.1
+args = dict(N=N, dx=.1, beta_0=-1j,g=1, T=20)
+psi = ground_state(ls='-', **args)
+args.update(g=0)
+psi = ground_state(ls='--',**args)
+args.update(g=-1)
+psi = ground_state(ls='-+', **args)
+plt.savefig("ground_date_densities_gs.pdf", bbox_inches='tight') #balanced_vortx_2d_bcs_plot
+
+
 def Check_UV_IR(fontsize=22):
     dx = 0.1
-    plt.figure(figsize=(18,5))
+    plt.figure(figsize=(27,7))
     args = dict(beta_K=1, beta_V=1, beta_D=1, beta_Y=1, divs=(1, 1))
     for Nx in [128, 256, 512]:
         offset = np.log(Nx)*0.1 # add a small offset in y direction
@@ -171,8 +220,8 @@ def Check_UV_IR(fontsize=22):
     plt.legend()
 
 
-# Check_UV_IR()
-# plt.savefig("cooling_potential_uv_ir.pdf", bbox_inches='tight') #balanced_vortx_2d_bcs_plot
+Check_UV_IR()
+plt.savefig("cooling_potential_uv_ir.pdf", bbox_inches='tight') #balanced_vortx_2d_bcs_plot
 
 import time
 def test_cooling(
@@ -240,13 +289,14 @@ def test_cooling(
         plt.show()
     return (wall_time, nfev)
 
-
 # ## A Fast cooling Due to Bug
 
 # args = dict(N=128, dx=.1, divs=(1, 1), beta_Y=0, beta_S=5, T=0.05, check_dE=False)
 # psi = test_cooling(plot_dE=True, **args)
 
 # ## Imaginary cooling
+
+
 
 args = dict(N=128, dx=.2, divs=(1, 1), beta_0=-1j, T=2.5, log=True, E_E0=1.01, check_dE=False)
 plt.figure(figsize(21, 6))
@@ -366,6 +416,7 @@ np.allclose(np.diag(Hc_k).real - Kc, 0), np.allclose(np.diag(Hc) - Vc, 0)
 
 # + {"id": "D2BW3sz38cet", "colab_type": "code", "colab": {}}
 dx = 0.1
+plt.figure(figsize=(16,8))
 def ImaginaryCooling():
     ax1 = plt.subplot(121)
     ax2 = plt.subplot(122)
@@ -434,7 +485,7 @@ ImaginaryCooling()
 
 cooling(N_state=6, Nx=128, N_data=25, start_state=4,  N_step=500, beta_V=5, beta_K=0, beta_D=0, plot_K=False);
 
-cooling(N_state=3, Nx=256, N_data=25, start_state=2,  N_step=100, beta_V=1, beta_K=1, beta_D=0);
+cooling(N_state=6, Nx=256, N_data=25, start_state=2,  N_step=500, beta_V=1, beta_K=1, beta_D=0);
 
 N_data = 20
 N_step = 100
@@ -533,16 +584,86 @@ psi0 = U1[0]
 psi = U0[0]
 plt.plot(psi0)
 b.V = V1
-E0, N0 = b.get_E_Ns(psis=[psi0])
-psis = [psi]
+E0, N0 = b.get_E_Ns(psis=U1[:4])
+psis = U0[:4]
 for i in range(20):
     psis = b.step(psis=psis, n=10)
-    plt.plot(psis[0],'--')
-    plt.plot(psi0,'-')
+    plt.plot(Prob(psis[0]),'--')
+    plt.plot(Prob(psi0),'-')
     #print(psis[0].real)
     E, N = b.get_E_Ns(psis=psis)
     plt.title(f"E0={E0.real},E={E.real}")
     plt.show()
     clear_output(wait=True)
+
+
+# +
+def get_box_wf(n, L, x):
+    n = n+1
+    k_n = n*np.pi/L
+    if n%2 == 1:
+        return (1/L)**0.5*np.cos(k_n*x)
+    return (1/L)**0.5*np.sin(k_n*x)
+
+def get_free_wf(n, L, x):
+    k_n = 2*n*np.pi/L
+    return np.sin(k_n*x)
+
+
+# -
+
+Nx=256
+Lx=20
+init_state_ids=None
+V0=1,
+beta_0=1
+N_state=3
+plot_k=True
+"""
+N_state: integer if init_state_ids is not provided
+    , it will use the first N_state states, and
+    also check the ground states with that numbers.
+init_state_ids: list, a list of initial states indics
+
+"""
+L = Lx
+dx = L/Nx
+b = BCSCooling(N=Nx, L=None, dx=dx)
+x = b.xyz[0]
+V = V0*x**2/2
+b.V = V
+H0 = b._get_H(mu_eff=0, V=0)  # free particle
+H1 = b._get_H(mu_eff=0, V=V)  # harmonic trap
+U0, Es0 = b.get_psis_es(H0, transpose=True)
+U1, Es1 = b.get_psis_es(H1, transpose=True)
+if init_state_ids is None:
+    psis_ = U0[1:N_state+1]  # change the start states here if needed.
+else:
+    assert len(init_state_ids) <= N_state
+    psis_ = [U0[id] for id in init_state_ids]
+psis0_ = U1[:N_state]  # the ground states for the harmonic potential
+h = HarmonicOscillator()
+if init_state_ids is None:
+    psis = [get_free_wf(n=i, L=L, x=x) for i in range(N_state)]  # change the start states here if needed.
+else:
+    assert len(init_state_ids) <= N_state
+    psis = [get_free_wf(n=i, L=L, x=x) for i in init_state_ids]
+psis0 = [h.get_wf(n=i, x=x) for i in range(N_state)] # the ground states for the harmonic potential
+
+
+for (psi0, psi0_) in zip(psis0, psis0_):
+    plt.plot(x, Prob(b.Normalize(psi0)))
+    plt.plot(x, Prob(b.Normalize(psi0_)), '+')
+
+n=4
+plt.plot(x, Prob(b.Normalize(get_free_wf(n=n, L=L, x=x))))
+plt.plot(x, Prob(b.Normalize(U0[n])))
+
+for (psi0, psi0_) in zip(psis, psis_):
+    l, = plt.plot(x, Prob(b.Normalize(psi0)))
+    plt.plot(x, Prob(b.Normalize(psi0_)), '+', c=l.get_c())
+
+plt.plot(x, psis_[2])
+plt.plot(x, psis[2])
 
 

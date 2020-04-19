@@ -5,8 +5,8 @@
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.4'
-#       jupytext_version: 1.2.3
+#       format_version: '1.5'
+#       jupytext_version: 1.3.2
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -137,5 +137,53 @@
 # $$
 # -\frac{\partial^{2} \psi}{\partial r^{2}}-\frac{1}{r} \frac{\partial \psi}{\partial r}-\frac{1}{r^{2}} \frac{\partial^{2} \psi}{\partial \theta^{2}}+r^{2} \psi=2 E \psi
 # $$
+
+# # 1D Harmonic Oscillator
+
+from mmf_hfb.potentials import HarmonicOscillator
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy as sp
+import scipy.integrate
+
+h = HarmonicOscillator()
+
+L = 10
+N = 128
+xs = np.linspace(0, L, N) - L/2
+def fb(n, x):
+    n = n+1
+    k_n = n*np.pi/L
+    if n%2 == 1:
+        return (1/L)**0.5*np.cos(k_n*x)
+    return (1/L)**0.5*np.sin(k_n*x)
+
+
+
+for n in range(5):
+    plt.plot(xs, h.get_wf(n=n, x=xs))
+
+
+def overlap(m=0, n=0):
+    def f(x):
+        return h.get_wf(n=m, x=x).conj()*fb(n=n, x=x)
+    return (sp.integrate.quad(f, -L/2, L/2)[0])**2
+
+
+overlap(3, 0)
+
+for m in range(5):
+    str = f"$\psi_{m}(x)$"
+    for n in range(5):
+        str = f"{str}&{overlap(m=m,n=n):4.3}"
+    print(str + "\\\\")
+    print("\\hline")
+
+plt.plot(xs, h.get_wf(n=0, x=xs))
+plt.plot(xs, fb(n=0, x=xs))
+
+plt.plot()
+for n in range(6):
+    plt.plot(xs, fb(n=n, x=xs))
 
 

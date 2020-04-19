@@ -5,8 +5,8 @@
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.4'
-#       jupytext_version: 1.2.3
+#       format_version: '1.5'
+#       jupytext_version: 1.3.2
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -16,9 +16,15 @@
 import mmf_setup;mmf_setup.nbinit()
 # %pylab inline --no-import-all
 from nbimports import * 
+import os
+import sys
+import inspect
+from os.path import join
 from mmf_hfb import tf_completion as tf
-from mmf_hfb.fulde_ferrell_state import FFState
-from mmf_hfb.fulde_ferrell_state_finder import FFStateFinder
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+sys.path.insert(0, join(currentdir, '..','Projects','FuldeFerrellState'))
+from fulde_ferrell_state import FFState
+from fulde_ferrell_state_finder import FFStateFinder
 from scipy.optimize import brentq
 from mmfutils.plot import imcontourf
 
@@ -55,7 +61,6 @@ plt.axvline(delta)
 for dmu in dmus:
     ps0 = [ff.get_energy_density(mu=mu, dmu=dmu,delta=d, dq=dq, use_kappa=False).n for d in ds]
     ps1 = [ff.get_energy_density(mu=mu, dmu=dmu,delta=d, dq=dq, use_kappa=True).n for d in ds]
-
     delta_max = ff.solve(mu=mu, dmu=dmu, dq=dq)
     print(f"dmu={dmu},g={ff._g},Delta={delta_max}")
     plt.plot(ds, ps0, label=f"$d\mu=${dmu}")
