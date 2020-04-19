@@ -54,7 +54,7 @@ def get_potentials(x):
 
 
 class TestCase(object):
-    
+
     def __init__(
             self, g, N, dx, eps=1e-2, E_E0=None,
             psi_init=None, psi_ground=None, E0=None, T_max=10,
@@ -71,7 +71,7 @@ class TestCase(object):
         self.use_abm = use_abm
         self.solver = ABMEvolverAdapter if use_abm else None
         self.x = b.xyz[0]
-        self.b=b
+        self.b = b
         self.V_key = V_key
         self.eps = eps
         self.T_max = T_max
@@ -89,7 +89,8 @@ class TestCase(object):
         self.E_E0 = E_E0 if E_E0 >= 1 else None
 
     def get_ground_state(self, psi_init, T=None, plot=False):
-        b = BCSCooling(N=self.b.N, dx=self.b.dx, g=self.g, V=self.b.V, beta_0=-1j)
+        b = BCSCooling(
+            N=self.b.N, dx=self.b.dx, g=self.g, V=self.b.V, beta_0=-1j)
         H = b._get_H(mu_eff=0, V=self.b.V)
         U, _ = b.get_psis_es(H, transpose=True)
         psi0 = Normalize(U[0], dx=b.dx)
@@ -116,7 +117,9 @@ class TestCase(object):
                 print((E2 - E1)/E1)
                 return psis[-1][0]
 
-    def run(self, N_T=10, T=None, plot=False, plot_log=True, plot_dE=False, verbose=True):
+    def run(
+            self, N_T=10, T=None, plot=False,
+            plot_log=True, plot_dE=False, verbose=True):
         b, x = self.b, self.x
         E0, _ = b.get_E_Ns([self.psi_ground])
         self.E0 = E0
@@ -145,7 +148,7 @@ class TestCase(object):
             self.psis.append(psis[-1][0])
             if verbose:
                 print(f"physical time:{T}, wall time:{wall_time},dE:{(E-E0)/abs(E0)} ")
-            
+
             if plot:
                 Es = [b.get_E_Ns([_psi])[0] for _psi in psis]
                 plt.subplot(131)
@@ -157,9 +160,9 @@ class TestCase(object):
                 plt.plot(x, Prob(psis[-1]), '--', label="final")
                 plt.plot(x, Prob(self.psi_ground), label='Ground')
                 plt.title(
-                    f"E0={self.E0:5.4},E={E:5.4}, $" + r"\beta_0$" +f"={b.beta_0}, "
-                    +r"$\beta_V$"+ f"={b.beta_V}, "+ r" $\beta_K$" + f"={b.beta_K}"
-                    +r" $\beta_D$" + f"={b.beta_D}"+ r" $\beta_Y$" + f"={b.beta_Y}")
+                    f"E0={self.E0:5.4},E={E:5.4}, $" + r"\beta_0$" + f"={b.beta_0}, "
+                    + r"$\beta_V$"+ f"={b.beta_V}, " + r" $\beta_K$" + f"={b.beta_K}"
+                    + r" $\beta_D$" + f"={b.beta_D}" + r" $\beta_Y$" + f"={b.beta_Y}")
                 plt.legend()
                 plt.subplot(133)
                 alt_text = "ABM" if self.use_abm else "IVP"
@@ -169,7 +172,7 @@ class TestCase(object):
                 else:
                     plt.plot(ts[0][:-1], (Es[:-1] - E0)/abs(E0), label=f"E({alt_text})")
                 if plot_dE:
-                    dE_dt= [-1*b.get_dE_dt([_psi]) for _psi in psis]
+                    dE_dt = [-1*b.get_dE_dt([_psi]) for _psi in psis]
                     plt.plot(ts[0][:-1], dE_dt[:-1], label='-dE/dt')
                     plt.axhline(0, linestyle='dashed')
                 plt.title(
@@ -181,15 +184,15 @@ class TestCase(object):
                 break
                 
     def plot(self, id=0):
-        E=self.Es[id]
+        E = self.Es[id]
         plt.plot(self.x, Prob(self.psis[id]), '+', label="final")
         plt.plot(self.x, Prob(self.psi_init), "--", label='init')
         plt.plot(self.x, Prob(self.psi_ground), label='Ground')
-        b=self.b
+        b = self.b
         plt.title(
             f"E0={self.E0:5.4},E={E:5.4}, $" + r"\beta_0$" +f"={b.beta_0}, "
-            +r"$\beta_V$"+ f"={b.beta_V}, "+ r" $\beta_K$" + f"={b.beta_K}"
-            +r" $\beta_D$" + f"={b.beta_D}"+ r" $\beta_Y$" + f"={b.beta_Y}")
+            + r"$\beta_V$"+ f"={b.beta_V}, " + r" $\beta_K$" + f"={b.beta_K}"
+            + r" $\beta_D$" + f"={b.beta_D}" + r" $\beta_Y$" + f"={b.beta_Y}")
         plt.legend()
 
 
@@ -206,16 +209,16 @@ def benchmark_test_excel(
     """
     print(
         f"N={N}, dx={dx}, g={g}, Ts={Ts}, trail={trail}, use_abm={use_abm},"
-        +f"beta_0={beta_0}, beta_Ks={beta_Ks}, beta_Vs={beta_Vs},"
-        +f"beta_Ds={beta_Ds}, beta_Ys={beta_Ys},ground_state={ground_state}, "
-        +f"iState={iState}, V_key={V},"
-        +f"time_out={time_out}, T_ground_state={Ti}"
-        +f",save_interval={save_interval}, verbose={verbose}")
+        + f"beta_0={beta_0}, beta_Ks={beta_Ks}, beta_Vs={beta_Vs},"
+        + f"beta_Ds={beta_Ds}, beta_Ys={beta_Ys},ground_state={ground_state}, "
+        + f"iState={iState}, V_key={V},"
+        + f"time_out={time_out}, T_ground_state={Ti}"
+        + f",save_interval={save_interval}, verbose={verbose}")
     # create an excel table to store the result
     file_stem = (
         f"TestCase_N[{N}]_dx[{dx}]_g[{g}]_T[{5}]_Tr[{trail}]"
-        +f"_IS[{iState}]_V[{V}]_PID=[{os.getpid()}]_"
-        +time.strftime("%Y_%m_%d_%H_%M_%S"))
+        + f"_IS[{iState}]_V[{V}]_PID=[{os.getpid()}]_"
+        + time.strftime("%Y_%m_%d_%H_%M_%S"))
     file_name = file_stem+".xls"
     output = xlwt.Workbook(encoding='utf-8')
     sheet = output.add_sheet("overall", cell_overwrite_ok=True)
@@ -255,14 +258,14 @@ def benchmark_test_excel(
                         if verbose:
                             print(
                                 f"Trail#={trail}: beta_V={beta_V}, beta_K={beta_K},"
-                                +f"beta_D={beta_D}, beta_Y={beta_Y},"
-                                +f"g={g}, T={T}, V={V}, N={N},dx={dx}")
-                        if beta_V == 0 and beta_K== 0 and beta_Y==0:
+                                + f"beta_D={beta_D}, beta_Y={beta_Y},"
+                                + f"g={g}, T={T}, V={V}, N={N},dx={dx}")
+                        if beta_V==0 and beta_K==0 and beta_Y==0:
                             continue
                         try:
                             t.run(T=T, plot=False, verbose=verbose)
                         except ValueError as e:
-                            print('Exception: '+ str(e))
+                            print('Exception: ' + str(e))
                             continue
                         wall_time = t.wall_time[-1]
                         nfev = t.nfevs[-1]
@@ -279,10 +282,10 @@ def benchmark_test_excel(
                             col += 1
                         Evoler = "ABM" if t.use_abm else "IVP"
                         sheet.write(row, col, Evoler)
-                        col+=1
+                        col += 1
                         if abs(dEf) < 1:
                             sheet.write(row, col, "Cooled")
-                        elif abs((Ef - Ei)/Ei)<0.01:
+                        elif abs((Ef - Ei)/Ei) < 0.01:
                             sheet.write(row, col, "Failed")
                         else:
                             sheet.write(row, col, "Partially Cooled")
@@ -299,7 +302,7 @@ def benchmark_test_excel(
                             output.save(file_name)
                             print(
                                 f"{counter}: E0={E0}, Ei={Ei},"
-                                +f"Ef={Ef}: Saved to {file_name}")
+                                + f"Ef={Ef}: Saved to {file_name}")
     # convert to csv files
     output.save(file_name)
     data_xls = pd.read_excel(file_name, 'overall', index_col=None)
@@ -335,40 +338,50 @@ def do_case_test_excel(
 
 
 if __name__ == "__main__":
-    # do_case_test_excel(beta_Vs=[65], beta_Ks=[0], Ts=[5], E_E0=1.5, time_out=300)
+    # do_case_test_excel(
+    # beta_Vs=[65], beta_Ks=[0], Ts=[5], E_E0=1.5, time_out=300)
     
     parser = argparse.ArgumentParser(description='cooling Case Data Generation')
-    parser.add_argument('--N', type=int, default=128, help='lattice point number')
+    parser.add_argument('--N', type=int, default=128,
+    help='lattice point number')
     parser.add_argument(
-        '--trails', type=int, default=1, help='trail number used to track different runs')
+        '--trails', type=int, default=1,
+        help='trail number used to track different runs')
     parser.add_argument(
-        '--dx', type=float, default=0.2, help='An optional integer positional argument')
+        '--dx', type=float, default=0.2,
+        help='An optional integer positional argument')
     parser.add_argument(
         '--g', type=float, default=0, help='Interaction')
     parser.add_argument(
-        '--E_E0', type=float, default=0, help='target energy over ground energy')
-    parser.add_argument('--iState', default="ST", help='Initial State Type: ST/BS/UN/GM')
+        '--E_E0', type=float, default=0,
+        help='target energy over ground energy')
+    parser.add_argument(
+        '--iState', default="ST", help='Initial State Type: ST/BS/UN/GM')
     parser.add_argument('--V', default="HO", help='Potential Type: HO/V0')
     # beta_Vs settings
-    parser.add_argument('--N_beta_V', type=int, default=21, help='Number of beta_Vs')
+    parser.add_argument(
+        '--N_beta_V', type=int, default=21, help='Number of beta_Vs')
     parser.add_argument(
         '--min_beta_V', type=float, default=0, help='min value of beta_Vs')
     parser.add_argument(
         '--max_beta_V', type=float, default=100, help='max value of beta_Vs')
     # beta_Vs settings
-    parser.add_argument('--N_beta_K', type=int, default=21, help='Number of beta_Ks')
+    parser.add_argument(
+        '--N_beta_K', type=int, default=21, help='Number of beta_Ks')
     parser.add_argument(
         '--min_beta_K', type=float, default=0, help='min value of beta_Ks')
     parser.add_argument(
         '--max_beta_K', type=float, default=100, help='max value of beta_Ks')
     # beta_Ds settings
-    parser.add_argument('--N_beta_D', type=int, default=1, help='Number of beta_Ds')
+    parser.add_argument(
+        '--N_beta_D', type=int, default=1, help='Number of beta_Ds')
     parser.add_argument(
         '--min_beta_D', type=float, default=0, help='min value of beta_Ds')
     parser.add_argument(
         '--max_beta_D', type=float, default=0, help='max value of beta_Ds')
     # beta_Ys settings
-    parser.add_argument('--N_beta_Y', type=int, default=1, help='Number of beta_Ys')
+    parser.add_argument(
+        '--N_beta_Y', type=int, default=1, help='Number of beta_Ys')
     parser.add_argument(
         '--min_beta_Y', type=float, default=0, help='min value of beta_Ys')
     parser.add_argument(

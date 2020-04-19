@@ -24,7 +24,7 @@ def Prob(psi):
 
 
 class TestCaseBCS(object):
-    
+
     def __init__(
             self, N, dx, eps=1e-2, E_E0=None,
             N_state=2, T_max=10, use_abm=True, **args):
@@ -41,11 +41,11 @@ class TestCaseBCS(object):
         U1, Es1 = b.get_psis_es(H1, transpose=True)
         self.psis_init = [self.Normalize(psi) for psi in U0[:N_state]]
         self.psis_ground = [self.Normalize(psi) for psi in U1[:N_state]]
-        self.E0=sum(Es1[:N_state])
+        self.E0 = sum(Es1[:N_state])
         self.use_abm = use_abm
         self.solver = ABMEvolverAdapter if use_abm else None
         self.x = x
-        self.b=b
+        self.b = b
         self.eps = eps
         self.T_max = T_max
         self.N_state = N_state
@@ -54,7 +54,9 @@ class TestCaseBCS(object):
     def Normalize(self, psi):
         return psi/(psi.dot(psi.conj())*self.dx)**0.5
 
-    def run(self, N_T=10, T=None, plot=False, plot_log=True, plot_dE=False, verbose=True):
+    def run(
+            self, N_T=10, T=None, plot=False, plot_log=True,
+            plot_dE=False, verbose=True):
         b, x = self.b, self.x
         E0, _ = b.get_E_Ns(self.psis_ground)
         self.E0 = E0
@@ -117,7 +119,7 @@ class TestCaseBCS(object):
                 plt.show()
             if abs((E - E0)/E0) > self.eps:
                 break
-                
+
     def plot(self, id=0):
         E=self.Es[id]
         plt.plot(self.x, Prob(self.psis[id]), '+', label="final")
@@ -199,7 +201,7 @@ def benchmark_test_excel(
                                 beta_D=beta_D, beta_Y=beta_Y,
                                 T=T, verbose=verbose)
                         except ValueError as e:
-                            print('Exception: '+ str(e))
+                            print('Exception: ' + str(e))
                             continue
                         wall_time, nfev, E0, Ei, Ef = res
                         print(res)
@@ -212,10 +214,10 @@ def benchmark_test_excel(
                             col += 1
                         Evoler = "ABM" if t.use_abm else "IVP"
                         sheet.write(row, col, Evoler)
-                        col+=1
+                        col + =1
                         if abs((Ef - E0)/E0) < 1:
                             sheet.write(row, col, "Cooled")
-                        elif abs((Ef - Ei)/Ei)<0.01:
+                        elif abs((Ef - Ei)/Ei) < 0.01:
                             sheet.write(row, col, "Failed")
                         else:
                             sheet.write(row, col, "Partially Cooled")

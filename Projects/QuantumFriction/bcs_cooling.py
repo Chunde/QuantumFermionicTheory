@@ -636,7 +636,7 @@ class BCSCooling(BCS):
                 E = E + psi.conj().dot(H.dot(psi))
         return E, N
 
-    def plot(self, psi, **kw):
+    def plot(self, psi, show_plot=True, show_title=True, **kw):
         if self.dim == 1:
             x = self.xyz[0].ravel()
             plt.plot(x, abs(psi)**2, **kw)
@@ -646,5 +646,7 @@ class BCSCooling(BCS):
             mmfplt.imcontourf(x, y, self.get_ns([psi]))
             plt.colorbar()
         E, N = self.get_E_Ns([psi])
-        plt.title(f"E={E:.4f}, N={N:.4f}")
-        plt.show()
+        if show_title:
+            plt.title(f"E={E:.4f}, N={N:.4f}")
+        if show_plot:
+            plt.show()
