@@ -401,7 +401,7 @@ class FFStateAgent(object):
         if auto_save:
             self.save_to_file(rets)
         return rets
-
+       
     def zoom_in_search(
             self, delta, mu_eff, dmu_eff, dq,
             max_iter=5, N_q=10, fun=None):
@@ -424,9 +424,26 @@ class FFStateAgent(object):
         else:
             g = fun
 
+        search_trace = []
+
+        def add_trace(dqs, gs):
+            print(f"dqs={dqs}")
+            print(f"gs={gs}")
+            for (dq_, g_) in zip(dqs, gs):
+                search_trace.append((dq_, g_))
+
+        def get_trace():
+            print(f"search_trace={search_trace}")
+            dq_gs = np.array(search_trace)
+            dq_gs.sort(axis=0)
+            print(f"dq_gs.T={dq_gs.T}")
+            return dq_gs.T
+        # dqs = [0, ]
         for i in range(max_iter):
             dqs = np.linspace(dq1, dq2, N_q)
             gs = np.array([g(dq) for dq in dqs])
+            add_trace(dqs=dqs, gs=gs)
+
             self.print(f"{i+1}/{max_iter}:gs={gs}")
             if np.all(gs > 0):  # this is not compete
                 index, _ = min(enumerate(gs), key=operator.itemgetter(1))
@@ -459,9 +476,11 @@ class FFStateAgent(object):
                 dq1, dq2 = dqs[index - 1], dqs[index + 1]
                 p1, p2 = dq1, dq2
                 continue
-
-            if self.check_sign_flip(gs) == 2:
+            N_flip = self.check_sign_flip(gs)
+            if N_flip > 0:  # have solutions
+                print(f"Flips:{N_flip}")
                 rets = []
+                dq, gs = get_trace()
                 g0, i0 = gs[0], 0
                 for i in range(1, len(gs)):
                     if g0*gs[i] < 0:
@@ -469,9 +488,11 @@ class FFStateAgent(object):
                     g0, i0 = gs[i], i
                     if len(rets) == 2:  # two solutions at max
                         break
-                v1, v2 = rets[:2]
-            else:  # only one solution?
-                raise NotImplementedError("To-Do")
+                print(f"Number of Solutions: {len(rets)}")
+                if len(rets) > 1:
+                    v1, v2 = rets[:2]
+                elif len(rets) == 1:
+                    v1 = rets[0]
             break
         self.print(f"ZoomIn: {v1},{v2}")
         return (v1, v2)
@@ -674,22 +695,22 @@ def search_delta_q_worker(para):
     args = dict(
         mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
         T=0, dim=dim, k_c=k_c, verbosity=False)
-    try:
-        lda = ClassFactory(
-            "LDA", (FFStateAgent,),
-            functionalType=functionalType,
-            kernelType=kernelType, args=args)
-        if smart_search:
-            return lda.smart_search(
-                delta_lower=0.001, delta_upper=delta,
-                q_lower=0, q_upper=dmu_eff, N_q=40, delta1=delta,
-                N_delta=100)
-        return lda.search(
-            N_delta=50, delta_lower=0.0001, delta_upper=delta,
-            q_lower=0, q_upper=dmu_eff, N_q=10,
-            auto_incremental=False, flip_order=True)
-    except ValueError:
-        return None
+    # try:
+    lda = ClassFactory(
+        "LDA", (FFStateAgent,),
+        functionalType=functionalType,
+        kernelType=kernelType, args=args)
+    if smart_search:
+        return lda.smart_search(
+            delta_lower=0.001, delta_upper=delta,
+            q_lower=0, q_upper=dmu_eff, N_q=40, delta1=delta,
+            N_delta=100)
+    return lda.search(
+        N_delta=50, delta_lower=0.0001, delta_upper=delta,
+        q_lower=0, q_upper=dmu_eff, N_q=10,
+        auto_incremental=False, flip_order=True)
+    # except ValueError:
+    #     return None
 
 
 def smart_search_delta_q_worker(obj_mus_delta_dim_kc):
@@ -703,20 +724,20 @@ def smart_search_delta_q_worker(obj_mus_delta_dim_kc):
     args = dict(
         mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
         T=0, dim=dim, k_c=k_c, verbosity=True)
-    try:
-        lda = ClassFactory(
-            "LDA", (FFStateAgent,),
-            functionalType=obj.functionalType,
-            kernelType=obj.kernelType, args=args)
-        return lda.smart_search(
-            delta_lower=0.001, delta_upper=delta,
-            q_lower=0, q_upper=dmu_eff, N_q=40, delta1=obj.delta1,
-            N_delta=obj.N_delta)
-    except:
-        # rename the file to be incomplete
-        file_name = lda.get_file_name()
-        os.rename(file_name, file_name + ".error")
-        return None
+    # try:
+    lda = ClassFactory(
+        "LDA", (FFStateAgent,),
+        functionalType=obj.functionalType,
+        kernelType=obj.kernelType, args=args)
+    return lda.smart_search(
+        delta_lower=0.001, delta_upper=delta,
+        q_lower=0, q_upper=dmu_eff, N_q=40, delta1=obj.delta1,
+        N_delta=obj.N_delta)
+# except:
+    #     # rename the file to be incomplete
+    #     file_name = lda.get_file_name()
+    #     os.rename(file_name, file_name + ".error")
+    #     return None
 
 
 def search_condidate_worker(obj_mus_delta_dim_kc):
@@ -1078,7 +1099,9 @@ def PDG():
     pdg = AutoPDG(
         functionalType=FunctionalType.BDG,
         kernelType=KernelType.HOM, k_c=150, dim=2)
-    dmu, delta = .6, .8  # 0.175, 0.25 # for 3D
+    delta=0.2
+    dmu=0.14141782308472947
+    # dmu, delta = 0.35349820923398134, .5  # 0.175, 0.25 # for 3D
     pdg.search_delta_q_diagram(seed_delta=delta, seed_dmu=dmu)
     # pdg.compute_pressure_current_from_files()
     # pdg.run(seed_delta=delta, seed_dmu=dmu)
