@@ -443,7 +443,7 @@ def label_states(current_dir=None, raw_data=False, verbosity=False):
             os.path.dirname(
                 os.path.abspath(
                     inspect.getfile(
-                        inspect.currentframe()))), "..", "mmf_hfb", "data")
+                        inspect.currentframe()))), "data")
     output = []
     pattern = join(current_dir, "FFState_J_P[()d_0-9]*")
     files = glob.glob(pattern)
@@ -453,6 +453,8 @@ def label_states(current_dir=None, raw_data=False, verbosity=False):
             print(file)
             with open(file, 'r') as rf:
                 ret = json.load(rf)
+                # if ret['delta'] != 2.0:
+                #     continue
                 dim, mu_eff, dmu_eff, delta, C = (
                     ret['dim'], ret['mu_eff'], ret['dmu_eff'],
                     ret['delta'], ret['C'])
@@ -507,7 +509,7 @@ def label_states(current_dir=None, raw_data=False, verbosity=False):
                             mus_eff=(mu_eff + dmu_eff, mu_eff - dmu_eff),
                             mus=(mu+dmu, mu-dmu), delta=data["d"],
                             dq=data['q'], C=C)
-                        if data['p'] > pressures[1]:
+                        if data['p'] > pressures[1] and data['p'] > pressures[0]:
                             bFFState = True
                 if bFFState and verbosity:
                     print(f"FFState: {bFFState} |<-------------")
@@ -531,5 +533,5 @@ if __name__ == "__main__":
     # ds = np.linspace(1.1, 1.5, 10)
     # for delta in ds:
     # search_states(delta=0.5)
-    compute_pressure_current()
-    # label_states(raw_data=True)
+    # compute_pressure_current()
+    label_states(raw_data=True)

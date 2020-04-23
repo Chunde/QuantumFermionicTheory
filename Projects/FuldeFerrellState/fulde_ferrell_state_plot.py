@@ -129,7 +129,7 @@ def PlotStates(
 def PlotCurrentPressure(
     filter_fun, current_dir=None, alignLowerBranches=False,
         alignUpperBranches=False, showLegend=False,
-        FFState_only=True, print_file_name=False):
+        FFState_only=True, ls='+', print_file_name=False):
     if current_dir is None:
         current_dir = join(
             os.path.dirname(
@@ -197,13 +197,13 @@ def PlotCurrentPressure(
                     if FFState_only:
                         if state == "FF":
                             plt.plot(
-                                ds, P_, "+",
+                                ds, P_, ls,
                                 label=f"$\Delta=${delta},"
                                 + f" $\mu=${float(mu_eff):.2},"
                                 + f" $d\mu=${float(dmu_eff):.2}, State:{state}")
                     else:
                         plt.plot(
-                            ds, P_, "+",
+                            ds, P_, ls,
                             label=f"$\Delta=${delta},$\mu=${float(mu_eff):.2},"
                             + f"$d\mu=${float(dmu_eff):.2},State:{state}")
                     plt.axhline(p0, linestyle='dashed')
@@ -217,15 +217,15 @@ def PlotCurrentPressure(
                     plt.subplot(325)
                     if FFState_only:
                         if ffs1:
-                            plt.plot(ds1, ja1, "+", label=label)
+                            plt.plot(ds1, ja1, ls, label=label)
                     else:
-                        plt.plot(ds1, ja1, "+", label=label)
+                        plt.plot(ds1, ja1, ls, label=label)
                     plt.subplot(321)
                     if FFState_only:
                         if ffs1:
-                            plt.plot(ds1, dqs1, "+", label=label)
+                            plt.plot(ds1, dqs1, ls, label=label)
                     else:
-                        plt.plot(ds1, dqs1, "+", label=label)
+                        plt.plot(ds1, dqs1, ls, label=label)
 
                 if len(ds2) > 2:
                     plt.subplot(324)
@@ -233,16 +233,16 @@ def PlotCurrentPressure(
                     plt.subplot(326)
                     if FFState_only:
                         if ffs2:
-                            plt.plot(ds2, ja2, "+", label=label)
+                            plt.plot(ds2, ja2, ls, label=label)
                     else:
-                        plt.plot(ds2, ja2, "+", label=label)
+                        plt.plot(ds2, ja2, ls, label=label)
                     plt.axhline(0)
                     plt.subplot(322)
                     if FFState_only:
                         if ffs2:
-                            plt.plot(ds2, dqs2, "+", label=label)
+                            plt.plot(ds2, dqs2, ls, label=label)
                     else:
-                        plt.plot(ds2, dqs2, "+", label=label)
+                        plt.plot(ds2, dqs2, ls, label=label)
     for i in range(1, 7):
         plt.subplot(3, 2, i)
         if showLegend:

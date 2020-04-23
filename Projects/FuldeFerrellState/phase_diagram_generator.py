@@ -414,7 +414,7 @@ class FFStateAgent(object):
         TODO: implement the case with just one soluton
             and do some tests.
         """
-        dq1, dq2 = dq*0.9, dq*1.1
+        dq1, dq2 = dq*0.5, dq*1.1
         p1, p2, v1, v2 = None, None, None, None
         if fun is None:
             def g(dq):
@@ -438,7 +438,9 @@ class FFStateAgent(object):
             dq_gs.sort(axis=0)
             print(f"dq_gs.T={dq_gs.T}")
             return dq_gs.T
-        # dqs = [0, ]
+        dqs = [0.00001, 2*delta]
+        gs = np.array([g(dq) for dq in dqs])
+        add_trace(dqs=dqs, gs=gs)
         for i in range(max_iter):
             dqs = np.linspace(dq1, dq2, N_q)
             gs = np.array([g(dq) for dq in dqs])
@@ -1099,8 +1101,11 @@ def PDG():
     pdg = AutoPDG(
         functionalType=FunctionalType.BDG,
         kernelType=KernelType.HOM, k_c=150, dim=2)
-    delta=0.2
-    dmu=0.14141782308472947
+    # Bug case: delta=0.6,dmu=0.45, single solution test
+    # single solution bug case:
+    # delta, dmu = 0.2, 0.14141782308472947
+    delta, dmu = 3, 2.9
+    
     # dmu, delta = 0.35349820923398134, .5  # 0.175, 0.25 # for 3D
     pdg.search_delta_q_diagram(seed_delta=delta, seed_dmu=dmu)
     # pdg.compute_pressure_current_from_files()
