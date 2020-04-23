@@ -70,18 +70,18 @@ def get_C(dmu_eff, delta, dq=0):
 dmu_effs = np.linspace(0, delta, 5)
 ds = np.linspace(0.001, 1.2*delta, 25)
 
-
 # [0.4684362992740691, None, 0.9697323232323233]
 
-# dmu0=0.51
-# dq0, delta0=0.4684362992740691, 0.9697323232323233
+dmu0=0.51
+dq0, delta0=0.4684362992740691, 0.9697323232323233
+
 
 def get_f(dmu=0, dq=0, delta=0):
     return get_C(dmu_eff=dmu, dq=dq, delta=delta) - lda.C
 
 
-# ds = np.linspace(0.0001, delta, 10)
-# fs = [get_f(dmu=dmu0, dq=dq0, delta=d) for d in ds]
+ds = np.linspace(0.0001, delta, 10)
+fs = [get_f(dmu=dmu0, dq=dq0, delta=d) for d in ds]
 
 plt.plot(ds, fs)
 plt.axhline(0, ls='dashed')
@@ -131,6 +131,7 @@ for dq in dqs:
 
 # # Visualize Data
 
+# +
 def filter_state(mu, dmu, delta, C, dim):
     if dim != 2:
         return True
@@ -140,53 +141,130 @@ def filter_state(mu, dmu, delta, C, dim):
     #return False
     #if g != -3.2:
     #    return True
-    if delta != .4:
+    if delta != 2:
          return True
-#     if delta > 0.6:
-#     if delta != 0.5:
-#         return True
-#     if dmu < 0.35:  
+
+#     if dmu < 1.85 or dmu > 1.965:  
 #           return True
-#     if dmu > 0.36:
-#          return True
+#     #if dmu > 0.36:
+     #    return True
     #if not np.allclose(dmu, 0.35, rtol=0.01):
     #    return True
     #print(dmu)
     return False
 
 
+# -
+
 plt.figure(figsize(16,8))
 ffp.PlotStates(current_dir=currentdir, two_plot=False,
                filter_fun=filter_state, plot_legend=True, ls='-+',print_file_name=True)
 
-# plt.figure(figsize(16,10))
+plt.figure(figsize(16,10))
 ffp.PlotCurrentPressure(current_dir=currentdir, filter_fun=filter_state,alignLowerBranches=False,
-                        showLegend=False, FFState_only=False, print_file_name=False)
+                        showLegend=True, FFState_only=False, print_file_name=False, ls='-')
+
 
 # # Plot the Diagram
 # * Check the particle density, pressure, and $d\mu$ etc to see if a configuration is a FF state $\Delta$
 
+def PlotPhaseDiagram(output=None, raw_data=False):
+    """
+    plot the phase diagram
+    Para:
+    ------------------
+    output: the list the come from the LableStates in FFStateAgent
+    raw_data: if True, the return result will include the original
+        data from each files(in json format)
+    """
+    if output is None:
+        output = label_states(raw_data=raw_data)
+    xs, xs2, ys, ys2, ys3, ys4, states = [], [], [], [], [], [], []
+    for dic in output:
+        n = dic['na'] + dic['nb']
+        mu, dmu, delta = dic['mu'], dic['dmu'], dic['delta']
+        k_F = (2.0*mu)**0.5
+        dn = dic['na'] - dic['nb']
+        ai = dic['ai']
+        xs.append(-ai/k_F)
+        ys.append(dn/n)  # polarization
+        xs2.append(delta)
+        ys2.append(dmu/delta)
+        ys3.append(dic['dmu_eff'])
+        ys4.append(dic['dmu_eff']/delta)
+        states.append(dic['state'])
+    colors, area = [], []
+    for i in range(len(states)):
+        s = states[i]
+        if s:
+            colors.append('red')
+            area.append(15)
+        else:
+            colors.append('blue')
+            area.append(1)
+    plt.subplot(121)
+    plt.scatter(xs, ys, s=area, c=colors)
+    plt.ylabel(r"$\delta n/n$", fontsize=16)
+    plt.xlabel(r"$-1/ak_F$", fontsize=16)
+#     plt.subplot(222)
+#     plt.scatter(xs, ys2, s=area, c=colors)
+#     plt.ylabel(r"$\delta\mu/\Delta$", fontsize=16)
+#     plt.xlabel(r"$-1/ak_F$", fontsize=16)
+    plt.subplot(122)
+    plt.scatter(xs2, ys3, s=area, c=colors)
+    plt.ylabel(r"$\delta\mu_{eff}$", fontsize=16)
+    plt.xlabel(r"$\Delta$", fontsize=16)
+#     plt.subplot(224)
+#     plt.scatter(xs, ys4, s=area, c=colors)
+#     plt.ylabel(r"$\delta\mu_{eff}/\Delta$", fontsize=16)
+#     plt.xlabel(r"$-1/ak_F$", fontsize=16)
+#     plt.show()
+
+
 output = ffa.label_states(current_dir=currentdir, raw_data=False, verbosity=False)
 clear_output()
 
-output_ff = []
+plt.figure(figsize(16,8))
+PlotPhaseDiagram(output=output)
+
+for item in output:
+    if item['delta'] == 2.0:
+        d = item['d']
+        q = item['dq']
+        ff = item['state']
+        print(ff, d, q)
+        dmu, pn, ps, pf = item["dmu_eff"], item["pn"], item["ps"], item["pf"]
+        print(f"{dmu}, {pn}, {ps}, {pf}")
+
+output[0]
+
 for item in output:
     if item['state']:
         output_ff.append(item)
-
 item_max = output_ff[0]
-for item in output_ff:
-    print(item['pf'] - item['pn'])
-    if (item['pf'] - item['pn'])>(item_max['pf'] - item_max['pn']):
-        item_max = item
+    for item in output_ff:
+        # print(item['pf'] - item['pn'])
+        if (item['pf'] - item['pn'])>(item_max['pf'] - item_max['pn']):
+            item_max = item
+    print(item_max)
 
-item_max
 
-with open("output_tmp.json", 'w') as wf:
-            json.dump(output, wf)
+def find_most_stable_ff_state():
+    output_ff = []
+    for item in output:
+        if item['state']:
+            output_ff.append(item)
+    item_max = output_ff[0]
+    for item in output_ff:
+        # print(item['pf'] - item['pn'])
+        if (item['pf'] - item['pn'])>(item_max['pf'] - item_max['pn']):
+            item_max = item
+    print(item_max)
+#     with open("output_tmp.json", 'w') as wf:
+#             json.dump(output, wf)
 
-plt.figure(figsize(16,16))
-ffp.PlotPhaseDiagram(output=output)
+
+find_most_stable_ff_state()
 
 # # Check a FF State
 # * Find the first configeration that yields a FF State

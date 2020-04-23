@@ -559,7 +559,6 @@ assert np.allclose(d.conj()*us[0] - b*vs[0], es[0]*vs[0])
 # +
 # %pylab inline --no-import-all
 from ipywidgets import interact
-
 def f(E, T):
     """Fermi distribution function"""
     T = max(T, 1e-32)
@@ -571,7 +570,9 @@ def f(E, T):
           dmu=(-0.4, 0.4, 0.01),
           T=(0, 0.1, 0.01))
 def go(delta=0.1, mu_eF=1.0, dmu=0.0, T=0.02):
-    k = np.linspace(0, 1.4, 100)
+    plt.figure(figsize=(12, 8))
+
+    k = np.linspace(0, 1.4, 1000)
     hbar = m = kF = 1.0
     eF = (hbar*kF)**2/2/m
     mu = mu_eF*eF
@@ -589,34 +590,54 @@ def go(delta=0.1, mu_eF=1.0, dmu=0.0, T=0.02):
 
     plt.subplot(211);plt.grid()
     plt.plot(k/kF, f_a, label='a')
-    plt.plot(k/kF, f_b, label='b');plt.legend()
+    plt.plot(k/kF, f_b, '--', label='b',);plt.legend()
     plt.ylabel('n')
     plt.subplot(212);plt.grid()
     plt.plot(k/kF, w_p/eF, k/kF, w_m/eF)
-    plt.ylim(-1.5, 1.5); plt.xlabel('$k/k_F$')
+    #plt.ylim(-1.5, 1.5)
+    plt.xlabel('$k/k_F$')
     plt.ylabel(r'$\omega_{\pm}/\epsilon_F$')
     plt.axhline(0, c='y')
 
 
 # -
 
-#  Here we use sympy to generate the series expansion in k_c
-import sympy;sympy.init_printing()
-k, mu_a, mu_b = sympy.var('k, mu_a, mu_b', real=True)
-d = sympy.var(r'\Delta', positive=True)
-np = sympy
-np.arctan2 = np.atan2
-np.angle = np.arg
-a = k**2/2 - mu_a
-b = k**2/2 - mu_b
-e_m, e_p = (a-b)/2, (a+b)/2
-E = np.sqrt(e_p**2 + d**2)
-es = [e_m-E, e_m+E]
-thetas = np.arctan2(-E-e_p, d), np.atan2(E-e_p, d)
-us = np.exp(1j*np.angle(d))*list(map(np.cos, thetas))
-vs = list(map(np.sin,thetas))
-x = sympy.var('x', positive=True)
-(abs(us[0])**2).subs(k, 1/x).series(x, n=8).subs(x, 1/k)
+@interact(delta=(0, 1, 0.1), 
+          mu_eF=(0, 2, 0.1),
+          dmu=(-0.4, 0.4, 0.01),
+          T=(0, 0.1, 0.01))
+def fn(delta=0.1, mu_eF=1.0, dmu=0.0, T=0.02):
+    plt.figure(figsize=(12, 8))
+
+    k = np.linspace(0, 1.4, 1000)
+    hbar = m = kF = 1.0
+    eF = (hbar*kF)**2/2/m
+    mu = mu_eF*eF
+    #dmu = dmu_delta*delta
+    mu_a, mu_b = mu + dmu, mu - dmu
+    e_a, e_b = (hbar*k)**2/2/m - mu_a, (hbar*k)**2/2/m - mu_b
+    e_p, e_m = (e_a + e_b)/2, (e_a - e_b)/2
+    E = np.sqrt(e_p**2+abs(delta)**2)
+    w_p, w_m = e_m + E, e_m - E
+    
+    # Occupation numbers
+    #f_p = 1 - e_p/E*(f(w_m, T) - f(w_p, T))
+    #f_m = f(w_p, T) - f(-w_m, T)
+    #f_a, f_b = (f_p+f_m)/2, (f_p-f_m)/2
+    u2, v2 = 0.5*(1+e_p/E), 0.5*(1-e_p/E)
+    f_a = u2*f(w_p, T)+v2*f(w_m, T)
+    f_b = u2*f(-w_m, T)+ v2*f(-w_p, T)
+    plt.subplot(211);plt.grid()
+    plt.plot(k/kF, f_a, label='a')
+    plt.plot(k/kF, f_b, '--', label='b',);plt.legend()
+    plt.ylabel('n')
+    plt.subplot(212);plt.grid()
+    plt.plot(k/kF, w_p/eF, k/kF, w_m/eF)
+    #plt.ylim(-1.5, 1.5)
+    plt.xlabel('$k/k_F$')
+    plt.ylabel(r'$\omega_{\pm}/\epsilon_F$')
+    plt.axhline(0, c='y')
+
 
 x = sympy.var('x', positive=True)
 (abs(us[0])**2).subs(k,1/x).series(x, n=8 ).subs(x, 1/k)

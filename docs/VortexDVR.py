@@ -27,7 +27,7 @@ from mmf_hfb import homogeneous
 from mmfutils.plot import imcontourf
 from collections import namedtuple
 from mmfutils.math.special import mstep
-from mmf_hfb.dvr_basis import cylindrical_basis
+from mmf_hfb.dvr_basis import CylindricalBasis
 from mmf_hfb.dvr_vortex import bdg_dvr, bdg_dvr_ho,dvr_full_set
 from mmf_hfb.utils import block
 

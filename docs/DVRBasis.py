@@ -2,12 +2,13 @@
 # ---
 # jupyter:
 #   jupytext:
+#     cell_metadata_json: true
 #     formats: ipynb,py:light
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.4'
-#       jupytext_version: 1.2.3
+#       format_version: '1.5'
+#       jupytext_version: 1.3.2
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -314,7 +315,7 @@ k_x, k_r = basis.k_max
 # +
 # %pylab inline --no-import-all
 import numpy as np
-from  mmf_hfb.CylindricalBasis import CylindricalBasis
+from  mmf_hfb.cylindrical_basis import CylindricalBasis
 from mmfutils.math.bases.tests import test_bases
 basis = CylindricalBasis(Nxr=(64, 32), Lxr=(25.0,5.0))
 x, r = basis.xyz
@@ -354,7 +355,7 @@ print("{}% max error".format(
 # $$
 
 # +
-from mmf_hfb.CylindricalBasis import CylindricalBasis
+from mmf_hfb.cylindrical_basis import CylindricalBasis
 eps = np.finfo(float).eps
 hbar = m = w = 1
 a0 = np.sqrt(hbar/m/w)

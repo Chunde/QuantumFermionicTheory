@@ -216,6 +216,8 @@ params = {'legend.fontsize': 'x-large',
          'ytick.labelsize':'x-large'}
 pylab.rcParams.update(params)
 
+matplotlib.rcParams.update({'font.size': 16})
+
 x = np.linspace(-3,3,1000)
 plt.axvline(0,c='black',alpha=0.5)
 for i in range(len(xs)):
@@ -223,8 +225,8 @@ for i in range(len(xs)):
     plt.axvline(xs[i], ls='dashed', c=l.get_c(), alpha=0.5)
 plt.axhline(0, linestyle='dashed', color='black')
 plt.legend()
-plt.xlabel('x', fontsize='16')
-plt.ylabel('F(x)', fontsize='16')
+plt.xlabel('x')
+plt.ylabel('F(x)')
 plt.savefig("sinc_dvr_basis_functions.pdf", bbox_inches='tight')
 
 N=5
@@ -233,7 +235,7 @@ xs = np.array(list(range(0,N)))*a
 us = [np.sin(xs[i])/F(xs[i], i) for i in range(0, N)]
 plt.plot(x, np.sin(x))
 fs = sum([us[i]*F(xs, i) for i in range(0, N)])
-plt.plot(xs, fs, '--')
+plt.plot(xs, fs, '+')
 
 
 

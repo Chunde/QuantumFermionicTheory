@@ -84,7 +84,7 @@ def check_uv_ir_error(psi, plot=False):
 
 # matplotlib.rcParams.update({'font.size': 18})
 
-matplotlib.rcParams.update({'font.size': 18})
+matplotlib.rcParams.update({'font.size': 22})
 N_data = 20
 N_step = 100
 
@@ -184,36 +184,41 @@ psi = ground_state(ls='-+', **args)
 plt.savefig("ground_date_densities_gs.pdf", bbox_inches='tight') #balanced_vortx_2d_bcs_plot
 
 
-def Check_UV_IR(fontsize=22):
+def Check_UV_IR(fontsize=16):
     dx = 0.1
-    plt.figure(figsize=(27,7))
+    plt.figure(figsize=(18,16))
     args = dict(beta_K=1, beta_V=1, beta_D=1, beta_Y=1, divs=(1, 1))
     for Nx in [128, 256, 512]:
         offset = np.log(Nx)*0.1 # add a small offset in y direction
-        uv = BCSCooling(N=256, dx=dx*256/Nx,**args)
+        uv = BCSCooling(N=Nx, dx=dx*256/Nx,**args)
         ir  = BCSCooling(N=Nx, dx=dx, beta_0=1,**args)
-        for s, i in zip([uv, ir],[2, 3]):           
+        for s, i in zip([uv, ir],[3, 4]):           
             s.g = -1
             x = s.xyz[0]
             s.V = x**2/2
             psi0 = np.exp(-x**2/2.0)*np.exp(1j*x)
-            plt.subplot(1,3,1)
+            plt.subplot(2,2,i-2)
             plt.plot(x, abs(psi0)**2 + offset, label=f"dx={s.dx},N={s.N}")
-            plt.subplot(1,3,i)
+            plt.subplot(2,2,i)
             psis_k = s.get_psis_k([psi0])
             Vc = s.get_Vc(psis=[psi0], psis_k=psis_k)  # get_Dyadic
             l, = plt.plot(x, Vc + offset, label=f"dx={s.dx}, N={s.N}")  # add some offset in y direction to separate plots
-    plt.subplot(131)
+    plt.subplot(221)
     plt.xlim(-10, 10)
     plt.xlabel("x", fontsize=fontsize)
-    plt.title(r"$|\psi|^2$", fontsize=fontsize)
+    plt.title(r"$|\psi|^2$(UV)", fontsize=fontsize)
     plt.legend()
-    plt.subplot(132)
+    plt.subplot(222)
+    plt.xlim(-10, 10)
+    plt.xlabel("x", fontsize=fontsize)
+    plt.title(r"$|\psi|^2$(IR)", fontsize=fontsize)
+    plt.legend()
+    plt.subplot(223)
     plt.xlim(-4, 4)
     plt.xlabel("x", fontsize=fontsize)
     plt.title(r"$V_c$(UV)", fontsize=fontsize)
     plt.legend()
-    plt.subplot(133)
+    plt.subplot(224)
     plt.xlim(-4,4)
     plt.xlabel("x", fontsize=fontsize)
     plt.title(r"$V_c$(IR)", fontsize=fontsize)
