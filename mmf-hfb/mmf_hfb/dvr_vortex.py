@@ -8,7 +8,7 @@ import numpy as np
 from mmfutils.math.integrate import mquad
 from mmfutils.math.special import mstep
 
-from .dvr_basis import cylindrical_basis
+from .dvr_basis import CylindricalBasis
 from .utils import block
 from . import homogeneous
 from .hfb import BCS
@@ -50,7 +50,7 @@ class dvr_odd_even_set(dvr_basis_set):
     """
     def __init__(self, **args):
         self.N_basis = 2
-        self.bases = [cylindrical_basis(lz=lz, **args) for lz in range(self.N_basis)]
+        self.bases = [CylindricalBasis(lz=lz, **args) for lz in range(self.N_basis)]
         self.Us =[None, get_transform_matrix(self.bases[1], self.bases[0])]
         self.N_roots = [basis.N_root for basis in self.bases]
 
@@ -85,7 +85,7 @@ class dvr_odd_even_set(dvr_basis_set):
 class dvr_full_set(dvr_basis_set):
     def __init__(self, l_max, **args):
         self.N_basis = l_max
-        self.bases = [cylindrical_basis(lz=lz, **args) for lz in range(self.N_basis)]
+        self.bases = [CylindricalBasis(lz=lz, **args) for lz in range(self.N_basis)]
         self.Us =[None]
         self.Us.extend(
             [get_transform_matrix(
