@@ -401,17 +401,17 @@ class FFStateAgent(object):
         if auto_save:
             self.save_to_file(rets)
         return rets
-       
+
     def zoom_in_search(
             self, delta, mu_eff, dmu_eff, dq,
-            max_iter=5, N_q=10, fun=None):
+            max_iter=5, N_q=10, delta0=None, fun=None):
         """
         The zoom-in search algorithm
         -----------------------------
         It will keep to find a region with an extremum
         and keep zooming to that region unless solutions
         are found.
-        TODO: implement the case with just one soluton
+        TODO: implement the case with just one solution
             and do some tests.
         """
         dq1, dq2 = dq*0.5, dq*1.1
@@ -427,18 +427,17 @@ class FFStateAgent(object):
         search_trace = []
 
         def add_trace(dqs, gs):
-            print(f"dqs={dqs}")
-            print(f"gs={gs}")
             for (dq_, g_) in zip(dqs, gs):
                 search_trace.append((dq_, g_))
 
         def get_trace():
-            print(f"search_trace={search_trace}")
             dq_gs = np.array(search_trace)
-            dq_gs.sort(axis=0)
-            print(f"dq_gs.T={dq_gs.T}")
+            dq_gs = dq_gs[dq_gs[:, 0].argsort()]  # dq_gs.sort(axis=0)
             return dq_gs.T
-        dqs = [0.00001, 2*delta]
+
+        dqs = [0.00001]
+        if delta0 is not None:
+            dqs.append(delta0)
         gs = np.array([g(dq) for dq in dqs])
         add_trace(dqs=dqs, gs=gs)
         for i in range(max_iter):
@@ -480,9 +479,8 @@ class FFStateAgent(object):
                 continue
             N_flip = self.check_sign_flip(gs)
             if N_flip > 0:  # have solutions
-                print(f"Flips:{N_flip}")
                 rets = []
-                dq, gs = get_trace()
+                dqs, gs = get_trace()
                 g0, i0 = gs[0], 0
                 for i in range(1, len(gs)):
                     if g0*gs[i] < 0:
@@ -490,7 +488,6 @@ class FFStateAgent(object):
                     g0, i0 = gs[i], i
                     if len(rets) == 2:  # two solutions at max
                         break
-                print(f"Number of Solutions: {len(rets)}")
                 if len(rets) > 1:
                     v1, v2 = rets[:2]
                 elif len(rets) == 1:
@@ -571,7 +568,7 @@ class FFStateAgent(object):
                 else:
                     # else use the zoom-in algorithm to search
                     qa, qb = self.zoom_in_search(
-                        delta=delta, dq=predicted_q,
+                        delta0=self.delta, delta=delta, dq=predicted_q,
                         mu_eff=mu_eff, dmu_eff=dmu_eff, max_iter=10)
                     # predicted_q = None  # reset the common q
                 if not (qa is None or qb is None):
@@ -726,20 +723,20 @@ def smart_search_delta_q_worker(obj_mus_delta_dim_kc):
     args = dict(
         mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
         T=0, dim=dim, k_c=k_c, verbosity=True)
-    # try:
-    lda = ClassFactory(
-        "LDA", (FFStateAgent,),
-        functionalType=obj.functionalType,
-        kernelType=obj.kernelType, args=args)
-    return lda.smart_search(
-        delta_lower=0.001, delta_upper=delta,
-        q_lower=0, q_upper=dmu_eff, N_q=40, delta1=obj.delta1,
-        N_delta=obj.N_delta)
-# except:
-    #     # rename the file to be incomplete
-    #     file_name = lda.get_file_name()
-    #     os.rename(file_name, file_name + ".error")
-    #     return None
+    try:
+        lda = ClassFactory(
+            "LDA", (FFStateAgent,),
+            functionalType=obj.functionalType,
+            kernelType=obj.kernelType, args=args)
+        return lda.smart_search(
+            delta_lower=0.001, delta_upper=delta,
+            q_lower=0, q_upper=dmu_eff, N_q=40, delta1=obj.delta1,
+            N_delta=obj.N_delta)
+    except:
+        # rename the file to be incomplete
+        file_name = lda.get_file_name()
+        os.rename(file_name, file_name + ".error")
+        return None
 
 
 def search_condidate_worker(obj_mus_delta_dim_kc):
@@ -1104,8 +1101,7 @@ def PDG():
     # Bug case: delta=0.6,dmu=0.45, single solution test
     # single solution bug case:
     # delta, dmu = 0.2, 0.14141782308472947
-    delta, dmu = 3, 2.9
-    
+    delta, dmu = 1.1, 1.05
     # dmu, delta = 0.35349820923398134, .5  # 0.175, 0.25 # for 3D
     pdg.search_delta_q_diagram(seed_delta=delta, seed_dmu=dmu)
     # pdg.compute_pressure_current_from_files()
