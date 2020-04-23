@@ -141,7 +141,7 @@ def filter_state(mu, dmu, delta, C, dim):
     #return False
     #if g != -3.2:
     #    return True
-    if delta != 2:
+    if delta != 1.9:
          return True
 
 #     if dmu < 1.85 or dmu > 1.965:  
@@ -158,17 +158,17 @@ def filter_state(mu, dmu, delta, C, dim):
 
 plt.figure(figsize(16,8))
 ffp.PlotStates(current_dir=currentdir, two_plot=False,
-               filter_fun=filter_state, plot_legend=True, ls='-+',print_file_name=True)
+               filter_fun=filter_state, plot_legend=True, ls='--',print_file_name=True)
 
 plt.figure(figsize(16,10))
 ffp.PlotCurrentPressure(current_dir=currentdir, filter_fun=filter_state,alignLowerBranches=False,
-                        showLegend=True, FFState_only=False, print_file_name=False, ls='-')
+                        showLegend=True, FFState_only=False, print_file_name=False, ls='+')
 
 
 # # Plot the Diagram
 # * Check the particle density, pressure, and $d\mu$ etc to see if a configuration is a FF state $\Delta$
 
-def PlotPhaseDiagram(output=None, raw_data=False):
+def PlotPhaseDiagram(output=None, show_grid=True, raw_data=False):
     """
     plot the phase diagram
     Para:
@@ -203,6 +203,8 @@ def PlotPhaseDiagram(output=None, raw_data=False):
             colors.append('blue')
             area.append(1)
     plt.subplot(121)
+    if show_grid:
+        plt.grid()
     plt.scatter(xs, ys, s=area, c=colors)
     plt.ylabel(r"$\delta n/n$", fontsize=16)
     plt.xlabel(r"$-1/ak_F$", fontsize=16)
@@ -211,8 +213,10 @@ def PlotPhaseDiagram(output=None, raw_data=False):
 #     plt.ylabel(r"$\delta\mu/\Delta$", fontsize=16)
 #     plt.xlabel(r"$-1/ak_F$", fontsize=16)
     plt.subplot(122)
+    if show_grid:
+        plt.grid()
     plt.scatter(xs2, ys3, s=area, c=colors)
-    plt.ylabel(r"$\delta\mu_{eff}$", fontsize=16)
+    plt.ylabel(r"$\delta\mu$", fontsize=16)
     plt.xlabel(r"$\Delta$", fontsize=16)
 #     plt.subplot(224)
 #     plt.scatter(xs, ys4, s=area, c=colors)
@@ -224,7 +228,7 @@ def PlotPhaseDiagram(output=None, raw_data=False):
 output = ffa.label_states(current_dir=currentdir, raw_data=False, verbosity=False)
 clear_output()
 
-plt.figure(figsize(16,8))
+plt.figure(figsize(16,5))
 PlotPhaseDiagram(output=output)
 
 for item in output:
@@ -372,8 +376,8 @@ lda.get_ns_mus_e_p(mus_eff=(mu_a_eff, mu_b_eff), delta=0)[3]
 from phase_diagram_generator import FFStateAgent
 
 mu_eff = 10
-dmu_eff = 1
-delta = 1.2
+dmu_eff = 1.4
+delta = 1.5
 dim = 2
 k_c = 150
 args = dict(
@@ -394,8 +398,8 @@ def f(delta, dq):
         delta=delta, dq=dq) - lda.C
 
 
-dqs = np.linspace(0, delta/2, 10)
-fs = [f(delta=0.1, dq=dq) for dq in dqs]
+dqs = np.linspace(0.3, 0.4, 10)
+fs = [f(delta=0.01, dq=dq) for dq in dqs]
 
 plt.plot(dqs, fs)
 plt.axhline(0, ls='dashed')

@@ -422,7 +422,7 @@ def search_states(mu_eff=None, delta=1):
         PoolHelper.run(search_states_worker, mus_deltas, poolsize=8)
 
 
-def label_states(current_dir=None, raw_data=False, verbosity=False):
+def label_states(current_dir=None, raw_data=False, print_file=False, verbosity=False):
     """
     check all the pressure and current output files for
     different configuration(mus_eff, delta), determine if
@@ -450,7 +450,8 @@ def label_states(current_dir=None, raw_data=False, verbosity=False):
 
     for file in files[0:]:
         if os.path.exists(file):
-            print(file)
+            if print_file:
+                print(file)
             with open(file, 'r') as rf:
                 ret = json.load(rf)
                 # if ret['delta'] != 2.0:
