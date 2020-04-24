@@ -1,5 +1,5 @@
 import numpy as np
-
+import json
 
 def block(M):
     """
@@ -17,5 +17,25 @@ def block(M):
     """
     return np.concatenate(
         [np.concatenate(_row, axis=1)
-         for _row in M],
-    axis=0)
+            for _row in M], axis=0)
+
+
+class JsonEncoderEx(json.JSONEncoder):
+    """
+    An customized encoder to address errors due to encoder
+    in consistent between numpy and json package
+    such as:
+        TypeError: Object of type int32 is not JSON serializable
+    
+    -------
+    json.dumps(data,cls=JsJsonEncoderExonEncoder)
+    """
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        else:
+            return super(JsonEncoderEx, self).default(obj)
