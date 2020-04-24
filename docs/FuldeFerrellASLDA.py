@@ -54,7 +54,7 @@ delta=1.5
 dim=2
 LDA = ClassFactory(
             className="LDA",
-            functionalType=FunctionalType.SLDA,
+            functionalType=FunctionalType.BDG,
             kernelType=KernelType.HOM)
 lda = LDA(mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta, T=0, dim=dim)
 lda.C = lda._get_C(mus_eff=(mu_eff,mu_eff), delta=delta)
@@ -80,13 +80,13 @@ def get_f(dmu=0, dq=0, delta=0):
     return get_C(dmu_eff=dmu, dq=dq, delta=delta) - lda.C
 
 
-ds = np.linspace(0.0001, delta, 10)
-fs = [get_f(dmu=dmu0, dq=dq0, delta=d) for d in ds]
+# ds = np.linspace(0.0001, delta, 10)
+# fs = [get_f(dmu=dmu0, dq=dq0, delta=d) for d in ds]
 
-plt.plot(ds, fs)
-plt.axhline(0, ls='dashed')
-plt.axvline(delta, ls='dashed')
-plt.axvline(delta0, ls='dashed', c='red')
+# plt.plot(ds, fs)
+# plt.axhline(0, ls='dashed')
+# plt.axvline(delta, ls='dashed')
+# plt.axvline(delta0, ls='dashed', c='red')
 
 # ## Check dq effect
 
@@ -141,7 +141,7 @@ def filter_state(mu, dmu, delta, C, dim):
     #return False
     #if g != -3.2:
     #    return True
-    if delta != 1.9:
+    if delta < 2.5:
          return True
 
 #     if dmu < 1.85 or dmu > 1.965:  
@@ -158,15 +158,18 @@ def filter_state(mu, dmu, delta, C, dim):
 
 plt.figure(figsize(16,8))
 ffp.PlotStates(current_dir=currentdir, two_plot=False,
-               filter_fun=filter_state, plot_legend=True, ls='--',print_file_name=True)
+               filter_fun=filter_state, plot_legend=True, ls='-+',print_file_name=True)
 
 plt.figure(figsize(16,10))
 ffp.PlotCurrentPressure(current_dir=currentdir, filter_fun=filter_state,alignLowerBranches=False,
-                        showLegend=True, FFState_only=False, print_file_name=False, ls='+')
-
+                        showLegend=True, FFState_only=False, print_file_name=False, ls='-+', pressure_only=True)
 
 # # Plot the Diagram
 # * Check the particle density, pressure, and $d\mu$ etc to see if a configuration is a FF state $\Delta$
+
+output = ffa.label_states(current_dir=currentdir, raw_data=False, print_file=False, verbosity=False)
+clear_output()
+
 
 def PlotPhaseDiagram(output=None, show_grid=True, raw_data=False):
     """
@@ -179,7 +182,7 @@ def PlotPhaseDiagram(output=None, show_grid=True, raw_data=False):
     """
     if output is None:
         output = label_states(raw_data=raw_data)
-    xs, xs2, ys, ys2, ys3, ys4, states = [], [], [], [], [], [], []
+    xs, xs1, xs2, ys, ys1, ys2, ys3, ys4, states = [], [], [], [], [], [], [],[],[]
     for dic in output:
         n = dic['na'] + dic['nb']
         mu, dmu, delta = dic['mu'], dic['dmu'], dic['delta']
@@ -188,6 +191,8 @@ def PlotPhaseDiagram(output=None, show_grid=True, raw_data=False):
         ai = dic['ai']
         xs.append(-ai/k_F)
         ys.append(dn/n)  # polarization
+        xs1.append(delta/mu)
+        ys1.append(dmu/mu)
         xs2.append(delta)
         ys2.append(dmu/delta)
         ys3.append(dic['dmu_eff'])
@@ -202,22 +207,37 @@ def PlotPhaseDiagram(output=None, show_grid=True, raw_data=False):
         else:
             colors.append('blue')
             area.append(1)
+            
     plt.subplot(121)
     if show_grid:
         plt.grid()
     plt.scatter(xs, ys, s=area, c=colors)
-    plt.ylabel(r"$\delta n/n$", fontsize=16)
-    plt.xlabel(r"$-1/ak_F$", fontsize=16)
+    plt.ylabel(r"$\delta n/n$")
+    plt.xlabel(r"$-1/ak_F$")
 #     plt.subplot(222)
 #     plt.scatter(xs, ys2, s=area, c=colors)
 #     plt.ylabel(r"$\delta\mu/\Delta$", fontsize=16)
 #     plt.xlabel(r"$-1/ak_F$", fontsize=16)
+    plt.text(1.3, 0.2, r'Normal state region $\Delta=0$', rotation=0)
+    plt.text(1, .0, r'Superfluid state region $\Delta\ne0, q=0$', rotation=0)
     plt.subplot(122)
     if show_grid:
         plt.grid()
-    plt.scatter(xs2, ys3, s=area, c=colors)
-    plt.ylabel(r"$\delta\mu$", fontsize=16)
-    plt.xlabel(r"$\Delta$", fontsize=16)
+    if False:
+        plt.scatter(xs2, ys3, s=area, c=colors)
+        plt.ylabel(r"$\delta\mu$", fontsize=16)
+        plt.xlabel(r"$\Delta$", fontsize=16)
+        x_r = 1
+        y_r = 1
+        
+    else:
+        plt.scatter(xs1, ys1, s=area, c=colors)
+        plt.ylabel(r"$\delta\mu/\mathcal{E}_F$")
+        plt.xlabel(r"$\Delta/\mathcal{E}_F$")
+        x_r = 1/mu
+        y_r = 1/mu
+    plt.text(0.3*x_r, 2.3*y_r, r'Normal state region $\Delta=0$', rotation=40)
+    plt.text(0.8*x_r, 1.7*y_r, r'Superfluid state region $\Delta\ne0, q=0$', rotation=40)
 #     plt.subplot(224)
 #     plt.scatter(xs, ys4, s=area, c=colors)
 #     plt.ylabel(r"$\delta\mu_{eff}/\Delta$", fontsize=16)
@@ -225,11 +245,10 @@ def PlotPhaseDiagram(output=None, show_grid=True, raw_data=False):
 #     plt.show()
 
 
-output = ffa.label_states(current_dir=currentdir, raw_data=False, verbosity=False)
-clear_output()
-
-plt.figure(figsize(16,5))
+matplotlib.rcParams.update({'font.size': 20})
+plt.figure(figsize(16,6))
 PlotPhaseDiagram(output=output)
+plt.savefig("ff_state_phase_diagram_2d.pdf", bbox_inches='tight')
 
 for item in output:
     if item['delta'] == 2.0:
@@ -239,8 +258,6 @@ for item in output:
         print(ff, d, q)
         dmu, pn, ps, pf = item["dmu_eff"], item["pn"], item["ps"], item["pf"]
         print(f"{dmu}, {pn}, {ps}, {pf}")
-
-output[0]
 
 for item in output:
     if item['state']:
@@ -376,8 +393,8 @@ lda.get_ns_mus_e_p(mus_eff=(mu_a_eff, mu_b_eff), delta=0)[3]
 from phase_diagram_generator import FFStateAgent
 
 mu_eff = 10
-dmu_eff = 1.4
-delta = 1.5
+dmu_eff = 2.55
+delta = 2.6
 dim = 2
 k_c = 150
 args = dict(
@@ -398,12 +415,16 @@ def f(delta, dq):
         delta=delta, dq=dq) - lda.C
 
 
-dqs = np.linspace(0.3, 0.4, 10)
-fs = [f(delta=0.01, dq=dq) for dq in dqs]
+# +
+matplotlib.rcParams.update({'font.size': 12})
 
+dqs = np.linspace(0.00004, 0.00005, 10)
+fs = [f(delta=0.01, dq=dq) for dq in dqs]
+plt.figure(figsize=(12, 5))
 plt.plot(dqs, fs)
-plt.axhline(0, ls='dashed')
-plt.axvline(0, ls='dashed')
+# plt.axhline(0, ls='dashed')
+# plt.axvline(0, ls='dashed')
+# -
 
 dq0, delta0= 0.11076732169336657, 0.0537
 def g(dq):
@@ -455,15 +476,29 @@ zoom_in_search(delta=delta0, dq=dq0)
 
 # ## Plot $g(\mu,\delta\mu, \Delta)$
 
+from fulde_ferrell_state import FFState
+mu_eff = 10
+dmu_eff = 0.7
+delta0 = 0.9
+dim = 2
+k_c = 150
+ff = FFState(mu=mu_eff, dmu=dmu_eff, delta=delta0, dim=2, k_c=k_c, fix_g=True)
+
 plt.figure(figsize(16, 8))
 fontsize=20
 mu = 10
 ds = np.linspace(0.0001, 1.2*mu, 128)
 dmus = np.linspace(0, mu, 5)
+gss = []
 for dmu in dmus:
     gs = [ff.get_g(mu=mu, dmu=dmu, delta=d) for d in ds]
-    plt.plot(ds/mu, gs, label=r"$\delta \mu/e_F$"+f"={dmu/mu}")
+    gss.append(gs)
+
+for dmu, gs in zip(dmus, gss):
+    plt.plot(ds, gs, label=r"$\delta \mu=$" + f"{dmu}")
+    plt.axvline(dmu, ls='dashed')
 plt.legend(prop={'size': 18})
+plt.grid()
 plt.xlabel(r"$\Delta/e_F$",fontsize=fontsize)
 plt.ylabel("g",fontsize=fontsize)
 plt.title(r"$g(\mu,\delta\mu, \Delta)$",fontsize=fontsize)
