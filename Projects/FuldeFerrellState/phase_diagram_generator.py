@@ -14,6 +14,8 @@ from mmf_hfb.class_factory import FunctionalType, KernelType
 from mmf_hfb.class_factory import ClassFactory, Solvers
 from mmf_hfb.parallel_helper import PoolHelper
 from mmf_hfb import tf_completion as tf
+from mmf_hfb.utils import JsonEncoderEx
+
 currentdir = os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0, currentdir)
@@ -110,8 +112,12 @@ class FFStateAgent(object):
         if extra_items is not None:
             output.update(extra_items)
         output["data"] = data
-        with open(file, 'w') as wf:
-            json.dump(output, wf)
+        try:
+            with open(file, 'w') as wf:
+                json.dump(output, wf, cls=JsonEncoderEx)
+        except TypeError:
+            print("Json Exception.")
+            os.rename(file, f"{file}.__error__")
 
     def check_sign_flip(self, ls):
         """
@@ -239,6 +245,12 @@ class FFStateAgent(object):
                 g0, i0 = gs[i], i
                 if len(rets) == 2:  # two solutions at max
                     break
+                qa, qb = self.zoom_in_search(
+                        delta0=self.delta, mu_eff=mu_eff, dmu_eff=dmu_eff,
+                        delta_pred=delta, dq_pred=(q_lower + q_upper)/2.0,
+                        max_iter=10)
+                print(f"ZoomIn:{qa},{qb}")
+                rets = [qa, qb]
         else:
             bExcept = False
             if dxs is None:
@@ -403,8 +415,9 @@ class FFStateAgent(object):
         return rets
 
     def zoom_in_search(
-            self, delta, mu_eff, dmu_eff, dq,
-            max_iter=5, N_q=10, delta0=None, fun=None):
+            self, mu_eff, dmu_eff, delta_pred, dq_pred,
+            max_iter=5, N_q=10, dqs0=None, gs0=None,
+            delta0=None, fun=None):
         """
         The zoom-in search algorithm
         -----------------------------
@@ -414,13 +427,13 @@ class FFStateAgent(object):
         TODO: implement the case with just one solution
             and do some tests.
         """
-        dq1, dq2 = dq*0.5, dq*1.1
+        dq1, dq2 = dq_pred*0.5, dq_pred*1.1
         p1, p2, v1, v2 = None, None, None, None
         if fun is None:
             def g(dq):
                 return self._get_C(
                     mus_eff=(mu_eff + dmu_eff, mu_eff - dmu_eff),
-                    delta=delta, dq=dq) - self.C
+                    delta=delta_pred, dq=dq) - self.C
         else:
             g = fun
 
@@ -441,11 +454,15 @@ class FFStateAgent(object):
         gs = np.array([g(dq) for dq in dqs])
         add_trace(dqs=dqs, gs=gs)
         for i in range(max_iter):
-            dqs = np.linspace(dq1, dq2, N_q)
-            gs = np.array([g(dq) for dq in dqs])
+            if i == 0 and dqs0 is not None and gs0 is not None:
+                dqs = dqs0
+                gs = gs0
+            else:
+                dqs = np.linspace(dq1, dq2, N_q)
+                gs = np.array([g(dq) for dq in dqs])
             add_trace(dqs=dqs, gs=gs)
 
-            self.print(f"{i+1}/{max_iter}:gs={gs}")
+            self.print(f"{i+1}/{max_iter}:gs={gs}", end='')
             if np.all(gs > 0):  # this is not compete
                 index, _ = min(enumerate(gs), key=operator.itemgetter(1))
                 if index == 0:  # range expanded more to the left
@@ -568,7 +585,8 @@ class FFStateAgent(object):
                 else:
                     # else use the zoom-in algorithm to search
                     qa, qb = self.zoom_in_search(
-                        delta0=self.delta, delta=delta, dq=predicted_q,
+                        delta0=self.delta,
+                        delta_pred=delta, dq_pred=predicted_q,
                         mu_eff=mu_eff, dmu_eff=dmu_eff, max_iter=10)
                     # predicted_q = None  # reset the common q
                 if not (qa is None or qb is None):
@@ -735,7 +753,8 @@ def smart_search_delta_q_worker(obj_mus_delta_dim_kc):
     except:
         # rename the file to be incomplete
         file_name = lda.get_file_name()
-        os.rename(file_name, file_name + ".error")
+        if os.path.exists(file_name):
+            os.rename(file_name, file_name + ".error")
         return None
 
 
@@ -1101,7 +1120,8 @@ def PDG():
     # Bug case: delta=0.6,dmu=0.45, single solution test
     # single solution bug case:
     # delta, dmu = 0.2, 0.14141782308472947
-    delta, dmu = 1.1, 1.05
+    delta, dmu = 2.7, 2.65 # no initial solution bug
+    # delta, dmu = 1.5, 1.75
     # dmu, delta = 0.35349820923398134, .5  # 0.175, 0.25 # for 3D
     pdg.search_delta_q_diagram(seed_delta=delta, seed_dmu=dmu)
     # pdg.compute_pressure_current_from_files()
@@ -1111,4 +1131,4 @@ def PDG():
 if __name__ == "__main__":
     # search_delta_q_manager(delta=1.5)
     PDG()
-    # compute_pressure_current()
+    compute_pressure_current()

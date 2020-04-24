@@ -129,7 +129,7 @@ def PlotStates(
 def PlotCurrentPressure(
     filter_fun, current_dir=None, alignLowerBranches=False,
         alignUpperBranches=False, showLegend=False,
-        FFState_only=True, ls='+', print_file_name=False):
+        FFState_only=True, ls='+', pressure_only=False, print_file_name=False):
     if current_dir is None:
         current_dir = join(
             os.path.dirname(
@@ -211,55 +211,64 @@ def PlotCurrentPressure(
                 
                 ffs1, ffs2 = False, False
                 if len(ds1) > 2:
-                    plt.subplot(323)
-                    _, ffs1 = plot_P(P1, data1, ds1, alignLowerBranches)
+                    if pressure_only:
+                        plt.subplot(211)
+                        _, ffs1 = plot_P(P1, data1, ds1, alignLowerBranches)
+                    else:
+                        plt.subplot(323)
+                        _, ffs1 = plot_P(P1, data1, ds1, alignLowerBranches)
 
-                    plt.subplot(325)
-                    if FFState_only:
-                        if ffs1:
+                        plt.subplot(325)
+                        if FFState_only:
+                            if ffs1:
+                                plt.plot(ds1, ja1, ls, label=label)
+                        else:
                             plt.plot(ds1, ja1, ls, label=label)
-                    else:
-                        plt.plot(ds1, ja1, ls, label=label)
-                    plt.subplot(321)
-                    if FFState_only:
-                        if ffs1:
+                        plt.subplot(321)
+                        if FFState_only:
+                            if ffs1:
+                                plt.plot(ds1, dqs1, ls, label=label)
+                        else:
                             plt.plot(ds1, dqs1, ls, label=label)
-                    else:
-                        plt.plot(ds1, dqs1, ls, label=label)
 
                 if len(ds2) > 2:
-                    plt.subplot(324)
-                    _, ffs2 = plot_P(P2, data2, ds2, alignUpperBranches)
-                    plt.subplot(326)
-                    if FFState_only:
-                        if ffs2:
+                    if pressure_only:
+                        plt.subplot(211)
+                        _, ffs2 = plot_P(P2, data2, ds2, alignUpperBranches)
+                    else:
+                        plt.subplot(324)
+                        _, ffs2 = plot_P(P2, data2, ds2, alignUpperBranches)
+                        plt.subplot(326)
+                        if FFState_only:
+                            if ffs2:
+                                plt.plot(ds2, ja2, ls, label=label)
+                        else:
                             plt.plot(ds2, ja2, ls, label=label)
-                    else:
-                        plt.plot(ds2, ja2, ls, label=label)
-                    plt.axhline(0)
-                    plt.subplot(322)
-                    if FFState_only:
-                        if ffs2:
+                        plt.axhline(0)
+                        plt.subplot(322)
+                        if FFState_only:
+                            if ffs2:
+                                plt.plot(ds2, dqs2, ls, label=label)
+                        else:
                             plt.plot(ds2, dqs2, ls, label=label)
-                    else:
-                        plt.plot(ds2, dqs2, ls, label=label)
-    for i in range(1, 7):
-        plt.subplot(3, 2, i)
-        if showLegend:
-            if (len(ds2) > 1 and i % 2 == 0) or (len(ds1) > 1 and i % 2 == 1):
-                plt.legend()
-        if i == 1:
-            plt.title(f"Lower Branch")
-            plt.ylabel("$\delta q$")
-        if i == 2:
-            plt.title(f"Upper Branch")
-            plt.ylabel("$\delta q$")
-        if i == 3 or i == 4:
-            plt.ylabel("$Pressure$")
-        if i == 5 or i == 6:
-            plt.ylabel("$Current$")
-        plt.xlabel("$\Delta$")
-    plt.show()
+    if not pressure_only:
+        for i in range(1, 7):
+            plt.subplot(3, 2, i)
+            if showLegend:
+                if (len(ds2) > 1 and i % 2 == 0) or (len(ds1) > 1 and i % 2 == 1):
+                    plt.legend()
+            if i == 1:
+                plt.title(f"Lower Branch")
+                plt.ylabel("$\delta q$")
+            if i == 2:
+                plt.title(f"Upper Branch")
+                plt.ylabel("$\delta q$")
+            if i == 3 or i == 4:
+                plt.ylabel("$Pressure$")
+            if i == 5 or i == 6:
+                plt.ylabel("$Current$")
+            plt.xlabel("$\Delta$")
+        plt.show()
 
 
 def PlotPhaseDiagram(output=None, raw_data=False):
