@@ -87,10 +87,10 @@ class FFStateAgent(object):
         os.makedirs(currentdir, exist_ok=True)
         return join(currentdir, self.fileName)
 
-    def print(self, str, level=0):
+    def print(self, str, level=0, **args):
         """to support verbosity control level"""
         if self.verbosity:
-            print(str)
+            print(str, **args)
 
     def save_to_file(self, data, extra_items=None):
         """
@@ -462,7 +462,7 @@ class FFStateAgent(object):
                 gs = np.array([g(dq) for dq in dqs])
             add_trace(dqs=dqs, gs=gs)
 
-            self.print(f"{i+1}/{max_iter}:gs={gs}", end='')
+            self.print(f"{i+1}/{max_iter}:gs={gs}", end="", flush=True)
             if np.all(gs > 0):  # this is not compete
                 index, _ = min(enumerate(gs), key=operator.itemgetter(1))
                 if index == 0:  # range expanded more to the left
@@ -1117,18 +1117,12 @@ def PDG():
     pdg = AutoPDG(
         functionalType=FunctionalType.BDG,
         kernelType=KernelType.HOM, k_c=150, dim=2)
-    # Bug case: delta=0.6,dmu=0.45, single solution test
-    # single solution bug case:
-    # delta, dmu = 0.2, 0.14141782308472947
-    delta, dmu = 2.7, 2.65 # no initial solution bug
-    # delta, dmu = 1.5, 1.75
-    # dmu, delta = 0.35349820923398134, .5  # 0.175, 0.25 # for 3D
+    delta, dmu = 2.8, 2.7
     pdg.search_delta_q_diagram(seed_delta=delta, seed_dmu=dmu)
-    # pdg.compute_pressure_current_from_files()
-    # pdg.run(seed_delta=delta, seed_dmu=dmu)
 
 
 if __name__ == "__main__":
     # search_delta_q_manager(delta=1.5)
     PDG()
-    compute_pressure_current()
+    # compute_pressure_current()
+    input()
