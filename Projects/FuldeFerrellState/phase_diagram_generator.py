@@ -247,12 +247,13 @@ class FFStateAgent(object):
                 zoom_in_flag = False
                 if len(rets) == 2:  # two solutions at max
                     break
+            if len(rets) == 0:
                 qa, qb = self.zoom_in_search(
                         delta0=self.delta, mu_eff=mu_eff, dmu_eff=dmu_eff,
                         delta_pred=delta, dq_pred=(q_lower + q_upper)/2.0,
                         max_iter=10)
                 rets = [qa, qb]
-                zoom_in_flag = True
+                zoom_in_flag = ((qa is not None) or (qb is not None))
         else:
             zoom_in_flag = False
             bExcept = False
@@ -554,14 +555,15 @@ class FFStateAgent(object):
                 qu = q_upper
             if qb is None:
                 ql = q_lower
+            zoom_in_flag = False
             try:
                 ret, zoom_in_flag = self.smart_search_states(
                     mu_eff=mu_eff, dmu_eff=dmu_eff,
                     delta=delta, guess_lower=qa, guess_upper=qb,
                     q_lower=ql, q_upper=qu, N_q=N_q)
-                return ret
+                return (ret, zoom_in_flag)
             except ValueError:
-                return [None, None]
+                return ([None, None], zoom_in_flag)
 
         deltas = np.linspace(delta0, delta1, N_delta)
         output, rets, = [], []
@@ -585,8 +587,9 @@ class FFStateAgent(object):
                 if predicted_q is None:
                     # if predicted_q is None, no prediction has been made,
                     # then we just use the dumb method to search
-                    (qa, qb), zoom_flag = do_search(
+                    ret, zoom_flag = do_search(
                         delta=delta, qa=qa, qb=qb, qu=qu, ql=ql)
+                    qa, qb = ret
                     if zoom_flag and qa is not None and qb is not None:
                         predicted_q = (qa + qb)/2.0
                 else:
@@ -1135,7 +1138,7 @@ def PDG():
     pdg = AutoPDG(
         functionalType=FunctionalType.BDG,
         kernelType=KernelType.HOM, k_c=150, dim=2)
-    delta, dmu = 2.7, 2.65
+    delta, dmu = 4.4, 4.0
     pdg.search_delta_q_diagram(seed_delta=delta, seed_dmu=dmu)
 
 
@@ -1155,8 +1158,9 @@ def run_grid():
         while(dmu > 0.1):
             paras.append((delta, dmu))
             dmu = dmu - 0.1
-
-    PoolHelper.run(grid_worker, paras, poolsize=4)
+    # comm = MPI.COMM_WORLD
+    # rank = comm.Get_rank()
+    PoolHelper.run(grid_worker, paras, poolsize=10)
 
 
 def rename_p_j_files():
@@ -1186,4 +1190,3 @@ if __name__ == "__main__":
     # wait_key()
     # rename_p_j_files()
     # run_grid()
-    
