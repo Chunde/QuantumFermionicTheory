@@ -422,7 +422,9 @@ def search_states(mu_eff=None, delta=1):
         PoolHelper.run(search_states_worker, mus_deltas, poolsize=8)
 
 
-def label_states(current_dir=None, raw_data=False, print_file=False, verbosity=False):
+def label_states(
+        current_dir=None, raw_data=False,
+        print_file=False, verbosity=False):
     """
     check all the pressure and current output files for
     different configuration(mus_eff, delta), determine if
@@ -445,10 +447,12 @@ def label_states(current_dir=None, raw_data=False, print_file=False, verbosity=F
                     inspect.getfile(
                         inspect.currentframe()))), "data")
     output = []
-    pattern = join(current_dir, "FFState_J_P[()d_0-9]*")
+    pattern = join(current_dir, "FFState_[()d_0-9]*.json")
     files = glob.glob(pattern)
 
     for file in files[0:]:
+        if file.find('J') == -1:
+            continue
         if os.path.exists(file):
             if print_file:
                 print(file)

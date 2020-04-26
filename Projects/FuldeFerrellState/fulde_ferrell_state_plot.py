@@ -61,6 +61,8 @@ def PlotStates(
     ds1, ds2 = [], []
     Cs = set()
     for file in files:
+        if file.find('J') != -1:
+            continue
         if os.path.exists(file):
             with open(file, 'r') as rf:
                 ret = json.load(rf)
@@ -136,9 +138,11 @@ def PlotCurrentPressure(
                 os.path.abspath(
                     inspect.getfile(
                         inspect.currentframe()))), "..", "mmf_hfb", "data")
-    pattern = join(current_dir, "FFState_J_P[()d_0-9]*")
+    pattern = join(current_dir, "FFState_[()d_0-9]*.json")
     files = glob.glob(pattern)
     for file in files[0:]:
+        if file.find('J') == -1:
+            continue
         if os.path.exists(file):
             with open(file, 'r') as rf:
                 ret = json.load(rf)
@@ -348,8 +352,5 @@ if __name__ == "__main__":
             os.path.abspath(
                 inspect.getfile(inspect.currentframe())))
     currentdir = join(currentdir, "data")
-    label_states(current_dir=currentdir, raw_data=True, verbosity=False)
-    PlotCurrentPressure(
-        current_dir=currentdir,
-        filter_fun=filter_state, showLegend=True,
-        FFState_only=False, print_file_name=True)
+    PlotStates(current_dir=currentdir, two_plot=False,
+               filter_fun=filter_state, plot_legend=True, ls='-+',print_file_name=True)

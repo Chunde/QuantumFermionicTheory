@@ -462,7 +462,7 @@ class FFStateAgent(object):
                 gs = np.array([g(dq) for dq in dqs])
             add_trace(dqs=dqs, gs=gs)
 
-            self.print(f"{i+1}/{max_iter}:gs={gs}", end="", flush=True)
+            self.print(f"{i+1}/{max_iter}:gs={gs}", end="\r", flush=True)
             if np.all(gs > 0):  # this is not compete
                 index, _ = min(enumerate(gs), key=operator.itemgetter(1))
                 if index == 0:  # range expanded more to the left
@@ -785,7 +785,7 @@ def compute_pressure_current_worker(jsonData_file):
     """
     jsonData, fileName = jsonData_file
     filetokens = fileName.split("_")
-    output_fileName = "FFState_J_P_" + "_".join(filetokens[1:]) + ".json"
+    output_fileName = "FFState_" + "_".join(filetokens[1:]) + "_J_P.json"
     dim = jsonData['dim']
     delta = jsonData['delta']
     mu_eff = jsonData['mu_eff']
@@ -1113,16 +1113,43 @@ def search_delta_q_manager(delta):
         search_delta_q_worker, paras, poolsize=5)
 
 
+def wait_key():
+    print("print Enter key to exist.")
+    input()
+
+
 def PDG():
     pdg = AutoPDG(
         functionalType=FunctionalType.BDG,
         kernelType=KernelType.HOM, k_c=150, dim=2)
-    delta, dmu = 2.8, 2.7
+    delta, dmu = 2.8, 2.6
     pdg.search_delta_q_diagram(seed_delta=delta, seed_dmu=dmu)
 
 
+def rename_p_j_files():
+    currentdir = os.path.dirname(
+                os.path.abspath(inspect.getfile(inspect.currentframe())))
+    pattern = join(currentdir, "data", "FFState_[()_0-9]*.json")
+    files = glob.glob(pattern)
+    for file in files:
+        if os.path.exists(file):
+            file_name = os.path.splitext(os.path.basename(file))[0]
+            filetokens = file_name.split("_")
+            old_name = join(
+                currentdir, 'data',
+                "FFState_J_P_" + "_".join(filetokens[1:]) + ".json")
+            new_name = join(
+                currentdir, 'data',
+                "FFState_" + "_".join(filetokens[1:]) + "_J_P.json")
+            if os.path.exists(old_name):
+                if os.path.exists(new_name):
+                    print(f"{new_name} is already there.")
+                os.rename(old_name, new_name)
+
 if __name__ == "__main__":
     # search_delta_q_manager(delta=1.5)
-    PDG()
+    #PDG()
     # compute_pressure_current()
-    input()
+    # wait_key()
+    # rename_p_j_files()
+    

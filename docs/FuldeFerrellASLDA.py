@@ -141,7 +141,7 @@ def filter_state(mu, dmu, delta, C, dim):
     #return False
     #if g != -3.2:
     #    return True
-    if delta < 2.5:
+    if delta < 0.81 or delta > 0.9:
          return True
 
 #     if dmu < 1.85 or dmu > 1.965:  
@@ -182,6 +182,8 @@ def PlotPhaseDiagram(output=None, show_grid=True, raw_data=False):
     """
     if output is None:
         output = label_states(raw_data=raw_data)
+    if len(output) == 0:
+        return None
     xs, xs1, xs2, ys, ys1, ys2, ys3, ys4, states = [], [], [], [], [], [], [],[],[]
     for dic in output:
         n = dic['na'] + dic['nb']
@@ -219,11 +221,11 @@ def PlotPhaseDiagram(output=None, show_grid=True, raw_data=False):
 #     plt.ylabel(r"$\delta\mu/\Delta$", fontsize=16)
 #     plt.xlabel(r"$-1/ak_F$", fontsize=16)
     plt.text(1.3, 0.2, r'Normal state region $\Delta=0$', rotation=0)
-    plt.text(1, .0, r'Superfluid state region $\Delta\ne0, q=0$', rotation=0)
+    plt.text(0.6, .0, r'Superfluid state region $\Delta\ne0, q=0$', rotation=0)
     plt.subplot(122)
     if show_grid:
         plt.grid()
-    if False:
+    if True:
         plt.scatter(xs2, ys3, s=area, c=colors)
         plt.ylabel(r"$\delta\mu$", fontsize=16)
         plt.xlabel(r"$\Delta$", fontsize=16)
@@ -236,8 +238,8 @@ def PlotPhaseDiagram(output=None, show_grid=True, raw_data=False):
         plt.xlabel(r"$\Delta/\mathcal{E}_F$")
         x_r = 1/mu
         y_r = 1/mu
-    plt.text(0.3*x_r, 2.3*y_r, r'Normal state region $\Delta=0$', rotation=40)
-    plt.text(0.8*x_r, 1.7*y_r, r'Superfluid state region $\Delta\ne0, q=0$', rotation=40)
+    plt.text(0.3*x_r, 2.5*y_r, r'Normal state region $\Delta=0$', rotation=40)
+    plt.text(0.8*x_r, 2.2*y_r, r'Superfluid state region $\Delta\ne0, q=0$', rotation=40)
 #     plt.subplot(224)
 #     plt.scatter(xs, ys4, s=area, c=colors)
 #     plt.ylabel(r"$\delta\mu_{eff}/\Delta$", fontsize=16)
@@ -245,7 +247,7 @@ def PlotPhaseDiagram(output=None, show_grid=True, raw_data=False):
 #     plt.show()
 
 
-matplotlib.rcParams.update({'font.size': 20})
+matplotlib.rcParams.update({'font.size': 16})
 plt.figure(figsize(16,6))
 PlotPhaseDiagram(output=output)
 plt.savefig("ff_state_phase_diagram_2d.pdf", bbox_inches='tight')
@@ -525,5 +527,15 @@ def g1(x):
 import scipy.integrate
 import scipy as sp
 sp.integrate.quad(g1, -L, L)
+
+# * Let basis: $\ket{\phi_1}, \ket{\phi_1},\dots \ket{\phi_n}$, $\braket{\phi_i|\phi_j}=\delta_{ij}$
+#
+# $$\ket{\phi_H}=\sum_{i=1}^N c_i \ket{\phi_i}\\
+# \ket{\phi_{CI}}=\sum_{i=1}^N d_i \ket{\phi_i}
+# $$
+#
+# $$
+# \braket{\phi_H|\phi_{CI}}=\sum_{i=1}^N c_i d_i
+# $$
 
 
