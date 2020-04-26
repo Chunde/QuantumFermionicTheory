@@ -228,6 +228,7 @@ class FFStateAgent(object):
             return brentq(f, a, b)
 
         rets = []
+        zoom_in_flag = False
         if guess_lower is None and guess_upper is None:
             dqs = np.linspace(q_lower, q_upper, N_q)
             gs = []
@@ -243,15 +244,17 @@ class FFStateAgent(object):
                 if g0*gs[i] < 0:
                     rets.append(refine(dqs[i0], dqs[i], dqs[i0]))
                 g0, i0 = gs[i], i
+                zoom_in_flag = False
                 if len(rets) == 2:  # two solutions at max
                     break
                 qa, qb = self.zoom_in_search(
                         delta0=self.delta, mu_eff=mu_eff, dmu_eff=dmu_eff,
                         delta_pred=delta, dq_pred=(q_lower + q_upper)/2.0,
                         max_iter=10)
-                print(f"ZoomIn:{qa},{qb}")
                 rets = [qa, qb]
+                zoom_in_flag = True
         else:
+            zoom_in_flag = False
             bExcept = False
             if dxs is None:
                 dxs = np.array(
@@ -285,7 +288,7 @@ class FFStateAgent(object):
 
         for _ in range(2-len(rets)):
             rets.append(None)
-        return rets
+        return (rets, zoom_in_flag)
 
     def search(
             self, N_delta, mu_eff=None, dmu_eff=None, delta=None,
@@ -462,7 +465,7 @@ class FFStateAgent(object):
                 gs = np.array([g(dq) for dq in dqs])
             add_trace(dqs=dqs, gs=gs)
 
-            self.print(f"{i+1}/{max_iter}:gs={gs}", end="\r", flush=True)
+            # self.print(f"{i+1}/{max_iter}:gs={gs}", end="\r", flush=True)
             if np.all(gs > 0):  # this is not compete
                 index, _ = min(enumerate(gs), key=operator.itemgetter(1))
                 if index == 0:  # range expanded more to the left
@@ -552,7 +555,7 @@ class FFStateAgent(object):
             if qb is None:
                 ql = q_lower
             try:
-                ret = self.smart_search_states(
+                ret, zoom_in_flag = self.smart_search_states(
                     mu_eff=mu_eff, dmu_eff=dmu_eff,
                     delta=delta, guess_lower=qa, guess_upper=qb,
                     q_lower=ql, q_upper=qu, N_q=N_q)
@@ -576,12 +579,16 @@ class FFStateAgent(object):
         # that means the zoom-in search algorithm kicks in
         qa, qb, qu, ql, predicted_q = None, None, None, None, None
         done = False
+        failure_counter = 0
         while(not done):
             for delta in deltas:
                 if predicted_q is None:
                     # if predicted_q is None, no prediction has been made,
                     # then we just use the dumb method to search
-                    qa, qb = do_search(delta=delta, qa=qa, qb=qb, qu=qu, ql=ql)
+                    (qa, qb), zoom_flag = do_search(
+                        delta=delta, qa=qa, qb=qb, qu=qu, ql=ql)
+                    if zoom_flag and qa is not None and qb is not None:
+                        predicted_q = (qa + qb)/2.0
                 else:
                     # else use the zoom-in algorithm to search
                     qa, qb = self.zoom_in_search(
@@ -590,6 +597,7 @@ class FFStateAgent(object):
                         mu_eff=mu_eff, dmu_eff=dmu_eff, max_iter=10)
                     # predicted_q = None  # reset the common q
                 if not (qa is None or qb is None):
+                    failure_counter = 0  # reset counter
                     # if we have two solution
                     rets.append((qa, qb, delta))
                     # check if reach max points
@@ -613,6 +621,11 @@ class FFStateAgent(object):
                         print(f"Added {len(rets)} :{rets[-1]}")
                         self.save_to_file(rets, extra_items={"pending": 0})
                 else:
+                    failure_counter = failure_counter + 1
+                    if failure_counter > 10:
+                        print("Can't find a solution in 10 trails, stopped.")
+                        done = True
+                        break
                     # if have no of only one solution, not good
                     # then we need to go a step back to a better
                     # candidate delta that may sit in between the
@@ -1122,8 +1135,28 @@ def PDG():
     pdg = AutoPDG(
         functionalType=FunctionalType.BDG,
         kernelType=KernelType.HOM, k_c=150, dim=2)
-    delta, dmu = 2.8, 2.6
+    delta, dmu = 2.7, 2.65
     pdg.search_delta_q_diagram(seed_delta=delta, seed_dmu=dmu)
+
+
+def grid_worker(delta_dmu):
+    delta, dmu = delta_dmu
+    pdg = AutoPDG(
+        functionalType=FunctionalType.BDG,
+        kernelType=KernelType.HOM, k_c=150, dim=2)
+    pdg.search_delta_q_diagram(seed_delta=delta, seed_dmu=dmu)
+
+
+def run_grid():
+    paras = []
+    deltas = np.array(list(range(50)))*0.1 + 0.5
+    for delta in deltas:
+        dmu = delta - 0.1
+        while(dmu > 0.1):
+            paras.append((delta, dmu))
+            dmu = dmu - 0.1
+
+    PoolHelper.run(grid_worker, paras, poolsize=4)
 
 
 def rename_p_j_files():
@@ -1148,8 +1181,9 @@ def rename_p_j_files():
 
 if __name__ == "__main__":
     # search_delta_q_manager(delta=1.5)
-    #PDG()
+    PDG()
     # compute_pressure_current()
     # wait_key()
     # rename_p_j_files()
+    # run_grid()
     
