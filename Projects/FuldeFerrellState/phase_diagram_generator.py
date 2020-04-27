@@ -717,6 +717,8 @@ class FFStateAgent(object):
         output = ff_state_sort_data(output)
         if auto_save:
             self.save_to_file(output)
+        if len(output) == 0:  # add the superfluid state
+            output.append((0, None, self.delta))
         return output
 
 
@@ -728,22 +730,22 @@ def search_delta_q_worker(para):
     args = dict(
         mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta,
         T=0, dim=dim, k_c=k_c, verbosity=False)
-    # try:
-    lda = ClassFactory(
-        "LDA", (FFStateAgent,),
-        functionalType=functionalType,
-        kernelType=kernelType, args=args)
-    if smart_search:
-        return lda.smart_search(
-            delta_lower=0.001, delta_upper=delta,
-            q_lower=0, q_upper=dmu_eff, N_q=40, delta1=delta,
-            N_delta=100)
-    return lda.search(
-        N_delta=50, delta_lower=0.0001, delta_upper=delta,
-        q_lower=0, q_upper=dmu_eff, N_q=10,
-        auto_incremental=False, flip_order=True)
-    # except ValueError:
-    #     return None
+    try:
+        lda = ClassFactory(
+            "LDA", (FFStateAgent,),
+            functionalType=functionalType,
+            kernelType=kernelType, args=args)
+        if smart_search:
+            return lda.smart_search(
+                delta_lower=0.001, delta_upper=delta,
+                q_lower=0, q_upper=dmu_eff, N_q=40, delta1=delta,
+                N_delta=100)
+        return lda.search(
+            N_delta=50, delta_lower=0.0001, delta_upper=delta,
+            q_lower=0, q_upper=dmu_eff, N_q=10,
+            auto_incremental=False, flip_order=True)
+    except ValueError:
+        return None
 
 
 def smart_search_delta_q_worker(obj_mus_delta_dim_kc):
@@ -1152,15 +1154,15 @@ def grid_worker(delta_dmu):
 
 def run_grid():
     paras = []
-    deltas = np.array(list(range(50)))*0.1 + 0.5
+    deltas = np.array(list(range(10)))*0.1 + 5
     for delta in deltas:
         dmu = delta - 0.1
         while(dmu > 0.1):
             paras.append((delta, dmu))
             dmu = dmu - 0.1
-    # comm = MPI.COMM_WORLD
-    # rank = comm.Get_rank()
-    PoolHelper.run(grid_worker, paras, poolsize=10)
+            if delta - dmu > 0.5:
+                break
+    PoolHelper.run(grid_worker, paras, poolsize=4)
 
 
 def rename_p_j_files():
@@ -1183,10 +1185,11 @@ def rename_p_j_files():
                     print(f"{new_name} is already there.")
                 os.rename(old_name, new_name)
 
+
 if __name__ == "__main__":
     # search_delta_q_manager(delta=1.5)
-    PDG()
+    # PDG()
     # compute_pressure_current()
     # wait_key()
     # rename_p_j_files()
-    # run_grid()
+    run_grid()
