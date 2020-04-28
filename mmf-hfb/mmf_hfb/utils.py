@@ -1,6 +1,7 @@
 import numpy as np
 import json
 
+
 def block(M):
     """
     used to stack four element to form a 2x2 matrix
@@ -18,6 +19,20 @@ def block(M):
     return np.concatenate(
         [np.concatenate(_row, axis=1)
             for _row in M], axis=0)
+
+
+def clockwise(r, v):
+    """
+    return the sign of angle between two vectors
+    it takes order into account.
+    --------
+    The angle from $\vec{a}=a_x+ia_y$ to $\vec{b}=b_x+ib_y$
+    is the argument of the conjugate of a times b (rotating
+    b backwards by the angle of a, scale not considered)
+    """
+    dot = r.conj()*v
+    angs = np.arctan2(dot.imag,dot.real)
+    return np.sign(angs)
 
 
 class JsonEncoderEx(json.JSONEncoder):
