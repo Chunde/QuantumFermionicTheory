@@ -52,7 +52,7 @@ class PlotBase(object):
             plt.subplot(231)
             imcontourf(x, y, (res.n_a+res.n_b).real, aspect=1)
             plt.title(r'$n_+$')
-             plt.colorbar()
+            plt.colorbar()
 
             plt.subplot(232)
             imcontourf(x, y, (res.n_a-res.n_b).real, aspect=1)
@@ -64,8 +64,8 @@ class PlotBase(object):
             j_a = res.j_a[0] + 1j*res.j_a[1]
             j_b = res.j_b[0] + 1j*res.j_b[1]
             j_p = j_a + j_b
-            j_m = j_a - j_b
-            utheta = np.exp(1j*np.angle(x + 1j*y))
+            # j_m = j_a - j_b
+            # utheta = np.exp(1j*np.angle(x + 1j*y))
             imcontourf(x, y, abs(j_a), aspect=1)
             plt.title(r'$j_a$')
             plt.colorbar()
@@ -107,7 +107,7 @@ def plot_2D(self, fig=None, res=None, fontsize=36):
 
         plt.subplot(232)
         imcontourf(x, y, (res.n_a-res.n_b).real, aspect=1)
-        plt.title(r'$n_-$',fontsize=fontsize)
+        plt.title(r'$n_-$', fontsize=fontsize)
         plt.colorbar()
 
         plt.subplot(234)
@@ -115,8 +115,8 @@ def plot_2D(self, fig=None, res=None, fontsize=36):
         j_a = res.j_a[0] + 1j*res.j_a[1]
         j_b = res.j_b[0] + 1j*res.j_b[1]
         j_p = j_a + j_b
-        j_m = j_a - j_b
-        utheta = np.exp(1j*np.angle(x + 1j*y))
+        # j_m = j_a - j_b
+        # utheta = np.exp(1j*np.angle(x + 1j*y))
         imcontourf(x, y, abs(j_a), aspect=1)
         plt.title(r'$j_a$', fontsize=fontsize)
         plt.colorbar()
@@ -124,7 +124,7 @@ def plot_2D(self, fig=None, res=None, fontsize=36):
 
         plt.subplot(235)
         imcontourf(x, y, abs(j_b), aspect=1)
-        plt.title(r'$j_b$',fontsize=fontsize); plt.colorbar()
+        plt.title(r'$j_b$', fontsize=fontsize); plt.colorbar()
         plt.quiver(x.ravel(), y.ravel(), j_b.real, j_b.imag)
 
         plt.subplot(236)
@@ -170,7 +170,6 @@ def plot_all(
         j_a_ = clockwise(r_vec, j_a_)*np.abs(j_a_)
         j_b_ = res.j_b[0] + 1j*res.j_b[1]
         j_b_ = clockwise(r_vec, j_b_)*np.abs(j_b_) 
-        j_p_, j_m_ = j_a_ + j_b_, j_a_ - j_b_
         plt.subplot(514) if one_c else plt.subplot(325)
         plt.plot(r.ravel()/dx, j_a_.ravel(), '+', label="BCS")
         plt.ylabel(r"$j_a$", fontsize=fontsize)
@@ -238,10 +237,10 @@ def FFVortex(
     #  for r close to the vortex core, some more points
     rs = np.linspace(0.0001, 1, N1)
     rs = np.append(rs, np.linspace(1.01, R, N2))
-    paras = [(f, mu, dmu, delta, r) for r in rs]
-    ds = PoolHelper.run(fulde_ferrell_state_solve_thread, paras=paras)
-    # ds = [f.solve(
-    # mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
+    # paras = [(f, mu, dmu, delta, r) for r in rs]
+    # ds = PoolHelper.run(fulde_ferrell_state_solve_thread, paras=paras)
+    ds = [f.solve(
+        mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
     for i in range(len(ds)):
         ps = [f.get_pressure(
             mu_eff=mu, dmu_eff=dmu, delta=d, dq=0.5/r,
@@ -259,7 +258,7 @@ def FFVortex(
     n_p = na + nb
     n_m = na - nb
     j_a = []
-    j_b = []   
+    j_b = []
     js = [f.get_current(
         mu=mu, dmu=dmu, delta=d, dq=0.5/r) for r, d in zip(rs, ds)]
     for j in js:
@@ -302,12 +301,16 @@ class VortexState(Vortex, PlotBase):
     def get_g(self, mu=1.0, delta=0.2):
         mus_eff = (mu, mu)
         E_c = self.E_max if self.E_c is None else self.E_c
-        # self.k_c = (2*E_c)**0.5
-        h = homogeneous.Homogeneous(Nxyz=self.Nxyz, Lxyz=self.Lxyz, dim=2)
+        self.k_c = (2*E_c)**0.5
+        # The follow line may cause issue as its results includes
+        # all state even we set a cutoff. Need to double check
+        # h = homogeneous.Homogeneous(
+        #     Nxyz=self.Nxyz, Lxyz=self.Lxyz, dim=2, k_c=self.k_c)
+        h = homogeneous.Homogeneous(dim=2, k_c=self.k_c)
         res = h.get_densities(mus_eff=mus_eff, delta=delta)
         g = delta/res.nu
         h = homogeneous.Homogeneous(dim=2)
-        self.k_c = h.set_kc_with_g(mus_eff=mus_eff, delta=delta, g=g)
+        # self.k_c = h.set_kc_with_g(mus_eff=mus_eff, delta=delta, g=g)
         return g
 
     def solve(self, tol=0.05, plot=True):
@@ -494,10 +497,10 @@ class ExteralPotentailAgent(object):
     def get_Vext(self, **args):
         r = np.sqrt(sum([_x**2 for _x in self.xyz[:2]]))
         # R0 = self.barrier_width*self.R
-        # the smooth step function mstep will 
+        # the smooth step function mstep will
         # cause artifact for functional vortices
         # V = self.barrier_height*mstep(r - self.R + R0, R0)
-        V = self.barrier_height*np.where( (r - self.R) > 0, 1, 0)
+        V = self.barrier_height*np.where((r - self.R) > 0, 1, 0)
         return (V, V)
 
 
@@ -531,7 +534,6 @@ class VortexFunctional(PlotBase):
     def solve(self, rtol=0.05, plot=True):
         err = 1.0
         fig = None
-
         if False:
             args = dict(
                 mus=self.mus, delta=self.Delta, dim=self.lda.dim,
@@ -550,7 +552,8 @@ class VortexFunctional(PlotBase):
             while(err > rtol):
                 res = self.lda.get_densities(
                     mus_eff=self.mus, delta=delta, Vs=Vs, **args)
-                ns, taus, nu = (res.n_a, res.n_b), (res.tau_a, res.tau_b), res.nu
+                ns, taus = (res.n_a, res.n_b), (res.tau_a, res.tau_b)
+                nu = res.nu
                 args.update(ns=ns)
                 V_a, V_b = self.lda.get_Vs(
                     delta=delta, ns=ns, taus=taus, nu=nu)
