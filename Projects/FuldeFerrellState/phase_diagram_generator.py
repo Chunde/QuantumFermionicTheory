@@ -637,6 +637,9 @@ class FFStateAgent(object):
                     # make sure the new delta is different from the last
                     # good delta
                     if len(rets) == 0:
+                        if len(output) == 0:  # add the superfluid state
+                            output.append((0, None, self.delta))
+                            self.save_to_file(output)
                         raise ValueError("Can't find any solution pair")
 
                     deltas = [new_delta]
@@ -717,8 +720,6 @@ class FFStateAgent(object):
         output = ff_state_sort_data(output)
         if auto_save:
             self.save_to_file(output)
-        if len(output) == 0:  # add the superfluid state
-            output.append((0, None, self.delta))
         return output
 
 
@@ -770,9 +771,9 @@ def smart_search_delta_q_worker(obj_mus_delta_dim_kc):
             N_delta=obj.N_delta)
     except:
         # rename the file to be incomplete
-        file_name = lda.get_file_name()
-        if os.path.exists(file_name):
-            os.rename(file_name, file_name + ".error")
+        # file_name = lda.get_file_name()
+        # if os.path.exists(file_name):
+        #     os.rename(file_name, file_name + ".error")
         return None
 
 
@@ -875,6 +876,8 @@ def compute_pressure_current(root=None):
     files = glob.glob(pattern)
     jsonObjects = []
     for file in files:
+        if file.find('J') != -1:
+            continue
         if os.path.exists(file):
             with open(file, 'r') as rf:
                 jsonObjects.append(
@@ -885,7 +888,8 @@ def compute_pressure_current(root=None):
         for item in jsonObjects:
             compute_pressure_current_worker(item)
     else:
-        PoolHelper.run(compute_pressure_current_worker, jsonObjects)
+        PoolHelper.run(
+            compute_pressure_current_worker, jsonObjects, poolsize=10)
 
 
 class AutoPDG(object):
@@ -1140,7 +1144,7 @@ def PDG():
     pdg = AutoPDG(
         functionalType=FunctionalType.BDG,
         kernelType=KernelType.HOM, k_c=150, dim=2)
-    delta, dmu = 4.4, 4.0
+    delta, dmu = 7, 6.3
     pdg.search_delta_q_diagram(seed_delta=delta, seed_dmu=dmu)
 
 
@@ -1154,7 +1158,7 @@ def grid_worker(delta_dmu):
 
 def run_grid():
     paras = []
-    deltas = np.array(list(range(10)))*0.1 + 5
+    deltas = np.array(list(range(10)))*0.1 + 6
     for delta in deltas:
         dmu = delta - 0.1
         while(dmu > 0.1):
@@ -1162,7 +1166,7 @@ def run_grid():
             dmu = dmu - 0.1
             if delta - dmu > 0.5:
                 break
-    PoolHelper.run(grid_worker, paras, poolsize=4)
+    PoolHelper.run(grid_worker, paras, poolsize=5)
 
 
 def rename_p_j_files():
@@ -1189,7 +1193,7 @@ def rename_p_j_files():
 if __name__ == "__main__":
     # search_delta_q_manager(delta=1.5)
     # PDG()
-    # compute_pressure_current()
+    compute_pressure_current()
     # wait_key()
     # rename_p_j_files()
-    run_grid()
+    #run_grid()

@@ -174,11 +174,14 @@ def cooling(
     else:
         h = HarmonicOscillator()
         if init_state_ids is None:
-            psis = [b.Normalize(get_box_wf(n=i, L=L, x=x), dx=1) for i in range(N_state)]  # change the start states here if needed.
+            psis = [b.Normalize(
+                get_box_wf(n=i, L=L, x=x), dx=1) for i in range(N_state)]  # change the start states here if needed.
         else:
             assert len(init_state_ids) <= N_state
-            psis = [b.Normalize(get_box_wf(n=i, L=L, x=x), dx=1) for i in init_state_ids]
-        psis0 = [b.Normalize(h.get_wf(n=i, x=x), dx=1) for i in range(N_state)] # the ground states for the harmonic potential
+            psis = [b.Normalize(
+                get_box_wf(n=i, L=L, x=x), dx=1) for i in init_state_ids]
+        psis0 = [b.Normalize(
+            h.get_wf(n=i, x=x), dx=1) for i in range(N_state)] # the ground states for the harmonic potential
     # for i in range(len(psis0)):
     #     check_uv_ir_error(psis0[i], plot=False)
     # for i in range(len(psis)):
