@@ -171,7 +171,7 @@ output = ffa.label_states(current_dir=currentdir, raw_data=False, print_file=Fal
 clear_output()
 
 
-def PlotPhaseDiagram(output=None, show_grid=True, raw_data=False):
+def PlotPhaseDiagram(output=None, show_grid=True, raw_data=False, points=[]):
     """
     plot the phase diagram
     Para:
@@ -205,7 +205,7 @@ def PlotPhaseDiagram(output=None, show_grid=True, raw_data=False):
         s = states[i]
         if s:
             colors.append('red')
-            area.append(15)
+            area.append(5)
         else:
             colors.append('blue')
             area.append(1)
@@ -216,6 +216,9 @@ def PlotPhaseDiagram(output=None, show_grid=True, raw_data=False):
     plt.scatter(xs, ys, s=area, c=colors)
     plt.ylabel(r"$\delta n/n$")
     plt.xlabel(r"$-1/ak_F$")
+    for point in points:
+        x, y = point
+        plt.scatter(x, y)
 #     plt.subplot(222)
 #     plt.scatter(xs, ys2, s=area, c=colors)
 #     plt.ylabel(r"$\delta\mu/\Delta$", fontsize=16)
@@ -247,9 +250,33 @@ def PlotPhaseDiagram(output=None, show_grid=True, raw_data=False):
 #     plt.show()
 
 
+from fulde_ferrell_state_vortex import FFVortex, FFVortexFunctional, create_ffs_lda
+mu = 10
+dmu = 4.5
+k_F = (2*mu)**0.5  # is this right? 
+delta = 7.5
+dim=2
+dx = 0.25
+r = 0.75*dx
+k_c = 14.005098526530725
+args = dict(mu=mu, dmu=0, delta=delta, dim=dim, k_c=k_c)
+lda = create_ffs_lda(**args)
+lda.C = lda._get_C(mus_eff=(mu,mu), delta=delta)
+delta_ = lda.solve(mu=mu, dmu=dmu, dq=0.5/r, a=0.001, b=2*delta)
+res = lda.get_densities(mus_eff=(mu+dmu, mu-dmu), delta=delta_, dq=0.5/r)
+n_a, n_b = res.n_a, res.n_b
+n=n_a + n_b
+dn = n_a  - n_b
+y = dn/n
+ai = 4*np.pi*lda.C
+x = -ai/k_F
+(x, y)
+
 matplotlib.rcParams.update({'font.size': 16})
 plt.figure(figsize(16,6))
-PlotPhaseDiagram(output=output)
+PlotPhaseDiagram(output=output, points=[(x, y)])
+xs = np.linspace(0, 5, 100)
+plt.plot(xs, xs, '--')
 plt.savefig("ff_state_phase_diagram_2d.pdf", bbox_inches='tight')
 
 for item in output:
