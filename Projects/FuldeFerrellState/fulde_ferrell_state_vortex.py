@@ -239,7 +239,7 @@ def plot_all(
         plt.axhline(0, linestyle='dashed')
         plt.legend()
         plt.subplot(515) if one_c else plt.subplot(326)
-        plt.plot(rs, -j_b,  ls, label="Homogeneous")
+        plt.plot(rs, j_b,  ls, label="Homogeneous")
         plt.axhline(0, linestyle='dashed')
         plt.xlabel(r"$r/dx$", fontsize=fontsize)
         plt.ylabel(r"$j_b$", fontsize=fontsize)
