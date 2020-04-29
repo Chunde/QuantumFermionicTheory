@@ -568,8 +568,10 @@ def f(E, T):
 @interact(delta=(0, 1, 0.1), 
           mu_eF=(0, 2, 0.1),
           dmu=(-0.4, 0.4, 0.01),
-          T=(0, 0.1, 0.01))
-def go(delta=0.1, mu_eF=1.0, dmu=0.0, T=0.02):
+          T=(0, 0.1, 0.01),
+          dq=(0, 1, 0.1)
+         )
+def go(delta=0.1, mu_eF=1.0, dmu=0.0, dq=0, T=0.02):
     plt.figure(figsize=(12, 8))
 
     k = np.linspace(0, 1.4, 1000)
@@ -578,7 +580,7 @@ def go(delta=0.1, mu_eF=1.0, dmu=0.0, T=0.02):
     mu = mu_eF*eF
     #dmu = dmu_delta*delta
     mu_a, mu_b = mu + dmu, mu - dmu
-    e_a, e_b = (hbar*k)**2/2/m - mu_a, (hbar*k)**2/2/m - mu_b
+    e_a, e_b = (hbar*k+dq)**2/2/m - mu_a, (hbar*k-dq)**2/2/m - mu_b
     e_p, e_m = (e_a + e_b)/2, (e_a - e_b)/2
     E = np.sqrt(e_p**2+abs(delta)**2)
     w_p, w_m = e_m + E, e_m - E

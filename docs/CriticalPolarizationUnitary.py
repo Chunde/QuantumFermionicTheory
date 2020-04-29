@@ -279,4 +279,50 @@ plt.savefig(f"bcs_dispersions.pdf", bbox_inches='tight')
 
 # $<n,l|V(\op{x})|m,l> \propto V(x_n)\delta_{nm} $
 
+# +
+# %pylab inline --no-import-all
+from ipywidgets import interact
+def f(E, T):
+    """Fermi distribution function"""
+    T = max(T, 1e-32)
+    return 1./(1+np.exp(E/T))
+
+
+@interact(delta=(0, 1, 0.1), 
+          mu_eF=(0, 2, 0.1),
+          dmu=(-0.4, 0.4, 0.01),
+          T=(0, 0.1, 0.01),
+          dq=(0, 1, 0.1)
+         )
+def go(delta=0.1, mu_eF=1.0, dmu=0.0, dq=0, T=0.02):
+    plt.figure(figsize=(12, 8))
+
+    k = np.linspace(0, 1.4, 1000)
+    hbar = m = kF = 1.0
+    eF = (hbar*kF)**2/2/m
+    mu = mu_eF*eF
+    #dmu = dmu_delta*delta
+    mu_a, mu_b = mu + dmu, mu - dmu
+    e_a, e_b = (hbar*k+dq)**2/2/m - mu_a, (hbar*k-dq)**2/2/m - mu_b
+    e_p, e_m = (e_a + e_b)/2, (e_a - e_b)/2
+    E = np.sqrt(e_p**2+abs(delta)**2)
+    w_p, w_m = e_m + E, e_m - E
+    
+    # Occupation numbers
+    f_p = 1 - e_p/E*(f(w_m, T) - f(w_p, T))
+    f_m = f(w_p, T) - f(-w_m, T)
+    f_a, f_b = (f_p+f_m)/2, (f_p-f_m)/2
+
+    plt.subplot(211);plt.grid()
+    plt.plot(k/kF, f_a, label='a')
+    plt.plot(k/kF, f_b, '--', label='b',);plt.legend()
+    plt.ylabel('n')
+    plt.subplot(212);plt.grid()
+    plt.plot(k/kF, w_p/eF, k/kF, w_m/eF)
+    #plt.ylim(-1.5, 1.5)
+    plt.xlabel('$k/k_F$')
+    plt.ylabel(r'$\omega_{\pm}/\epsilon_F$')
+    plt.axhline(0, c='y')
+# -
+
 
