@@ -28,7 +28,7 @@ class FFState(object):
         if g is not None:
             fix_g = True
         if k_c is None:
-            k_c = 1000
+            k_c = 10*mu
         self.fix_g = fix_g
         self.dim = dim
         self.T = T
@@ -374,10 +374,11 @@ class FFState(object):
             mu, dmu = (mu_a + mu_b)/2.0, (mu_a - mu_b)/2.0
 
         if a is None:
-            a = self.delta*0.1
+            a = 0.0001
         if b is None:
-            b = self.delta*2
-
+            b = self.delta
+        # if dq > self.delta:
+        #     return 0
         def f(delta):
             return self.f(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
 
@@ -388,14 +389,7 @@ class FFState(object):
             try:
                 delta = brentq(f, a, b)
             except ValueError:
-                offset = 0
-                if not np.allclose(abs(dmu), 0):
-                    offset = min(abs(dq/dmu), 100)
-                ds = np.linspace(
-                    0.000001, max(a, b)*(2 + offset),
-                    min(100, int((2 + offset)*10)))
-
-                assert len(ds) <= 100
+                ds = np.linspace(a, b, 40)
                 f0 = f(ds[-1])
                 index0 = -1
                 delta = 0

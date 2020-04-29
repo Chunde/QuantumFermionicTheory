@@ -22,14 +22,6 @@ sys.path.insert(0, currentdir)
 from fulde_ferrell_state import FFState
 
 
-def fulde_ferrell_state_solve_thread(obj_mu_dmu_delta_r):
-    """
-    a worker function to be called for parallelization
-    """
-    f, mu, dmu, delta, r = obj_mu_dmu_delta_r
-    return f.solve(mu=mu, dmu=dmu, dq=0.5/r, a=0.001, b=2*delta)
-
-
 class PlotBase(object):
     dim = None
     xyz = None
@@ -225,6 +217,8 @@ def FFVortex(
         vortex in a box.
         NOTE: this can be discared as another function 'FFVortexFunctional'
         can produce the same result.
+        NOTE: The k_c is not going to change the result as g will change
+            in way that keep the gap and densities unchanged.
     """
     mu_a, mu_b = mus
     mu, dmu = (mu_a + mu_b)/2, (mu_a - mu_b)/2
@@ -235,10 +229,8 @@ def FFVortex(
     args = dict(mu=mu, dmu=0, delta=delta, dim=2, k_c=k_c)
     f = FFState(fix_g=True, **args)
     #  for r close to the vortex core, some more points
-    rs = np.linspace(0.0001, 1, N1)
+    rs = np.linspace(0.1, 1, N1)
     rs = np.append(rs, np.linspace(1.01, R, N2))
-    # paras = [(f, mu, dmu, delta, r) for r in rs]
-    # ds = PoolHelper.run(fulde_ferrell_state_solve_thread, paras=paras)
     ds = [f.solve(
         mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
     for i in range(len(ds)):
@@ -304,13 +296,13 @@ class VortexState(Vortex, PlotBase):
         self.k_c = (2*E_c)**0.5
         # The follow line may cause issue as its results includes
         # all state even we set a cutoff. Need to double check
-        # h = homogeneous.Homogeneous(
-        #     Nxyz=self.Nxyz, Lxyz=self.Lxyz, dim=2, k_c=self.k_c)
-        h = homogeneous.Homogeneous(dim=2, k_c=self.k_c)
+        h = homogeneous.Homogeneous(
+            Nxyz=self.Nxyz, Lxyz=self.Lxyz, dim=2, k_c=self.k_c)
+        # h = homogeneous.Homogeneous(dim=2, k_c=self.k_c)
         res = h.get_densities(mus_eff=mus_eff, delta=delta)
         g = delta/res.nu
         h = homogeneous.Homogeneous(dim=2)
-        # self.k_c = h.set_kc_with_g(mus_eff=mus_eff, delta=delta, g=g)
+        self.k_c_g = h.set_kc_with_g(mus_eff=mus_eff, delta=delta, g=g)
         return g
 
     def solve(self, tol=0.05, plot=True):
@@ -437,9 +429,17 @@ def FFVortexFunctional(
         mus=None, delta=None, k_c=None, N=None, L=None, dim=2,
         functionalType=FunctionalType.BDG, N1=10, N2=10):
     """
-        A function to compute parameter for a vortex structure
-        NOTE: when dq( or 1/r) larger than k_c, that would be
-        problematic.
+    A function to compute parameter for a vortex structure
+    NOTE: when dq( or 1/r) larger than k_c, that would be
+    problematic.
+    Example:
+    -------- 
+    if __name__ == "__main__":
+        mu, dmu = 10, 4.5
+        mus, delta, L, N, R, k_c = (mu + dmu, mu - dmu), 7.5, 8, 32, 4, 50
+        res_aslda = FFVortexFunctional(
+            mus=mus, delta=delta, L=L, N=N,
+            functionalType=FunctionalType.ASLDA, N1=5, N2=5, dim=3)
     """
     mu_a, mu_b = mus
     mu, dmu = (mu_a + mu_b)/2, (mu_a - mu_b)/2
@@ -449,8 +449,6 @@ def FFVortexFunctional(
     f = create_ffs_lda(functionalType=functionalType, **args)
     rs = np.linspace(0.01, 1, N1)
     rs = np.append(rs, np.linspace(1.01, R, N2))
-    # paras = [(f, mu, dmu, delta, r) for r in rs]
-    # ds = PoolHelper.run(fulde_ferrell_state_solve_thread, paras=paras)
     ds = [f.solve(
         mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
     for i in range(len(ds)):
@@ -505,7 +503,8 @@ class ExteralPotentailAgent(object):
 
 
 class VortexFunctional(PlotBase):
-    """a BCS with functional vortex class"""
+    """a BCS with functional vortex class
+    """
     def __init__(
             self, mu_eff, dmu_eff, delta,
             functionalType=FunctionalType.BDG,
@@ -571,11 +570,3 @@ class VortexFunctional(PlotBase):
                     display(fig)
                     clear_output(wait=True)
                 delta, mu_a_eff, mu_b_eff = delta_, mu_a_eff_, mu_b_eff_
-
-
-if __name__ == "__main__":
-    mu, dmu = 10, 4.5
-    mus, delta, L, N, R, k_c = (mu + dmu, mu - dmu), 7.5, 8, 32, 4, 50
-    res_aslda = FFVortexFunctional(
-        mus=mus, delta=delta, L=L, N=N,
-        functionalType=FunctionalType.ASLDA, N1=5, N2=5, dim=3)
