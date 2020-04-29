@@ -15,7 +15,7 @@ currentdir = os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0, join(currentdir, '..', 'FuldeFerrellState'))
 from fulde_ferrell_state import FFState as FF
-
+from fulde_ferrell_state_vortex import VortexState
 tf.MAX_DIVISION = 200
 
 
@@ -204,6 +204,11 @@ def Thermodynamic(
     assert np.allclose(n_a.n, n_a_.n)
     assert np.allclose(n_b.n, n_b_.n)
 
+def test_Ec():
+    """Check that large Ec's raise and exception."""
+    with pytest.raises(ValueError):
+        VortexState(mu=1, dmu=0.45, delta=0.75, Nxyz=(32, 32), Lxyz=(10.0,10.0),
+                    E_c=20000)
 
 # @pytest.mark.skip(reason="pass")
 def test_efftive_mus():
