@@ -85,7 +85,7 @@ class BCS(object):
             E_c = Ec_Emax*self.E_max
         # the issue when E_c=None may cause problem.
         # But need to be address very carefully.
-        if E_c > self.E_max:
+        if E_c is not None and E_c > self.E_max:
             raise ValueError("E_c must be no larger than E_max.")
         self.E_c = E_c
 
