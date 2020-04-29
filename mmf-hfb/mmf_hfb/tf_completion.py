@@ -201,7 +201,7 @@ def Lambda(m, mu, hbar, dim, E_c=None, k_c=None):
        Fulde-Ferrell momentum q.
     E_c : float
        Optional alternative cutoff:
-       
+
        E_c = (hbar*k_c)**2/2/m - mu
     """
     k_0 = np.sqrt(2*m*mu/hbar**2 + 0.j)
@@ -225,7 +225,7 @@ def compute_C(mu_a, mu_b, delta, m_a, m_b, dim=3, hbar=1.0, T=0.0,
               q=0, dq=0, k_c=None, debug=False, **arg):
     # Note: code only works for m_a == m_b
     # ERROR: Check with new q and dq relations...
-    
+
     args = dict(mu_a=mu_a, mu_b=mu_b, delta=delta, m_a=m_a, m_b=m_b,
                 dim=dim, hbar=hbar, T=T)
 
@@ -235,7 +235,7 @@ def compute_C(mu_a, mu_b, delta, m_a, m_b, dim=3, hbar=1.0, T=0.0,
     if k_c is None:
         k_F = np.sqrt(2*m*mu)/hbar
         k_c = 100*k_F
-    
+
     Lambda_c = Lambda(m=m, mu=mu_q, hbar=hbar, dim=dim, k_c=k_c)
     nu_c_delta = integrate_q(f=nu_delta_integrand, k_c=k_c, q=q, dq=dq, **args)
     C_corr = integrate_q(f=C_integrand, k_0=k_c, q=q, dq=dq, **args)
@@ -309,56 +309,58 @@ def compute_current(mu_a, mu_b, delta, m_a=1, m_b=1, dim=3, hbar=1.0, T=0.0,
                     q=0, dq=0, k_0=0, k_c=None):
     """compute the overall current"""
     k_inf = np.inf if k_c is None else k_c
-    
+    qa = q + dq
+    qb = q - dq
+
     if dim == 1:
 
         def ja_integrand(k):
-            k2_a = (k + q + dq)**2
-            k2_b = (k + q - dq)**2
+            k2_a = (k + qa)**2
+            k2_b = (-k - qb)**2
             f_p, f_m = f_p_m(k2_a, k2_b, mu_a, mu_b, delta, m_a, m_b, hbar, T)
             f_a = (f_p + f_m)/2
-            return (k + dq) * f_a / 2 / np.pi
+            return (k + qa) * f_a / 2 / np.pi
 
         def jb_integrand(k):
-            k2_a = (k + q + dq)**2
-            k2_b = (k + q - dq)**2
+            k2_a = (k + qa)**2
+            k2_b = (-k - qb)**2
             f_p, f_m = f_p_m(k2_a, k2_b, mu_a, mu_b, delta, m_a, m_b, hbar, T)
             f_b = (f_p - f_m)/2
-            return (k - dq) * f_b / 2 / np.pi
+            return (-k - qb) * f_b / 2 / np.pi
     elif dim == 2:
 
         def ja_integrand(kx, kp):
-            k2_a = (kx + q + dq)**2 + kp**2
-            k2_b = (kx + q - dq)**2 + kp**2
+            k2_a = (kx + qa)**2 + kp**2
+            k2_b = (-kx - qb)**2 + kp**2
             f_p, f_m = f_p_m(k2_a, k2_b, mu_a, mu_b, delta, m_a, m_b, hbar, T)
             f_a = (f_p + f_m)/2
-            return (kx + dq) * f_a / (2*np.pi**2)
+            return (kx + qa) * f_a / (2*np.pi**2)
 
         def jb_integrand(kx, kp):
-            k2_a = (kx + q + dq)**2 + kp**2
-            k2_b = (kx + q - dq)**2 + kp**2
+            k2_a = (kx + qa)**2 + kp**2
+            k2_b = (-kx - qb)**2 + kp**2
             f_p, f_m = f_p_m(k2_a, k2_b, mu_a, mu_b, delta, m_a, m_b, hbar, T)
             f_b = (f_p - f_m)/2
-            return (kx - dq) * f_b / (2*np.pi**2)
+            return (-kx - qb) * f_b / (2*np.pi**2)
 
     elif dim == 3:
 
         def ja_integrand(kx, kp):
-            k2_a = (kx + q + dq)**2 + kp**2
-            k2_b = (kx + q - dq)**2 + kp**2
+            k2_a = (kx + qa)**2 + kp**2
+            k2_b = (-kx - qb)**2 + kp**2
             f_p, f_m = f_p_m(k2_a, k2_b, mu_a, mu_b, delta, m_a, m_b, hbar, T)
             f_a = (f_p + f_m)/2
-            return (kx + dq) * f_a * (kp/4/np.pi**2)
+            return (kx + qa) * f_a * (kp/4/np.pi**2)
 
         def jb_integrand(kx, kp):
-            k2_a = (kx + q + dq)**2 + kp**2
-            k2_b = (kx + q - dq)**2 + kp**2
+            k2_a = (kx + qa)**2 + kp**2
+            k2_b = (-kx - qb)**2 + kp**2
             f_p, f_m = f_p_m(k2_a, k2_b, mu_a, mu_b, delta, m_a, m_b, hbar, T)
             f_b = (f_p - f_m)/2
-            return (kx - dq) * f_b * (kp/4/np.pi**2)
+            return (-kx - qb) * f_b * (kp/4/np.pi**2)
     else:
         raise ValueError(f"Only dim=1, 2, or 3 supported (got dim={dim})")
-        
+
     j_a = do_integration(
         ja_integrand, delta=delta, mu_a=mu_a, mu_b=mu_b, m_a=m_a, m_b=m_b,
         dim=dim, q=q, dq=dq, hbar=hbar, k_0=k_0, k_inf=k_inf, limit=None)
@@ -406,26 +408,26 @@ def integrate(f, mu_a, mu_b, delta, m_a, m_b, dim=3, hbar=1.0, T=0.0,
 def integrate_q(f, mu_a, mu_b, delta, m_a, m_b, dim=3,
                 q=0, dq=0.0, hbar=1.0, T=0.0, k_0=0, k_c=None, limit=None, **args):
     """Return the integral of f() over dim-dimensional momentum space.
- 
+
     Arguments
     ---------
     f : function
        One of the base tf_completion functions called as f(k2_a, k2_b, ...).
-    
+
     """
     # if k_0 != 0:
     #    warnings.warn(f"""This integration routine does not assume it's symmetric in k,
     #                   since your k_0 is nonzero, result may be wrong""")
     k_inf = np.inf if k_c is None else k_c
-    
+
     if False and q == 0 and dq == 0:
         return integrate(f, dim=dim, k_0=k_0, k_c=k_inf,
                          mu_a=mu_a, mu_b=mu_b, delta=delta,
                          m_a=m_a, m_b=m_b, hbar=hbar, T=T)
-        
+
     delta = abs(delta)
     args = (mu_a, mu_b, delta, m_a, m_b, hbar, T)
-    
+
     if dim == 1:
         def integrand(k):
             k2_a = (k + q + dq)**2
