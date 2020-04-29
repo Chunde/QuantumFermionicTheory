@@ -127,7 +127,7 @@ def plot_2D(self, fig=None, res=None, fontsize=36):
 
 def plot_all(
         vs=[], hs=[], mu=10, dx=1, fontsize=14,
-        xlim=12, one_c=False):
+        xlim=12, ls='-', one_c=False):
     """
     plot bcs and homogeneouse vortex data
     -----------
@@ -170,13 +170,12 @@ def plot_all(
         plt.plot(r.ravel()/dx, j_b_.ravel(), '+', label="BCS")
         plt.ylabel(r"$j_b$", fontsize=fontsize)
         plt.xlim(0, xlim)
-    
     # homogeneous part
     for res_h in hs:
         rs, ds, ps, ps0, n_p, n_m, j_a, j_b = res_h
         k_F = np.sqrt(2*mu)
         plt.subplot(511) if one_c else plt.subplot(321)
-        plt.plot(rs, np.array(ds)/mu, '-', label="Homogeneous")
+        plt.plot(rs, np.array(ds)/mu, ls, label="Homogeneous")
         plt.legend()
         plt.ylabel(r'$\Delta/E_F$', fontsize=fontsize)
     #     plt.subplot(322)
@@ -185,22 +184,22 @@ def plot_all(
     #     plt.plot(rs, ps0, '-', label="Normal State pressure")
     #     plt.legend()
         plt.subplot(512) if one_c else plt.subplot(323)  
-        plt.plot(rs, n_p/k_F, label="Homogeneous")
+        plt.plot(rs, n_p/k_F, ls, label="Homogeneous")
         plt.ylabel(r"$n_p/k_F$", fontsize=fontsize)
         plt.legend()
         plt.subplot(513) if one_c else plt.subplot(324)
-        plt.plot(rs, n_m/k_F, label="Homogeneous")
-        plt.ylabel(r"$n_m/k_F$", fontsize=fontsize)#,plt.title("Density Difference")
+        plt.plot(rs, n_m/k_F, ls, label="Homogeneous")
+        plt.ylabel(r"$n_m/k_F$", fontsize=fontsize)
         plt.legend()
         plt.subplot(514) if one_c else plt.subplot(325)
-        plt.plot(rs, j_a, '-', label="Homogeneous")
+        plt.plot(rs, j_a, ls, label="Homogeneous")
         plt.ylabel(r"$j_a$", fontsize=fontsize)
         if not one_c:
             plt.xlabel(r"$r/dx$", fontsize=fontsize)
         plt.axhline(0, linestyle='dashed')
         plt.legend()
         plt.subplot(515) if one_c else plt.subplot(326)
-        plt.plot(rs, -j_b, label="Homogeneous") # seems we have different sign
+        plt.plot(rs, -j_b,  ls, label="Homogeneous")
         plt.axhline(0, linestyle='dashed')
         plt.xlabel(r"$r/dx$", fontsize=fontsize)
         plt.ylabel(r"$j_b$", fontsize=fontsize)
