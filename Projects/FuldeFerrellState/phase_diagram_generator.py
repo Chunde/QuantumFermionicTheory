@@ -73,13 +73,23 @@ class FFStateAgent(object):
         self.mu_eff = mu_eff
         self.dmu_eff = dmu_eff
         self.verbosity = verbosity
+        self.file_exist = False
         if time_stamp:
             ts = time.strftime("%Y_%m_%d_%H_%M_%S.json")
             self.fileName = (
                 prefix
-                + f"({dim}d_{delta:.2f}_{mu_eff:.2f}_{dmu_eff:.2f})" + ts)
+                + f"({dim}d_{delta:.2f}_{mu_eff:.2f}_{dmu_eff:.2f})")
+            self.file_exist = self.check_file_pattern(self.fileName)
+            self.fileName = self.fileName + ts
         else:
             self.fileName = prefix
+
+    def check_file_pattern(self, file_name):
+        currentdir = os.path.dirname(
+            os.path.abspath(inspect.getfile(inspect.currentframe())))
+        pattern = join(currentdir, "data", f"{file_name}*.json")
+        files = glob.glob(pattern)
+        return len(files) > 0
 
     def get_file_name(self):
         currentdir = join(os.path.dirname(
@@ -519,7 +529,7 @@ class FFStateAgent(object):
 
     def smart_search(
             self, mu_eff=None, dmu_eff=None, delta=None,
-            q_lower=0, q_upper=0.2, N_q=40, max_points=100,
+            q_lower=0, q_upper=0.2, N_q=40, max_points=50,
             delta0=0.0001, delta1=None, N_delta=5, tol_y=0.01,
             tol_x=1e-6, auto_save=True, **args):
         """
@@ -740,7 +750,7 @@ def search_delta_q_worker(para):
             return lda.smart_search(
                 delta_lower=0.001, delta_upper=delta,
                 q_lower=0, q_upper=dmu_eff, N_q=40, delta1=delta,
-                N_delta=100)
+                N_delta=50)
         return lda.search(
             N_delta=50, delta_lower=0.0001, delta_upper=delta,
             q_lower=0, q_upper=dmu_eff, N_q=10,
@@ -765,6 +775,9 @@ def smart_search_delta_q_worker(obj_mus_delta_dim_kc):
             "LDA", (FFStateAgent,),
             functionalType=obj.functionalType,
             kernelType=obj.kernelType, args=args)
+        if lda.file_exist:
+            print(f"Configuration is there:delta={delta},dmu={dmu_eff}")
+            return None
         return lda.smart_search(
             delta_lower=0.001, delta_upper=delta,
             q_lower=0, q_upper=dmu_eff, N_q=40, delta1=obj.delta1,
@@ -1003,7 +1016,7 @@ class AutoPDG(object):
         dmus = self.offset_para(seed_dmu)
         deltas = self.offset_para(seed_delta)
         dmu_delta_ls = self.mix_para2(dmus, deltas)
-        self.N_delta = 100
+        self.N_delta = 50
         self.delta1 = seed_delta
         paras = [(
             self, self.mu_eff, dmu,
@@ -1158,15 +1171,15 @@ def grid_worker(delta_dmu):
 
 def run_grid():
     paras = []
-    deltas = np.array(list(range(10)))*0.1 + 6
+    deltas = np.array(list(range(10)))*0.1 + 5
     for delta in deltas:
         dmu = delta - 0.1
         while(dmu > 0.1):
             paras.append((delta, dmu))
             dmu = dmu - 0.1
-            if delta - dmu > 0.5:
+            if delta - dmu > 0.8:
                 break
-    PoolHelper.run(grid_worker, paras, poolsize=5)
+    PoolHelper.run(grid_worker, paras, poolsize=10)
 
 
 def rename_p_j_files():
@@ -1193,7 +1206,7 @@ def rename_p_j_files():
 if __name__ == "__main__":
     # search_delta_q_manager(delta=1.5)
     # PDG()
-    compute_pressure_current()
+    # compute_pressure_current()
     # wait_key()
     # rename_p_j_files()
-    #run_grid()
+    run_grid()

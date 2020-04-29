@@ -135,7 +135,7 @@ class Homogeneous(object):
         --------------
         Note: if dq is in args, that means we try to calculate FF state
         """
-        if 'dq' in args and args['dq'] !=0:
+        if ('dq' in args and args['dq'] !=0) or ('q' in args and args['q'] !=0):
             return self._get_densities_tf(
                 mus_eff=mus_eff, delta=delta, ns_flag=ns_flag,
                 taus_flag=taus_flag, nu_flag=nu_flag, **args)
@@ -298,6 +298,7 @@ class Homogeneous(object):
             v_0, ns, mus, e)
 
     def set_kc_with_g(self, mus_eff, delta, g, a=None, b=None):
+        """set the k_c for a given g"""
         k_F = (np.mean(mus_eff)*2)**0.5
         if a is None:
             a = k_F
