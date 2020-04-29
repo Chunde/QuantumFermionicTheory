@@ -28,50 +28,90 @@ class PlotBase(object):
     Delta = None
 
     def plot(self, fig=None, res=None):
-        x, y = self.xyz[:2]
-        # res = self.res if res is None else res
-        if fig is None:
-            fig = plt.figure(figsize=(20, 10))
-        plt.subplot(233)
-        if self.dim == 2:
-            imcontourf(x, y, abs(self.Delta), aspect=1)
-        elif self.dim == 3:
-            imcontourf(x, y,  np.sum(abs(self.Delta), axis=2))
-        plt.title(r'$|\Delta|$')
-        plt.colorbar()
 
-        if res is not None:
-            plt.subplot(231)
-            imcontourf(x, y, (res.n_a+res.n_b).real, aspect=1)
-            plt.title(r'$n_+$')
+        if self.dim == 1:
+            x= self.xyz[0]
+            # res = self.res if res is None else res
+            if fig is None:
+                fig = plt.figure(figsize=(20, 10))
+            plt.subplot(233)
+            plt.plot(x, abs(self.Delta))
+            
+            plt.title(r'$|\Delta|$')
+
+            if res is not None:
+                plt.subplot(231)
+                plt.plot(x, (res.n_a+res.n_b).real)
+                plt.title(r'$n_+$')
+
+                plt.subplot(232)
+                plt.plot(x, (res.n_a - res.n_b).real)
+                plt.title(r'$n_-$')
+
+                plt.subplot(234)
+
+                j_a = res.j_a[0]
+                j_b = res.j_b[0]
+                j_p = j_a + j_b
+                # j_m = j_a - j_b
+                # utheta = np.exp(1j*np.angle(x + 1j*y))
+                plt.plot(x, j_a)
+                plt.title(r'$j_a$')
+
+
+                plt.subplot(235)
+                plt.plot(x, j_b)
+                plt.title(r'$j_b$')
+                
+
+                plt.subplot(236)
+                plt.plot(x, j_p)
+                plt.title(r'$j_+$')
+        else:
+            x, y = self.xyz[:2]
+            # res = self.res if res is None else res
+            if fig is None:
+                fig = plt.figure(figsize=(20, 10))
+            plt.subplot(233)
+            if self.dim == 2:
+                imcontourf(x, y, abs(self.Delta), aspect=1)
+            elif self.dim == 3:
+                imcontourf(x, y,  np.sum(abs(self.Delta), axis=2))
+            plt.title(r'$|\Delta|$')
             plt.colorbar()
 
-            plt.subplot(232)
-            imcontourf(x, y, (res.n_a-res.n_b).real, aspect=1)
-            plt.title(r'$n_-$')
-            plt.colorbar()
+            if res is not None:
+                plt.subplot(231)
+                imcontourf(x, y, (res.n_a+res.n_b).real, aspect=1)
+                plt.title(r'$n_+$')
+                plt.colorbar()
 
-            plt.subplot(234)
+                plt.subplot(232)
+                imcontourf(x, y, (res.n_a-res.n_b).real, aspect=1)
+                plt.title(r'$n_-$')
+                plt.colorbar()
 
-            j_a = res.j_a[0] + 1j*res.j_a[1]
-            j_b = res.j_b[0] + 1j*res.j_b[1]
-            j_p = j_a + j_b
-            # j_m = j_a - j_b
-            # utheta = np.exp(1j*np.angle(x + 1j*y))
-            imcontourf(x, y, abs(j_a), aspect=1)
-            plt.title(r'$j_a$')
-            plt.colorbar()
-            plt.quiver(x.ravel(), y.ravel(), j_a.real, j_a.imag)
+                plt.subplot(234)
 
-            plt.subplot(235)
-            imcontourf(x, y, abs(j_b), aspect=1)
-            plt.title(r'$j_b$'); plt.colorbar()
-            plt.quiver(x.ravel(), y.ravel(), j_b.real, j_b.imag)
+                j_a = res.j_a[0] + 1j*res.j_a[1]
+                j_b = res.j_b[0] + 1j*res.j_b[1]
+                j_p = j_a + j_b
+                # j_m = j_a - j_b
+                # utheta = np.exp(1j*np.angle(x + 1j*y))
+                imcontourf(x, y, abs(j_a), aspect=1)
+                plt.title(r'$j_a$')
+                plt.colorbar()
+                plt.quiver(x.ravel(), y.ravel(), j_a.real, j_a.imag)
 
-            plt.subplot(236)
-            imcontourf(x, y, abs(j_p), aspect=1)
-            plt.title(r'$j_+$'); plt.colorbar()
-            plt.quiver(x.ravel(), y.ravel(), j_p.real, j_p.imag)
+                plt.subplot(235)
+                imcontourf(x, y, abs(j_b), aspect=1)
+                plt.title(r'$j_b$'); plt.colorbar()
+                plt.quiver(x.ravel(), y.ravel(), j_b.real, j_b.imag)
+
+                plt.subplot(236)
+                imcontourf(x, y, abs(j_p), aspect=1)
+                plt.title(r'$j_+$'); plt.colorbar()
+                plt.quiver(x.ravel(), y.ravel(), j_p.real, j_p.imag)
         return fig
 
 
@@ -286,21 +326,25 @@ class VortexState(Vortex, PlotBase):
         self.N_twist = N_twist
         self.mus = (mu+dmu, mu-dmu)
         self.g = self.get_g(mu=mu, delta=delta) if g is None else g
+        self.init_delta()
+
+    def init_delta(self):
         x, y = self.xyz[:2]
-        self.Delta = delta*(x+1j*y)
+        self.Delta = self.delta*(x+1j*y)
 
     def get_g(self, mu=1.0, delta=0.2):
+        assert self.dim == len(self.Nxyz)
         mus_eff = (mu, mu)
         E_c = self.E_max if self.E_c is None else self.E_c
         self.k_c = (2*E_c)**0.5
         # The follow line may cause issue as its results includes
         # all state even we set a cutoff. Need to double check
         h = homogeneous.Homogeneous(
-            Nxyz=self.Nxyz, Lxyz=self.Lxyz, dim=2, k_c=self.k_c)
+            Nxyz=self.Nxyz, Lxyz=self.Lxyz, dim=self.dim, k_c=self.k_c)
         # h = homogeneous.Homogeneous(dim=2, k_c=self.k_c)
         res = h.get_densities(mus_eff=mus_eff, delta=delta)
         g = delta/res.nu
-        h = homogeneous.Homogeneous(dim=2)
+        h = homogeneous.Homogeneous(dim=self.dim)
         self.k_c_g = h.set_kc_with_g(mus_eff=mus_eff, delta=delta, g=g)
         return g
 
