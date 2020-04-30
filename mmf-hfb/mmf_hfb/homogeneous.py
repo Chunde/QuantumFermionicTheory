@@ -7,6 +7,30 @@ import warnings
 from .integrate import quad_k, quad_l
 
 
+def get_ws_fs(
+        delta=0.1, mu=1.0, dmu=0.0,
+        dq=0, k=0, T=0, hbar=1, m=1):
+    """
+    return quasiparticle dispersion
+    and real particle occupancy
+    """
+    def f(E, T):
+        """Fermi distribution function"""
+        T = max(T, 1e-32)
+        return 1./(1+np.exp(E/T))
+    mu_a, mu_b = mu + dmu, mu - dmu
+    e_a = (hbar*(k+dq))**2/2/m - mu_a
+    e_b = (hbar*(k-dq))**2/2/m - mu_b
+    e_p, e_m = (e_a + e_b)/2, (e_a - e_b)/2
+    E = np.sqrt(e_p**2 + abs(delta)**2)
+    w_p, w_m = e_m + E, e_m - E
+    # occupancy
+    f_p = 1 - e_p/E*(f(w_m, T) - f(w_p, T))
+    f_m = f(w_p, T) - f(-w_m, T)
+    f_a, f_b = (f_p+f_m)/2, (f_p-f_m)/2
+    return (w_p, w_m, f_a, f_b)
+
+
 class Homogeneous(object):
     """Solutions to the homogeneous BCS equations at finite T.
 
@@ -112,7 +136,7 @@ class Homogeneous(object):
         return namedtuple('Densities', ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu'])(
             n_a, n_b, tau_a, tau_b, nu)
 
-    def get_current(self, mus_eff, delta=None, q=0, dq=0, k_c=None):
+    def get_current(self, mus_eff, delta=None, q=0, dq=0, k_c=None, named=False):
         """
         return the currents of two the components
         return value: (j_a, j_b, j_p, j_m)
@@ -125,7 +149,12 @@ class Homogeneous(object):
             mu_a=mu_a, mu_b=mu_b, m_a=self.m, m_b=self.m, delta=delta,
             dim=self.dim, hbar=self.hbar, T=self.T, k_c=k_c)
         args.update(q=q, dq=dq)
-        return tf.compute_current(**args)
+        js = tf.compute_current(**args)
+        if named:
+            Currents = namedtuple('Currents', ['j_a', 'j_b', 'j_p', 'j_m'])
+            j_a, j_b, j_p, j_m = js
+            return Currents(j_a=j_a, j_b=j_b, j_p=j_p, j_m=j_m)
+        return js
 
     def get_densities(
             self, mus_eff, delta, N_twist=1,
