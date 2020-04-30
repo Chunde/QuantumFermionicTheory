@@ -141,8 +141,6 @@ class Homogeneous(object):
         return the currents of two the components
         return value: (j_a, j_b, j_p, j_m)
         """
-        if dq == 0:
-            return (ufloat(0, 0),)*4
         k_c = self.k_c if k_c is None else k_c
         mu_a, mu_b = mus_eff
         args=dict(
