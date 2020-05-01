@@ -68,6 +68,20 @@
 # \end{pmatrix}
 # \end{align}
 
+# \begin{align}
+# \begin{pmatrix}\left[(-i\nabla+q_a)^2-\mu_a\right] &\Delta\\
+# \Delta^* & -\left[(i\nabla - q_b)^2 - \mu_b)\right]\\
+# \end{pmatrix}
+# \begin{pmatrix}
+# U(x)\\
+# V^*(x)\\
+# \end{pmatrix}=E
+# \begin{pmatrix}
+# U(x)\\
+# V^*(x)
+# \end{pmatrix}
+# \end{align}
+
 # * Let $\delta q = q_a - q_b$, then:
 # $$
 # q_a = q + \delta q\\

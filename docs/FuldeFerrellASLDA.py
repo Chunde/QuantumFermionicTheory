@@ -219,10 +219,6 @@ def PlotPhaseDiagram(output=None, show_grid=True, raw_data=False, points=[]):
     for point in points:
         x, y = point
         plt.scatter(x, y)
-#     plt.subplot(222)
-#     plt.scatter(xs, ys2, s=area, c=colors)
-#     plt.ylabel(r"$\delta\mu/\Delta$", fontsize=16)
-#     plt.xlabel(r"$-1/ak_F$", fontsize=16)
     plt.text(1.3, 0.2, r'Normal state region $\Delta=0$', rotation=0)
     plt.text(0.6, .0, r'Superfluid state region $\Delta\ne0, q=0$', rotation=0)
     plt.subplot(122)
@@ -243,11 +239,7 @@ def PlotPhaseDiagram(output=None, show_grid=True, raw_data=False, points=[]):
         y_r = 1/mu
     plt.text(0.3*x_r, 2.5*y_r, r'Normal state region $\Delta=0$', rotation=40)
     plt.text(0.8*x_r, 2.2*y_r, r'Superfluid state region $\Delta\ne0, q=0$', rotation=40)
-#     plt.subplot(224)
-#     plt.scatter(xs, ys4, s=area, c=colors)
-#     plt.ylabel(r"$\delta\mu_{eff}/\Delta$", fontsize=16)
-#     plt.xlabel(r"$-1/ak_F$", fontsize=16)
-#     plt.show()
+
 
 
 from fulde_ferrell_state_vortex import FFVortex, FFVortexFunctional, create_ffs_lda
@@ -279,14 +271,17 @@ xs = np.linspace(0, 5, 100)
 plt.plot(xs, xs, '--')
 plt.savefig("ff_state_phase_diagram_2d.pdf", bbox_inches='tight')
 
+filter_output = []
+dp = 1e-5
 for item in output:
-    if item['delta'] == 2.0:
-        d = item['d']
-        q = item['dq']
-        ff = item['state']
-        print(ff, d, q)
-        dmu, pn, ps, pf = item["dmu_eff"], item["pn"], item["ps"], item["pf"]
-        print(f"{dmu}, {pn}, {ps}, {pf}")
+    pn, ps, pf = item["pn"], item["ps"], item["pf"]
+    if pf - ps > dp and pf - pn > dp:
+        filter_output.append(item)
+
+plt.figure(figsize(16,6))
+PlotPhaseDiagram(output=filter_output, points=[(x, y)])
+xs = np.linspace(0, 5, 100)
+plt.plot(xs, xs, '--')
 
 for item in output:
     if item['state']:
