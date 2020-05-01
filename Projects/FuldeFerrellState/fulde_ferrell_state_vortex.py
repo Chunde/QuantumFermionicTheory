@@ -15,11 +15,48 @@ from mmf_hfb.utils import clockwise
 from IPython.display import clear_output
 import matplotlib.pyplot as plt
 from mmfutils.plot import imcontourf
+from collections import namedtuple
 
 currentdir = os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0, currentdir)
 from fulde_ferrell_state import FFState
+
+
+def res_to_json(res):
+    """
+    convert the res to dict object for json file
+    """
+    output = {}
+
+    def to_list(c):
+        return [c.real, c.imag]
+    try:
+        output['j_a'] = to_list(res.j_a)
+        output['j_b'] = to_list(res.j_b)
+        output['tau_a'] = to_list(res.tau_a)
+        output['tau_b'] = to_list(res.tau_b)
+        output['n_a'] = to_list(res.n_a)
+        output['n_b'] = to_list(res.n_b)
+        output['nu'] = to_list(res.nu)
+    except:
+        return None
+    return output
+
+
+def json_to_res(res):
+    """from json format to named structure"""
+    def to_c(key):
+        res_r, res_i = res[key]
+        return np.array(res_r) + 1j*np.array(res_i)
+
+    Densities = namedtuple(
+            'Densities', ['n_a', 'n_b', 'tau_a', 'tau_b', 'nu', 'j_a', 'j_b'])
+    return Densities(
+        n_a=to_c("n_a"), n_b=to_c("n_b"),
+        tau_a=to_c("tau_a"), tau_b=to_c("tau_b"),
+        nu=to_c("nu"),
+        j_a=to_c("j_a"), j_b=to_c("j_b"))
 
 
 class PlotBase(object):
@@ -192,7 +229,7 @@ def plot_all(
         j_a_ = res.j_a[0] + 1j*res.j_a[1]
         j_a_ = clockwise(r_vec, j_a_)*np.abs(j_a_)
         j_b_ = res.j_b[0] + 1j*res.j_b[1]
-        j_b_ = clockwise(r_vec, j_b_)*np.abs(j_b_) 
+        j_b_ = clockwise(r_vec, j_b_)*np.abs(j_b_)
         plt.subplot(514) if one_col else plt.subplot(325)
         plt.plot(r.ravel()/dx, j_a_.ravel(), '+', label="BCS")
         plt.ylabel(r"$j_a$", fontsize=fontsize)
@@ -203,10 +240,19 @@ def plot_all(
         plt.xlim(0, xlim)
     # homogeneous part
     for res_h in hs:
-        rs, ds, ps, pn, n_p, n_m, j_a, j_b = res_h
+        dx, rs, ds, ds_ex = res_h.dx, res_h.rs, res_h.ds, res_h.ds_ex
+        n_p, n_m, j_a, j_b = res_h.n_p, res_h.n_m, res_h.j_a, res_h.j_b
         k_F = np.sqrt(2*mu)
+        rs_ = []
+        ds_ = []
+        for (r, d) in ds_ex:
+            rs_.append(r)
+            ds_.append(d)
+        rs = np.array(rs)/dx
         plt.subplot(511) if one_col else plt.subplot(321)
-        plt.plot(rs, np.array(ds)/mu, ls, label="Homogeneous")
+        l, = plt.plot(rs, np.array(ds)/mu, ls, label="Homogeneous")
+        if len(rs_) > 0:
+            plt.plolt(rs_, ds_, '--', c=l.get_c())
         plt.legend()
         plt.ylabel(r'$\Delta/E_F$', fontsize=fontsize)
         plt.subplot(512) if one_col else plt.subplot(323)  
@@ -256,17 +302,26 @@ def FFVortex(
     f = FFState(fix_g=True, **args)
     #  for r close to the vortex core, some more points
     rs = np.linspace(0.1, 1, N1)
-    rs = np.append(rs, np.linspace(1.01, R, N2))
+    if N2 > 0 and R > 1.1:
+        rs = np.append(rs, np.linspace(1.1, R, N2))
+    ds_ex = []
     if ds is None:
-        ds = [f.solve(
-            mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
-    ps, ps0 = [], []
+        ds = []
+        for _r in rs:
+            d = f.solve(
+                mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta)
+            ds.append(d)
+            if f.delta_ex is not None:
+                ds_ex.append((_r, f.delta_ex))
+        # ds = [f.solve(
+        #     mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
+    ps, pn = [], []
     if pressure_flag:
         for i in range(len(ds)):
             ps = [f.get_pressure(
                 mu_eff=mu, dmu_eff=dmu, delta=d, dq=0.5/r,
                 use_kappa=False).n for r, d in zip(rs, ds)]
-            ps0 = [f.get_pressure(
+            pn = [f.get_pressure(
                 mu_eff=mu, dmu_eff=dmu, delta=1e-8, q=0, dq=0,
                 use_kappa=False).n for r, d in zip(rs, ds)]
     na = np.array([])
@@ -286,7 +341,12 @@ def FFVortex(
         j_a.append(j[0].n)
         j_b.append(j[1].n)
     j_a, j_b = np.array(j_a), np.array(j_b)
-    return (rs/dx, ds, ps, ps0, n_p, n_m, j_a, j_b)
+    Results = namedtuple(
+        'Results',
+        ['dx', 'rs', 'ds', 'ds_ex', 'dqs', 'p_s', 'p_n', 'n_p', 'n_m', 'j_a', 'j_b'])
+    return Results(
+        dx=dx, rs=rs, dqs=0.5/rs, ds=ds, ds_ex=ds_ex, p_s=ps, p_n=pn,
+        n_p=n_p, n_m=n_m, j_a=j_a, j_b=j_b)
 
 
 class Vortex(hfb.BCS):
@@ -339,7 +399,7 @@ class VortexState(Vortex, PlotBase):
         return g
 
     def solve(self, tol=0.05, plot=True):
-        err = 1.0
+        err = 100
         fig = None
         while err > tol:
             res = self.get_densities(

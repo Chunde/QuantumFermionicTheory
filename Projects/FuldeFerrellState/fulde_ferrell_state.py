@@ -382,7 +382,7 @@ class FFState(object):
         def f(delta):
             return self.f(mu=mu, dmu=dmu, delta=delta, q=q, dq=dq)
 
-        self._delta = None  # a another possible solution
+        self.delta_ex = None  # a another possible solution
         if throwException:
             delta = brentq(f, a, b)
         else:
@@ -397,9 +397,10 @@ class FFState(object):
                     f_ = f(ds[i])
                     if f0*f_ < 0:
                         delta = brentq(f, ds[index0], ds[i])
+                        # save the extra delta
                         if f_*f(ds[0]) < 0:  # another solution
                             delta_ = brentq(f, ds[0], ds[i])
-                            self._delta = delta_
+                            self.delta_ex = delta_
 
                             p_ = self.get_pressure(
                                 mu_eff=mu, dmu_eff=dmu,
@@ -411,7 +412,7 @@ class FFState(object):
                                 f"q={dq}: Delta={delta_}/{delta},"
                                 + f",Pressue={p_.n}/{p.n}")
                             if p_ > p:
-                                self._delta = delta
+                                self.delta_ex = delta
                                 delta = delta_
                         break
                     else:
