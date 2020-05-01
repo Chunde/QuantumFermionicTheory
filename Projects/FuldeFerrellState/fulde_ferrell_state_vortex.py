@@ -30,13 +30,11 @@ class PlotBase(object):
     def plot(self, fig=None, res=None):
 
         if self.dim == 1:
-            x= self.xyz[0]
-            # res = self.res if res is None else res
+            x = self.xyz[0]
             if fig is None:
                 fig = plt.figure(figsize=(20, 10))
             plt.subplot(233)
             plt.plot(x, abs(self.Delta))
-            
             plt.title(r'$|\Delta|$')
 
             if res is not None:
@@ -49,27 +47,21 @@ class PlotBase(object):
                 plt.title(r'$n_-$')
 
                 plt.subplot(234)
-
                 j_a = res.j_a[0]
                 j_b = res.j_b[0]
                 j_p = j_a + j_b
-                # j_m = j_a - j_b
-                # utheta = np.exp(1j*np.angle(x + 1j*y))
                 plt.plot(x, j_a)
                 plt.title(r'$j_a$')
-
 
                 plt.subplot(235)
                 plt.plot(x, j_b)
                 plt.title(r'$j_b$')
-                
 
                 plt.subplot(236)
                 plt.plot(x, j_p)
                 plt.title(r'$j_+$')
         else:
             x, y = self.xyz[:2]
-            # res = self.res if res is None else res
             if fig is None:
                 fig = plt.figure(figsize=(20, 10))
             plt.subplot(233)
@@ -92,12 +84,9 @@ class PlotBase(object):
                 plt.colorbar()
 
                 plt.subplot(234)
-
                 j_a = res.j_a[0] + 1j*res.j_a[1]
                 j_b = res.j_b[0] + 1j*res.j_b[1]
                 j_p = j_a + j_b
-                # j_m = j_a - j_b
-                # utheta = np.exp(1j*np.angle(x + 1j*y))
                 imcontourf(x, y, abs(j_a), aspect=1)
                 plt.title(r'$j_a$')
                 plt.colorbar()
@@ -110,7 +99,8 @@ class PlotBase(object):
 
                 plt.subplot(236)
                 imcontourf(x, y, abs(j_p), aspect=1)
-                plt.title(r'$j_+$'); plt.colorbar()
+                plt.title(r'$j_+$')
+                plt.colorbar()
                 plt.quiver(x.ravel(), y.ravel(), j_p.real, j_p.imag)
         return fig
 
@@ -166,35 +156,36 @@ def plot_2D(self, fig=None, res=None, fontsize=36):
 
 
 def plot_all(
-        vs=[], hs=[], mu=10, dx=1, fontsize=14,
-        xlim=12, ls='-', one_c=False):
+        vs=[], hs=[], mu=10, fontsize=14,
+        xlim=12, ls='-', one_col=False, dx=1, dx_text="dx"):
     """
     plot bcs and homogeneouse vortex data
     -----------
     vs: bcs vortices list
-    hs: homogeneoous results list
+    hs: homogeneous results list
+    one_col: bool,  if true, stack plots in single column
     """
     for v in vs:
         mu = sum(v.mus)/2
-        dx = v.dxyz[0]
+        if dx is None:
+            dx = v.dxyz[0]
         r = np.sqrt(sum(_x**2 for _x in v.xyz))
         k_F = np.sqrt(2*mu)
-        plt.subplot(511) if one_c else plt.subplot(321) 
+        plt.subplot(511) if one_col else plt.subplot(321) 
         plt.plot(r.ravel()/dx, abs(v.Delta).ravel()/mu, '+', label="BCS")
         plt.ylabel(r'$\Delta/E_F$', fontsize=fontsize)
         plt.xlim(0, xlim)
-        plt.subplot(512) if one_c else plt.subplot(323)  
+        plt.subplot(512) if one_col else plt.subplot(323)  
         res = v.res
         plt.plot(
             r.ravel()/dx, abs(res.n_a + res.n_b).ravel()/k_F, '+', label="BCS")
         plt.ylabel(r"$n_p/k_F$", fontsize=fontsize)
         plt.xlim(0, xlim)
-        plt.subplot(513) if one_c else plt.subplot(324)
+        plt.subplot(513) if one_col else plt.subplot(324)
         plt.plot(
             r.ravel()/dx, abs(res.n_a - res.n_b).ravel()/k_F, '+', label="BCS")
         plt.ylabel(r"$n_m/k_F$", fontsize=fontsize)
         plt.xlim(0, xlim)
-
         plt.ylim(-1, 1)
         x, y = v.xyz
         r_vec = x+1j*y
@@ -202,53 +193,49 @@ def plot_all(
         j_a_ = clockwise(r_vec, j_a_)*np.abs(j_a_)
         j_b_ = res.j_b[0] + 1j*res.j_b[1]
         j_b_ = clockwise(r_vec, j_b_)*np.abs(j_b_) 
-        plt.subplot(514) if one_c else plt.subplot(325)
+        plt.subplot(514) if one_col else plt.subplot(325)
         plt.plot(r.ravel()/dx, j_a_.ravel(), '+', label="BCS")
         plt.ylabel(r"$j_a$", fontsize=fontsize)
         plt.xlim(0, xlim)
-        plt.subplot(515) if one_c else plt.subplot(326)
+        plt.subplot(515) if one_col else plt.subplot(326)
         plt.plot(r.ravel()/dx, j_b_.ravel(), '+', label="BCS")
         plt.ylabel(r"$j_b$", fontsize=fontsize)
         plt.xlim(0, xlim)
     # homogeneous part
     for res_h in hs:
-        rs, ds, ps, ps0, n_p, n_m, j_a, j_b = res_h
+        rs, ds, ps, pn, n_p, n_m, j_a, j_b = res_h
         k_F = np.sqrt(2*mu)
-        plt.subplot(511) if one_c else plt.subplot(321)
+        plt.subplot(511) if one_col else plt.subplot(321)
         plt.plot(rs, np.array(ds)/mu, ls, label="Homogeneous")
         plt.legend()
         plt.ylabel(r'$\Delta/E_F$', fontsize=fontsize)
-    #     plt.subplot(322)
-    #     plt.ylabel(r"Pressure/$E_F$", fontsize=fontsize)
-    #     plt.plot(rs, ps, label="FF State/Superfluid State Pressure")
-    #     plt.plot(rs, ps0, '-', label="Normal State pressure")
-    #     plt.legend()
-        plt.subplot(512) if one_c else plt.subplot(323)  
+        plt.subplot(512) if one_col else plt.subplot(323)  
         plt.plot(rs, n_p/k_F, ls, label="Homogeneous")
         plt.ylabel(r"$n_p/k_F$", fontsize=fontsize)
         plt.legend()
-        plt.subplot(513) if one_c else plt.subplot(324)
+        plt.subplot(513) if one_col else plt.subplot(324)
         plt.plot(rs, n_m/k_F, ls, label="Homogeneous")
         plt.ylabel(r"$n_m/k_F$", fontsize=fontsize)
         plt.legend()
-        plt.subplot(514) if one_c else plt.subplot(325)
+        plt.subplot(514) if one_col else plt.subplot(325)
         plt.plot(rs, j_a, ls, label="Homogeneous")
         plt.ylabel(r"$j_a$", fontsize=fontsize)
-        if not one_c:
+        if not one_col:
             plt.xlabel(r"$r/dx$", fontsize=fontsize)
         plt.axhline(0, linestyle='dashed')
         plt.legend()
-        plt.subplot(515) if one_c else plt.subplot(326)
+        plt.subplot(515) if one_col else plt.subplot(326)
         plt.plot(rs, j_b,  ls, label="Homogeneous")
         plt.axhline(0, linestyle='dashed')
-        plt.xlabel(r"$r/dx$", fontsize=fontsize)
+        plt.xlabel(r"$r/$"+f"{dx_text}", fontsize=fontsize)
         plt.ylabel(r"$j_b$", fontsize=fontsize)
         plt.legend()
 
 
 def FFVortex(
         mus=None, delta=None, L=8, N=32,
-        R=None, k_c=None, N1=10, N2=10):
+        R=None, k_c=None, N1=10, N2=10,
+        ds=None, pressure_flag=False):
     """
         a function to solve gap equations for different q in a vortex.
         then the results deltas are used to compute densities, pressues
@@ -270,15 +257,18 @@ def FFVortex(
     #  for r close to the vortex core, some more points
     rs = np.linspace(0.1, 1, N1)
     rs = np.append(rs, np.linspace(1.01, R, N2))
-    ds = [f.solve(
-        mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
-    for i in range(len(ds)):
-        ps = [f.get_pressure(
-            mu_eff=mu, dmu_eff=dmu, delta=d, dq=0.5/r,
-            use_kappa=False).n for r, d in zip(rs, ds)]
-        ps0 = [f.get_pressure(
-            mu_eff=mu, dmu_eff=dmu, delta=1e-8, q=0, dq=0,
-            use_kappa=False).n for r, d in zip(rs, ds)]
+    if ds is None:
+        ds = [f.solve(
+            mu=mu, dmu=dmu, dq=0.5/_r, a=0.001, b=2*delta) for _r in rs]
+    ps, ps0 = [], []
+    if pressure_flag:
+        for i in range(len(ds)):
+            ps = [f.get_pressure(
+                mu_eff=mu, dmu_eff=dmu, delta=d, dq=0.5/r,
+                use_kappa=False).n for r, d in zip(rs, ds)]
+            ps0 = [f.get_pressure(
+                mu_eff=mu, dmu_eff=dmu, delta=1e-8, q=0, dq=0,
+                use_kappa=False).n for r, d in zip(rs, ds)]
     na = np.array([])
     nb = np.array([])
     for i in range(len(rs)):
@@ -356,7 +346,7 @@ class VortexState(Vortex, PlotBase):
                 mus_eff=self.mus, delta=self.Delta,
                 N_twist=self.N_twist)
             self.res = res
-            Delta0, self.Delta = self.Delta, self.g*res.nu  # ....
+            Delta0, self.Delta = self.Delta, self.g*res.nu
             err = abs(Delta0 - self.Delta).max()
             if plot and display:
                 plt.clf()
