@@ -401,10 +401,7 @@ def Vortex2D(
     v = VortexState(mu=mu, dmu=dmu, delta=delta, Nxyz=(N, N), Lxyz=(L,L), E_c=None)
     v.solve(plot=plot_2d, tol=tol)
     h_res = FFVortex(mus=v.mus, delta=v.delta, L=L, N=N, N1=N1, N2=N2, k_c=k_c)
-    if plot:
-        plt.figure(figsize=(16,8))
-        plot_all(vs=[v], hs=[h_res], ls='-o', xlim=xlim, **args)
-    Results = namedtuple('Results', ['N','L', 'delta','mu','dmu','E_c','k_c', 'v_res', 'h_res', 'err'])
+    
     if use_file == False:
         try:
             with open(join(currentdir, file_name), 'w') as wf:
@@ -415,6 +412,10 @@ def Vortex2D(
                 print(f'File {file_name} saved.')
         except:
             print("Json Exception.")
+    if plot:
+        plt.figure(figsize=(16,8))
+        plot_all(vs=[v], hs=[h_res], ls='-o', xlim=xlim, **args)
+    Results = namedtuple('Results', ['N','L', 'delta','mu','dmu','E_c','k_c', 'v_res', 'h_res', 'err'])
     return Results(N=N, L=N, delta=delta, mu=mu, dmu=dmu,
                     E_c=E_c, k_c=k_c, v_res=v.res, h_res=h_res, err=err)
 
@@ -442,20 +443,10 @@ res_s_2 = Vortex2D(mu=1, dmu=1.5, delta=5, N=32, L=5, k_c=20, N1=15, N2=5)
 
 res_s_3 = Vortex2D(mu=1, dmu=2, delta=5, N=32, L=5, k_c=20, N1=15, N2=5)
 
-r_dx = res_s_4.h_res[0]
-
-rs
-
-r_dx
-
-0.5/np.array(rs)/dx
-
-res_s_4 = Vortex2D(mu=1, dmu=3, delta=5, N=32, L=5, k_c=20, N1=10, N2=5)
+res_s_4 = Vortex2D(mu=1, dmu=3, delta=5, N=32, L=5, k_c=20, N1=10, N2=5, use_file=True)
 
 # ## Gap Solution Double Check
 # * result format of the homogeneous calculation h_res = (rs/dx, ds, ps, ps0, n_p, n_m, j_a, j_b)
-
-
 
 from fulde_ferrell_state import FFState
 from scipy.optimize import brentq
@@ -481,12 +472,9 @@ def check_delta(v_res, id):
     return brentq(f, 0, 10)
 
 
-
 deltas_new = res_s_4.h_res[1]
 
 deltas_new[4]= check_delta(res_s_4, 4)
-
-
 
 # ## Medium Coupling
 # * To be medium compling, we may let $\Delta \approx\mu$

@@ -252,10 +252,10 @@ def plot_all(
         plt.subplot(511) if one_col else plt.subplot(321)
         l, = plt.plot(rs, np.array(ds)/mu, ls, label="Homogeneous")
         if len(rs_) > 0:
-            plt.plolt(rs_, ds_, '--', c=l.get_c())
+            plt.plot(rs_, ds_, '--', c=l.get_c())
         plt.legend()
         plt.ylabel(r'$\Delta/E_F$', fontsize=fontsize)
-        plt.subplot(512) if one_col else plt.subplot(323)  
+        plt.subplot(512) if one_col else plt.subplot(323)
         plt.plot(rs, n_p/k_F, ls, label="Homogeneous")
         plt.ylabel(r"$n_p/k_F$", fontsize=fontsize)
         plt.legend()
