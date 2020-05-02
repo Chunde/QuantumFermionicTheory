@@ -1,7 +1,5 @@
 
 import inspect
-import time
-import glob
 import json
 import os
 import sys
@@ -9,18 +7,21 @@ import numpy as np
 from scipy.optimize import brentq
 from mmf_hfb.class_factory import FunctionalType, KernelType
 from mmf_hfb.class_factory import ClassFactory, Solvers
-from mmf_hfb.parallel_helper import PoolHelper
 from mmf_hfb import hfb, homogeneous
 from mmf_hfb.utils import clockwise
 from IPython.display import clear_output
 import matplotlib.pyplot as plt
 from mmfutils.plot import imcontourf
 from collections import namedtuple
-
 currentdir = os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0, currentdir)
 from fulde_ferrell_state import FFState
+
+
+def to_list(c):
+    """convert complex to two-component list"""
+    return [c.real, c.imag]
 
 
 def res_to_json(res):
@@ -28,9 +29,6 @@ def res_to_json(res):
     convert the res to dict object for json file
     """
     output = {}
-
-    def to_list(c):
-        return [c.real, c.imag]
     try:
         output['j_a'] = to_list(res.j_a)
         output['j_b'] = to_list(res.j_b)
@@ -194,7 +192,7 @@ def plot_2D(self, fig=None, res=None, fontsize=36):
 
 def plot_all(
         vs=[], hs=[], mu=10, fontsize=14,
-        xlim=12, ls='-', one_col=False, dx=1, dx_text="dx"):
+        xlim=12, ls='-', one_col=False, dx=None, dx_text="dx", **args):
     """
     plot bcs and homogeneouse vortex data
     -----------
@@ -240,7 +238,9 @@ def plot_all(
         plt.xlim(0, xlim)
     # homogeneous part
     for res_h in hs:
-        dx, rs, ds, ds_ex = res_h.dx, res_h.rs, res_h.ds, res_h.ds_ex
+        dx_, rs, ds, ds_ex = res_h.dx, res_h.rs, res_h.ds, res_h.ds_ex
+        if dx is None:
+            dx = dx_
         n_p, n_m, j_a, j_b = res_h.n_p, res_h.n_m, res_h.j_a, res_h.j_b
         k_F = np.sqrt(2*mu)
         rs_ = []
@@ -267,7 +267,7 @@ def plot_all(
         plt.plot(rs, j_a, ls, label="Homogeneous")
         plt.ylabel(r"$j_a$", fontsize=fontsize)
         if not one_col:
-            plt.xlabel(r"$r/dx$", fontsize=fontsize)
+            plt.xlabel(r"$r/$"+f"{dx_text}", fontsize=fontsize)
         plt.axhline(0, linestyle='dashed')
         plt.legend()
         plt.subplot(515) if one_col else plt.subplot(326)

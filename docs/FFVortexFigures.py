@@ -30,11 +30,15 @@ from os.path import join
 currentdir = os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0, join(currentdir, '..','Projects','FuldeFerrellState'))
-from fulde_ferrell_state_vortex import FFVortex, VortexState, plot_2D, plot_all, res_to_json, json_to_res
+from fulde_ferrell_state_vortex import FFVortex, VortexState, plot_2D, plot_all, res_to_json, json_to_res, to_list
 import warnings
 warnings.filterwarnings("ignore")
 fontsize = 18
 
+# +
+import json
+from collections import namedtuple
+from mmf_hfb.utils import JsonEncoderEx
 
 def get_error_ratio(mu, delta, k_c=200):
     """get the error ratio dn/n"""
@@ -46,11 +50,71 @@ def get_error_ratio(mu, delta, k_c=200):
     err = k_xi**4/k_c**2/k_F**2/(2*np.pi)**4/4
     return err
 
+def dic2namedtupe(dic, name='Results'):
+    Results = namedtuple(name, sorted(dic))
+    return Results(**dic)
+
+def to_complex(ls):
+    """a two component array to complex numbers"""
+    return np.array(ls[0])+1j*np.array(ls[1])
+
+def Vortex2D(
+        mu, dmu, delta, N=32, L=5, E_c=None, k_c=20, N1=7, N2=5,
+        plot=True, plot_2d=False, xlim=None, use_file=False, file_name=None, tol=0.05, **args):
+    """
+    compute BCS 2D box vortex and homogeneous results
+    ------
+    N1: number of points near the vortex
+    N2: number of points outside the vortex
+    """
+    if file_name is None:
+        file_name=f"Vortex2D_Data_{mu}_{dmu}_{delta}_{N}_{L}_{E_c}_{k_c}_{N1}_{N2}.json"
+    if use_file:
+        try:
+            with open(join(currentdir, file_name), 'r',encoding='utf-8', errors='ignore') as rf:
+                obj = json.load(rf)
+                obj['v_res'] = json_to_res(obj['v_res'])
+                obj['h_res'] = dic2namedtupe(obj['h_res'])
+                obj['v_delta']=to_complex(obj['v_delta'])
+                if plot:
+                    plt.figure(figsize=(16,8))
+                    v = VortexState(
+                        mu=obj['mu'], dmu=obj['dmu'], delta=obj['delta'],
+                        Nxyz=(obj['N'],)*2, Lxyz=(obj['L'],)*2)
+                    v.res = obj['v_res']
+                    v.Delta = obj['v_delta']
+                    plot_all(vs=[v], hs=[obj['h_res']], ls='-o', xlim=xlim, **args)
+                return obj
+        except:
+            use_file = False
+            print("Load file failed.")
+    k_c = np.pi*N/L
+    err = get_error_ratio(mu=mu, delta=delta, k_c=k_c)
+    print(f"Error Ratio:{err}")
+    v = VortexState(mu=mu, dmu=dmu, delta=delta, Nxyz=(N, N), Lxyz=(L,L), E_c=None)
+    v.solve(plot=plot_2d, tol=tol)
+    h_res = FFVortex(mus=v.mus, delta=v.delta, L=L, N=N, N1=N1, N2=N2, k_c=k_c)
+    if plot:
+        plt.figure(figsize=(16,8))
+        plot_all(vs=[v], hs=[h_res], ls='-o', xlim=xlim, **args)
+    Results = namedtuple('Results', ['N','L', 'delta','mu','dmu','E_c','k_c', 'v_res', 'h_res', 'err'])
+    if use_file == False:
+        try:
+            with open(join(currentdir, file_name), 'w') as wf:
+                output = dict(
+                    N=N, L=L, delta=delta, mu=mu, dmu=dmu, v_delta=to_list(v.Delta), 
+                    E_c=E_c, k_c=k_c, v_res=res_to_json(v.res), h_res=h_res._asdict(), err=err)
+                json.dump(output, wf, cls=JsonEncoderEx)
+                print(f'File {file_name} saved.')
+        except:
+            print("Json Exception.")
+    return Results(N=N, L=N, delta=delta, mu=mu, dmu=dmu,
+                    E_c=E_c, k_c=k_c, v_res=v.res, h_res=h_res, err=err)
 
 
-res_s_0 = Vortex2D(mu=1, dmu=0, delta=5, N=32, L=5, k_c=20, N1=1, N2=1, tol=10, use_file=True)
+# -
 
-# * If want to reload package without restart the kernel
+res_s_0 = Vortex2D(mu=1, dmu=0, delta=5, N=32, L=5, k_c=20, N1=15, N2=5, use_file=True)
 
 # import importlib
 # import fulde_ferrell_state_vortex as ffsv; importlib.reload(ffsv)
@@ -256,20 +320,12 @@ def numberical_parameter_estimator(mu=1, delta=5, k_c=20):
 
 numberical_parameter_estimator()
 
-# +
-# Homogeneous state.
-# Here we check expectations of convergence.  If our code
-# is converging, then dimensionless relationships should
-# be universal.
-# As a check, there is an exact solution for 
-# Delta/eF = sqrt(2) with mu/eF = 0.5
-# healing_length = \hbar/\sqrt{2m\Delta}
-#
-# A "large" Delta = 10*mu has mu ~ eF/5, and eta ~ 2
-# Thus, we must have k_c > max(1, sqrt(2))k_F
-# If hbar = mu = m = 1, then k_F ~ sqrt(10)
-# so we must have $k_c > sqrt(20)$
-
+# ## Homogeneous state
+# * Here we check expectations of convergence.  If our code is converging, then dimensionless relationships should be universal.
+# * As a check, there is an exact solution for $\Delta/e_F = \sqrt{2}$ with $\mu/e_F = 0.5$
+# * healing_length $h_{\xi}= \hbar/\sqrt{2m\Delta}$
+# * A "large" $\Delta = 10\mu$ has $\mu \approx e_F/5$, and $\eta \approx 2$.  Thus, we must have $k_c > max(1, \sqrt{2})k_F$
+# * If $\hbar = \mu = m = 1$, then $k_F \approx \sqrt{10}$, so we must have $k_c > \sqrt{20}$
 
 deltas = np.linspace(0.1, 20.0, 20)
 mus = [2, 1.0, 0.5]
@@ -293,7 +349,6 @@ ax2.plot([2*np.sqrt(2)], [0.5], '+')
 ax1.set(xlabel='$\Delta/\mu$', ylabel='$\Delta/e_F$ (solid)');
 ax2.set(xlabel='$\Delta/\mu$', ylabel='$\mu/e_F$ (dotted)');
 ax1.legend()
-# -
 
 # * For a box with lenght $L$ and number of point $N$, the $k_c\approx20$, then from the homogeneous plots above, the reange of coupling $\Delta$ that works well within this cutoff is below 5
 
@@ -306,9 +361,13 @@ def dic2namedtupe(dic, name='Results'):
     Results = namedtuple(name, sorted(dic))
     return Results(**dic)
 
+def to_complex(ls):
+    """a two component array to complex numbers"""
+    return np.array(ls[0])+1j*np.array(ls[1])
+
 def Vortex2D(
         mu, dmu, delta, N=32, L=5, E_c=None, k_c=20, N1=7, N2=5,
-        plot=True, plot_2d=False, xlim=None, use_file=False, file_name=None, tol=0.05):
+        plot=True, plot_2d=False, xlim=None, use_file=False, file_name=None, tol=0.05, **args):
     """
     compute BCS 2D box vortex and homogeneous results
     ------
@@ -323,15 +382,18 @@ def Vortex2D(
                 obj = json.load(rf)
                 obj['v_res'] = json_to_res(obj['v_res'])
                 obj['h_res'] = dic2namedtupe(obj['h_res'])
+                obj['v_delta']=to_complex(obj['v_delta'])
                 if plot:
                     plt.figure(figsize=(16,8))
                     v = VortexState(
                         mu=obj['mu'], dmu=obj['dmu'], delta=obj['delta'],
                         Nxyz=(obj['N'],)*2, Lxyz=(obj['L'],)*2)
                     v.res = obj['v_res']
-                    plot_all(vs=[v], hs=[obj['h_res']], ls='-o', xlim=xlim)
+                    v.Delta = obj['v_delta']
+                    plot_all(vs=[v], hs=[obj['h_res']], ls='-o', xlim=xlim, **args)
                 return obj
         except:
+            use_file = False
             print("Load file failed.")
     k_c = np.pi*N/L
     err = get_error_ratio(mu=mu, delta=delta, k_c=k_c)
@@ -341,17 +403,17 @@ def Vortex2D(
     h_res = FFVortex(mus=v.mus, delta=v.delta, L=L, N=N, N1=N1, N2=N2, k_c=k_c)
     if plot:
         plt.figure(figsize=(16,8))
-        plot_all(vs=[v], hs=[h_res], ls='-o', xlim=xlim)
-    Results = namedtuple('Results', ['N','L', 'delta','mu','dmu','E_c','k_c','v_res', 'h_res', 'err'])
-    if use_file==False:
+        plot_all(vs=[v], hs=[h_res], ls='-o', xlim=xlim, **args)
+    Results = namedtuple('Results', ['N','L', 'delta','mu','dmu','E_c','k_c', 'v_res', 'h_res', 'err'])
+    if use_file == False:
         try:
             with open(join(currentdir, file_name), 'w') as wf:
                 output = dict(
-                    N=N, L=N, delta=delta, mu=mu, dmu=dmu,
+                    N=N, L=L, delta=delta, mu=mu, dmu=dmu, v_delta=to_list(v.Delta), 
                     E_c=E_c, k_c=k_c, v_res=res_to_json(v.res), h_res=h_res._asdict(), err=err)
                 json.dump(output, wf, cls=JsonEncoderEx)
                 print(f'File {file_name} saved.')
-        except TypeError:
+        except:
             print("Json Exception.")
     return Results(N=N, L=N, delta=delta, mu=mu, dmu=dmu,
                     E_c=E_c, k_c=k_c, v_res=v.res, h_res=h_res, err=err)
@@ -364,7 +426,11 @@ def Vortex2D(
 
 # ## Symetric case
 
-res_s_0 = Vortex2D(mu=1, dmu=0, delta=5, N=32, L=5, k_c=20, N1=15, N2=5, use_file=True)
+len_xi = 1.0/(2*5)**0.5
+
+res_s_0 = Vortex2D(mu=1, dmu=0, delta=5, N=32, L=5, k_c=20, N1=15, N2=5, use_file=True, dx=len_xi, dx_text=r"$h_{\xi}$")
+
+res_s_0 = Vortex2D(mu=1, dmu=0, delta=5, N=32, L=5, k_c=20, N1=15, N2=5, use_file=True, )
 
 # ## Asymmetric Cases
 # * For Strong coupling, in the box case, we do not see polarization for $\delta mu$ from 1 to 2.
