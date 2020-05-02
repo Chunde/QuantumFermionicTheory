@@ -13,6 +13,9 @@ from IPython.display import clear_output
 import matplotlib.pyplot as plt
 from mmfutils.plot import imcontourf
 from collections import namedtuple
+from os.path import join
+from mmf_hfb.utils import JsonEncoderEx
+
 currentdir = os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0, currentdir)
@@ -663,3 +666,79 @@ class VortexFunctional(PlotBase):
                     display(fig)
                     clear_output(wait=True)
                 delta, mu_a_eff, mu_b_eff = delta_, mu_a_eff_, mu_b_eff_
+
+
+def dic2namedtupe(dic, name='Results'):
+    Results = namedtuple(name, sorted(dic))
+    return Results(**dic)
+
+
+def to_complex(ls):
+    """a two component array to complex numbers"""
+    return np.array(ls[0])+1j*np.array(ls[1])
+
+
+def get_error_ratio(mu, delta, k_c=200):
+    """get the error ratio dn/n"""
+    h2 = homogeneous.Homogeneous(dim=2)
+    res = h2.get_densities((mu, mu), delta=delta, k_c=k_c)
+    n = res.n_a + res.n_b
+    k_xi = np.pi*2*np.sqrt(2*delta)
+    k_F = np.sqrt(2*np.pi * n)
+    err = k_xi**4/k_c**2/k_F**2/(2*np.pi)**4/4
+    return err
+
+def Vortex2D(
+        mu, dmu, delta, N=32, L=5, E_c=None, k_c=20, N1=7, N2=5,
+        plot=True, plot_2d=False, xlim=None, use_file=False,
+        current_dir=None, file_name=None, tol=0.05, **args):
+    """
+    compute BCS 2D box vortex and homogeneous results
+    ------
+    N1: number of points near the vortex
+    N2: number of points outside the vortex
+    """
+    if file_name is None:
+        file_name=f"Vortex2D_Data_{mu}_{dmu}_{delta}_{N}_{L}_{E_c}_{k_c}_{N1}_{N2}.json"
+    if use_file:
+        try:
+            with open(join(current_dir, file_name), 'r',encoding='utf-8', errors='ignore') as rf:
+                obj = json.load(rf)
+                obj['v_res'] = json_to_res(obj['v_res'])
+                obj['h_res'] = dic2namedtupe(obj['h_res'])
+                obj['v_delta']=to_complex(obj['v_delta'])
+                if plot:
+                    plt.figure(figsize=(16,8))
+                    v = VortexState(
+                        mu=obj['mu'], dmu=obj['dmu'], delta=obj['delta'],
+                        Nxyz=(obj['N'],)*2, Lxyz=(obj['L'],)*2)
+                    v.res = obj['v_res']
+                    v.Delta = obj['v_delta']
+                    plot_all(vs=[v], hs=[obj['h_res']], ls='-o', xlim=xlim, **args)
+                return obj
+        except:
+            use_file = False
+            print("Load file failed.")
+    k_c = np.pi*N/L
+    err = get_error_ratio(mu=mu, delta=delta, k_c=k_c)
+    print(f"Error Ratio:{err}")
+    v = VortexState(mu=mu, dmu=dmu, delta=delta, Nxyz=(N, N), Lxyz=(L,L), E_c=None)
+    v.solve(plot=plot_2d, tol=tol)
+    h_res = FFVortex(mus=v.mus, delta=v.delta, L=L, N=N, N1=N1, N2=N2, k_c=k_c)
+    
+    if use_file == False:
+        try:
+            with open(join(currentdir, file_name), 'w') as wf:
+                output = dict(
+                    N=N, L=L, delta=delta, mu=mu, dmu=dmu, v_delta=to_list(v.Delta), 
+                    E_c=E_c, k_c=k_c, v_res=res_to_json(v.res), h_res=h_res._asdict(), err=err)
+                json.dump(output, wf, cls=JsonEncoderEx)
+                print(f'File {file_name} saved.')
+        except:
+            print("Json Exception.")
+    if plot:
+        plt.figure(figsize=(16,8))
+        plot_all(vs=[v], hs=[h_res], ls='-o', xlim=xlim, **args)
+    Results = namedtuple('Results', ['N','L', 'delta','mu','dmu','E_c','k_c', 'v_res', 'h_res', 'err'])
+    return Results(N=N, L=N, delta=delta, mu=mu, dmu=dmu,
+                    E_c=E_c, k_c=k_c, v_res=v.res, h_res=h_res, err=err)
