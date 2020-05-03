@@ -381,35 +381,75 @@ simplify(w_p), simplify(w_m), simplify(dw_p), simplify(dw_m)
 
 # * Simplified by hand:
 # \begin{align}
-# \omega_{\pm}&=-\frac{\mu_-}{2} + kq \pm\sqrt{4\Delta^2 + (k^2 + q^2 + \mu_+^2)^2}=0\\
-# \frac{\partial \omega_{\pm}}{\partial k}&=\frac{\pm k(-2\mu_+ + 2k^2+2q^2) +2q\sqrt{4\Delta^2 + (k^2 + q^2 + \mu_+^2)^2}}{2q\sqrt{4\Delta^2 + (k^2 + q^2 + \mu_+^2)^2}}=0
+# \omega_{\pm}&=-\frac{\mu_-}{2} + kq \pm\sqrt{4\Delta^2 + (k^2 + q^2 - \mu_+^2)^2}=0\\
+# \frac{\partial \omega_{\pm}}{\partial k}&=\frac{\pm k(-2\mu_+ + 2k^2+2q^2) +2q\sqrt{4\Delta^2 + (k^2 + q^2 - \mu_+^2)^2}}{2q\sqrt{4\Delta^2 + (k^2 + q^2 - \mu_+^2)^2}}=0
 # \end{align}
 # * How to solve for $q$?
 
+# \begin{align}
+#  k &=\frac{1}{q}\left(\frac{\mu_-}{2}\mp\sqrt{4\Delta^2 + (k^2 + q^2 - \mu_+^2)^2}\right)\\
+#  q&=\frac{\mp k(-\mu_+ + k^2+q^2)}{\sqrt{4\Delta^2 + (k^2 + q^2 - \mu_+^2)^2}}
+# \end{align}
+
 # +
 """to find the minum qs"""
+mu = 1
+dmu = 0
+delta = 5
+
 def wp_k(k, q):
     mu_k_q =  k**2+q**2 - mu
-    return (-dmu + (4*delta**2+(-mu + mu_k_q**2)**2)**0.5 - 2*k*q)  # igonre a factor of 2
+    return (-dmu + 2*(4*delta**2+(-mu + mu_k_q**2)**2)**0.5 - 2*k*q)  # igonre a factor of 2
 
 def wm_k(k, q):
     mu_k_q =  k**2+q**2 - mu
     return (-dmu - (4*delta**2+(-mu + mu_k_q**2)**2)**0.5 - 2*k*q ) # igonre a factor of 2
 
-def diff_wp_k(k, q):
+def d_wp_k(k, q):
     mu_k_q = -2*mu + 2*(k**2+q**2)
     denom = (16*delta**2 + mu_k_q**2)**0.5
     dk = k*mu_k_q + q*denom
     return dk  # /denom
 
-def diff_wm_k(k, q):
+def d_wm_k(k, q):
     mu_k_q = -2*mu + 2*(k**2+q**2)
     denom = (16*delta**2 + mu_k_q**2)**0.5
     dk = -k*mu_k_q + q*denom
     return dk  # /denom    
 
+def k_wp_k(k, q):
+    mu_k_q =  k**2+q**2 - mu
+    return (mu/2 - (4*delta**2 + mu_k_q**2)**0.5)/q
+
+def q_wp_k(k, q):
+    mu_k_q =  k**2+q**2 - mu
+    return -k*mu_k_q/(4*delta**2 + mu_k_q**2)**0.5
+
 
 # -
+
+qs = np.linspace(0, k_F, 2)
+ks = np.linspace(0, 5, 20)
+for dq in qs:
+    wp = wp_k(ks, dq)
+    plt.plot(ks, wp)
+
+# +
+from scipy.optimize import fsolve
+import math
+k_F = (2*mu)**0.5
+
+def equations(p):
+    k, q = p
+    return (wp_k(k, q), d_wp_k(k, q))
+
+
+# -
+
+fsolve(equations, (k_F, k_F))
+
+x, y = fsolve(equations, (1, 1))
+wp_k(x,y),d_wp_k(x,y)
 
 # ## Strong Coupling
 # In this section, we exam the strong coupling regime, where $\Delta\gg\mu$
@@ -483,7 +523,7 @@ res_w_1 = Vortex2D(mu=1, dmu=0.3, delta=0.75, N=32, L=5, k_c=20, N1=15, N2=5)
 
 res_w_2 = Vortex2D(mu=1, dmu=0.5, delta=0.75, N=32, L=5, k_c=20, N1=15, N2=5)
 
-res_w_3 = Vortex2D(mu=1, dmu=1, delta=0.75, N=32, L=5, k_c=20, N1=15, N2=5)
+res_w_3 = Vortex2D(mu=1, dmu=1, delta=0.75, N=32, L=5, k_c=20, N1=15, N2=5, use_file=True)
 
 # # Counterflow
 
