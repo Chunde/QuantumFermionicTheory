@@ -15,6 +15,7 @@ from mmfutils.plot import imcontourf
 from collections import namedtuple
 from os.path import join
 from mmf_hfb.utils import JsonEncoderEx
+from mmf_hfb.hfb import BCS
 
 currentdir = os.path.dirname(
             os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -393,9 +394,11 @@ class VortexState(Vortex, PlotBase):
         # The follow line may cause issue as its results includes
         # all state even we set a cutoff. Need to double check
         h = homogeneous.Homogeneous(
-            Nxyz=self.Nxyz, Lxyz=self.Lxyz, dim=self.dim, k_c=self.k_c)
+            Nxyz=self.Nxyz, Lxyz=self.Lxyz, dim=self.dim)
         # h = homogeneous.Homogeneous(dim=2, k_c=self.k_c)
         res = h.get_densities(mus_eff=mus_eff, delta=delta)
+
+
         g = delta/res.nu
         h = homogeneous.Homogeneous(dim=self.dim)
         self.k_c_g = h.set_kc_with_g(mus_eff=mus_eff, delta=delta, g=g)
@@ -689,7 +692,7 @@ def get_error_ratio(mu, delta, k_c=200):
     return err
 
 
-def Vortex2D(
+def compute_vortex2d(
         mu, dmu, delta, N=32, L=5, E_c=None, k_c=20, N1=7, N2=5,
         plot=True, plot_2d=False, xlim=None, use_file=False,
         current_dir=None, file_name=None, tol=0.05, **args):
@@ -705,6 +708,7 @@ def Vortex2D(
         file_name = (
             f"Vortex2D_Data_{mu}_{dmu}_{delta}_"
             + f"{N}_{L}_{E_c}_{k_c}_{N1}_{N2}.json")
+    print(file_name)
     if use_file:
         try:
             with open(
@@ -739,7 +743,7 @@ def Vortex2D(
 
     if use_file is False:
         try:
-            with open(join(currentdir, file_name), 'w') as wf:
+            with open(join(current_dir, file_name), 'w') as wf:
                 output = dict(
                     N=N, L=L, delta=delta, mu=mu, dmu=dmu,
                     v_delta=to_list(v.Delta),
@@ -758,3 +762,60 @@ def Vortex2D(
     return Results(
         N=N, L=N, delta=delta, mu=mu, dmu=dmu, E_c=E_c,
         k_c=k_c, v_res=v.res, h_res=h_res, err=err)
+
+
+def unpack_data(res):
+    """Unpack the result from the Vortex2D method"""
+    N = res['N']  # box point
+    L = res['L']  # box size
+    mu = res['mu']  # mu
+    dmu =  res['dmu']  # dmu
+    box_delta0 = res['delta']  # delta0 for used to fix g
+
+    E_c = res['E_c']  # E_c for box
+    k_c = res['k_c']  # k_c for homogeneous
+    v_res = res['v_res']
+    # box result
+    box_delta = np.array(res['v_delta'])  # final converge pairing field
+    box_n_a = np.array(v_res.n_a)  # n_a for the box
+    box_n_b = np.array(v_res.n_b)  # n_b for the box
+    box_j_a = np.array(v_res.j_a)  # j_a for the box
+    box_j_b = np.array(v_res.j_b)  #  j_b for the box
+    # construct a vortex instance
+    v = VortexState(mu=mu, dmu=dmu, delta=box_delta0, Nxyz=(N,)*2, Lxyz=(L,)*2)
+    v.Delta=box_delta
+    v.res=v_res
+    box_rs = np.sqrt(sum(_x**2 for _x in v.xyz))  # box radius
+    # homogeneous result
+    h_res = res['h_res']
+    hom_dx = np.array(h_res.dx)  # homogeneous dx =N/L
+    hom_rs = np.array(h_res.rs)
+    hom_delta = np.array(h_res.ds)
+    hom_n_p = np.array(h_res.n_p)
+    hom_n_m = np.array(h_res.n_m)
+    hom_n_a = (hom_n_p + hom_n_m)/2
+    hom_n_b = (hom_n_p - hom_n_m)/2
+    hom_j_a = np.array(h_res.j_a)
+    hom_j_b = np.array(h_res.j_b)
+    ds_ex = h_res.ds_ex
+    hom_rs_ex =[]
+    hom_delta_ex = []
+    for (r, d) in ds_ex:
+        hom_rs_ex.append(r)
+        hom_delta_ex.append(d)
+    hom_rs_ex = np.array(hom_rs_ex)
+    hom_delta_ex = np.array(hom_delta_ex)
+    Data = namedtuple("Data", ['v', 'N', 'L', 'mu', 'dmu', 'box_delta0', 
+                               'E_c', 'k_c', 'box_xyz', 'box_rs', 'box_delta', 'box_n_a',
+                               'box_n_b', 'box_j_a', 'box_j_b','hom_dx',
+                              'hom_rs', 'hom_delta', 'hom_n_a', 'hom_n_b',
+                              'hom_j_a', 'hom_j_b', 'hom_delta_ex', 'hom_rs_ex'])
+    return Data(
+        v=v, N=N, L=L, mu=mu, dmu=dmu, box_delta0=box_delta0, E_c=E_c,
+        k_c=k_c, box_xyz=v.xyz, box_rs=box_rs, box_delta=box_delta,
+        box_n_a=box_n_a, box_n_b=box_n_b,
+        box_j_a=box_j_a, box_j_b=box_j_b, hom_dx=hom_dx, hom_rs=hom_rs,
+        hom_delta=hom_delta, hom_n_a=hom_n_a,
+        hom_n_b=hom_n_b, hom_j_a=hom_j_a,
+        hom_j_b=hom_j_b, hom_rs_ex=hom_rs_ex, hom_delta_ex=hom_delta_ex)
+
