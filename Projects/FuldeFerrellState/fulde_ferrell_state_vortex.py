@@ -529,7 +529,7 @@ def FFVortexFunctional(
     NOTE: when dq( or 1/r) larger than k_c, that would be
     problematic.
     Example:
-    -------- 
+    --------
     if __name__ == "__main__":
         mu, dmu = 10, 4.5
         mus, delta, L, N, R, k_c = (mu + dmu, mu - dmu), 7.5, 8, 32, 4, 50
@@ -612,7 +612,7 @@ class VortexFunctional(PlotBase):
         self.mus = (mu_eff + dmu_eff, mu_eff - dmu_eff)
 
         args = dict(
-            mu_eff=mu, dmu_eff=dmu, delta=delta, Nxyz=Nxyz, Lxyz=Lxyz,
+            mu_eff=mu_eff, dmu_eff=dmu_eff, delta=delta, Nxyz=Nxyz, Lxyz=Lxyz,
             T=0, dim=len(Nxyz), k_c=k_c, R=min(Lxyz)/2, verbosity=False, **kw)
         lda = ClassFactory(
             "LDA", functionalType=functionalType, kernelType=kernelType,
@@ -688,6 +688,7 @@ def get_error_ratio(mu, delta, k_c=200):
     err = k_xi**4/k_c**2/k_F**2/(2*np.pi)**4/4
     return err
 
+
 def Vortex2D(
         mu, dmu, delta, N=32, L=5, E_c=None, k_c=20, N1=7, N2=5,
         plot=True, plot_2d=False, xlim=None, use_file=False,
@@ -699,22 +700,28 @@ def Vortex2D(
     N2: number of points outside the vortex
     """
     if file_name is None:
-        file_name=f"Vortex2D_Data_{mu}_{dmu}_{delta}_{N}_{L}_{E_c}_{k_c}_{N1}_{N2}.json"
+        file_name = (
+            f"Vortex2D_Data_{mu}_{dmu}_{delta}_"
+            + f"{N}_{L}_{E_c}_{k_c}_{N1}_{N2}.json")
     if use_file:
         try:
-            with open(join(current_dir, file_name), 'r',encoding='utf-8', errors='ignore') as rf:
+            with open(
+                    join(current_dir, file_name), 'r',
+                    encoding='utf-8', errors='ignore') as rf:
                 obj = json.load(rf)
                 obj['v_res'] = json_to_res(obj['v_res'])
                 obj['h_res'] = dic2namedtupe(obj['h_res'])
-                obj['v_delta']=to_complex(obj['v_delta'])
+                obj['v_delta'] = to_complex(obj['v_delta'])
                 if plot:
-                    plt.figure(figsize=(16,8))
+                    plt.figure(figsize=(16, 8))
                     v = VortexState(
                         mu=obj['mu'], dmu=obj['dmu'], delta=obj['delta'],
                         Nxyz=(obj['N'],)*2, Lxyz=(obj['L'],)*2)
                     v.res = obj['v_res']
                     v.Delta = obj['v_delta']
-                    plot_all(vs=[v], hs=[obj['h_res']], ls='-o', xlim=xlim, **args)
+                    plot_all(
+                        vs=[v], hs=[obj['h_res']],
+                        ls='-o', xlim=xlim, **args)
                 return obj
         except:
             use_file = False
@@ -722,23 +729,32 @@ def Vortex2D(
     k_c = np.pi*N/L
     err = get_error_ratio(mu=mu, delta=delta, k_c=k_c)
     print(f"Error Ratio:{err}")
-    v = VortexState(mu=mu, dmu=dmu, delta=delta, Nxyz=(N, N), Lxyz=(L,L), E_c=None)
+    v = VortexState(
+        mu=mu, dmu=dmu, delta=delta,
+        Nxyz=(N, N), Lxyz=(L, L), E_c=None)
     v.solve(plot=plot_2d, tol=tol)
-    h_res = FFVortex(mus=v.mus, delta=v.delta, L=L, N=N, N1=N1, N2=N2, k_c=k_c)
-    
-    if use_file == False:
+    h_res = FFVortex(
+        mus=v.mus, delta=v.delta, L=L,
+        N=N, N1=N1, N2=N2, k_c=k_c)
+
+    if use_file is False:
         try:
             with open(join(currentdir, file_name), 'w') as wf:
                 output = dict(
-                    N=N, L=L, delta=delta, mu=mu, dmu=dmu, v_delta=to_list(v.Delta), 
-                    E_c=E_c, k_c=k_c, v_res=res_to_json(v.res), h_res=h_res._asdict(), err=err)
+                    N=N, L=L, delta=delta, mu=mu, dmu=dmu,
+                    v_delta=to_list(v.Delta),
+                    E_c=E_c, k_c=k_c, v_res=res_to_json(v.res),
+                    h_res=h_res._asdict(), err=err)
                 json.dump(output, wf, cls=JsonEncoderEx)
                 print(f'File {file_name} saved.')
         except:
             print("Json Exception.")
     if plot:
-        plt.figure(figsize=(16,8))
+        plt.figure(figsize=(16, 8))
         plot_all(vs=[v], hs=[h_res], ls='-o', xlim=xlim, **args)
-    Results = namedtuple('Results', ['N','L', 'delta','mu','dmu','E_c','k_c', 'v_res', 'h_res', 'err'])
-    return Results(N=N, L=N, delta=delta, mu=mu, dmu=dmu,
-                    E_c=E_c, k_c=k_c, v_res=v.res, h_res=h_res, err=err)
+    Results = namedtuple('Results', [
+        'N', 'L', 'delta','mu','dmu',
+        'E_c','k_c', 'v_res', 'h_res', 'err'])
+    return Results(
+        N=N, L=N, delta=delta, mu=mu, dmu=dmu, E_c=E_c,
+        k_c=k_c, v_res=v.res, h_res=h_res, err=err)
