@@ -699,7 +699,6 @@ def Vortex2D(
     N1: number of points near the vortex
     N2: number of points outside the vortex
     """
-    k_c = np.pi*N/L
     err = get_error_ratio(mu=mu, delta=delta, k_c=k_c)
     print(f"Error Ratio:{err}")
     if file_name is None:
