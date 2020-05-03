@@ -699,6 +699,9 @@ def Vortex2D(
     N1: number of points near the vortex
     N2: number of points outside the vortex
     """
+    k_c = np.pi*N/L
+    err = get_error_ratio(mu=mu, delta=delta, k_c=k_c)
+    print(f"Error Ratio:{err}")
     if file_name is None:
         file_name = (
             f"Vortex2D_Data_{mu}_{dmu}_{delta}_"
@@ -726,9 +729,7 @@ def Vortex2D(
         except:
             use_file = False
             print("Load file failed.")
-    k_c = np.pi*N/L
-    err = get_error_ratio(mu=mu, delta=delta, k_c=k_c)
-    print(f"Error Ratio:{err}")
+
     v = VortexState(
         mu=mu, dmu=dmu, delta=delta,
         Nxyz=(N, N), Lxyz=(L, L), E_c=E_c)
