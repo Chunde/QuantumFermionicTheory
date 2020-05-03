@@ -400,7 +400,6 @@ class BCS(object):
     def _get_densities_H(self, H, dUV=None, twists=0):
         """return densities for a given H"""
         d, UV = np.linalg.eigh(H) if dUV is None else dUV
-        self._d = d  #
         U, V = U_V = self.get_U_V(H=H, UV=UV)
         dU_Vs = self._Del(U_V, twists=twists)
         dUs, dVs = dU_Vs[:, 0, ...], dU_Vs[:, 1, ...]
@@ -420,6 +419,45 @@ class BCS(object):
         """Return (R, Rm) with the specified twist."""
         H = self.get_H(mus_eff=mus_eff, delta=delta, twists=twists, **args)
         return self._get_densities_H(H, twists=twists)
+    
+    def get_angular_momentum_spectra(
+            self, mus_eff, delta, N_twist=1,
+            abs_tol=1e-12, **args):
+        """
+        return the angular momentum for 2D, 3D.
+        Only consider the cases without twisting
+        -------------
+        NOTE: developing version, not tested yet
+        """
+        assert self.dim == 2 or self.dim == 3
+        H = self.get_H(mus_eff=mus_eff, delta=delta, **args)
+        d, uv = np.linalg.eigh(H)
+        U, V = U_V = self.get_U_V(H=H, UV=uv)
+        dU_Vs = self._Del(U_V)
+        dUs, dVs = dU_Vs[:, 0, ...], dU_Vs[:, 1, ...]
+        # f_p, f_m = self.f(d), self.f(-d)
+        
+        def get_L(f, df):
+            """
+            f is the wave function
+            df is the first order derivative of f
+            L_x = -i\hbar (y d/dz - z d/dy)
+            L_y = -i\hbar (z d/dx - x d/dz)
+            L_z = -i\hbar (x d/dy - y d/dx)
+            """
+            x, y = self.xyz[:2]
+            Lz = f*x[:, :, None]*df[1] - f*y[:, :, None]*df[0]
+            if self.dim == 2:
+                Lx=Ly=Lz*0
+            else:
+                z = self.xyz[2]
+                Lx = f*y[:, :, None]*df[2] - f*z[:, :, None]*df[1]
+                Ly = f*z[:, :, None]*df[0] - f*x[:, :, None]*df[2]
+            return -1j*self.hbar*np.array([Lx, Ly, Lz])
+        L_u = get_L(U, dUs)
+        L_v = get_L(V, dVs)
+        Results = namedtuple("Results", ['es', 'L_u', 'L_v'])
+        return Results(es=d, L_u=L_u, L_v=L_v)
 
     def get_densities(
             self, mus_eff, delta, N_twist=1,
@@ -485,7 +523,7 @@ class BCS(object):
         ks = 2*np.pi*np.fft.fftfreq(self.Nxyz[0]*N_factor, self.dxyz[0])
         obj_twists_kp = [(obj, vs, twists, k, args) for k in ks]
         res = PoolHelper.run(mqaud_worker_thread, paras=obj_twists_kp)
-        dens = sum(res)/(obj.dxyz[0] * obj.Nxyz[0] * N_factor)
+        dens = sum(res)/(obj.dxyz[0]*obj.Nxyz[0]*N_factor)
         return dens
 
     def get_dens_integral(
@@ -520,3 +558,8 @@ class BCS(object):
             taus[0] + taus[1])*self.hbar**2/2/self.m - g_eff*kappa.T.conj()*kappa
         pressure = ns[0]*mus[0] + ns[1]*mus[1] - energy_density
         return (ns, energy_density, pressure)
+
+
+if __name__ == "__main__":
+    b = BCS(Lxyz=(1, 1), Nxyz=(4, 4))
+    b.get_angular_momentum(mus_eff=(1, 1), delta=5)
