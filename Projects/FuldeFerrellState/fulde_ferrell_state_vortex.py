@@ -769,7 +769,7 @@ def unpack_data(res):
     N = res['N']  # box point
     L = res['L']  # box size
     mu = res['mu']  # mu
-    dmu =  res['dmu']  # dmu
+    dmu = res['dmu']  # dmu
     box_delta0 = res['delta']  # delta0 for used to fix g
 
     E_c = res['E_c']  # E_c for box
@@ -780,11 +780,11 @@ def unpack_data(res):
     box_n_a = np.array(v_res.n_a)  # n_a for the box
     box_n_b = np.array(v_res.n_b)  # n_b for the box
     box_j_a = np.array(v_res.j_a)  # j_a for the box
-    box_j_b = np.array(v_res.j_b)  #  j_b for the box
+    box_j_b = np.array(v_res.j_b)  # j_b for the box
     # construct a vortex instance
     v = VortexState(mu=mu, dmu=dmu, delta=box_delta0, Nxyz=(N,)*2, Lxyz=(L,)*2)
-    v.Delta=box_delta
-    v.res=v_res
+    v.Delta = box_delta
+    v.res = v_res
     box_rs = np.sqrt(sum(_x**2 for _x in v.xyz))  # box radius
     # homogeneous result
     h_res = res['h_res']
@@ -806,10 +806,12 @@ def unpack_data(res):
     hom_rs_ex = np.array(hom_rs_ex)
     hom_delta_ex = np.array(hom_delta_ex)
     Data = namedtuple("Data", ['v', 'N', 'L', 'mu', 'dmu', 'box_delta0', 
-                               'E_c', 'k_c', 'box_xyz', 'box_rs', 'box_delta', 'box_n_a',
-                               'box_n_b', 'box_j_a', 'box_j_b','hom_dx',
-                              'hom_rs', 'hom_delta', 'hom_n_a', 'hom_n_b',
-                              'hom_j_a', 'hom_j_b', 'hom_delta_ex', 'hom_rs_ex'])
+                                'E_c', 'k_c', 'box_xyz', 'box_rs',
+                                'box_delta', 'box_n_a',
+                                'box_n_b', 'box_j_a', 'box_j_b', 'hom_dx',
+                                'hom_rs', 'hom_delta', 'hom_n_a', 'hom_n_b',
+                                'hom_j_a', 'hom_j_b', 'hom_delta_ex',
+                                'hom_rs_ex'])
     return Data(
         v=v, N=N, L=L, mu=mu, dmu=dmu, box_delta0=box_delta0, E_c=E_c,
         k_c=k_c, box_xyz=v.xyz, box_rs=box_rs, box_delta=box_delta,
@@ -819,3 +821,20 @@ def unpack_data(res):
         hom_n_b=hom_n_b, hom_j_a=hom_j_a,
         hom_j_b=hom_j_b, hom_rs_ex=hom_rs_ex, hom_delta_ex=hom_delta_ex)
 
+
+def get_min_e(mu, dmu, delta,  N=32, L=5):
+    """return the min energy in the spectrum
+    NOTE: the delta for a 2d box vortex should
+        be the final converged one
+    EXAMPLE:
+    res_s_0 = compute_vortex2d(mu=1, dmu=0, delta=5, N=32, L=5, k_c=20,
+                   N1=15, N2=5, use_file=True)
+    res = unpack_data(res_s_0)
+    get_min_e(N=res.N, L=res.L, mu=res.mu, dmu=0, delta=res.box_delta)
+    """
+    print(f"mu={mu}, dmu={dmu}, N={N}, L={L}")
+    mus = (mu + dmu, mu - dmu)
+    b = BCS(Nxyz=(N, N), Lxyz=(L, L))
+    H = b.get_H(mus_eff=mus, delta=delta)
+    d = np.linalg.eigvals(H)
+    return abs(d).min()*2  # return the min energy
