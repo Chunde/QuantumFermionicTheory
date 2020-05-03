@@ -731,7 +731,7 @@ def Vortex2D(
     print(f"Error Ratio:{err}")
     v = VortexState(
         mu=mu, dmu=dmu, delta=delta,
-        Nxyz=(N, N), Lxyz=(L, L), E_c=None)
+        Nxyz=(N, N), Lxyz=(L, L), E_c=E_c)
     v.solve(plot=plot_2d, tol=tol)
     h_res = FFVortex(
         mus=v.mus, delta=v.delta, L=L,

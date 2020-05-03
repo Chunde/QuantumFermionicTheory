@@ -279,83 +279,6 @@ ax1.legend()
 
 # * For a box with lenght $L$ and number of point $N$, the $k_c\approx20$, then from the homogeneous plots above, the reange of coupling $\Delta$ that works well within this cutoff is below 5
 
-# import json
-# from collections import namedtuple
-# from mmf_hfb.utils import JsonEncoderEx
-#
-# def dic2namedtupe(dic, name='Results'):
-#     Results = namedtuple(name, sorted(dic))
-#     return Results(**dic)
-#
-# def to_complex(ls):
-#     """a two component array to complex numbers"""
-#     return np.array(ls[0])+1j*np.array(ls[1])
-#
-#
-# def get_error_ratio(mu, delta, k_c=200):
-#     """get the error ratio dn/n"""
-#     h2 = homogeneous.Homogeneous(dim=2)
-#     res = h2.get_densities((mu, mu), delta=delta, k_c=k_c)
-#     n = res.n_a + res.n_b
-#     k_xi = np.pi*2*np.sqrt(2*delta)
-#     k_F = np.sqrt(2*np.pi * n)
-#     err = k_xi**4/k_c**2/k_F**2/(2*np.pi)**4/4
-#     return err
-#
-# def Vortex2D(
-#         mu, dmu, delta, N=32, L=5, E_c=None, k_c=20, N1=7, N2=5,
-#         plot=True, plot_2d=False, xlim=None, use_file=False, file_name=None, tol=0.05, **args):
-#     """
-#     compute BCS 2D box vortex and homogeneous results
-#     ------
-#     N1: number of points near the vortex
-#     N2: number of points outside the vortex
-#     """
-#     if file_name is None:
-#         file_name=f"Vortex2D_Data_{mu}_{dmu}_{delta}_{N}_{L}_{E_c}_{k_c}_{N1}_{N2}.json"
-#     if use_file:
-#         try:
-#             with open(join(currentdir, file_name), 'r',encoding='utf-8', errors='ignore') as rf:
-#                 obj = json.load(rf)
-#                 obj['v_res'] = json_to_res(obj['v_res'])
-#                 obj['h_res'] = dic2namedtupe(obj['h_res'])
-#                 obj['v_delta']=to_complex(obj['v_delta'])
-#                 if plot:
-#                     plt.figure(figsize=(16,8))
-#                     v = VortexState(
-#                         mu=obj['mu'], dmu=obj['dmu'], delta=obj['delta'],
-#                         Nxyz=(obj['N'],)*2, Lxyz=(obj['L'],)*2)
-#                     v.res = obj['v_res']
-#                     v.Delta = obj['v_delta']
-#                     plot_all(vs=[v], hs=[obj['h_res']], ls='-o', xlim=xlim, **args)
-#                 return obj
-#         except:
-#             use_file = False
-#             print("Load file failed.")
-#     k_c = np.pi*N/L
-#     err = get_error_ratio(mu=mu, delta=delta, k_c=k_c)
-#     print(f"Error Ratio:{err}")
-#     v = VortexState(mu=mu, dmu=dmu, delta=delta, Nxyz=(N, N), Lxyz=(L,L), E_c=None)
-#     v.solve(plot=plot_2d, tol=tol)
-#     h_res = FFVortex(mus=v.mus, delta=v.delta, L=L, N=N, N1=N1, N2=N2, k_c=k_c)
-#     
-#     if use_file == False:
-#         try:
-#             with open(join(currentdir, file_name), 'w') as wf:
-#                 output = dict(
-#                     N=N, L=L, delta=delta, mu=mu, dmu=dmu, v_delta=to_list(v.Delta), 
-#                     E_c=E_c, k_c=k_c, v_res=res_to_json(v.res), h_res=h_res._asdict(), err=err)
-#                 json.dump(output, wf, cls=JsonEncoderEx)
-#                 print(f'File {file_name} saved.')
-#         except:
-#             print("Json Exception.")
-#     if plot:
-#         plt.figure(figsize=(16,8))
-#         plot_all(vs=[v], hs=[h_res], ls='-o', xlim=xlim, **args)
-#     Results = namedtuple('Results', ['N','L', 'delta','mu','dmu','E_c','k_c', 'v_res', 'h_res', 'err'])
-#     return Results(N=N, L=N, delta=delta, mu=mu, dmu=dmu,
-#                     E_c=E_c, k_c=k_c, v_res=v.res, h_res=h_res, err=err)
-
 # ## Critial $\delta q$
 
 from sympy import *
@@ -454,11 +377,93 @@ wp_k(x,y),d_wp_k(x,y)
 # ## Strong Coupling
 # In this section, we exam the strong coupling regime, where $\Delta\gg\mu$
 
+from mmf_hfb.hfb import BCS
+import numpy as np
+def get_min_e(mu, dmu, delta, dq, N=32, L=5):
+    """return the min energy in the spectrum"""
+    mus = (mu + dmu, mu - dmu)
+    b = BCS(Nxyz=(N, N), Lxyz=(L,L))
+    H = b.get_H(mus_eff=mus, delta=delta, dq=dq)
+    d = np.linalg.eigvals(H)
+    return abs(d).min()
+
+# +
+
+    
+    
+# -
+
 # ## Symetric case
 
 len_xi = 1.0/(2*5)**0.5
 
 res_s_0 = Vortex2D(mu=1, dmu=0, delta=5, N=32, L=5, k_c=20, N1=15, N2=5, use_file=True, dx=len_xi, dx_text=r"$h_{\xi}$")
+
+h_res = res_s_0['v_res']
+
+# +
+from collections import namedtuple
+
+def unpack_data(res):
+    N = res['N']  # box point
+    L = res['L']  # box size
+    mu = res['mu']  # mu
+    dmu =  res['dmu']  # dmu
+    box_delta0 = res['delta']  # delta0 for used to fix g
+    
+    E_c = res['E_c']  # E_c for box
+    k_c = res['k_c']  # k_c for homogeneous
+    v_res = res['v_res']
+    # box result
+    box_delta = np.array(res['v_delta'])  # final converge pairing field
+    box_n_a = np.array(v_res.n_a)  # n_a for the box
+    box_n_b = np.array(v_res.n_b)  # n_b for the box
+    box_j_a = np.array(v_res.j_a)  # j_a for the box
+    box_j_b = np.array(v_res.j_b)  #  j_b for the box
+    # construct a vortex instance
+    v = VortexState(mu=mu, dmu=dmu, delta=box_delta0, Nxyz=(N,)*2, Lxyz=(L,)*2)
+    v.Delta=box_delta
+    v.res=v_res
+    box_rs = np.sqrt(sum(_x**2 for _x in v.xyz))  # box rs
+    # homogeneous result
+    h_res = res['h_res']
+    hom_dx = np.array(h_res.dx)  # homogeneous dx =N/L
+    hom_rs = np.array(h_res.rs)
+    hom_delta = np.array(h_res.ds)
+    hom_n_p = np.array(h_res.n_p)
+    hom_n_m = np.array(h_res.n_m)
+    hom_n_a = (hom_n_p + hom_n_m)/2
+    hom_n_b = (hom_n_p - hom_n_m)/2
+    hom_j_a = np.array(h_res.j_a)
+    hom_j_b = np.array(h_res.j_b)
+    ds_ex = h_res.ds_ex
+    hom_rs_ex =[]
+    hom_delta_ex = []
+    for (r, d) in ds_ex:
+        hom_rs_ex.append(r)
+        hom_delta_ex.append(d)
+    hom_rs_ex = np.array(hom_rs_ex)
+    hom_delta_ex = np.array(hom_delta_ex)
+    Data = namedtuple("Data", ['v', 'N', 'L', 'mu', 'dmu', 'box_delta0', 
+                               'E_c', 'k_c', 'box_xyz', 'box_rs', 'box_delta', 'box_n_a',
+                               'box_n_b', 'box_j_a', 'box_j_b','hom_dx',
+                              'hom_rs', 'hom_delta', 'hom_n_a', 'hom_n_b',
+                              'hom_j_a', 'hom_j_b', 'hom_delta_ex', 'hom_rs_ex'])
+    return Data(v=v, N=N, L=L, mu=mu, dmu=dmu, box_delta0=box_delta0, E_c=E_c,
+               k_c=k_c, box_xyz=v.xyz, box_rs=box_rs, box_delta=box_delta, box_n_a=box_n_a, box_n_b=box_n_b,
+               box_j_a=box_j_a, box_j_b=box_j_b, hom_dx=hom_dx, hom_rs=hom_rs,
+               hom_delta=hom_delta, hom_n_a=hom_n_a, hom_n_b=hom_n_b, hom_j_a=hom_j_a,
+               hom_j_b=hom_j_b, hom_rs_ex=hom_rs_ex, hom_delta_ex=hom_delta_ex)
+ 
+
+# -
+
+res = unpack_data(res_s_0)
+dx = res.hom_dx
+plt.plot(res.box_rs.ravel()/dx, abs(res.box_delta.ravel()))
+plt.plot(res.hom_rs/dx, res.hom_delta, '-o')
+
+
 
 res_s_0 = Vortex2D(mu=1, dmu=0, delta=5, N=32, L=5, k_c=20, N1=15, N2=5, use_file=True, )
 
