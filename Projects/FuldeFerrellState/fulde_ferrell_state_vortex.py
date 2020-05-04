@@ -260,7 +260,7 @@ def plot_all(
         plt.legend()
         plt.ylabel(r'$\Delta/\mu$', fontsize=fontsize)
         plt.subplot(512) if one_col else plt.subplot(323)
-        plt.plot(rs, n_p/k_F, ls, label="Homogeneous")
+        plt.plot(rs, n_p, ls, label="Homogeneous")
         plt.ylabel(r"$n_p$", fontsize=fontsize)
         plt.legend()
         plt.subplot(513) if one_col else plt.subplot(324)
