@@ -902,7 +902,7 @@ def compute_pressure_current(root=None):
             compute_pressure_current_worker(item)
     else:
         PoolHelper.run(
-            compute_pressure_current_worker, jsonObjects, poolsize=10)
+            compute_pressure_current_worker, jsonObjects, poolsize=6)
 
 
 class AutoPDG(object):
@@ -1206,7 +1206,7 @@ def rename_p_j_files():
 if __name__ == "__main__":
     # search_delta_q_manager(delta=1.5)
     # PDG()
-    # compute_pressure_current()
+    compute_pressure_current()
     # wait_key()
     # rename_p_j_files()
-    run_grid()
+    # run_grid()
