@@ -241,7 +241,6 @@ def PlotPhaseDiagram(output=None, show_grid=True, raw_data=False, points=[]):
     plt.text(0.8*x_r, 2.2*y_r, r'Superfluid state region $\Delta\ne0, q=0$', rotation=40)
 
 
-
 from fulde_ferrell_state_vortex import FFVortex, FFVortexFunctional, create_ffs_lda
 mu = 10
 dmu = 4.5
@@ -269,6 +268,8 @@ plt.figure(figsize(16,6))
 PlotPhaseDiagram(output=output, points=[(x, y)])
 xs = np.linspace(0, 5, 100)
 plt.plot(xs, xs, '--')
+plt.axhline(6)
+plt.axvline(7)
 plt.savefig("ff_state_phase_diagram_2d.pdf", bbox_inches='tight')
 
 filter_output = []
@@ -283,15 +284,16 @@ PlotPhaseDiagram(output=filter_output, points=[(x, y)])
 xs = np.linspace(0, 5, 100)
 plt.plot(xs, xs, '--')
 
+output_ff =[]
 for item in output:
     if item['state']:
         output_ff.append(item)
 item_max = output_ff[0]
-    for item in output_ff:
-        # print(item['pf'] - item['pn'])
-        if (item['pf'] - item['pn'])>(item_max['pf'] - item_max['pn']):
-            item_max = item
-    print(item_max)
+for item in output_ff:
+    # print(item['pf'] - item['pn'])
+    if (item['pf'] - item['pn'])>(item_max['pf'] - item_max['pn']):
+        item_max = item
+print(item_max)
 
 
 def find_most_stable_ff_state():

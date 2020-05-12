@@ -15,7 +15,7 @@
 
 # # Fulde Ferrell State Playgound
 # This notebook contain a solution to the FF State that has higher pressure than the superfluid state. Since we have two methods to implement the FF State class, one is using the ClassFactory method, which can be extented to other functionals, but the code struture is a bit hard to understand. Another method is simply use the old FuldeFerrell Stete Class. I suggest to use the FuldeFerrellState class.
-# The found FF State has fixed $g$ or $C$ using ($\Delta_0$=0.5, and $\mu=10$, $\delta \mu=0.9$, note: when compute $g$ or $C$, I only use $\Delta_0$ and $\mu$), then I found a FF state at ($dq= 0.185303399358032, \Delta=0.19205999324117845$)
+# The found FF State has fixed $g$ or $C$ using ($\Delta_0$=0.9, and $\mu=10$, $\delta \mu=0.9$, note: when compute $g$ or $C$, I only use $\Delta_0$ and $\mu$), then I found a FF state at ($dq= 0.185303399358032, \Delta=0.19205999324117845$)
 
 import mmf_setup;mmf_setup.nbinit()
 # %pylab inline --no-import-all
@@ -72,18 +72,18 @@ dmu = brentq(_f, 0, delta0)
 dmu_Ps = np.asarray(dmu_Ps)
 dmu_Ps.sort(axis=0)
 
-dmus, Ps = dmu_Ps.T
-plt.plot(dmus, Ps, '+-')
-plt.axhline(P0, c='y')
-plt.axvline(dmu, c='y')
+# dmus, Ps = dmu_Ps.T
+# plt.plot(dmus, Ps, '+-')
+# plt.axhline(P0, c='y')
+# plt.axvline(dmu, c='y')
 
 dmu
 
 # Now we consider FF states at this point.
 
-plt.plot(dqs, deltas)
-P_ffs = [ff.get_pressure(mu=mu_eff, dmu=dmu, delta=delta, dq=dq)
-         for (dq, deltas) in zip(dqs, deltas)]
+# plt.plot(dqs, deltas)
+# P_ffs = [ff.get_pressure(mu=mu_eff, dmu=dmu, delta=delta, dq=dq)
+#          for (dq, deltas) in zip(dqs, deltas)]
 
 dmu = 0.35
 P_ff = ff.get_pressure(mu=mu_eff, dmu=dmu, delta=delta0)
