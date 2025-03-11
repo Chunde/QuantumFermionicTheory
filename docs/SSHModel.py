@@ -2,14 +2,15 @@
 # ---
 # jupyter:
 #   jupytext:
+#     cell_metadata_json: true
 #     formats: ipynb,py:light
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.4'
-#       jupytext_version: 1.2.3
+#       format_version: '1.5'
+#       jupytext_version: 1.16.7
 #   kernelspec:
-#     display_name: Python 3
+#     display_name: Python 3 (ipykernel)
 #     language: python
 #     name: python3
 # ---
@@ -17,7 +18,7 @@
 # + {"id": "_762UXGJ2yRO", "colab_type": "code", "outputId": "9a316bc9-2617-4d3b-bbcb-c7b52a5d48c1", "colab": {"base_uri": "https://localhost:8080/", "height": 34}}
 # %pylab inline --no-import-all
 
-# + {"id": "AtypauH1Auxw", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "AtypauH1Auxw", "colab_type": "text"}
 # # SSH Model
 #
 # Here we consider the SSH model as presented and discussed in [[Léséleuc:2019]](https://science.sciencemag.org/content/365/6455/775) which represents a finite 1D lattice of fermions with the following Hamiltonian (from their supplement):
@@ -27,7 +28,7 @@
 #         - J_2\sum_{i=1}^{L-1}c_{2i}^\dagger c_{2i+1}.\tag{S3}
 # \end{gather}
 
-# + {"id": "K_h6pxB5WQzM", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "K_h6pxB5WQzM", "colab_type": "text"}
 # ## Brute Force Diagonalization
 # * np.kron is the tensor product operation
 
@@ -84,7 +85,7 @@ ct = c.T
 op = np.matmul(ct, c)
 
 
-# + {"id": "IikbBXMnH1Ja", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "IikbBXMnH1Ja", "colab_type": "text"}
 # Here we plot the energes of the lowest excited states.  In the topological phase, the energy of the ground state has a four-fold degeneracy, so there are three degenerate "excited" states in the plot since we subtract off the energy of the ground state.
 # -
 
@@ -139,7 +140,7 @@ plt.xlabel("State")
 plt.ylabel(r"$(E-E_0)/J$")
 plt.title("Excited State Energies")
 
-# + {"id": "TY-RcwRcJU3x", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "TY-RcwRcJU3x", "colab_type": "text"}
 # ##### Exercise: Site Occupations
 #
 # It would be nice to plot the occupancies.  Compute the expectation value of the occupation of each site by forming $n_i = c_i^\dagger c_i$ and plot these for the lowest states to see if these agree with the Fig. 1 in the paper.
@@ -165,10 +166,10 @@ E = np.linalg.eigvalsh(H)
 [plt.axhline(_E) for _E in E];
 plt.ylim(-J-Jprime, J+Jprime)
 
-# + {"id": "bJ8s4CRSCwB8", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "bJ8s4CRSCwB8", "colab_type": "text"}
 # ### Profiling
 
-# + {"id": "mNsT4Qab_nsg", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "mNsT4Qab_nsg", "colab_type": "text"}
 # The maximum lattice size is about 6 or 7 if using full matrices ($L=7$ will take about an hour, $L=8$ will take about a day).
 
 # + {"id": "vKALyaSR-HX5", "colab_type": "code", "outputId": "b742156c-7c5d-4bcd-875c-a4f369a12d83", "colab": {"base_uri": "https://localhost:8080/", "height": 88}}
@@ -189,7 +190,7 @@ def get_T(L, Ls=Ls, ts=ts):
 
 print(f"T_6~{get_T(L=6):.0f}s, T_7~{get_T(L=7)/60:.0f}min, T_8~{get_T(L=8)/60/60:.0f}h")
 
-# + {"id": "JDvU6hrD3Q-L", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "JDvU6hrD3Q-L", "colab_type": "text"}
 # ## Sparse Implementation
 
 # + {"id": "P_7andqOWXlL", "colab_type": "code", "colab": {}}
@@ -278,10 +279,10 @@ plt.plot(range(Nstates), E[:Nstates], 'x', label='sparse')
 plt.legend()
 
 
-# + {"id": "4bXjVg84g5bY", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "4bXjVg84g5bY", "colab_type": "text"}
 # # GPU
 
-# + {"id": "BNXNtoQgk-fz", "colab_type": "text", "cell_type": "markdown"}
+# + [markdown] {"id": "BNXNtoQgk-fz", "colab_type": "text"}
 # Be sure to select the GPU accelerator before using the following code.  This version works, and is fast, but the GPU memory is limited, so we cannot do more than $L=5$.
 
 # + {"id": "dQy9I68wk4nA", "colab_type": "code", "colab": {}}
